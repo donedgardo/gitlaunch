@@ -1,0 +1,16 @@
+<td
+  id="{{serviceName}}-{{buildId}}-{{env}}"
+  sse-swap="update:{{serviceName}}-{{buildId}}-{{env}}"
+  hx-swap-oob="outerHTML"
+>
+  {{#if (showDeployButton status) }}
+    <button
+      hx-patch="/{{serviceName}}/build/{{buildId}}/{{env}}/dispatching"
+      hx-target="#{{serviceName}}-{{buildId}}-{{env}}"
+    >
+      Deploy
+    </button>
+  {{else}}
+    <span>{{status}}</span>
+  {{/if}}
+</td>

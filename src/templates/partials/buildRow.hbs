@@ -1,0 +1,19 @@
+<tr id="{{build.id}}">
+  <td>
+    <a
+      class="hover:underline"
+      href="{{getBuildCommitLink serviceName build.id}}"
+      target="_blank"
+    >
+      {{build.id}}
+    </a>
+  </td>
+  {{#each environments as |env|}}
+    {{> buildEnvironmentAction
+      buildId=../build.id
+      env=env
+      serviceName=../serviceName
+      status=(getStatus ../build env)
+    }}
+  {{/each}}
+</tr>

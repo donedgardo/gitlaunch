@@ -1,0 +1,17 @@
+<table id="build-table" class="table-auto" hx-swap-oob="true">
+  <thead>
+  <tr>
+    <th>Build</th>
+    {{#each environments as |env|}}
+      <th>
+        {{env}}
+      </th>
+    {{/each}}
+  </tr>
+  </thead>
+  <tbody>
+  {{#each builds as |build| }}
+    {{> buildRow build=build environments=../environments serviceName=../serviceName }}
+  {{/each}}
+  </tbody>
+</table>

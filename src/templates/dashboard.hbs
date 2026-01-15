@@ -1,0 +1,8 @@
+{{> navigation }}
+<main
+  id="main"
+  hx-ext="sse"
+  sse-connect="/build-update-stream"
+>
+  {{> buildTable serviceName=activeService }}
+</main>

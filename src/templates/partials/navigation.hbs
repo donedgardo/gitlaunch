@@ -1,0 +1,23 @@
+<nav id="main-navigation" class="flex justify-between" hx-swap-oob="true">
+  <ul class="py-3 flex flex-row flex-wrap text-base">
+    {{#each services as |serviceName|}}
+      <li class="mx-3">
+        <a
+          href=""
+          hx-get="/dashboard/{{serviceName}}"
+          hx-push-url="/dashboard/{{serviceName}}"
+          class="{{#if (eq serviceName ../activeService)}}underline{{/if}}"
+        >
+          {{serviceName}}
+        </a>
+      </li>
+    {{/each}}
+  </ul>
+  <a
+    href="/logout"
+    hx-boost="false"
+    class="text-base px-5 py-2 border-2 border-transparent hover:border-blue-700"
+  >
+    Logout
+  </a>
+</nav>
