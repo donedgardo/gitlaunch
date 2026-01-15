@@ -30,6 +30,7 @@ yarn test:e2e
 ## Architecture
 
 LaunchPad is a SaaS deployment management tool built with:
+
 - **Fastify** - Web server framework
 - **HTMX** - Client-side interactivity without a SPA
 - **Handlebars** - Server-side templating
@@ -41,11 +42,13 @@ LaunchPad is a SaaS deployment management tool built with:
 **Entry Point**: `src/index.ts` bootstraps the server with services and MongoDB connection.
 
 **Server Layer** (`src/server/`):
+
 - `index.ts` - Creates Fastify server and registers all route handlers
 - `registerPlugins.ts` - Configures Fastify plugins (static files, views, cookies, OAuth2, SSE)
 - Route handlers in subdirectories: `auth/`, `build/`, `dashboard/`, `health/`, `home/`
 
 **Services Layer** (`src/services/`):
+
 - `Service` class (`service/index.ts`) - Core business logic for managing deployments
 - `BuildStorageI` interface - Abstraction for build data persistence
 - `MongoBuildStorage` - MongoDB implementation of build storage
@@ -76,8 +79,117 @@ LaunchPad is a SaaS deployment management tool built with:
 ## Environment Variables
 
 Copy `sample.env` to `.env`. Required variables:
+
 - `MONGODB_URI` - MongoDB connection string
 - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` - OAuth credentials
 - `COOKIE_SECRET_SIGNATURE` - Cookie signing secret
 - `API_KEY` - API authentication key
 - `GITHUB_PAT` - GitHub Personal Access Token for dispatch workflows
+
+## TDD Development Mode
+
+When implementing features, Claude MUST follow the Red-Green-Refactor cycle:
+
+### TDD Workflow (MANDATORY)
+
+**Before writing ANY production code:**
+
+1. **RED Phase** - Write a failing test first
+
+   - Create test file if it doesn't exist: `{filename}.test.ts`
+   - Write test that describes the desired behavior
+   - Run `yarn test` to confirm it fails
+   - Commit: "test: [feature] - red"
+
+2. **GREEN Phase** - Make it pass with minimal code
+
+   - Write the simplest code that makes the test pass
+   - No premature optimization or abstraction
+   - Run `yarn test` to confirm it passes
+   - Commit: "feat: [feature] - green"
+
+3. **BLUE Phase** - Refactor if needed
+   - Look for duplication, long methods, unclear names
+   - Apply SOLID principles where appropriate
+   - Run `yarn test` after each refactor step
+   - Commit: "refactor: [feature] - blue"
+
+### Test BEHAVIOR, Not Implementation
+
+**CRITICAL**: Tests describe WHAT the system does, not HOW it does it.
+
+**Good (Behavior):**
+
+```typescript
+it("should return the account when found by slug", async () => {
+  // Given an account exists
+  await repo.create({ name: "My Org", slug: "my-org" });
+
+  // When I look it up by slug
+  const result = await repo.findBySlug("my-org");
+
+  // Then I get the account back
+  expect(result?.name).toBe("My Org");
+});
+```
+
+**Bad (Implementation):**
+
+```typescript
+it("should call collection.findOne with slug filter", async () => {
+  // Testing HOW not WHAT - coupled to MongoDB internals
+  await repo.findBySlug("my-org");
+  expect(mockCollection.findOne).toHaveBeenCalledWith({ slug: "my-org" });
+});
+```
+
+### Behavior Test Checklist
+
+- [ ] Does this test describe a user-visible outcome?
+- [ ] Would this test still pass if I refactored the internals?
+- [ ] Am I testing the contract, not the collaboration?
+- [ ] Can I explain this test without mentioning implementation?
+
+### Signs of Implementation-Coupled Tests (AVOID)
+
+- Mocking internal collaborators (use real collaborators or fakes)
+- Asserting method call counts or arguments
+- Testing private methods directly
+- Tests that break when you refactor without changing behavior
+- Tests that know about database schemas, HTTP details, etc.
+
+### When Mocks ARE Appropriate
+
+- External services (GitHub API, Stripe) - use contract-based fakes
+- Time-dependent code - inject clock abstraction
+- Random/non-deterministic behavior - inject seed or generator
+
+### Test Naming Convention
+
+```typescript
+describe("ClassName", () => {
+  describe("methodName", () => {
+    it("should [expected behavior] when [condition]", () => {
+      // Given - Arrange
+      // When - Act
+      // Then - Assert
+    });
+  });
+});
+```
+
+### When NOT to write tests first
+
+- Pure configuration files (e.g., tailwind.config.js)
+- HTML templates (test via integration/e2e tests)
+- Type definitions only (interfaces, types)
+
+### SOLID Principles as Refactoring Rails
+
+| Principle                 | When to Apply                                 |
+| ------------------------- | --------------------------------------------- |
+| **S**ingle Responsibility | Class doing too much? Extract                 |
+| **O**pen/Closed           | Adding if/switch for types? Use polymorphism  |
+| **L**iskov Substitution   | Subclass breaks parent contract? Redesign     |
+| **I**nterface Segregation | Client using subset of interface? Split it    |
+| **D**ependency Inversion  | Depending on concretions? Inject abstractions |
