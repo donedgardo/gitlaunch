@@ -1,8 +1,8 @@
-# LaunchPad
+# GitLaunch
 
 Stress-free deployment management for your organization.
 
-LaunchPad is a deployment tracking and management tool that streamlines your deployment process across multiple services and environments.
+GitLaunch is a deployment tracking and management tool that streamlines your deployment process across multiple services and environments.
 
 ## Features
 
@@ -32,12 +32,14 @@ LaunchPad is a deployment tracking and management tool that streamlines your dep
 ### Installation
 
 1. Clone the repository:
+
    ```bash
-   git clone https://github.com/your-org/launchpad.git
-   cd launchpad
+   git clone https://github.com/your-org/gitlaunch.git
+   cd gitlaunch
    ```
 
 2. Install dependencies:
+
    ```bash
    yarn install
    ```

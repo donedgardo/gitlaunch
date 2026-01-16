@@ -69,4 +69,23 @@ export class AccountRepository {
   async findBySlug(slug: string): Promise<Account | null> {
     return this.collection.findOne({ slug });
   }
+
+  async findById(id: ObjectId): Promise<Account | null> {
+    return this.collection.findOne({ _id: id });
+  }
+
+  async updateInstallation(
+    id: ObjectId,
+    installationId: number,
+  ): Promise<void> {
+    await this.collection.updateOne(
+      { _id: id },
+      {
+        $set: {
+          githubInstallationId: installationId,
+          updatedAt: new Date(),
+        },
+      },
+    );
+  }
 }

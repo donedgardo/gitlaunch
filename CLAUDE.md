@@ -29,7 +29,7 @@ yarn test:e2e
 
 ## Architecture
 
-LaunchPad is a SaaS deployment management tool built with:
+GitLaunch is a SaaS deployment management tool built with:
 
 - **Fastify** - Web server framework
 - **HTMX** - Client-side interactivity without a SPA

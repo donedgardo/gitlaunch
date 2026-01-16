@@ -95,4 +95,40 @@ describe("AccountRepository", () => {
       expect(result).toBeNull();
     });
   });
+
+  describe("findById", () => {
+    it("should return the account when found by ID", async () => {
+      // Given: an account exists
+      const created = await repo.create({
+        name: "Find By ID",
+        slug: "find-by-id",
+      });
+
+      // When: I look it up by ID
+      const result = await repo.findById(created._id);
+
+      // Then: I get the account back
+      expect(result).not.toBeNull();
+      expect(result!.name).toBe("Find By ID");
+      expect(result!._id.toString()).toBe(created._id.toString());
+    });
+  });
+
+  describe("updateInstallation", () => {
+    it("should update account with installation ID", async () => {
+      // Given: an account exists
+      const created = await repo.create({
+        name: "Install Me",
+        slug: "install-me",
+      });
+      expect(created.githubInstallationId).toBeNull();
+
+      // When: I update the installation
+      await repo.updateInstallation(created._id, 12345);
+
+      // Then: the account has the installation ID
+      const updated = await repo.findById(created._id);
+      expect(updated?.githubInstallationId).toBe(12345);
+    });
+  });
 });
