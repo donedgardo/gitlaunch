@@ -82,6 +82,17 @@ Transform GitLaunch from a single-tenant deployment tool into a multi-tenant Saa
 
 **Total Tests: 237** (Phase 1 + Phase 2 + Phase 3 + Phase 4 + existing tests)
 
+### Recent Refactoring (January 2026)
+
+| Change                                    | Description                                            |
+| ----------------------------------------- | ------------------------------------------------------ |
+| Session middleware for routes             | Replaced x-test-\* headers with proper session cookies |
+| `RealGitHubAppClient` → `GitHubAppClient` | Renamed class (production code assumed real)           |
+| `GitHubAppClient` → `IGitHubAppClient`    | Renamed interface to avoid naming collision            |
+| Runtime RSA key generation                | Tests generate keys at runtime instead of hardcoding   |
+| CI workflow simplified                    | Removed deployment, kept quality checks (build, tests) |
+| TypeScript strict mode fixes              | Fixed unused imports, type errors across codebase      |
+
 ---
 
 ## TDD Methodology: Red-Green-Refactor
