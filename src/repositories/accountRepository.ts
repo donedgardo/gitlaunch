@@ -16,6 +16,7 @@ export type Account = {
   planLimits: PlanLimits;
   stripeCustomerId: string | null;
   stripeSubscriptionId: string | null;
+  paymentFailedAt: Date | null;
   githubInstallationId: number | null;
   githubInstallationAccessToken: string | null;
   githubInstallationTokenExpiresAt: Date | null;
@@ -55,6 +56,7 @@ export class AccountRepository {
       planLimits: FREE_PLAN_LIMITS,
       stripeCustomerId: null,
       stripeSubscriptionId: null,
+      paymentFailedAt: null,
       githubInstallationId: null,
       githubInstallationAccessToken: null,
       githubInstallationTokenExpiresAt: null,
@@ -83,6 +85,75 @@ export class AccountRepository {
       {
         $set: {
           githubInstallationId: installationId,
+          updatedAt: new Date(),
+        },
+      },
+    );
+  }
+
+  async upgradeToPaid(
+    id: ObjectId,
+    stripeCustomerId: string,
+    stripeSubscriptionId: string,
+  ): Promise<void> {
+    const PAID_PLAN_LIMITS: PlanLimits = {
+      maxRepositories: 5,
+      maxUsers: 5,
+      publicReposOnly: false,
+    };
+
+    await this.collection.updateOne(
+      { _id: id },
+      {
+        $set: {
+          plan: "paid",
+          planLimits: PAID_PLAN_LIMITS,
+          stripeCustomerId,
+          stripeSubscriptionId,
+          paymentFailedAt: null,
+          updatedAt: new Date(),
+        },
+      },
+    );
+  }
+
+  async downgradeToFree(id: ObjectId): Promise<void> {
+    await this.collection.updateOne(
+      { _id: id },
+      {
+        $set: {
+          plan: "free",
+          planLimits: FREE_PLAN_LIMITS,
+          stripeSubscriptionId: null,
+          paymentFailedAt: null,
+          updatedAt: new Date(),
+        },
+      },
+    );
+  }
+
+  async findBySubscriptionId(subscriptionId: string): Promise<Account | null> {
+    return this.collection.findOne({ stripeSubscriptionId: subscriptionId });
+  }
+
+  async setPaymentFailed(id: ObjectId): Promise<void> {
+    await this.collection.updateOne(
+      { _id: id },
+      {
+        $set: {
+          paymentFailedAt: new Date(),
+          updatedAt: new Date(),
+        },
+      },
+    );
+  }
+
+  async clearPaymentFailed(id: ObjectId): Promise<void> {
+    await this.collection.updateOne(
+      { _id: id },
+      {
+        $set: {
+          paymentFailedAt: null,
           updatedAt: new Date(),
         },
       },

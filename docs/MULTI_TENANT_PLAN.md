@@ -20,7 +20,7 @@ Transform GitLaunch from a single-tenant deployment tool into a multi-tenant Saa
 | **Phase 1** | ✅ Complete | 46 tests | Data models, GitHub OAuth, session management |
 | **Phase 2** | ✅ Complete | 31 tests | GitHub App integration                        |
 | **Phase 3** | ✅ Complete | 57 tests | API Keys & Multi-Account                      |
-| **Phase 4** | ⏳ Pending  | -        | Stripe Billing                                |
+| **Phase 4** | ✅ Complete | 39 tests | Stripe Billing                                |
 | **Phase 5** | ⏳ Pending  | -        | Landing Page & Onboarding                     |
 | **Phase 6** | ⏳ Pending  | -        | Migration & Cleanup                           |
 
@@ -68,7 +68,19 @@ Transform GitLaunch from a single-tenant deployment tool into a multi-tenant Saa
 
 **Total Phase 3 Tests: 57** (all passing as of January 2026)
 
-**Total Tests: 198** (Phase 1 + Phase 2 + Phase 3 + existing tests)
+### Phase 4 Completed Files
+
+| File                                             | Tests | Description                               |
+| ------------------------------------------------ | ----- | ----------------------------------------- |
+| `src/services/billing/stripeService.ts`          | 9     | Checkout session and portal creation      |
+| `src/services/billing/webhookHandler.ts`         | 7     | Webhook event handlers for Stripe         |
+| `src/services/billing/planEnforcementService.ts` | 13    | Plan limit enforcement and usage tracking |
+| `src/server/routes/settings/billing.ts`          | 5     | Billing API routes                        |
+| `src/server/routes/webhooks/stripe.ts`           | 5     | Stripe webhook endpoint                   |
+
+**Total Phase 4 Tests: 39** (all passing as of January 2026)
+
+**Total Tests: 237** (Phase 1 + Phase 2 + Phase 3 + Phase 4 + existing tests)
 
 ---
 
@@ -643,10 +655,12 @@ src/templates/onboarding/select-repos.hbs
 
 ### Phase 4 Verification
 
-- [ ] Stripe checkout works
-- [ ] Subscription created on payment
-- [ ] Plan limits enforced (repo count, user count, private repos)
-- [ ] Billing portal accessible
+- [x] Stripe checkout session creation (unit tests pass)
+- [x] Webhook handlers for payment events (unit tests pass)
+- [x] Plan limits enforced (repo count, user count, private repos - unit tests pass)
+- [x] Billing routes work (unit tests pass)
+- [x] Webhook endpoint handles Stripe events (unit tests pass)
+- [ ] E2E test with real Stripe integration (requires Stripe test keys)
 
 ### Phase 5 Verification
 
