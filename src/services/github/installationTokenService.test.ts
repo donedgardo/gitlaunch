@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import {
   InstallationTokenService,
-  GitHubAppClient,
+  IGitHubAppClient,
   InstallationToken,
 } from "./installationTokenService";
 
 // Fake GitHub App client for testing
-class FakeGitHubAppClient implements GitHubAppClient {
+class FakeGitHubAppClient implements IGitHubAppClient {
   public callCount = 0;
   public tokenToReturn: InstallationToken = {
     token: "ghs_fake_token_123",

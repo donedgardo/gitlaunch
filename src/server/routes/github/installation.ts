@@ -13,13 +13,8 @@ export function registerInstallationRoutes(
   app.get<{
     Querystring: { installation_id?: string; setup_action?: string };
   }>("/github/installation/callback", async (request, reply) => {
-    // For this simple test, we use x-account-id header
-    // In production, this would come from session middleware
-    const accountIdHeader = request.headers["x-account-id"] as
-      | string
-      | undefined;
-
-    if (!accountIdHeader) {
+    // Use session from session middleware
+    if (!request.session) {
       return reply.status(401).send({ error: "Not authenticated" });
     }
 
@@ -28,7 +23,7 @@ export function registerInstallationRoutes(
       return reply.status(400).send({ error: "Missing installation_id" });
     }
 
-    const accountId = new ObjectId(accountIdHeader);
+    const accountId = new ObjectId(request.session.accountId);
     const installationId = parseInt(installationIdStr, 10);
 
     await deps.gitHubAppService.linkInstallation(accountId, installationId);

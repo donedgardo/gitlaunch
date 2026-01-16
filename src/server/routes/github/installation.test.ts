@@ -2,8 +2,11 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { MongoMemoryServer } from "mongodb-memory-server";
 import { MongoClient, Db, ObjectId } from "mongodb";
 import Fastify, { FastifyInstance } from "fastify";
+import cookie from "@fastify/cookie";
 import { AccountRepository } from "../../../repositories/accountRepository";
 import { GitHubAppService } from "../../../services/github/githubAppService";
+import { SessionService } from "../../../services/auth/sessionService";
+import { sessionAuthMiddleware } from "../../middleware/sessionAuth";
 import { registerInstallationRoutes } from "./installation";
 
 describe("GitHub Installation Routes", () => {
@@ -13,6 +16,9 @@ describe("GitHub Installation Routes", () => {
   let app: FastifyInstance;
   let accountRepo: AccountRepository;
   let gitHubAppService: GitHubAppService;
+  let sessionService: SessionService;
+
+  const TEST_SECRET = "test-secret-for-sessions";
 
   beforeAll(async () => {
     mongoServer = await MongoMemoryServer.create();
@@ -31,9 +37,13 @@ describe("GitHub Installation Routes", () => {
 
     accountRepo = new AccountRepository(db);
     gitHubAppService = new GitHubAppService(accountRepo);
+    sessionService = new SessionService(TEST_SECRET);
 
     app = Fastify();
+    await app.register(cookie);
+    sessionAuthMiddleware(app, sessionService);
     registerInstallationRoutes(app, { gitHubAppService });
+    await app.ready();
   });
 
   describe("GET /github/installation/callback", () => {
@@ -43,14 +53,18 @@ describe("GitHub Installation Routes", () => {
         name: "My Org",
         slug: "my-org",
       });
+      const userId = new ObjectId();
+      const sessionToken = sessionService.createSession({
+        userId,
+        accountId: account._id,
+      });
 
       // When: GitHub redirects with installation_id
       const response = await app.inject({
         method: "GET",
         url: `/github/installation/callback?installation_id=98765&setup_action=install`,
-        headers: {
-          // Simulate authenticated session - in reality this would be a cookie
-          "x-account-id": account._id.toString(),
+        cookies: {
+          session: sessionToken,
         },
       });
 
@@ -64,18 +78,23 @@ describe("GitHub Installation Routes", () => {
     });
 
     it("should return 400 if installation_id is missing", async () => {
-      // Given: an account
+      // Given: an account and authenticated user
       const account = await accountRepo.create({
         name: "My Org",
         slug: "my-org-2",
+      });
+      const userId = new ObjectId();
+      const sessionToken = sessionService.createSession({
+        userId,
+        accountId: account._id,
       });
 
       // When: callback is missing installation_id
       const response = await app.inject({
         method: "GET",
         url: `/github/installation/callback?setup_action=install`,
-        headers: {
-          "x-account-id": account._id.toString(),
+        cookies: {
+          session: sessionToken,
         },
       });
 
@@ -84,7 +103,7 @@ describe("GitHub Installation Routes", () => {
     });
 
     it("should return 401 if not authenticated", async () => {
-      // When: no account ID is provided
+      // When: no session is provided
       const response = await app.inject({
         method: "GET",
         url: `/github/installation/callback?installation_id=123`,

@@ -1,5 +1,8 @@
 import jwt from "jsonwebtoken";
-import { GitHubAppClient, InstallationToken } from "./installationTokenService";
+import {
+  IGitHubAppClient,
+  InstallationToken,
+} from "./installationTokenService";
 
 export type GitHubAppConfig = {
   appId: string;
@@ -22,7 +25,7 @@ type GitHubInstallationTokenResponse = {
   expires_at: string;
 };
 
-export class RealGitHubAppClient implements GitHubAppClient {
+export class GitHubAppClient implements IGitHubAppClient {
   private config: GitHubAppConfig;
   private http: HttpClient;
 

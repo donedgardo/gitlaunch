@@ -1,39 +1,18 @@
 import { describe, it, expect, beforeEach } from "vitest";
+import { generateKeyPairSync } from "crypto";
 import jwt from "jsonwebtoken";
 import {
-  RealGitHubAppClient,
+  GitHubAppClient,
   GitHubAppConfig,
   HttpClient,
 } from "./githubAppClient";
 
-// Test RSA key pair (generated for testing only - DO NOT use in production)
-const TEST_PRIVATE_KEY = `-----BEGIN RSA PRIVATE KEY-----
-MIIEowIBAAKCAQEAztF4eacz5Vh4i4dol+hPae+5qttJ4KvkHURTrVaWNxyCoVaK
-VajUnU30L/WPCsM+vzvf/9y0HJXQYZaNXe5/i37b+F/xamBHF3ms0svGrkTZFwoH
-0/eiwddzYsjBYSJW5+N5mRI8bjYQ0MTQmLiwYrKmuwNzomNOI1qBqMz2CCdCBTIH
-XbwSrP1+p3lC7+ARL48MwawRbvXaICxxmgSaOeiL2AafhmaIvuqdSBF2R9icDgNN
-+eoAsV2C+rMN3rTIkGZMZxnoVJDYiHtCMoXKLSenin8Yl2trfV1YyhojYElKw++9
-UiCHscWgzV9A8dDvt/zU+34TxlgpElXVmHYP+QIDAQABAoIBAFKe4dcPka7MYhOz
-e3g8CQWUDAMSaXgEkzOR6S+1CHtpu1HCpa7ErHNPAf7qxUMSbo2s2LZ5L8a/nqht
-oXnl3jQW8L9PbL0HSz84j28CkxNpU6RdkHUAV5fCf0j2VDJ+qmMmv5wD6fpJRPxx
-s7dfCK/VGMBbB6XWsA91h5iskJj+hbAvSxp5+FTR72gCky+u0SQzvqahfgTcr9PZ
-aVAZAf3u0p/oTiSCUrmPdgy9NKvKgwByQibUvxjQla1UZWarrJv57OMfzStHO11J
-eq+yYQAIeS6wUFmwThL2aOii/pec60TwVyVHhSUe5pswuMSN2aoO6QWcYVS4zrjo
-WCRIUJECgYEA9PCDISuhkNfM69KScwX1ZFGBrhCi8d3zvz5gbdXZi207UAN5Uh1q
-oqisSLaFQqQqFJa1s4w3iJRADvVWUpp4tBjSTvt7nScrqFqIrsvj9vOtGFW9ivgS
-B0i3ierVKnIwgOvhgVbQZG0AkF/A38PpsMHoZRjOPziKjy7Rcy8Nux0CgYEA2ChH
-VjI127wJtBZit9ZrTsNPbptJq/7tMVZH6UXBBf1zmyPQVKXPEuGlNZlyI5z2YWt/
-mj3po0nLUoCkwm7nz0fimOa1OGwUIaJn88Ceg2bpseqsJgsO4n8r5+7TyfDAYEz8
-WW/e/c1yh7DKeCo1/xn6tcsvqOTOoh1pmg19NY0CgYAg2C99PzCHD6j25mGk8uOY
-9CUDhk+TR0PsHR0pHUfynk8Zx515GWC3Nw8DIRZ1fTX3VM5AqUi5E8gTOWq94ODW
-pY1t8eL9i8ca6Cjz53tGHh7T6ItmGyWvvFyALfEvo+hFIVw3z8BZ9xPgSDbAyrCH
-dzkGdXESoS5TTN/hJiodMQKBgFj1Ap6znTyn/ypRCCF2KcVJVbhESiZxjHYAdynG
-XjCz5M7VB1i+wCCaIl6TnsiPQUpIbkQw9KURqo5yiNvHvriscdHRKIVm3UYWS0ei
-XtnfEY/57wzdAiwugAg8Xoa+AL3hEP1Rr+itk1PKaxjW7k/lBiuoyh1sxKktB5ex
-s3TFAoGBAKVVyb3i1oxQyRvjZ3AjxwWkg/7gexiGd9ylQ8XCoeFyfM2WO4eslzo7
-MSmc7otDd1hU0EaJQtJddqYLS2MELEDJ/5FyAzJAEd/Q1nkRbzaYiBHJwwPlLHeA
-QRKQHGzUsos7YLarflnC1Hk02dmLBovGGhKMrtLGEyekRBFa1rjb
------END RSA PRIVATE KEY-----`;
+// Generate a test RSA key pair at runtime
+const { privateKey: TEST_PRIVATE_KEY } = generateKeyPairSync("rsa", {
+  modulusLength: 2048,
+  privateKeyEncoding: { type: "pkcs1", format: "pem" },
+  publicKeyEncoding: { type: "pkcs1", format: "pem" },
+});
 
 // Fake HTTP client for testing
 class FakeHttpClient implements HttpClient {
@@ -53,10 +32,10 @@ class FakeHttpClient implements HttpClient {
   }
 }
 
-describe("RealGitHubAppClient", () => {
+describe("GitHubAppClient", () => {
   let fakeHttp: FakeHttpClient;
   let config: GitHubAppConfig;
-  let client: RealGitHubAppClient;
+  let client: GitHubAppClient;
 
   beforeEach(() => {
     fakeHttp = new FakeHttpClient();
@@ -64,7 +43,7 @@ describe("RealGitHubAppClient", () => {
       appId: "12345",
       privateKey: TEST_PRIVATE_KEY,
     };
-    client = new RealGitHubAppClient(config, fakeHttp);
+    client = new GitHubAppClient(config, fakeHttp);
   });
 
   describe("getInstallationToken", () => {

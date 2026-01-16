@@ -2,7 +2,9 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { MongoMemoryServer } from "mongodb-memory-server";
 import { MongoClient, Db, ObjectId } from "mongodb";
 import Fastify, { FastifyInstance } from "fastify";
+import cookie from "@fastify/cookie";
 import { AccountRepository } from "../../../repositories/accountRepository";
+import { UserRepository } from "../../../repositories/userRepository";
 import {
   StripeService,
   StripeClient,
@@ -10,6 +12,8 @@ import {
 import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
 import { RepositoryRepository } from "../../../repositories/repositoryRepository";
 import { MembershipRepository } from "../../../repositories/membershipRepository";
+import { SessionService } from "../../../services/auth/sessionService";
+import { sessionAuthMiddleware } from "../../middleware/sessionAuth";
 import { registerBillingRoutes } from "./billing";
 
 // Fake Stripe client
@@ -37,8 +41,12 @@ describe("Billing Routes", () => {
   let db: Db;
   let app: FastifyInstance;
   let accountRepo: AccountRepository;
+  let userRepo: UserRepository;
   let stripeService: StripeService;
   let planService: PlanEnforcementService;
+  let sessionService: SessionService;
+
+  const TEST_SECRET = "test-secret-for-billing";
 
   beforeAll(async () => {
     mongoServer = await MongoMemoryServer.create();
@@ -46,6 +54,7 @@ describe("Billing Routes", () => {
     await client.connect();
     db = client.db("test");
     accountRepo = new AccountRepository(db);
+    userRepo = new UserRepository(db);
     const repoRepo = new RepositoryRepository(db);
     const membershipRepo = new MembershipRepository(db);
     stripeService = new StripeService(new FakeStripeClient(), {
@@ -67,11 +76,17 @@ describe("Billing Routes", () => {
 
   beforeEach(async () => {
     await db.collection("accounts").deleteMany({});
+    await db.collection("users").deleteMany({});
+
+    sessionService = new SessionService(TEST_SECRET);
     app = Fastify();
+    await app.register(cookie);
+    sessionAuthMiddleware(app, sessionService);
     registerBillingRoutes(app, {
       stripeService,
       planEnforcementService: planService,
       accountRepo,
+      userRepo,
     });
     await app.ready();
   });
@@ -83,14 +98,23 @@ describe("Billing Routes", () => {
         name: "My Org",
         slug: "my-org",
       });
+      const user = await userRepo.create({
+        email: "user@example.com",
+        name: "Test User",
+        githubId: 12345,
+        githubUsername: "testuser",
+      });
+      const sessionToken = sessionService.createSession({
+        userId: user._id,
+        accountId: account._id,
+      });
 
       // When: I request checkout
       const response = await app.inject({
         method: "POST",
         url: "/api/billing/checkout",
-        headers: {
-          "x-test-account-id": account._id.toString(),
-          "x-test-user-email": "user@example.com",
+        cookies: {
+          session: sessionToken,
         },
       });
 
@@ -114,19 +138,29 @@ describe("Billing Routes", () => {
 
   describe("POST /api/billing/portal", () => {
     it("should return portal URL for paid account", async () => {
-      // Given: a paid account
+      // Given: a paid account and authenticated user
       const account = await accountRepo.create({
         name: "Paid Org",
         slug: "paid-org",
       });
       await accountRepo.upgradeToPaid(account._id, "cus_test", "sub_test");
+      const user = await userRepo.create({
+        email: "paid@example.com",
+        name: "Paid User",
+        githubId: 12346,
+        githubUsername: "paiduser",
+      });
+      const sessionToken = sessionService.createSession({
+        userId: user._id,
+        accountId: account._id,
+      });
 
       // When: I request billing portal
       const response = await app.inject({
         method: "POST",
         url: "/api/billing/portal",
-        headers: {
-          "x-test-account-id": account._id.toString(),
+        cookies: {
+          session: sessionToken,
         },
         payload: {
           returnUrl: "https://app.example.com/settings",
@@ -140,18 +174,28 @@ describe("Billing Routes", () => {
     });
 
     it("should return 400 for free account without Stripe customer", async () => {
-      // Given: a free account (no Stripe customer)
+      // Given: a free account (no Stripe customer) and authenticated user
       const account = await accountRepo.create({
         name: "Free Org",
         slug: "free-org",
+      });
+      const user = await userRepo.create({
+        email: "free@example.com",
+        name: "Free User",
+        githubId: 12347,
+        githubUsername: "freeuser",
+      });
+      const sessionToken = sessionService.createSession({
+        userId: user._id,
+        accountId: account._id,
       });
 
       // When: I request billing portal
       const response = await app.inject({
         method: "POST",
         url: "/api/billing/portal",
-        headers: {
-          "x-test-account-id": account._id.toString(),
+        cookies: {
+          session: sessionToken,
         },
         payload: {
           returnUrl: "https://app.example.com/settings",
@@ -165,18 +209,28 @@ describe("Billing Routes", () => {
 
   describe("GET /api/billing/usage", () => {
     it("should return current usage and limits", async () => {
-      // Given: an account
+      // Given: an account and authenticated user
       const account = await accountRepo.create({
         name: "Usage Org",
         slug: "usage-org",
+      });
+      const user = await userRepo.create({
+        email: "usage@example.com",
+        name: "Usage User",
+        githubId: 12348,
+        githubUsername: "usageuser",
+      });
+      const sessionToken = sessionService.createSession({
+        userId: user._id,
+        accountId: account._id,
       });
 
       // When: I get usage
       const response = await app.inject({
         method: "GET",
         url: "/api/billing/usage",
-        headers: {
-          "x-test-account-id": account._id.toString(),
+        cookies: {
+          session: sessionToken,
         },
       });
 

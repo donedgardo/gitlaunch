@@ -18,6 +18,9 @@ describe("API Key Auth Middleware", () => {
   let testApiKey: string;
   let testAccountId: ObjectId;
 
+  const uniqueSlug = (base: string) =>
+    `${base}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
   beforeAll(async () => {
     mongoServer = await MongoMemoryServer.create();
     client = new MongoClient(mongoServer.getUri());
@@ -40,7 +43,7 @@ describe("API Key Auth Middleware", () => {
     // Create test account and API key
     const account = await accountRepo.create({
       name: "Test Org",
-      slug: "test-org",
+      slug: uniqueSlug("test-org"),
     });
     testAccountId = account._id;
     const result = await apiKeyService.generate({

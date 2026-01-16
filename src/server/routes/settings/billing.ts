@@ -3,38 +3,42 @@ import { ObjectId } from "mongodb";
 import { StripeService } from "../../../services/billing/stripeService";
 import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
 import { AccountRepository } from "../../../repositories/accountRepository";
+import { UserRepository } from "../../../repositories/userRepository";
 
 export type BillingRoutesDependencies = {
   stripeService: StripeService;
   planEnforcementService: PlanEnforcementService;
   accountRepo: AccountRepository;
+  userRepo: UserRepository;
 };
 
 export function registerBillingRoutes(
   app: FastifyInstance,
   deps: BillingRoutesDependencies,
 ) {
-  const { stripeService, planEnforcementService, accountRepo } = deps;
+  const { stripeService, planEnforcementService, accountRepo, userRepo } = deps;
 
-  // Test middleware to simulate authentication (for testing purposes)
+  // Middleware to resolve account and user from session
   app.addHook(
     "preHandler",
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const accountIdHeader = request.headers["x-test-account-id"] as
-        | string
-        | undefined;
-      const userEmail = request.headers["x-test-user-email"] as
-        | string
-        | undefined;
+      if (!request.session) {
+        return;
+      }
 
-      if (accountIdHeader) {
-        const account = await accountRepo.findById(
-          new ObjectId(accountIdHeader),
-        );
-        if (account) {
-          (request as any).account = account;
-          (request as any).userEmail = userEmail || "test@example.com";
-        }
+      const accountId = new ObjectId(request.session.accountId);
+      const userId = new ObjectId(request.session.userId);
+
+      const [account, user] = await Promise.all([
+        accountRepo.findById(accountId),
+        userRepo.findById(userId),
+      ]);
+
+      if (account) {
+        (request as any).account = account;
+      }
+      if (user) {
+        (request as any).userEmail = user.email;
       }
     },
   );

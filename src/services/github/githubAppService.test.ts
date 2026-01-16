@@ -9,12 +9,12 @@ import {
 } from "./githubAppService";
 import {
   InstallationTokenService,
-  GitHubAppClient,
+  IGitHubAppClient,
   InstallationToken,
 } from "./installationTokenService";
 
 // Fake GitHub App client
-class FakeGitHubAppClient implements GitHubAppClient {
+class FakeGitHubAppClient implements IGitHubAppClient {
   async getInstallationToken(
     _installationId: number,
   ): Promise<InstallationToken> {

@@ -3,7 +3,7 @@ export type InstallationToken = {
   expiresAt: Date;
 };
 
-export interface GitHubAppClient {
+export interface IGitHubAppClient {
   getInstallationToken(installationId: number): Promise<InstallationToken>;
 }
 
@@ -13,7 +13,7 @@ const EXPIRY_BUFFER_MS = 5 * 60 * 1000;
 export class InstallationTokenService {
   private cache: Map<number, InstallationToken> = new Map();
 
-  constructor(private client: GitHubAppClient) {}
+  constructor(private client: IGitHubAppClient) {}
 
   async getToken(installationId: number): Promise<InstallationToken> {
     const cached = this.cache.get(installationId);
