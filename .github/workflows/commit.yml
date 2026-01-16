@@ -38,7 +38,7 @@ jobs:
       - name: Build, tag, and push docker image to Amazon ECR
         env:
           REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          REPOSITORY: launchpad
+          REPOSITORY: gitlaunch
           IMAGE_TAG: ${{ github.sha }}
         run: |
           docker build -t $REGISTRY/$REPOSITORY:$IMAGE_TAG .
@@ -49,8 +49,8 @@ jobs:
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
           task-definition: aws-container-definition.json
-          container-name: launchpad
-          image: ${{ steps.login-ecr.outputs.registry }}/launchpad:${{ env.IMAGE_TAG }}
+          container-name: gitlaunch
+          image: ${{ steps.login-ecr.outputs.registry }}/gitlaunch:${{ env.IMAGE_TAG }}
           environment-variables: |
             GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
             GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
@@ -67,7 +67,7 @@ jobs:
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:
           task-definition: ${{ steps.task-def.outputs.task-definition }}
-          service: launchpad
+          service: gitlaunch
           cluster: ${{ secrets.ECS_CLUSTER }}
           wait-for-service-stability: true
 

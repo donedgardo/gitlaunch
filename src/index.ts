@@ -13,7 +13,7 @@ const eventEmitter = new MockEventEmitter();
 
 const mongodb_uri = process.env.MONGODB_URI as string;
 const client = new MongoClient(mongodb_uri);
-const database = client.db("launchpad");
+const database = client.db("gitlaunch");
 
 const serviceNames = (process.env.SERVICES as string)
   .split(",")

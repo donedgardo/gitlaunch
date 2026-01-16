@@ -1,8 +1,8 @@
 {
-  "family": "launchpad-container-definition",
+  "family": "gitlaunch-container-definition",
   "containerDefinitions": [
     {
-      "name": "launchpad",
+      "name": "gitlaunch",
       "portMappings": [
         {
           "containerPort": 80,
@@ -15,7 +15,7 @@
       "logConfiguration": {
         "logDriver": "awslogs",
         "options": {
-          "awslogs-group": "launchpad",
+          "awslogs-group": "gitlaunch",
           "awslogs-region": "us-east-1",
           "awslogs-create-group": "true",
           "awslogs-stream-prefix": "deploy"

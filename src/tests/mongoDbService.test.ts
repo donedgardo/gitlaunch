@@ -23,7 +23,7 @@ describe("MongoDB storage Service", () => {
   let mockDispatchService: MockDispatchService;
   const buildId = "hash";
   const client = new MongoClient(MONGODB_URI);
-  const database = client.db("launchpad-test");
+  const database = client.db("gitlaunch-test");
   beforeEach(async () => {
     vi.useFakeTimers();
     const date = new Date(2024, 1, 1);
