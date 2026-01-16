@@ -57,4 +57,17 @@ export class UserRepository {
 
     return this.create(input);
   }
+
+  // Alias for findOrCreateByGitHubId
+  async findOrCreate(input: CreateUserInput): Promise<User> {
+    return this.findOrCreateByGitHubId(input);
+  }
+
+  async findByEmail(email: string): Promise<User | null> {
+    return this.collection.findOne({ email: email.toLowerCase() });
+  }
+
+  async findById(id: ObjectId): Promise<User | null> {
+    return this.collection.findOne({ _id: id });
+  }
 }

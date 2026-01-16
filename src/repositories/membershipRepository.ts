@@ -49,4 +49,32 @@ export class MembershipRepository {
   ): Promise<AccountMembership | null> {
     return this.collection.findOne({ userId, accountId });
   }
+
+  async findById(id: ObjectId): Promise<AccountMembership | null> {
+    return this.collection.findOne({ _id: id });
+  }
+
+  async delete(id: ObjectId): Promise<boolean> {
+    const result = await this.collection.deleteOne({ _id: id });
+    return result.deletedCount === 1;
+  }
+
+  async updateRole(
+    id: ObjectId,
+    newRole: MembershipRole,
+  ): Promise<AccountMembership | null> {
+    const result = await this.collection.findOneAndUpdate(
+      { _id: id },
+      { $set: { role: newRole } },
+      { returnDocument: "after" },
+    );
+    return result;
+  }
+
+  async countByRoleInAccount(
+    accountId: ObjectId,
+    role: MembershipRole,
+  ): Promise<number> {
+    return this.collection.countDocuments({ accountId, role });
+  }
 }
