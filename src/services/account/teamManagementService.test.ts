@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { MongoMemoryServer } from "mongodb-memory-server";
-import { MongoClient, Db, ObjectId } from "mongodb";
+import { MongoClient, Db } from "mongodb";
 import { AccountRepository } from "../../repositories/accountRepository";
 import { UserRepository } from "../../repositories/userRepository";
 import { MembershipRepository } from "../../repositories/membershipRepository";
@@ -26,12 +26,7 @@ describe("TeamManagementService", () => {
     userRepo = new UserRepository(db);
     membershipRepo = new MembershipRepository(db);
     invitationRepo = new InvitationRepository(db);
-    service = new TeamManagementService(
-      membershipRepo,
-      userRepo,
-      accountRepo,
-      invitationRepo,
-    );
+    service = new TeamManagementService(membershipRepo, invitationRepo);
   });
 
   afterAll(async () => {
@@ -55,7 +50,6 @@ describe("TeamManagementService", () => {
         email: "owner@example.com",
         name: "Owner",
         avatarUrl: null,
-        githubAccessToken: "token",
       });
 
       const account = await accountRepo.create({
@@ -90,7 +84,6 @@ describe("TeamManagementService", () => {
         email: "admin@example.com",
         name: "Admin",
         avatarUrl: null,
-        githubAccessToken: "token",
       });
 
       const account = await accountRepo.create({
@@ -124,7 +117,6 @@ describe("TeamManagementService", () => {
         email: "member@example.com",
         name: "Member",
         avatarUrl: null,
-        githubAccessToken: "token",
       });
 
       const account = await accountRepo.create({
@@ -156,7 +148,6 @@ describe("TeamManagementService", () => {
         email: "admin2@example.com",
         name: "Admin 2",
         avatarUrl: null,
-        githubAccessToken: "token",
       });
 
       const account = await accountRepo.create({
@@ -188,7 +179,6 @@ describe("TeamManagementService", () => {
         email: "owner2@example.com",
         name: "Owner 2",
         avatarUrl: null,
-        githubAccessToken: "token",
       });
 
       const account = await accountRepo.create({
@@ -223,7 +213,6 @@ describe("TeamManagementService", () => {
         email: "owner@test.com",
         name: "Owner",
         avatarUrl: null,
-        githubAccessToken: "token",
       });
 
       const member = await userRepo.findOrCreate({
@@ -232,7 +221,6 @@ describe("TeamManagementService", () => {
         email: "member@test.com",
         name: "Member",
         avatarUrl: null,
-        githubAccessToken: "token",
       });
 
       const account = await accountRepo.create({
@@ -271,7 +259,6 @@ describe("TeamManagementService", () => {
         email: "member1@test.com",
         name: "Member 1",
         avatarUrl: null,
-        githubAccessToken: "token",
       });
 
       const member2 = await userRepo.findOrCreate({
@@ -280,7 +267,6 @@ describe("TeamManagementService", () => {
         email: "member2@test.com",
         name: "Member 2",
         avatarUrl: null,
-        githubAccessToken: "token",
       });
 
       const account = await accountRepo.create({
@@ -316,7 +302,6 @@ describe("TeamManagementService", () => {
         email: "lastowner@test.com",
         name: "Last Owner",
         avatarUrl: null,
-        githubAccessToken: "token",
       });
 
       const account = await accountRepo.create({
@@ -347,7 +332,6 @@ describe("TeamManagementService", () => {
         email: "admin@test.com",
         name: "Admin",
         avatarUrl: null,
-        githubAccessToken: "token",
       });
 
       const member = await userRepo.findOrCreate({
@@ -356,7 +340,6 @@ describe("TeamManagementService", () => {
         email: "member@test.com",
         name: "Member",
         avatarUrl: null,
-        githubAccessToken: "token",
       });
 
       const account = await accountRepo.create({
@@ -396,7 +379,6 @@ describe("TeamManagementService", () => {
         email: "owner@role.com",
         name: "Owner",
         avatarUrl: null,
-        githubAccessToken: "token",
       });
 
       const member = await userRepo.findOrCreate({
@@ -405,7 +387,6 @@ describe("TeamManagementService", () => {
         email: "member@role.com",
         name: "Member",
         avatarUrl: null,
-        githubAccessToken: "token",
       });
 
       const account = await accountRepo.create({
@@ -443,7 +424,6 @@ describe("TeamManagementService", () => {
         email: "admin@role.com",
         name: "Admin",
         avatarUrl: null,
-        githubAccessToken: "token",
       });
 
       const member = await userRepo.findOrCreate({
@@ -452,7 +432,6 @@ describe("TeamManagementService", () => {
         email: "member@role2.com",
         name: "Member",
         avatarUrl: null,
-        githubAccessToken: "token",
       });
 
       const account = await accountRepo.create({

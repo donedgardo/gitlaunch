@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import Fastify, { FastifyInstance } from "fastify";
 import cookie from "@fastify/cookie";
-import { ObjectId } from "mongodb";
 import { registerGitHubAuthRoutes } from "./github";
 import {
   GitHubOAuthService,

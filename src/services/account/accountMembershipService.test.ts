@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { MongoMemoryServer } from "mongodb-memory-server";
-import { MongoClient, Db, ObjectId } from "mongodb";
+import { MongoClient, Db } from "mongodb";
 import { AccountRepository } from "../../repositories/accountRepository";
 import { UserRepository } from "../../repositories/userRepository";
 import { MembershipRepository } from "../../repositories/membershipRepository";
@@ -50,7 +50,6 @@ describe("AccountMembershipService", () => {
         email: "multi@example.com",
         name: "Multi User",
         avatarUrl: null,
-        githubAccessToken: "token",
       });
 
       const account1 = await accountRepo.create({
@@ -98,7 +97,6 @@ describe("AccountMembershipService", () => {
         email: "lonely@example.com",
         name: "Lonely User",
         avatarUrl: null,
-        githubAccessToken: "token",
       });
 
       // When: I get user's accounts
@@ -123,7 +121,6 @@ describe("AccountMembershipService", () => {
         email: "owner@example.com",
         name: "Owner",
         avatarUrl: null,
-        githubAccessToken: "token",
       });
       const member = await userRepo.findOrCreate({
         githubId: 301,
@@ -131,7 +128,6 @@ describe("AccountMembershipService", () => {
         email: "member@example.com",
         name: "Member",
         avatarUrl: null,
-        githubAccessToken: "token",
       });
 
       await membershipRepo.create({
@@ -168,7 +164,6 @@ describe("AccountMembershipService", () => {
         email: "admin@example.com",
         name: "Admin",
         avatarUrl: null,
-        githubAccessToken: "token",
       });
       const account = await accountRepo.create({
         name: "Admin Org",
@@ -195,7 +190,6 @@ describe("AccountMembershipService", () => {
         email: "outsider@example.com",
         name: "Outsider",
         avatarUrl: null,
-        githubAccessToken: "token",
       });
       const account = await accountRepo.create({
         name: "Other Org",
@@ -219,7 +213,6 @@ describe("AccountMembershipService", () => {
         email: "insider@example.com",
         name: "Insider",
         avatarUrl: null,
-        githubAccessToken: "token",
       });
       const account = await accountRepo.create({
         name: "My Org",
@@ -246,7 +239,6 @@ describe("AccountMembershipService", () => {
         email: "stranger@example.com",
         name: "Stranger",
         avatarUrl: null,
-        githubAccessToken: "token",
       });
       const account = await accountRepo.create({
         name: "Private Org",

@@ -55,7 +55,6 @@ describe("AccountContext Middleware", () => {
         email: "test@example.com",
         name: "Test User",
         avatarUrl: null,
-        githubAccessToken: "token",
       });
 
       const account = await accountRepo.create({
@@ -110,7 +109,6 @@ describe("AccountContext Middleware", () => {
         email: "default@example.com",
         name: "Default User",
         avatarUrl: null,
-        githubAccessToken: "token",
       });
 
       const account = await accountRepo.create({
@@ -161,7 +159,6 @@ describe("AccountContext Middleware", () => {
         email: "outsider@example.com",
         name: "Outsider",
         avatarUrl: null,
-        githubAccessToken: "token",
       });
 
       const ownAccount = await accountRepo.create({
@@ -218,7 +215,6 @@ describe("AccountContext Middleware", () => {
         email: "someuser@example.com",
         name: "Some User",
         avatarUrl: null,
-        githubAccessToken: "token",
       });
 
       const account = await accountRepo.create({
@@ -267,7 +263,6 @@ describe("AccountContext Middleware", () => {
         email: "admin@example.com",
         name: "Admin User",
         avatarUrl: null,
-        githubAccessToken: "token",
       });
 
       const account = await accountRepo.create({

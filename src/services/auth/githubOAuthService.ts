@@ -89,12 +89,14 @@ export class RealGitHubHttpClient implements GitHubHttpClient {
       throw new Error("Failed to exchange code for token");
     }
 
-    const data = await response.json();
-    if (data.error) {
+    const data = (await response.json()) as
+      | GitHubTokenResponse
+      | { error: string; error_description?: string };
+    if ("error" in data) {
       throw new Error(data.error_description || "Invalid authorization code");
     }
 
-    return data as GitHubTokenResponse;
+    return data;
   }
 
   async getUserInfo(accessToken: string): Promise<GitHubUserResponse> {

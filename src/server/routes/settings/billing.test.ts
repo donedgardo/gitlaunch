@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { MongoMemoryServer } from "mongodb-memory-server";
-import { MongoClient, Db, ObjectId } from "mongodb";
+import { MongoClient, Db } from "mongodb";
 import Fastify, { FastifyInstance } from "fastify";
 import cookie from "@fastify/cookie";
 import { AccountRepository } from "../../../repositories/accountRepository";
@@ -102,7 +102,8 @@ describe("Billing Routes", () => {
         email: "user@example.com",
         name: "Test User",
         githubId: 12345,
-        githubUsername: "testuser",
+        githubLogin: "testuser",
+        avatarUrl: null,
       });
       const sessionToken = sessionService.createSession({
         userId: user._id,
@@ -148,7 +149,8 @@ describe("Billing Routes", () => {
         email: "paid@example.com",
         name: "Paid User",
         githubId: 12346,
-        githubUsername: "paiduser",
+        githubLogin: "paiduser",
+        avatarUrl: null,
       });
       const sessionToken = sessionService.createSession({
         userId: user._id,
@@ -183,7 +185,8 @@ describe("Billing Routes", () => {
         email: "free@example.com",
         name: "Free User",
         githubId: 12347,
-        githubUsername: "freeuser",
+        githubLogin: "freeuser",
+        avatarUrl: null,
       });
       const sessionToken = sessionService.createSession({
         userId: user._id,
@@ -218,7 +221,8 @@ describe("Billing Routes", () => {
         email: "usage@example.com",
         name: "Usage User",
         githubId: 12348,
-        githubUsername: "usageuser",
+        githubLogin: "usageuser",
+        avatarUrl: null,
       });
       const sessionToken = sessionService.createSession({
         userId: user._id,

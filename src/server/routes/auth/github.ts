@@ -56,7 +56,7 @@ export function registerGitHubAuthRoutes(
       }>,
       reply: FastifyReply,
     ) => {
-      const { code, state } = request.query;
+      const { code, state: _state } = request.query;
 
       if (!code) {
         return reply.redirect("/?error=auth_failed");

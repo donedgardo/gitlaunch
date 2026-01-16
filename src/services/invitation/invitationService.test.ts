@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { MongoMemoryServer } from "mongodb-memory-server";
-import { MongoClient, Db, ObjectId } from "mongodb";
+import { MongoClient, Db } from "mongodb";
 import { AccountRepository } from "../../repositories/accountRepository";
 import { UserRepository } from "../../repositories/userRepository";
 import { MembershipRepository } from "../../repositories/membershipRepository";
@@ -26,12 +26,7 @@ describe("InvitationService", () => {
     userRepo = new UserRepository(db);
     membershipRepo = new MembershipRepository(db);
     invitationRepo = new InvitationRepository(db);
-    service = new InvitationService(
-      invitationRepo,
-      membershipRepo,
-      userRepo,
-      accountRepo,
-    );
+    service = new InvitationService(invitationRepo, membershipRepo, userRepo);
   });
 
   afterAll(async () => {
@@ -59,7 +54,6 @@ describe("InvitationService", () => {
         email: "inviter@example.com",
         name: "Inviter",
         avatarUrl: null,
-        githubAccessToken: "token",
       });
 
       // When: I invite someone
@@ -90,7 +84,6 @@ describe("InvitationService", () => {
         email: "inviter2@example.com",
         name: "Inviter 2",
         avatarUrl: null,
-        githubAccessToken: "token",
       });
 
       // When: I invite someone
@@ -124,7 +117,6 @@ describe("InvitationService", () => {
         email: "existing@example.com",
         name: "Existing",
         avatarUrl: null,
-        githubAccessToken: "token",
       });
       await membershipRepo.create({
         userId: existingUser._id,
@@ -157,7 +149,6 @@ describe("InvitationService", () => {
         email: "inviter@example.com",
         name: "Inviter",
         avatarUrl: null,
-        githubAccessToken: "token",
       });
       const invitation = await service.invite({
         accountId: account._id,
@@ -173,7 +164,6 @@ describe("InvitationService", () => {
         email: "newmember@example.com",
         name: "New Member",
         avatarUrl: null,
-        githubAccessToken: "token",
       });
 
       // When: they accept the invitation
@@ -201,7 +191,6 @@ describe("InvitationService", () => {
         email: "inviter3@example.com",
         name: "Inviter 3",
         avatarUrl: null,
-        githubAccessToken: "token",
       });
 
       // Create invitation directly with past expiry
@@ -220,7 +209,6 @@ describe("InvitationService", () => {
         email: "expired@example.com",
         name: "Expired User",
         avatarUrl: null,
-        githubAccessToken: "token",
       });
 
       // When/Then: accepting fails
@@ -237,7 +225,6 @@ describe("InvitationService", () => {
         email: "someuser@example.com",
         name: "Some User",
         avatarUrl: null,
-        githubAccessToken: "token",
       });
 
       // When/Then: accepting unknown token fails
@@ -264,7 +251,6 @@ describe("InvitationService", () => {
         email: "inviter@example.com",
         name: "Inviter",
         avatarUrl: null,
-        githubAccessToken: "token",
       });
 
       await service.invite({

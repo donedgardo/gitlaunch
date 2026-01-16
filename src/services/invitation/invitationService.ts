@@ -10,7 +10,6 @@ import {
   AccountMembership,
 } from "../../repositories/membershipRepository";
 import { UserRepository } from "../../repositories/userRepository";
-import { AccountRepository } from "../../repositories/accountRepository";
 
 export type InviteInput = {
   accountId: ObjectId;
@@ -26,7 +25,6 @@ export class InvitationService {
     private invitationRepo: InvitationRepository,
     private membershipRepo: MembershipRepository,
     private userRepo: UserRepository,
-    private accountRepo: AccountRepository,
   ) {}
 
   async invite(input: InviteInput): Promise<Invitation> {

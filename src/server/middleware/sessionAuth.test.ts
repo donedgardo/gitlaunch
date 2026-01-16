@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import Fastify, { FastifyInstance } from "fastify";
 import cookie from "@fastify/cookie";
 import { ObjectId } from "mongodb";

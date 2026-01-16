@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { MongoMemoryServer } from "mongodb-memory-server";
-import { MongoClient, Db, ObjectId } from "mongodb";
+import { MongoClient, Db } from "mongodb";
 import { AccountRepository } from "../../repositories/accountRepository";
 import { UserRepository } from "../../repositories/userRepository";
 import { MembershipRepository } from "../../repositories/membershipRepository";
@@ -50,7 +50,6 @@ describe("Tenant Security", () => {
         email: "user1@example.com",
         name: "User 1",
         avatarUrl: null,
-        githubAccessToken: "token",
       });
 
       const user2 = await userRepo.findOrCreate({
@@ -59,7 +58,6 @@ describe("Tenant Security", () => {
         email: "user2@example.com",
         name: "User 2",
         avatarUrl: null,
-        githubAccessToken: "token",
       });
 
       const account1 = await accountRepo.create({
@@ -101,7 +99,6 @@ describe("Tenant Security", () => {
         email: "owner@example.com",
         name: "Owner",
         avatarUrl: null,
-        githubAccessToken: "token",
       });
 
       const account = await accountRepo.create({
@@ -132,7 +129,6 @@ describe("Tenant Security", () => {
         email: "stranger@example.com",
         name: "Stranger",
         avatarUrl: null,
-        githubAccessToken: "token",
       });
 
       const account = await accountRepo.create({
@@ -155,7 +151,6 @@ describe("Tenant Security", () => {
         email: "user1@test.com",
         name: "User 1",
         avatarUrl: null,
-        githubAccessToken: "token",
       });
 
       const user2 = await userRepo.findOrCreate({
@@ -164,7 +159,6 @@ describe("Tenant Security", () => {
         email: "user2@test.com",
         name: "User 2",
         avatarUrl: null,
-        githubAccessToken: "token",
       });
 
       const account1 = await accountRepo.create({
@@ -208,7 +202,6 @@ describe("Tenant Security", () => {
         email: "owner@test.com",
         name: "Owner",
         avatarUrl: null,
-        githubAccessToken: "token",
       });
 
       const account = await accountRepo.create({
@@ -232,7 +225,6 @@ describe("Tenant Security", () => {
         email: "admin@test.com",
         name: "Admin",
         avatarUrl: null,
-        githubAccessToken: "token",
       });
 
       const account = await accountRepo.create({
@@ -256,7 +248,6 @@ describe("Tenant Security", () => {
         email: "member@test.com",
         name: "Member",
         avatarUrl: null,
-        githubAccessToken: "token",
       });
 
       const account = await accountRepo.create({

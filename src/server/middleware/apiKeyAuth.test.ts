@@ -119,7 +119,7 @@ describe("API Key Auth Middleware", () => {
 
     it("should reject request with revoked API key", async () => {
       // Given: the API key is revoked
-      const found = await apiKeyRepo.findByPrefix(
+      await apiKeyRepo.findByPrefix(
         testApiKey.split("_").slice(0, 3).join("_").slice(0, -1) +
           testApiKey.split("_")[2].slice(0, 8),
       );

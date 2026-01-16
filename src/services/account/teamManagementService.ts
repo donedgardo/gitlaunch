@@ -5,8 +5,6 @@ import {
   MembershipRole,
   AccountMembership,
 } from "../../repositories/membershipRepository";
-import { UserRepository } from "../../repositories/userRepository";
-import { AccountRepository } from "../../repositories/accountRepository";
 import {
   InvitationRepository,
   Invitation,
@@ -37,8 +35,6 @@ const INVITATION_EXPIRY_DAYS = 7;
 export class TeamManagementService {
   constructor(
     private membershipRepo: MembershipRepository,
-    private userRepo: UserRepository,
-    private accountRepo: AccountRepository,
     private invitationRepo: InvitationRepository,
   ) {}
 
