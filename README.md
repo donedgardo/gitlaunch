@@ -1,5 +1,7 @@
 # GitLaunch
 
+[![CI](https://github.com/donedgardo/launchpad/actions/workflows/ci.yml/badge.svg)](https://github.com/donedgardo/launchpad/actions/workflows/ci.yml)
+
 Stress-free deployment management for your organization.
 
 GitLaunch is a deployment tracking and management tool that streamlines your deployment process across multiple services and environments.
