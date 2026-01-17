@@ -60,4 +60,11 @@ export class RepositoryRepository {
   async findByAccountId(accountId: ObjectId): Promise<Repository[]> {
     return this.collection.find({ accountId }).toArray();
   }
+
+  async findByAccountIdAndGithubRepoId(
+    accountId: ObjectId,
+    githubRepoId: number,
+  ): Promise<Repository | null> {
+    return this.collection.findOne({ accountId, githubRepoId });
+  }
 }

@@ -107,5 +107,68 @@ describe("RepositoryService", () => {
         }),
       ).rejects.toThrow("Private repositories require a paid plan.");
     });
+
+    it("should reject duplicate repo on free plan", async () => {
+      // Given: a free account with a repo already added
+      const account = await accountRepo.create({
+        name: "Free Org",
+        slug: "free-org-dup",
+      });
+      await service.addRepository({
+        accountId: account._id,
+        githubRepoId: 123,
+        githubFullName: "org/monorepo",
+        githubOwner: "org",
+        githubRepoName: "monorepo",
+        isPrivate: false,
+      });
+
+      // When: I try to add the same repo again
+      // Then: it should reject (monorepo support requires paid plan)
+      await expect(
+        service.addRepository({
+          accountId: account._id,
+          githubRepoId: 123,
+          githubFullName: "org/monorepo",
+          githubOwner: "org",
+          githubRepoName: "monorepo",
+          isPrivate: false,
+        }),
+      ).rejects.toThrow(
+        "Monorepo support requires a paid plan. Upgrade to add the same repository multiple times.",
+      );
+    });
+
+    it("should allow duplicate repo on paid plan for monorepo support", async () => {
+      // Given: a paid account with a repo already added
+      const account = await accountRepo.create({
+        name: "Paid Org",
+        slug: "paid-org-mono",
+      });
+      await accountRepo.upgradeToPaid(account._id, "cus_test", "sub_test");
+
+      await service.addRepository({
+        accountId: account._id,
+        githubRepoId: 456,
+        githubFullName: "org/monorepo",
+        githubOwner: "org",
+        githubRepoName: "monorepo",
+        isPrivate: false,
+      });
+
+      // When: I add the same repo again (different service in monorepo)
+      const result = await service.addRepository({
+        accountId: account._id,
+        githubRepoId: 456,
+        githubFullName: "org/monorepo",
+        githubOwner: "org",
+        githubRepoName: "monorepo",
+        isPrivate: false,
+      });
+
+      // Then: it should succeed (paid plan allows monorepo)
+      expect(result._id).toBeDefined();
+      expect(result.githubRepoId).toBe(456);
+    });
   });
 });

@@ -1,4 +1,4 @@
-import { AccountRepository } from "../../repositories/accountRepository";
+import { AccountRepository, Plan } from "../../repositories/accountRepository";
 import {
   RepositoryRepository,
   Repository,
@@ -20,6 +20,17 @@ export class RepositoryService {
     // Check private repo restriction
     if (input.isPrivate && account.planLimits.publicReposOnly) {
       throw new Error("Private repositories require a paid plan.");
+    }
+
+    // Check for duplicate repo (monorepo support)
+    const existingRepo = await this.repoRepo.findByAccountIdAndGithubRepoId(
+      input.accountId,
+      input.githubRepoId,
+    );
+    if (existingRepo && account.plan === Plan.Free) {
+      throw new Error(
+        "Monorepo support requires a paid plan. Upgrade to add the same repository multiple times.",
+      );
     }
 
     // Check repo count limit
