@@ -1,40 +1,67 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { StripeWebhookHandler } from "../../../services/billing/webhookHandler";
 
-export type StripeWebhookRouteDependencies = {
-  webhookHandler: StripeWebhookHandler;
-  webhookSecret: string;
-  skipSignatureVerification?: boolean;
-};
-
-type StripeEvent = {
+export type StripeEvent = {
   type: string;
   data: {
     object: Record<string, any>;
   };
 };
 
+export interface StripeSignatureVerifier {
+  verify(payload: string, signature: string, secret: string): StripeEvent;
+}
+
+export type StripeWebhookRouteDependencies = {
+  webhookHandler: StripeWebhookHandler;
+  webhookSecret: string;
+  skipSignatureVerification?: boolean;
+  signatureVerifier?: StripeSignatureVerifier;
+};
+
 export function registerStripeWebhookRoute(
   app: FastifyInstance,
   deps: StripeWebhookRouteDependencies,
 ) {
-  const { webhookHandler, skipSignatureVerification } = deps;
+  const {
+    webhookHandler,
+    webhookSecret,
+    skipSignatureVerification,
+    signatureVerifier,
+  } = deps;
 
   app.post(
     "/webhooks/stripe",
     async (request: FastifyRequest, reply: FastifyReply) => {
-      // In production, verify signature using deps.webhookSecret
-      // For testing, we skip verification when skipSignatureVerification is true
-      if (!skipSignatureVerification) {
+      let event: StripeEvent;
+
+      // If signatureVerifier is provided, use it for verification
+      if (signatureVerifier) {
+        const signature = request.headers["stripe-signature"] as string;
+        if (!signature) {
+          return reply.status(400).send({ error: "Missing Stripe signature" });
+        }
+
+        try {
+          const rawBody =
+            typeof request.body === "string"
+              ? request.body
+              : JSON.stringify(request.body);
+          event = signatureVerifier.verify(rawBody, signature, webhookSecret);
+        } catch {
+          return reply.status(400).send({ error: "Invalid signature" });
+        }
+      } else if (!skipSignatureVerification) {
+        // Legacy mode: check for signature header but no actual verification
         const signature = request.headers["stripe-signature"];
         if (!signature) {
           return reply.status(400).send({ error: "Missing Stripe signature" });
         }
-        // TODO: Implement actual signature verification with Stripe SDK
-        // const event = stripe.webhooks.constructEvent(request.rawBody, signature, webhookSecret);
+        event = request.body as StripeEvent;
+      } else {
+        // Test mode: skip all verification
+        event = request.body as StripeEvent;
       }
-
-      const event = request.body as StripeEvent;
 
       try {
         switch (event.type) {

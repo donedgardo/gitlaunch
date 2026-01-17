@@ -4,7 +4,11 @@ import { MongoClient, Db } from "mongodb";
 import Fastify, { FastifyInstance } from "fastify";
 import { AccountRepository } from "../../../repositories/accountRepository";
 import { StripeWebhookHandler } from "../../../services/billing/webhookHandler";
-import { registerStripeWebhookRoute } from "./stripe";
+import {
+  registerStripeWebhookRoute,
+  StripeSignatureVerifier,
+  StripeEvent,
+} from "./stripe";
 
 describe("Stripe Webhook Route", () => {
   let mongoServer: MongoMemoryServer;
@@ -187,6 +191,114 @@ describe("Stripe Webhook Route", () => {
       // Then: acknowledged but not processed
       expect(response.statusCode).toBe(200);
       expect(JSON.parse(response.payload).received).toBe(true);
+    });
+  });
+
+  describe("Signature Verification", () => {
+    it("should return 400 when signature is missing", async () => {
+      // Given: app with signature verification enabled
+      const verifiedApp = Fastify();
+      const mockVerifier: StripeSignatureVerifier = {
+        verify: () => {
+          throw new Error("Should not be called");
+        },
+      };
+      registerStripeWebhookRoute(verifiedApp, {
+        webhookHandler,
+        webhookSecret: "whsec_test_secret",
+        signatureVerifier: mockVerifier,
+      });
+      await verifiedApp.ready();
+
+      // When: request is sent without signature header
+      const response = await verifiedApp.inject({
+        method: "POST",
+        url: "/webhooks/stripe",
+        payload: { type: "test.event", data: { object: {} } },
+      });
+
+      // Then: returns 400 for missing signature
+      expect(response.statusCode).toBe(400);
+      expect(JSON.parse(response.payload).error).toBe(
+        "Missing Stripe signature",
+      );
+    });
+
+    it("should return 400 when signature is invalid", async () => {
+      // Given: app with a verifier that rejects the signature
+      const verifiedApp = Fastify();
+      const rejectingVerifier: StripeSignatureVerifier = {
+        verify: () => {
+          throw new Error("Invalid signature");
+        },
+      };
+      registerStripeWebhookRoute(verifiedApp, {
+        webhookHandler,
+        webhookSecret: "whsec_test_secret",
+        signatureVerifier: rejectingVerifier,
+      });
+      await verifiedApp.ready();
+
+      // When: request is sent with invalid signature
+      const response = await verifiedApp.inject({
+        method: "POST",
+        url: "/webhooks/stripe",
+        headers: {
+          "stripe-signature": "invalid_signature",
+        },
+        payload: { type: "test.event", data: { object: {} } },
+      });
+
+      // Then: returns 400 for invalid signature
+      expect(response.statusCode).toBe(400);
+      expect(JSON.parse(response.payload).error).toBe("Invalid signature");
+    });
+
+    it("should process event when signature is valid", async () => {
+      // Given: a free account and app with a verifier that accepts
+      const account = await accountRepo.create({
+        name: "Verified Org",
+        slug: "verified-org",
+      });
+
+      const verifiedApp = Fastify();
+      const validEvent: StripeEvent = {
+        type: "checkout.session.completed",
+        data: {
+          object: {
+            metadata: { accountId: account._id.toString() },
+            customer: "cus_verified",
+            subscription: "sub_verified",
+          },
+        },
+      };
+      const acceptingVerifier: StripeSignatureVerifier = {
+        verify: () => validEvent,
+      };
+      registerStripeWebhookRoute(verifiedApp, {
+        webhookHandler,
+        webhookSecret: "whsec_test_secret",
+        signatureVerifier: acceptingVerifier,
+      });
+      await verifiedApp.ready();
+
+      // When: request is sent with valid signature
+      const response = await verifiedApp.inject({
+        method: "POST",
+        url: "/webhooks/stripe",
+        headers: {
+          "stripe-signature": "valid_signature",
+          "content-type": "application/json",
+        },
+        payload: JSON.stringify(validEvent),
+      });
+
+      // Then: webhook is processed
+      expect(response.statusCode).toBe(200);
+
+      // And: account is upgraded
+      const updated = await accountRepo.findById(account._id);
+      expect(updated!.plan).toBe("paid");
     });
   });
 });
