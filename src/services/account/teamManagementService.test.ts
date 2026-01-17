@@ -3,7 +3,10 @@ import { MongoMemoryServer } from "mongodb-memory-server";
 import { MongoClient, Db } from "mongodb";
 import { AccountRepository } from "../../repositories/accountRepository";
 import { UserRepository } from "../../repositories/userRepository";
-import { MembershipRepository } from "../../repositories/membershipRepository";
+import {
+  MembershipRepository,
+  MembershipRole,
+} from "../../repositories/membershipRepository";
 import { InvitationRepository } from "../../repositories/invitationRepository";
 import { TeamManagementService } from "./teamManagementService";
 
@@ -59,7 +62,7 @@ describe("TeamManagementService", () => {
       await membershipRepo.create({
         userId: owner._id,
         accountId: account._id,
-        role: "owner",
+        role: MembershipRole.Owner,
       });
 
       // When: owner invites a new member
@@ -67,7 +70,7 @@ describe("TeamManagementService", () => {
         actorUserId: owner._id,
         accountId: account._id,
         email: "newmember@example.com",
-        role: "member",
+        role: MembershipRole.Member,
       });
 
       // Then: invitation is created
@@ -93,7 +96,7 @@ describe("TeamManagementService", () => {
       await membershipRepo.create({
         userId: admin._id,
         accountId: account._id,
-        role: "admin",
+        role: MembershipRole.Admin,
       });
 
       // When: admin invites a new member
@@ -101,7 +104,7 @@ describe("TeamManagementService", () => {
         actorUserId: admin._id,
         accountId: account._id,
         email: "teammate@example.com",
-        role: "member",
+        role: MembershipRole.Member,
       });
 
       // Then: invitation is created
@@ -126,7 +129,7 @@ describe("TeamManagementService", () => {
       await membershipRepo.create({
         userId: member._id,
         accountId: account._id,
-        role: "member",
+        role: MembershipRole.Member,
       });
 
       // When/Then: member tries to invite - should fail
@@ -135,7 +138,7 @@ describe("TeamManagementService", () => {
           actorUserId: member._id,
           accountId: account._id,
           email: "other@example.com",
-          role: "member",
+          role: MembershipRole.Member,
         }),
       ).rejects.toThrow("Only owners and admins can invite members");
     });
@@ -157,7 +160,7 @@ describe("TeamManagementService", () => {
       await membershipRepo.create({
         userId: admin._id,
         accountId: account._id,
-        role: "admin",
+        role: MembershipRole.Admin,
       });
 
       // When/Then: admin tries to invite as owner - should fail
@@ -166,7 +169,7 @@ describe("TeamManagementService", () => {
           actorUserId: admin._id,
           accountId: account._id,
           email: "newowner@example.com",
-          role: "owner",
+          role: MembershipRole.Owner,
         }),
       ).rejects.toThrow("Only owners can invite other owners");
     });
@@ -188,7 +191,7 @@ describe("TeamManagementService", () => {
       await membershipRepo.create({
         userId: owner._id,
         accountId: account._id,
-        role: "owner",
+        role: MembershipRole.Owner,
       });
 
       // When: owner invites an admin
@@ -196,11 +199,11 @@ describe("TeamManagementService", () => {
         actorUserId: owner._id,
         accountId: account._id,
         email: "newadmin@example.com",
-        role: "admin",
+        role: MembershipRole.Admin,
       });
 
       // Then: invitation is created
-      expect(invitation.role).toBe("admin");
+      expect(invitation.role).toBe(MembershipRole.Admin);
     });
   });
 
@@ -230,12 +233,12 @@ describe("TeamManagementService", () => {
       await membershipRepo.create({
         userId: owner._id,
         accountId: account._id,
-        role: "owner",
+        role: MembershipRole.Owner,
       });
       const membership = await membershipRepo.create({
         userId: member._id,
         accountId: account._id,
-        role: "member",
+        role: MembershipRole.Member,
       });
 
       // When: owner removes the member
@@ -276,12 +279,12 @@ describe("TeamManagementService", () => {
       await membershipRepo.create({
         userId: member1._id,
         accountId: account._id,
-        role: "member",
+        role: MembershipRole.Member,
       });
       const membership2 = await membershipRepo.create({
         userId: member2._id,
         accountId: account._id,
-        role: "member",
+        role: MembershipRole.Member,
       });
 
       // When/Then: member1 tries to remove member2 - should fail
@@ -311,7 +314,7 @@ describe("TeamManagementService", () => {
       const membership = await membershipRepo.create({
         userId: owner._id,
         accountId: account._id,
-        role: "owner",
+        role: MembershipRole.Owner,
       });
 
       // When/Then: trying to remove the last owner - should fail
@@ -349,12 +352,12 @@ describe("TeamManagementService", () => {
       await membershipRepo.create({
         userId: admin._id,
         accountId: account._id,
-        role: "admin",
+        role: MembershipRole.Admin,
       });
       const membership = await membershipRepo.create({
         userId: member._id,
         accountId: account._id,
-        role: "member",
+        role: MembershipRole.Member,
       });
 
       // When: admin removes the member
@@ -396,12 +399,12 @@ describe("TeamManagementService", () => {
       await membershipRepo.create({
         userId: owner._id,
         accountId: account._id,
-        role: "owner",
+        role: MembershipRole.Owner,
       });
       const membership = await membershipRepo.create({
         userId: member._id,
         accountId: account._id,
-        role: "member",
+        role: MembershipRole.Member,
       });
 
       // When: owner promotes member to admin
@@ -409,11 +412,11 @@ describe("TeamManagementService", () => {
         actorUserId: owner._id,
         accountId: account._id,
         membershipId: membership._id,
-        newRole: "admin",
+        newRole: MembershipRole.Admin,
       });
 
       // Then: role is updated
-      expect(updated.role).toBe("admin");
+      expect(updated.role).toBe(MembershipRole.Admin);
     });
 
     it("should prevent non-owner from promoting to owner", async () => {
@@ -441,12 +444,12 @@ describe("TeamManagementService", () => {
       await membershipRepo.create({
         userId: admin._id,
         accountId: account._id,
-        role: "admin",
+        role: MembershipRole.Admin,
       });
       const membership = await membershipRepo.create({
         userId: member._id,
         accountId: account._id,
-        role: "member",
+        role: MembershipRole.Member,
       });
 
       // When/Then: admin tries to promote to owner - should fail
@@ -455,7 +458,7 @@ describe("TeamManagementService", () => {
           actorUserId: admin._id,
           accountId: account._id,
           membershipId: membership._id,
-          newRole: "owner",
+          newRole: MembershipRole.Owner,
         }),
       ).rejects.toThrow("Only owners can promote to owner role");
     });

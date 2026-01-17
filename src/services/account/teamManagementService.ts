@@ -46,12 +46,18 @@ export class TeamManagementService {
     );
 
     // Only owners and admins can invite
-    if (actorRole !== "owner" && actorRole !== "admin") {
+    if (
+      actorRole !== MembershipRole.Owner &&
+      actorRole !== MembershipRole.Admin
+    ) {
       throw new Error("Only owners and admins can invite members");
     }
 
     // Only owners can invite owners
-    if (input.role === "owner" && actorRole !== "owner") {
+    if (
+      input.role === MembershipRole.Owner &&
+      actorRole !== MembershipRole.Owner
+    ) {
       throw new Error("Only owners can invite other owners");
     }
 
@@ -81,7 +87,10 @@ export class TeamManagementService {
     );
 
     // Only owners and admins can remove
-    if (actorRole !== "owner" && actorRole !== "admin") {
+    if (
+      actorRole !== MembershipRole.Owner &&
+      actorRole !== MembershipRole.Admin
+    ) {
       throw new Error("Only owners and admins can remove members");
     }
 
@@ -92,10 +101,10 @@ export class TeamManagementService {
     }
 
     // Check if this is the last owner
-    if (membership.role === "owner") {
+    if (membership.role === MembershipRole.Owner) {
       const ownerCount = await this.membershipRepo.countByRoleInAccount(
         input.accountId,
-        "owner",
+        MembershipRole.Owner,
       );
       if (ownerCount <= 1) {
         throw new Error("Cannot remove the last owner");
@@ -115,12 +124,18 @@ export class TeamManagementService {
     );
 
     // Only owners and admins can update roles
-    if (actorRole !== "owner" && actorRole !== "admin") {
+    if (
+      actorRole !== MembershipRole.Owner &&
+      actorRole !== MembershipRole.Admin
+    ) {
       throw new Error("Only owners and admins can update member roles");
     }
 
     // Only owners can promote to owner
-    if (input.newRole === "owner" && actorRole !== "owner") {
+    if (
+      input.newRole === MembershipRole.Owner &&
+      actorRole !== MembershipRole.Owner
+    ) {
       throw new Error("Only owners can promote to owner role");
     }
 

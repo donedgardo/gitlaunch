@@ -3,7 +3,10 @@ import { MongoMemoryServer } from "mongodb-memory-server";
 import { MongoClient, Db, ObjectId } from "mongodb";
 import { AccountRepository } from "../../repositories/accountRepository";
 import { RepositoryRepository } from "../../repositories/repositoryRepository";
-import { MembershipRepository } from "../../repositories/membershipRepository";
+import {
+  MembershipRepository,
+  MembershipRole,
+} from "../../repositories/membershipRepository";
 import {
   PlanEnforcementService,
   PlanLimitError,
@@ -190,7 +193,7 @@ describe("PlanEnforcementService", () => {
       await membershipRepo.create({
         userId: new ObjectId(),
         accountId: account._id,
-        role: "owner",
+        role: MembershipRole.Owner,
       });
 
       // When: checking if another user can be added
@@ -214,7 +217,7 @@ describe("PlanEnforcementService", () => {
         await membershipRepo.create({
           userId: new ObjectId(),
           accountId: account._id,
-          role: i === 0 ? "owner" : "member",
+          role: i === 0 ? MembershipRole.Owner : MembershipRole.Member,
         });
       }
 
@@ -244,7 +247,7 @@ describe("PlanEnforcementService", () => {
       await membershipRepo.create({
         userId: new ObjectId(),
         accountId: account._id,
-        role: "owner",
+        role: MembershipRole.Owner,
       });
 
       // When: I get usage

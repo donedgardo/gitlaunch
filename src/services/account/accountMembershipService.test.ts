@@ -3,7 +3,10 @@ import { MongoMemoryServer } from "mongodb-memory-server";
 import { MongoClient, Db } from "mongodb";
 import { AccountRepository } from "../../repositories/accountRepository";
 import { UserRepository } from "../../repositories/userRepository";
-import { MembershipRepository } from "../../repositories/membershipRepository";
+import {
+  MembershipRepository,
+  MembershipRole,
+} from "../../repositories/membershipRepository";
 import { AccountMembershipService } from "./accountMembershipService";
 
 describe("AccountMembershipService", () => {
@@ -64,12 +67,12 @@ describe("AccountMembershipService", () => {
       await membershipRepo.create({
         userId: user._id,
         accountId: account1._id,
-        role: "owner",
+        role: MembershipRole.Owner,
       });
       await membershipRepo.create({
         userId: user._id,
         accountId: account2._id,
-        role: "member",
+        role: MembershipRole.Member,
       });
 
       // When: I get user's accounts
@@ -83,10 +86,10 @@ describe("AccountMembershipService", () => {
       ]);
 
       const org1 = accounts.find((a) => a.account.slug === "org-1");
-      expect(org1?.role).toBe("owner");
+      expect(org1?.role).toBe(MembershipRole.Owner);
 
       const org2 = accounts.find((a) => a.account.slug === "org-2");
-      expect(org2?.role).toBe("member");
+      expect(org2?.role).toBe(MembershipRole.Member);
     });
 
     it("should return empty array for user with no accounts", async () => {
@@ -133,12 +136,12 @@ describe("AccountMembershipService", () => {
       await membershipRepo.create({
         userId: owner._id,
         accountId: account._id,
-        role: "owner",
+        role: MembershipRole.Owner,
       });
       await membershipRepo.create({
         userId: member._id,
         accountId: account._id,
-        role: "member",
+        role: MembershipRole.Member,
       });
 
       // When: I get account members
@@ -146,12 +149,12 @@ describe("AccountMembershipService", () => {
 
       // Then: I get both members with roles
       expect(members).toHaveLength(2);
-      expect(members.find((m) => m.role === "owner")?.user.githubLogin).toBe(
-        "owner",
-      );
-      expect(members.find((m) => m.role === "member")?.user.githubLogin).toBe(
-        "member",
-      );
+      expect(
+        members.find((m) => m.role === MembershipRole.Owner)?.user.githubLogin,
+      ).toBe("owner");
+      expect(
+        members.find((m) => m.role === MembershipRole.Member)?.user.githubLogin,
+      ).toBe("member");
     });
   });
 
@@ -172,14 +175,14 @@ describe("AccountMembershipService", () => {
       await membershipRepo.create({
         userId: user._id,
         accountId: account._id,
-        role: "admin",
+        role: MembershipRole.Admin,
       });
 
       // When: I get user's role
       const role = await service.getUserRole(user._id, account._id);
 
       // Then: I get the role
-      expect(role).toBe("admin");
+      expect(role).toBe(MembershipRole.Admin);
     });
 
     it("should return null for non-member", async () => {
@@ -221,7 +224,7 @@ describe("AccountMembershipService", () => {
       await membershipRepo.create({
         userId: user._id,
         accountId: account._id,
-        role: "member",
+        role: MembershipRole.Member,
       });
 
       // When: I check access

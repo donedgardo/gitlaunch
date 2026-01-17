@@ -4,7 +4,10 @@ import { GitHubOAuthService } from "../../../services/auth/githubOAuthService";
 import { SessionService } from "../../../services/auth/sessionService";
 import { UserRepository } from "../../../repositories/userRepository";
 import { AccountRepository } from "../../../repositories/accountRepository";
-import { MembershipRepository } from "../../../repositories/membershipRepository";
+import {
+  MembershipRepository,
+  MembershipRole,
+} from "../../../repositories/membershipRepository";
 
 export type GitHubAuthRoutesConfig = {
   oauthService: GitHubOAuthService;
@@ -95,7 +98,7 @@ export function registerGitHubAuthRoutes(
           await membershipRepository.create({
             userId: user._id,
             accountId: account._id,
-            role: "owner",
+            role: MembershipRole.Owner,
           });
 
           accountId = account._id;

@@ -3,7 +3,10 @@ import { MongoMemoryServer } from "mongodb-memory-server";
 import { MongoClient, Db } from "mongodb";
 import { AccountRepository } from "../../repositories/accountRepository";
 import { UserRepository } from "../../repositories/userRepository";
-import { MembershipRepository } from "../../repositories/membershipRepository";
+import {
+  MembershipRepository,
+  MembershipRole,
+} from "../../repositories/membershipRepository";
 import { InvitationRepository } from "../../repositories/invitationRepository";
 import { InvitationService } from "./invitationService";
 
@@ -61,7 +64,7 @@ describe("InvitationService", () => {
         accountId: account._id,
         invitedByUserId: inviter._id,
         email: "newuser@example.com",
-        role: "member",
+        role: MembershipRole.Member,
       });
 
       // Then: invitation is created with a token
@@ -91,7 +94,7 @@ describe("InvitationService", () => {
         accountId: account._id,
         invitedByUserId: inviter._id,
         email: "expires@example.com",
-        role: "member",
+        role: MembershipRole.Member,
       });
 
       // Then: expiration is ~7 days from now
@@ -121,7 +124,7 @@ describe("InvitationService", () => {
       await membershipRepo.create({
         userId: existingUser._id,
         accountId: account._id,
-        role: "member",
+        role: MembershipRole.Member,
       });
 
       // When/Then: inviting them fails
@@ -130,7 +133,7 @@ describe("InvitationService", () => {
           accountId: account._id,
           invitedByUserId: existingUser._id,
           email: "existing@example.com",
-          role: "admin",
+          role: MembershipRole.Admin,
         }),
       ).rejects.toThrow("User is already a member of this account");
     });
@@ -154,7 +157,7 @@ describe("InvitationService", () => {
         accountId: account._id,
         invitedByUserId: inviter._id,
         email: "newmember@example.com",
-        role: "member",
+        role: MembershipRole.Member,
       });
 
       // And: the invited user now exists
@@ -198,7 +201,7 @@ describe("InvitationService", () => {
         accountId: account._id,
         invitedByUserId: inviter._id,
         email: "expired@example.com",
-        role: "member",
+        role: MembershipRole.Member,
         token: "expiredtoken123",
         expiresAt: new Date(Date.now() - 1000), // expired 1 second ago
       });
@@ -257,13 +260,13 @@ describe("InvitationService", () => {
         accountId: account1._id,
         invitedByUserId: inviter._id,
         email: "pending@example.com",
-        role: "member",
+        role: MembershipRole.Member,
       });
       await service.invite({
         accountId: account2._id,
         invitedByUserId: inviter._id,
         email: "pending@example.com",
-        role: "admin",
+        role: MembershipRole.Admin,
       });
 
       // When: I list pending invitations

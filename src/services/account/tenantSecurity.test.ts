@@ -3,7 +3,10 @@ import { MongoMemoryServer } from "mongodb-memory-server";
 import { MongoClient, Db } from "mongodb";
 import { AccountRepository } from "../../repositories/accountRepository";
 import { UserRepository } from "../../repositories/userRepository";
-import { MembershipRepository } from "../../repositories/membershipRepository";
+import {
+  MembershipRepository,
+  MembershipRole,
+} from "../../repositories/membershipRepository";
 import { AccountMembershipService } from "./accountMembershipService";
 
 describe("Tenant Security", () => {
@@ -72,13 +75,13 @@ describe("Tenant Security", () => {
       await membershipRepo.create({
         userId: user1._id,
         accountId: account1._id,
-        role: "owner",
+        role: MembershipRole.Owner,
       });
 
       await membershipRepo.create({
         userId: user2._id,
         accountId: account2._id,
-        role: "owner",
+        role: MembershipRole.Owner,
       });
 
       // When: user1 tries to access account2
@@ -108,7 +111,7 @@ describe("Tenant Security", () => {
       await membershipRepo.create({
         userId: user._id,
         accountId: account._id,
-        role: "owner",
+        role: MembershipRole.Owner,
       });
 
       // When: user accesses their own account
@@ -173,13 +176,13 @@ describe("Tenant Security", () => {
       await membershipRepo.create({
         userId: user1._id,
         accountId: account1._id,
-        role: "owner",
+        role: MembershipRole.Owner,
       });
 
       await membershipRepo.create({
         userId: user2._id,
         accountId: account2._id,
-        role: "owner",
+        role: MembershipRole.Owner,
       });
 
       // When: user1 lists their accounts
@@ -211,7 +214,7 @@ describe("Tenant Security", () => {
       await membershipRepo.create({
         userId: user._id,
         accountId: account._id,
-        role: "owner",
+        role: MembershipRole.Owner,
       });
 
       const role = await membershipService.getUserRole(user._id, account._id);
@@ -234,7 +237,7 @@ describe("Tenant Security", () => {
       await membershipRepo.create({
         userId: user._id,
         accountId: account._id,
-        role: "admin",
+        role: MembershipRole.Admin,
       });
 
       const role = await membershipService.getUserRole(user._id, account._id);
@@ -257,7 +260,7 @@ describe("Tenant Security", () => {
       await membershipRepo.create({
         userId: user._id,
         accountId: account._id,
-        role: "member",
+        role: MembershipRole.Member,
       });
 
       const role = await membershipService.getUserRole(user._id, account._id);

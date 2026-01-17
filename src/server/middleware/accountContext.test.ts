@@ -4,7 +4,10 @@ import { MongoClient, Db, ObjectId } from "mongodb";
 import Fastify, { FastifyInstance } from "fastify";
 import { AccountRepository } from "../../repositories/accountRepository";
 import { UserRepository } from "../../repositories/userRepository";
-import { MembershipRepository } from "../../repositories/membershipRepository";
+import {
+  MembershipRepository,
+  MembershipRole,
+} from "../../repositories/membershipRepository";
 import { AccountMembershipService } from "../../services/account/accountMembershipService";
 import { createAccountContextMiddleware } from "./accountContext";
 
@@ -64,7 +67,7 @@ describe("AccountContext Middleware", () => {
       await membershipRepo.create({
         userId: user._id,
         accountId: account._id,
-        role: "owner",
+        role: MembershipRole.Owner,
       });
 
       // Setup: middleware and test route
@@ -118,7 +121,7 @@ describe("AccountContext Middleware", () => {
       await membershipRepo.create({
         userId: user._id,
         accountId: account._id,
-        role: "owner",
+        role: MembershipRole.Owner,
       });
 
       // Setup
@@ -168,7 +171,7 @@ describe("AccountContext Middleware", () => {
       await membershipRepo.create({
         userId: user._id,
         accountId: ownAccount._id,
-        role: "owner",
+        role: MembershipRole.Owner,
       });
 
       const otherAccount = await accountRepo.create({
@@ -224,7 +227,7 @@ describe("AccountContext Middleware", () => {
       await membershipRepo.create({
         userId: user._id,
         accountId: account._id,
-        role: "owner",
+        role: MembershipRole.Owner,
       });
 
       // Setup
@@ -272,7 +275,7 @@ describe("AccountContext Middleware", () => {
       await membershipRepo.create({
         userId: user._id,
         accountId: account._id,
-        role: "admin",
+        role: MembershipRole.Admin,
       });
 
       // Setup

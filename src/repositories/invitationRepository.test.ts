@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { MongoMemoryServer } from "mongodb-memory-server";
 import { MongoClient, Db, ObjectId } from "mongodb";
 import { InvitationRepository } from "./invitationRepository";
+import { MembershipRole } from "./membershipRepository";
 
 describe("InvitationRepository", () => {
   let mongoServer: MongoMemoryServer;
@@ -36,7 +37,7 @@ describe("InvitationRepository", () => {
         accountId: testAccountId,
         invitedByUserId: testInviterId,
         email: "newuser@example.com",
-        role: "member" as const,
+        role: MembershipRole.Member,
         token: "abc123token",
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       };
@@ -48,7 +49,7 @@ describe("InvitationRepository", () => {
       expect(invitation._id).toBeDefined();
       expect(invitation.accountId.toString()).toBe(testAccountId.toString());
       expect(invitation.email).toBe("newuser@example.com");
-      expect(invitation.role).toBe("member");
+      expect(invitation.role).toBe(MembershipRole.Member);
       expect(invitation.token).toBe("abc123token");
       expect(invitation.status).toBe("pending");
     });
@@ -61,7 +62,7 @@ describe("InvitationRepository", () => {
         accountId: testAccountId,
         invitedByUserId: testInviterId,
         email: "find@example.com",
-        role: "member",
+        role: MembershipRole.Member,
         token: "findme123",
         expiresAt: new Date(Date.now() + 86400000),
       });
@@ -90,7 +91,7 @@ describe("InvitationRepository", () => {
         accountId: testAccountId,
         invitedByUserId: testInviterId,
         email: "multi@example.com",
-        role: "member",
+        role: MembershipRole.Member,
         token: "token1",
         expiresAt: new Date(Date.now() + 86400000),
       });
@@ -98,7 +99,7 @@ describe("InvitationRepository", () => {
         accountId: new ObjectId(),
         invitedByUserId: testInviterId,
         email: "multi@example.com",
-        role: "admin",
+        role: MembershipRole.Admin,
         token: "token2",
         expiresAt: new Date(Date.now() + 86400000),
       });
@@ -118,7 +119,7 @@ describe("InvitationRepository", () => {
         accountId: testAccountId,
         invitedByUserId: testInviterId,
         email: "accept@example.com",
-        role: "member",
+        role: MembershipRole.Member,
         token: "acceptme",
         expiresAt: new Date(Date.now() + 86400000),
       });
@@ -139,7 +140,7 @@ describe("InvitationRepository", () => {
         accountId: testAccountId,
         invitedByUserId: testInviterId,
         email: "user1@example.com",
-        role: "member",
+        role: MembershipRole.Member,
         token: "t1",
         expiresAt: new Date(Date.now() + 86400000),
       });
@@ -147,7 +148,7 @@ describe("InvitationRepository", () => {
         accountId: testAccountId,
         invitedByUserId: testInviterId,
         email: "user2@example.com",
-        role: "admin",
+        role: MembershipRole.Admin,
         token: "t2",
         expiresAt: new Date(Date.now() + 86400000),
       });

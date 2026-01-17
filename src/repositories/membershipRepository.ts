@@ -1,6 +1,10 @@
 import { Db, ObjectId, Collection } from "mongodb";
 
-export type MembershipRole = "owner" | "admin" | "member";
+export enum MembershipRole {
+  Owner = "owner",
+  Admin = "admin",
+  Member = "member",
+}
 
 export type AccountMembership = {
   _id: ObjectId;

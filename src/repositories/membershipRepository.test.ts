@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { MongoMemoryServer } from "mongodb-memory-server";
 import { MongoClient, Db, ObjectId } from "mongodb";
-import { MembershipRepository } from "./membershipRepository";
+import { MembershipRepository, MembershipRole } from "./membershipRepository";
 
 describe("MembershipRepository", () => {
   let mongoServer: MongoMemoryServer;
@@ -38,7 +38,7 @@ describe("MembershipRepository", () => {
       const input = {
         userId: userId1,
         accountId: accountId1,
-        role: "owner" as const,
+        role: MembershipRole.Owner,
       };
 
       // When: I create the membership
@@ -48,7 +48,7 @@ describe("MembershipRepository", () => {
       expect(membership._id).toBeDefined();
       expect(membership.userId.toString()).toBe(userId1.toString());
       expect(membership.accountId.toString()).toBe(accountId1.toString());
-      expect(membership.role).toBe("owner");
+      expect(membership.role).toBe(MembershipRole.Owner);
     });
 
     it("should support different roles: owner, admin, member", async () => {
@@ -56,23 +56,23 @@ describe("MembershipRepository", () => {
       const owner = await repo.create({
         userId: new ObjectId(),
         accountId: accountId1,
-        role: "owner",
+        role: MembershipRole.Owner,
       });
       const admin = await repo.create({
         userId: new ObjectId(),
         accountId: accountId1,
-        role: "admin",
+        role: MembershipRole.Admin,
       });
       const member = await repo.create({
         userId: new ObjectId(),
         accountId: accountId1,
-        role: "member",
+        role: MembershipRole.Member,
       });
 
       // Then: each has the correct role
-      expect(owner.role).toBe("owner");
-      expect(admin.role).toBe("admin");
-      expect(member.role).toBe("member");
+      expect(owner.role).toBe(MembershipRole.Owner);
+      expect(admin.role).toBe(MembershipRole.Admin);
+      expect(member.role).toBe(MembershipRole.Member);
     });
   });
 
@@ -82,18 +82,18 @@ describe("MembershipRepository", () => {
       await repo.create({
         userId: userId1,
         accountId: accountId1,
-        role: "owner",
+        role: MembershipRole.Owner,
       });
       await repo.create({
         userId: userId1,
         accountId: accountId2,
-        role: "member",
+        role: MembershipRole.Member,
       });
       // And another user in one of those accounts
       await repo.create({
         userId: userId2,
         accountId: accountId1,
-        role: "admin",
+        role: MembershipRole.Admin,
       });
 
       // When: I get memberships for user1
@@ -121,12 +121,12 @@ describe("MembershipRepository", () => {
       await repo.create({
         userId: userId1,
         accountId: accountId1,
-        role: "owner",
+        role: MembershipRole.Owner,
       });
       await repo.create({
         userId: userId2,
         accountId: accountId1,
-        role: "member",
+        role: MembershipRole.Member,
       });
 
       // When: I get memberships for the account
@@ -146,7 +146,7 @@ describe("MembershipRepository", () => {
       await repo.create({
         userId: userId1,
         accountId: accountId1,
-        role: "admin",
+        role: MembershipRole.Admin,
       });
 
       // When: I look up the specific membership
@@ -154,7 +154,7 @@ describe("MembershipRepository", () => {
 
       // Then: I find it
       expect(membership).not.toBeNull();
-      expect(membership!.role).toBe("admin");
+      expect(membership!.role).toBe(MembershipRole.Admin);
     });
 
     it("should return null when user does not belong to account", async () => {
