@@ -2,10 +2,12 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="LaunchPad - A simple dashboard to manage GitHub Actions deployments. Deploy with confidence." />
     <link href="/public/css/main.css" rel="stylesheet" />
-    <title>Deployer</title>
+    <link rel="icon" type="image/svg+xml" href="/public/favicon.svg" />
+    <title>{{#if title}}{{title}} | {{/if}}LaunchPad</title>
   </head>
-  <body hx-boost="true">
+  <body hx-boost="true" class="bg-white dark:bg-gray-900">
     {{{body}}}
     <script src="/public/js/htmx.min.js"></script>
     <script src="/public/js/htmx.sse.min.js"></script>
