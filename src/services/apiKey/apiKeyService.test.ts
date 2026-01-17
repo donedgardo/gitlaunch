@@ -52,10 +52,10 @@ describe("ApiKeyService", () => {
         scopes: ["builds:read", "builds:write"],
       });
 
-      // Then: the key starts with lp_{slug}_
-      expect(result.key).toMatch(new RegExp(`^lp_${slug}_[A-Za-z0-9_-]+$`));
+      // Then: the key starts with pk_{slug}_
+      expect(result.key).toMatch(new RegExp(`^pk_${slug}_[A-Za-z0-9_-]+$`));
       expect(result.apiKey.keyPrefix).toMatch(
-        new RegExp(`^lp_${slug}_[A-Za-z0-9_-]{8}$`),
+        new RegExp(`^pk_${slug}_[A-Za-z0-9_-]{8}$`),
       );
     });
 
@@ -120,7 +120,7 @@ describe("ApiKeyService", () => {
     it("should return null for unknown key prefix", async () => {
       // When: I validate a key with unknown prefix
       const result = await service.validate(
-        "lp_unknown_abcdefgh1234567890123456789012",
+        "pk_unknown_abcdefgh1234567890123456789012",
       );
 
       // Then: validation fails

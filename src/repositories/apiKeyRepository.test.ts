@@ -36,7 +36,7 @@ describe("ApiKeyRepository", () => {
         accountId: testAccountId,
         createdByUserId: testUserId,
         name: "CI/CD Key",
-        keyPrefix: "lp_myorg_abc",
+        keyPrefix: "pk_myorg_abc",
         keyHash: "$2b$10$hashedvalue",
         scopes: ["builds:read", "builds:write"] as const,
       };
@@ -48,7 +48,7 @@ describe("ApiKeyRepository", () => {
       expect(apiKey._id).toBeDefined();
       expect(apiKey.accountId.toString()).toBe(testAccountId.toString());
       expect(apiKey.name).toBe("CI/CD Key");
-      expect(apiKey.keyPrefix).toBe("lp_myorg_abc");
+      expect(apiKey.keyPrefix).toBe("pk_myorg_abc");
       expect(apiKey.keyHash).toBe("$2b$10$hashedvalue");
       expect(apiKey.scopes).toEqual(["builds:read", "builds:write"]);
       expect(apiKey.isRevoked).toBe(false);
@@ -64,13 +64,13 @@ describe("ApiKeyRepository", () => {
         accountId: testAccountId,
         createdByUserId: testUserId,
         name: "Test Key",
-        keyPrefix: "lp_test_xyz",
+        keyPrefix: "pk_test_xyz",
         keyHash: "$2b$10$hash",
         scopes: ["builds:read"],
       });
 
       // When: I find by prefix
-      const found = await repo.findByPrefix("lp_test_xyz");
+      const found = await repo.findByPrefix("pk_test_xyz");
 
       // Then: I get the key
       expect(found).not.toBeNull();
@@ -79,7 +79,7 @@ describe("ApiKeyRepository", () => {
 
     it("should return null for unknown prefix", async () => {
       // When: I find by unknown prefix
-      const found = await repo.findByPrefix("lp_unknown_123");
+      const found = await repo.findByPrefix("pk_unknown_123");
 
       // Then: I get null
       expect(found).toBeNull();
@@ -93,7 +93,7 @@ describe("ApiKeyRepository", () => {
         accountId: testAccountId,
         createdByUserId: testUserId,
         name: "Key 1",
-        keyPrefix: "lp_org_key1",
+        keyPrefix: "pk_org_key1",
         keyHash: "$2b$10$hash1",
         scopes: ["builds:read"],
       });
@@ -101,7 +101,7 @@ describe("ApiKeyRepository", () => {
         accountId: testAccountId,
         createdByUserId: testUserId,
         name: "Key 2",
-        keyPrefix: "lp_org_key2",
+        keyPrefix: "pk_org_key2",
         keyHash: "$2b$10$hash2",
         scopes: ["builds:write"],
       });
@@ -121,7 +121,7 @@ describe("ApiKeyRepository", () => {
         accountId: testAccountId,
         createdByUserId: testUserId,
         name: "Revokable Key",
-        keyPrefix: "lp_rev_123",
+        keyPrefix: "pk_rev_123",
         keyHash: "$2b$10$hash",
         scopes: ["builds:read"],
       });
@@ -130,7 +130,7 @@ describe("ApiKeyRepository", () => {
       await repo.revoke(created._id);
 
       // Then: it's marked as revoked
-      const found = await repo.findByPrefix("lp_rev_123");
+      const found = await repo.findByPrefix("pk_rev_123");
       expect(found!.isRevoked).toBe(true);
     });
   });
@@ -142,7 +142,7 @@ describe("ApiKeyRepository", () => {
         accountId: testAccountId,
         createdByUserId: testUserId,
         name: "Used Key",
-        keyPrefix: "lp_used_123",
+        keyPrefix: "pk_used_123",
         keyHash: "$2b$10$hash",
         scopes: ["builds:read"],
       });
@@ -152,7 +152,7 @@ describe("ApiKeyRepository", () => {
       await repo.updateLastUsed(created._id);
 
       // Then: lastUsedAt is set
-      const found = await repo.findByPrefix("lp_used_123");
+      const found = await repo.findByPrefix("pk_used_123");
       expect(found!.lastUsedAt).not.toBeNull();
       expect(found!.lastUsedAt).toBeInstanceOf(Date);
     });

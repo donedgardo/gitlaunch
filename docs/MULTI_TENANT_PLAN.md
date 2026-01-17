@@ -258,7 +258,7 @@ Example: Creating an account
   accountId: ObjectId,
   createdByUserId: ObjectId,
   name: string,
-  keyPrefix: string,               // "lp_myco_abc" for display
+  keyPrefix: string,               // "pk_myco_abc" for display
   keyHash: string,                 // bcrypt hash
   scopes: ['builds:read', 'builds:write', 'deployments:write'],
   lastUsedAt: Date | null,
@@ -266,7 +266,7 @@ Example: Creating an account
   isRevoked: boolean,
   createdAt: Date
 }
-// Key format: lp_{accountSlug}_{32-random-bytes-base64url}
+// Key format: pk_{accountSlug}_{32-random-bytes-base64url}
 ```
 
 **BuildRecord** (updated with tenant isolation)
@@ -429,7 +429,7 @@ GITHUB_APP_WEBHOOK_SECRET=...
 
 **Key generation**:
 
-- Format: `lp_{accountSlug}_{32-random-bytes-base64url}`
+- Format: `pk_{accountSlug}_{32-random-bytes-base64url}`
 - Store bcrypt hash (key shown once, cannot be retrieved)
 - Scopes: `builds:read`, `builds:write`, `deployments:write`
 
@@ -466,7 +466,7 @@ src/templates/settings/team.hbs
 
 | #    | Behavior Test (RED)                                       | Make it Pass (GREEN)                 | Refactor (BLUE)        |
 | ---- | --------------------------------------------------------- | ------------------------------------ | ---------------------- |
-| 3.1  | Generating API key returns key starting with `lp_` prefix | Implement `ApiKeyService.generate()` | -                      |
+| 3.1  | Generating API key returns key starting with `pk_` prefix | Implement `ApiKeyService.generate()` | -                      |
 | 3.2  | Generated key can be used to authenticate requests        | Implement validation                 | -                      |
 | 3.3  | Invalid/random key is rejected with 401                   | Add rejection behavior               | -                      |
 | 3.4  | Revoked key is rejected even if format is valid           | Add revoked check                    | Consolidate validation |

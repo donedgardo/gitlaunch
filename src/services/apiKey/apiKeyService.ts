@@ -42,11 +42,11 @@ export class ApiKeyService {
       .toString("base64url")
       .replace(/[^A-Za-z0-9_-]/g, "");
 
-    // Build the full key: lp_{slug}_{random}
-    const fullKey = `lp_${account.slug}_${randomPart}`;
+    // Build the full key: pk_{slug}_{random}
+    const fullKey = `pk_${account.slug}_${randomPart}`;
 
     // Create a prefix for display (first 8 chars of random)
-    const keyPrefix = `lp_${account.slug}_${randomPart.slice(0, 8)}`;
+    const keyPrefix = `pk_${account.slug}_${randomPart.slice(0, 8)}`;
 
     // Hash the full key for storage
     const keyHash = await bcrypt.hash(fullKey, BCRYPT_ROUNDS);
@@ -66,12 +66,12 @@ export class ApiKeyService {
   }
 
   async validate(key: string): Promise<ApiKey | null> {
-    // Check key format: lp_{slug}_{random}
-    if (!key.startsWith("lp_")) {
+    // Check key format: pk_{slug}_{random}
+    if (!key.startsWith("pk_")) {
       return null;
     }
 
-    // Extract prefix (lp_{slug}_{first8chars})
+    // Extract prefix (pk_{slug}_{first8chars})
     const parts = key.split("_");
     if (parts.length < 3) {
       return null;

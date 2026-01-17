@@ -107,7 +107,7 @@ describe("API Key Auth Middleware", () => {
         method: "GET",
         url: "/api/test",
         headers: {
-          Authorization: "Bearer lp_fake_invalidkey12345678901234",
+          Authorization: "Bearer pk_fake_invalidkey12345678901234",
         },
       });
 
