@@ -52,7 +52,7 @@ export class StripeService {
 
   async createCheckoutSession(params: {
     account: Account;
-    userEmail: string;
+    userEmail: string | null;
   }): Promise<CheckoutSessionResult> {
     const checkoutParams: Parameters<StripeClient["createCheckoutSession"]>[0] =
       {
@@ -64,10 +64,11 @@ export class StripeService {
         },
       };
 
-    // Use existing customer if available, otherwise use email
+    // Use existing customer if available, otherwise use email if provided
+    // If no email, Stripe checkout will prompt the user for it
     if (params.account.stripeCustomerId) {
       checkoutParams.customerId = params.account.stripeCustomerId;
-    } else {
+    } else if (params.userEmail) {
       checkoutParams.customerEmail = params.userEmail;
     }
 

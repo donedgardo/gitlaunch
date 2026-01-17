@@ -165,6 +165,24 @@ describe("StripeService", () => {
       // Then: correct price ID is used
       expect(stripeClient.lastCheckoutParams.priceId).toBe("price_pro_monthly");
     });
+
+    it("should allow checkout without email when user has no email", async () => {
+      // Given: account without Stripe customer and user with no email
+      const account = { ...mockAccount, stripeCustomerId: null };
+
+      // When: I start checkout with null email
+      const result = await service.createCheckoutSession({
+        account,
+        userEmail: null,
+      });
+
+      // Then: checkout is created successfully (Stripe will collect email)
+      expect(result.url).toBe(
+        "https://checkout.stripe.com/pay/test_session_123",
+      );
+      // And: customerEmail is not set (Stripe will prompt for it)
+      expect(stripeClient.lastCheckoutParams.customerEmail).toBeUndefined();
+    });
   });
 
   describe("createBillingPortalSession", () => {
