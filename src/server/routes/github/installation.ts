@@ -13,9 +13,9 @@ export function registerInstallationRoutes(
   app.get<{
     Querystring: { installation_id?: string; setup_action?: string };
   }>("/github/installation/callback", async (request, reply) => {
-    // Use session from session middleware
+    // Redirect to login if not authenticated
     if (!request.session) {
-      return reply.status(401).send({ error: "Not authenticated" });
+      return reply.redirect("/auth/github");
     }
 
     const installationIdStr = request.query.installation_id;

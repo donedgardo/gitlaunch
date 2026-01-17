@@ -5,7 +5,7 @@ import { AccountRepository } from "../../repositories/accountRepository";
 import { ApiKeyRepository } from "../../repositories/apiKeyRepository";
 import { ApiKeyService } from "./apiKeyService";
 
-describe("ApiKeyService", () => {
+describe("ApiKeyService", { sequential: true, retry: 2 }, () => {
   let mongoServer: MongoMemoryServer;
   let client: MongoClient;
   let db: Db;

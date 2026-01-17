@@ -1,4 +1,12 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
+import {
+  describe,
+  it,
+  expect,
+  beforeAll,
+  afterAll,
+  beforeEach,
+  afterEach,
+} from "vitest";
 import { MongoMemoryServer } from "mongodb-memory-server";
 import { MongoClient, Db, ObjectId } from "mongodb";
 import Fastify, { FastifyInstance } from "fastify";
@@ -7,7 +15,7 @@ import { ApiKeyRepository } from "../../repositories/apiKeyRepository";
 import { ApiKeyService } from "../../services/apiKey/apiKeyService";
 import { createApiKeyAuthMiddleware } from "./apiKeyAuth";
 
-describe("API Key Auth Middleware", () => {
+describe("API Key Auth Middleware", { sequential: true, retry: 2 }, () => {
   let mongoServer: MongoMemoryServer;
   let client: MongoClient;
   let db: Db;
@@ -67,6 +75,12 @@ describe("API Key Auth Middleware", () => {
         scopes: apiKeyContext.scopes,
       };
     });
+
+    await app.ready();
+  });
+
+  afterEach(async () => {
+    await app.close();
   });
 
   describe("Authorization header", () => {

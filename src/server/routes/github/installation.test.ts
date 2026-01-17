@@ -102,15 +102,16 @@ describe("GitHub Installation Routes", () => {
       expect(response.statusCode).toBe(400);
     });
 
-    it("should return 401 if not authenticated", async () => {
+    it("should redirect to login if not authenticated", async () => {
       // When: no session is provided
       const response = await app.inject({
         method: "GET",
         url: `/github/installation/callback?installation_id=123`,
       });
 
-      // Then: returns 401 error
-      expect(response.statusCode).toBe(401);
+      // Then: redirects to GitHub OAuth login
+      expect(response.statusCode).toBe(302);
+      expect(response.headers.location).toBe("/auth/github");
     });
   });
 });
