@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { ObjectId } from "mongodb";
 import { StripeService, StripeClient } from "./stripeService";
-import { Account } from "../../repositories/accountRepository";
+import { Account, Plan } from "../../repositories/accountRepository";
 
 // Fake Stripe client for testing
 class FakeStripeClient implements StripeClient {
@@ -63,7 +63,7 @@ describe("StripeService", () => {
     stripeCustomerId: null,
     stripeSubscriptionId: null,
     paymentFailedAt: null,
-    plan: "free",
+    plan: Plan.Free,
     planLimits: {
       maxRepositories: 1,
       maxUsers: 1,
@@ -88,7 +88,7 @@ describe("StripeService", () => {
   describe("createCheckoutSession", () => {
     it("should return checkout URL for upgrade to pro plan", async () => {
       // Given: a free account
-      const account = { ...mockAccount, plan: "free" as const };
+      const account = { ...mockAccount, plan: Plan.Free };
 
       // When: I start checkout for pro plan
       const result = await service.createCheckoutSession({

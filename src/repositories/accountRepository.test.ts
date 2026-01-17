@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { MongoMemoryServer } from "mongodb-memory-server";
 import { MongoClient, Db } from "mongodb";
-import { AccountRepository } from "./accountRepository";
+import { AccountRepository, Plan } from "./accountRepository";
 
 describe("AccountRepository", () => {
   let mongoServer: MongoMemoryServer;
@@ -39,7 +39,7 @@ describe("AccountRepository", () => {
       expect(account.name).toBe("My Organization");
       expect(account.slug).toBe("my-org");
       expect(account._id).toBeDefined();
-      expect(account.plan).toBe("free");
+      expect(account.plan).toBe(Plan.Free);
       expect(account.planLimits.maxRepositories).toBe(1);
       expect(account.planLimits.maxUsers).toBe(1);
       expect(account.planLimits.publicReposOnly).toBe(true);

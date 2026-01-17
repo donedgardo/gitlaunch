@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { MongoMemoryServer } from "mongodb-memory-server";
 import { MongoClient, Db } from "mongodb";
-import { AccountRepository } from "../../repositories/accountRepository";
+import { AccountRepository, Plan } from "../../repositories/accountRepository";
 import { StripeWebhookHandler } from "./webhookHandler";
 
 describe("StripeWebhookHandler", () => {
@@ -36,7 +36,7 @@ describe("StripeWebhookHandler", () => {
         name: "My Org",
         slug: "my-org",
       });
-      expect(account.plan).toBe("free");
+      expect(account.plan).toBe(Plan.Free);
 
       // When: checkout is completed
       await handler.handleCheckoutCompleted({
@@ -47,7 +47,7 @@ describe("StripeWebhookHandler", () => {
 
       // Then: account is upgraded to paid
       const updated = await accountRepo.findById(account._id);
-      expect(updated!.plan).toBe("paid");
+      expect(updated!.plan).toBe(Plan.Paid);
       expect(updated!.stripeCustomerId).toBe("cus_test123");
       expect(updated!.stripeSubscriptionId).toBe("sub_test123");
     });
@@ -88,7 +88,7 @@ describe("StripeWebhookHandler", () => {
         subscriptionId: "sub_paid",
       });
       const paidAccount = await accountRepo.findById(account._id);
-      expect(paidAccount!.plan).toBe("paid");
+      expect(paidAccount!.plan).toBe(Plan.Paid);
 
       // When: subscription is cancelled
       await handler.handleSubscriptionDeleted({
@@ -97,7 +97,7 @@ describe("StripeWebhookHandler", () => {
 
       // Then: account is downgraded to free
       const updated = await accountRepo.findById(account._id);
-      expect(updated!.plan).toBe("free");
+      expect(updated!.plan).toBe(Plan.Free);
       expect(updated!.stripeSubscriptionId).toBeNull();
     });
 
@@ -171,7 +171,7 @@ describe("StripeWebhookHandler", () => {
 
       // Then: account is still paid (grace period)
       const updated = await accountRepo.findById(account._id);
-      expect(updated!.plan).toBe("paid");
+      expect(updated!.plan).toBe(Plan.Paid);
     });
   });
 

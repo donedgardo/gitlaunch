@@ -1,6 +1,9 @@
 import { Db, ObjectId, Collection } from "mongodb";
 
-export type Plan = "free" | "paid";
+export enum Plan {
+  Free = "free",
+  Paid = "paid",
+}
 
 export type PlanLimits = {
   maxRepositories: number;
@@ -52,7 +55,7 @@ export class AccountRepository {
     const now = new Date();
     const account: Omit<Account, "_id"> = {
       ...input,
-      plan: "free",
+      plan: Plan.Free,
       planLimits: FREE_PLAN_LIMITS,
       stripeCustomerId: null,
       stripeSubscriptionId: null,
@@ -106,7 +109,7 @@ export class AccountRepository {
       { _id: id },
       {
         $set: {
-          plan: "paid",
+          plan: Plan.Paid,
           planLimits: PAID_PLAN_LIMITS,
           stripeCustomerId,
           stripeSubscriptionId,
@@ -122,7 +125,7 @@ export class AccountRepository {
       { _id: id },
       {
         $set: {
-          plan: "free",
+          plan: Plan.Free,
           planLimits: FREE_PLAN_LIMITS,
           stripeSubscriptionId: null,
           paymentFailedAt: null,

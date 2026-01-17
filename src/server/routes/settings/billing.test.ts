@@ -3,7 +3,10 @@ import { MongoMemoryServer } from "mongodb-memory-server";
 import { MongoClient, Db } from "mongodb";
 import Fastify, { FastifyInstance } from "fastify";
 import cookie from "@fastify/cookie";
-import { AccountRepository } from "../../../repositories/accountRepository";
+import {
+  AccountRepository,
+  Plan,
+} from "../../../repositories/accountRepository";
 import { UserRepository } from "../../../repositories/userRepository";
 import {
   StripeService,
@@ -243,7 +246,7 @@ describe("Billing Routes", () => {
       const body = JSON.parse(response.payload);
       expect(body.repositories).toBeDefined();
       expect(body.users).toBeDefined();
-      expect(body.plan).toBe("free");
+      expect(body.plan).toBe(Plan.Free);
     });
   });
 });

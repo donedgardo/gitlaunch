@@ -2,7 +2,10 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { MongoMemoryServer } from "mongodb-memory-server";
 import { MongoClient, Db } from "mongodb";
 import Fastify, { FastifyInstance } from "fastify";
-import { AccountRepository } from "../../../repositories/accountRepository";
+import {
+  AccountRepository,
+  Plan,
+} from "../../../repositories/accountRepository";
 import { StripeWebhookHandler } from "../../../services/billing/webhookHandler";
 import {
   registerStripeWebhookRoute,
@@ -76,7 +79,7 @@ describe("Stripe Webhook Route", () => {
 
       // And: account is upgraded
       const updated = await accountRepo.findById(account._id);
-      expect(updated!.plan).toBe("paid");
+      expect(updated!.plan).toBe(Plan.Paid);
     });
 
     it("should handle customer.subscription.deleted event", async () => {
@@ -106,7 +109,7 @@ describe("Stripe Webhook Route", () => {
 
       // And: account is downgraded
       const updated = await accountRepo.findById(account._id);
-      expect(updated!.plan).toBe("free");
+      expect(updated!.plan).toBe(Plan.Free);
     });
 
     it("should handle invoice.payment_failed event", async () => {
@@ -298,7 +301,7 @@ describe("Stripe Webhook Route", () => {
 
       // And: account is upgraded
       const updated = await accountRepo.findById(account._id);
-      expect(updated!.plan).toBe("paid");
+      expect(updated!.plan).toBe(Plan.Paid);
     });
   });
 });

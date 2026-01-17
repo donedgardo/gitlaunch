@@ -1,5 +1,5 @@
 import { ObjectId } from "mongodb";
-import { AccountRepository } from "../../repositories/accountRepository";
+import { AccountRepository, Plan } from "../../repositories/accountRepository";
 import { RepositoryRepository } from "../../repositories/repositoryRepository";
 import { MembershipRepository } from "../../repositories/membershipRepository";
 
@@ -29,7 +29,7 @@ export type UsageInfo = {
     limit: number;
   };
   privateReposAllowed: boolean;
-  plan: "free" | "paid";
+  plan: Plan;
 };
 
 export class PlanEnforcementService {
