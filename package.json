@@ -10,8 +10,7 @@
     "tailwind:watch": "yarn run tailwind --watch",
     "start": "node dist/index.js",
     "test": "yarn test:watch --run",
-    "test:e2e": "vitest --run --dir src/tests",
-    "test:acceptance": "playwright test",
+    "test:e2e": "vitest --run --dir src/tests && playwright test",
     "test:watch": "vitest",
     "prepare": "husky",
     "postbuild": "ncp src/templates dist/templates && ncp src/public dist/public"
