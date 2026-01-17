@@ -3,12 +3,11 @@
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="flex justify-between h-16 items-center">
       <div class="flex items-center">
-        <span class="text-xl font-bold text-gray-900 dark:text-white">LaunchPad</span>
+        <span class="text-xl font-bold text-gray-900 dark:text-white">GitDeploy</span>
       </div>
       <div class="hidden md:flex items-center space-x-8">
         <a href="#features" class="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">Features</a>
         <a href="#pricing" class="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">Pricing</a>
-        <a href="https://github.com/donedgardo/launchpad" target="_blank" class="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">GitHub</a>
       </div>
       <div class="flex items-center space-x-4">
         <a href="/auth/github" hx-boost="false" class="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">Login</a>
@@ -28,7 +27,7 @@
         Deploy with <span class="text-blue-600">confidence</span>
       </h1>
       <p class="mt-6 text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-        A simple dashboard to manage GitHub Actions deployments. See what's deployed where and promote builds between environments with one click.
+        A simple dashboard to trigger deployments. See what's deployed where and promote builds between environments with one click.
       </p>
       <div class="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
         <a href="/auth/github" hx-boost="false" class="px-8 py-4 bg-blue-600 text-white text-lg font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/25">
@@ -48,7 +47,7 @@
           <div class="w-3 h-3 rounded-full bg-red-500"></div>
           <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
           <div class="w-3 h-3 rounded-full bg-green-500"></div>
-          <span class="ml-4 text-sm text-gray-400">launchpad.example.com/dashboard</span>
+          <span class="ml-4 text-sm text-gray-400">gitdeploy.dev/dashboard</span>
         </div>
         <div class="p-6">
           <div class="flex items-center justify-between mb-6">
@@ -101,7 +100,7 @@
   <div class="max-w-7xl mx-auto">
     <div class="text-center mb-16">
       <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white">
-        GitHub Actions is powerful, but...
+        CI/CD pipelines are powerful, but...
       </h2>
     </div>
     <div class="grid md:grid-cols-3 gap-8">
@@ -112,7 +111,7 @@
           </svg>
         </div>
         <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">No easy environment promotion</h3>
-        <p class="text-gray-600 dark:text-gray-400">Deploying a specific build to production requires digging through workflow runs or writing custom dispatch scripts.</p>
+        <p class="text-gray-600 dark:text-gray-400">Deploying a specific build to production requires digging through CI logs or writing custom dispatch scripts.</p>
       </div>
       <div class="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700">
         <div class="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-lg flex items-center justify-center mb-4">
@@ -121,7 +120,7 @@
           </svg>
         </div>
         <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">No unified multi-repo view</h3>
-        <p class="text-gray-600 dark:text-gray-400">Each repository has its own Actions tab. No single dashboard shows deployment status across all your services.</p>
+        <p class="text-gray-600 dark:text-gray-400">Each repository has its own CI view. No single dashboard shows deployment status across all your services.</p>
       </div>
       <div class="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700">
         <div class="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-lg flex items-center justify-center mb-4">
@@ -144,7 +143,7 @@
         Everything you need to manage deployments
       </h2>
       <p class="mt-4 text-xl text-gray-600 dark:text-gray-400">
-        Simple tools that work with your existing GitHub Actions workflows
+        Simple tools that work with your existing CI/CD workflows
       </p>
     </div>
     <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
@@ -196,7 +195,7 @@
         Get started in minutes
       </h2>
       <p class="mt-4 text-xl text-gray-600 dark:text-gray-400">
-        Works with your existing GitHub Actions workflows
+        Works with GitHub Actions, Jenkins, and more
       </p>
     </div>
     <div class="grid md:grid-cols-3 gap-8">
@@ -207,8 +206,8 @@
             1
           </div>
           <div class="ml-6">
-            <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">Connect GitHub</h3>
-            <p class="text-gray-600 dark:text-gray-400">Install the LaunchPad GitHub App on your organization or repositories.</p>
+            <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">Connect Your CI</h3>
+            <p class="text-gray-600 dark:text-gray-400">Connect GitDeploy to your CI platform - GitHub Actions, Jenkins, or any system with workflow dispatch.</p>
           </div>
         </div>
       </div>
@@ -218,8 +217,8 @@
             2
           </div>
           <div class="ml-6">
-            <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">Select Repositories</h3>
-            <p class="text-gray-600 dark:text-gray-400">Choose which repositories to track. Configure environments and workflow triggers.</p>
+            <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">Configure Services</h3>
+            <p class="text-gray-600 dark:text-gray-400">Add your services and configure environments and workflow triggers.</p>
           </div>
         </div>
       </div>
@@ -249,7 +248,7 @@
         Start free, upgrade when you need more
       </p>
     </div>
-    <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-8 max-w-6xl mx-auto">
+    <div class="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
       <!-- Free Tier -->
       <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-8">
         <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Free</h3>
@@ -382,49 +381,6 @@
         </a>
       </div>
 
-      <!-- Enterprise Tier -->
-      <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-8">
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Enterprise</h3>
-        <p class="mt-2 text-gray-600 dark:text-gray-400">For large organizations</p>
-        <div class="mt-6">
-          <span class="text-4xl font-bold text-gray-900 dark:text-white">Custom</span>
-        </div>
-        <ul class="mt-8 space-y-4">
-          <li class="flex items-center text-gray-600 dark:text-gray-400">
-            <svg class="w-5 h-5 text-green-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-            </svg>
-            Unlimited repositories
-          </li>
-          <li class="flex items-center text-gray-600 dark:text-gray-400">
-            <svg class="w-5 h-5 text-green-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-            </svg>
-            Unlimited team members
-          </li>
-          <li class="flex items-center text-gray-600 dark:text-gray-400">
-            <svg class="w-5 h-5 text-green-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-            </svg>
-            SLA guarantee
-          </li>
-          <li class="flex items-center text-gray-600 dark:text-gray-400">
-            <svg class="w-5 h-5 text-green-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-            </svg>
-            Dedicated support
-          </li>
-          <li class="flex items-center text-gray-600 dark:text-gray-400">
-            <svg class="w-5 h-5 text-green-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-            </svg>
-            Custom integrations
-          </li>
-        </ul>
-        <a href="mailto:sales@launchpad.dev" class="mt-8 block w-full py-3 px-4 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white text-center font-semibold rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
-          Contact Sales
-        </a>
-      </div>
     </div>
   </div>
 </section>
@@ -436,7 +392,7 @@
       Ready to simplify your deployments?
     </h2>
     <p class="mt-4 text-xl text-blue-100">
-      Join developers who deploy with confidence using LaunchPad.
+      Join developers who deploy with confidence using GitDeploy.
     </p>
     <a href="/auth/github" hx-boost="false" class="mt-8 inline-block px-8 py-4 bg-white text-blue-600 text-lg font-semibold rounded-lg hover:bg-blue-50 transition-colors shadow-lg">
       Get Started Free
@@ -449,8 +405,8 @@
   <div class="max-w-7xl mx-auto">
     <div class="grid md:grid-cols-4 gap-8">
       <div>
-        <span class="text-xl font-bold text-white">LaunchPad</span>
-        <p class="mt-4 text-gray-400">A simple dashboard to manage GitHub Actions deployments.</p>
+        <span class="text-xl font-bold text-white">GitDeploy</span>
+        <p class="mt-4 text-gray-400">A simple dashboard to trigger deployments across your CI/CD pipelines.</p>
       </div>
       <div>
         <h4 class="text-sm font-semibold text-white uppercase tracking-wider">Product</h4>
@@ -461,10 +417,9 @@
         </ul>
       </div>
       <div>
-        <h4 class="text-sm font-semibold text-white uppercase tracking-wider">Resources</h4>
+        <h4 class="text-sm font-semibold text-white uppercase tracking-wider">Support</h4>
         <ul class="mt-4 space-y-2">
-          <li><a href="https://github.com/donedgardo/launchpad" target="_blank" class="text-gray-400 hover:text-white">GitHub</a></li>
-          <li><a href="https://github.com/donedgardo/launchpad/issues" target="_blank" class="text-gray-400 hover:text-white">Support</a></li>
+          <li><a href="mailto:support@gitdeploy.dev" class="text-gray-400 hover:text-white">Contact Us</a></li>
         </ul>
       </div>
       <div>
@@ -476,7 +431,7 @@
       </div>
     </div>
     <div class="mt-12 pt-8 border-t border-gray-800 text-center text-gray-400">
-      <p>&copy; 2026 LaunchPad. All rights reserved.</p>
+      <p>&copy; 2026 GitDeploy. All rights reserved.</p>
     </div>
   </div>
 </footer>
