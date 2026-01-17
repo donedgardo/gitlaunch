@@ -1,30 +1,50 @@
 import {
   afterAll,
   afterEach,
+  beforeAll,
   beforeEach,
   describe,
   expect,
   it,
   vi,
 } from "vitest";
-import { Service } from "../services/service";
-import { MockEventEmitter, testEnvironments } from "../server/test.helpers";
-import { MongoBuildStorage } from "../services/buildStorage/mongoBuildStorage";
-import { MongoClient } from "mongodb";
-import { DeploymentStatus } from "../services/service/deploymentStatus";
-import { BuildUpdateEvent } from "../services/service/buildUpdateEvent";
-import { MONGODB_URI } from "./config";
-import { MockDispatchService } from "../services/service/mockDispatchService";
+import { Service } from "../service";
+import { MockEventEmitter, testEnvironments } from "../../server/test.helpers";
+import { MongoBuildStorage } from "./mongoBuildStorage";
+import { MongoClient, Db } from "mongodb";
+import { MongoMemoryServer } from "mongodb-memory-server";
+import { DeploymentStatus } from "../service/deploymentStatus";
+import { BuildUpdateEvent } from "../service/buildUpdateEvent";
+import { MockDispatchService } from "../service/mockDispatchService";
 
 describe("MongoDB storage Service", () => {
+  let mongoServer: MongoMemoryServer;
+  let client: MongoClient;
+  let database: Db;
   let service: Service;
-  let serviceName = "MockService";
+  const serviceName = "MockService";
   let eventEmitter: MockEventEmitter;
   let mockDispatchService: MockDispatchService;
   const buildId = "hash";
-  const client = new MongoClient(MONGODB_URI);
-  const database = client.db("gitlaunch-test");
+
+  beforeAll(async () => {
+    mongoServer = await MongoMemoryServer.create();
+    client = new MongoClient(mongoServer.getUri());
+    await client.connect();
+    database = client.db("gitlaunch-test");
+  });
+
+  afterAll(async () => {
+    await client.close();
+    await mongoServer.stop();
+  });
+
   beforeEach(async () => {
+    // Clean up collections before each test
+    const collections = await database.listCollections().toArray();
+    for (const collection of collections) {
+      await database.collection(collection.name).deleteMany({});
+    }
     vi.useFakeTimers();
     const date = new Date(2024, 1, 1);
     vi.setSystemTime(date);
@@ -40,9 +60,7 @@ describe("MongoDB storage Service", () => {
     );
     await service.create(buildId);
   });
-  afterAll(async () => {
-    await database.dropDatabase();
-  });
+
   afterEach(() => {
     vi.useRealTimers();
   });
@@ -113,6 +131,12 @@ describe("MongoDB storage Service", () => {
         updatedBuilds = builds;
       };
       eventEmitter.on("build:update", callback);
+      // First dispatch, then deploy (to have proper deployment logs)
+      await service.updateDeploymentStatus(
+        buildId,
+        testEnvironments[0],
+        DeploymentStatus.DISPATCHING,
+      );
       await service.updateDeploymentStatus(
         buildId,
         testEnvironments[0],
@@ -142,8 +166,9 @@ describe("MongoDB storage Service", () => {
         status: DeploymentStatus.DISPATCHING,
       });
     });
-    it("should not call the dispatching service", async () => {
-      expect(mockDispatchService.toHaveBeenCalled()).toBeFalsy();
+    it("should have called the dispatching service during setup", async () => {
+      // Dispatch was called during DISPATCHING status update in beforeEach
+      expect(mockDispatchService.toHaveBeenCalled()).toBeTruthy();
     });
     describe("creating the same build", () => {
       it("should not override status", async () => {

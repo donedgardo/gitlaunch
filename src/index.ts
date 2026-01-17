@@ -15,9 +15,9 @@ const mongodb_uri = process.env.MONGODB_URI as string;
 const client = new MongoClient(mongodb_uri);
 const database = client.db("gitlaunch");
 
-const serviceNames = (process.env.SERVICES as string)
-  .split(",")
-  .map((s) => s.trim());
+const serviceNames = process.env.SERVICES
+  ? process.env.SERVICES.split(",").map((s) => s.trim())
+  : [];
 
 const services = createServices(serviceNames, database, eventEmitter);
 
@@ -28,7 +28,7 @@ const server = createServer(
   new MongoDbClient(client),
 );
 
-const PORT = parseInt(process.env.PORT as string);
+const PORT = parseInt(process.env.PORT || "3050");
 
 server.listen({ host: "0.0.0.0", port: PORT }).then(() => {
   console.info(`Server listening in ${PORT}`);

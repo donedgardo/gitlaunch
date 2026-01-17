@@ -31,3 +31,61 @@ jobs:
 
       - name: Unit tests
         run: yarn test
+
+  integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    services:
+      mongodb:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --eval 'db.runCommand({ ping: 1 })'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      MONGODB_URI: mongodb://localhost:27017/launchpad-test
+      PORT: 3050
+      PUBLIC_URL: http://localhost:3050
+      COOKIE_SECRET_SIGNATURE: test-secret-for-ci
+      API_KEY: test-api-key
+      GITHUB_CLIENT_ID: test-client-id
+      GITHUB_CLIENT_SECRET: test-client-secret
+      GITHUB_APP_ID: "123456"
+      GITHUB_APP_PRIVATE_KEY: test-private-key
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: yarn
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Build
+        run: yarn build
+
+      - name: Start server
+        run: |
+          yarn start &
+          sleep 5
+
+      - name: Wait for server
+        run: |
+          for i in {1..30}; do
+            if curl -s http://localhost:3050/health > /dev/null 2>&1; then
+              echo "Server is ready"
+              exit 0
+            fi
+            echo "Waiting for server... ($i/30)"
+            sleep 1
+          done
+          echo "Server failed to start"
+          exit 1
+
+      - name: Run E2E tests
+        run: yarn test:e2e
