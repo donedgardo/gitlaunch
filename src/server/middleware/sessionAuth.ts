@@ -11,6 +11,33 @@ declare module "fastify" {
   }
 }
 
+export type SessionMiddlewareDeps = {
+  sessionService: SessionService;
+};
+
+export function registerSessionMiddleware(
+  app: FastifyInstance,
+  deps: SessionMiddlewareDeps,
+): void {
+  const { sessionService } = deps;
+
+  // Decorate request with session property
+  app.decorateRequest("session", null);
+
+  // Add hook to parse session from cookie or header
+  app.addHook("preHandler", async (request: FastifyRequest) => {
+    const token = extractToken(request);
+
+    if (!token) {
+      request.session = null;
+      return;
+    }
+
+    const session = sessionService.validateSession(token);
+    request.session = session;
+  });
+}
+
 export function sessionAuthMiddleware(
   app: FastifyInstance,
   sessionService: SessionService,

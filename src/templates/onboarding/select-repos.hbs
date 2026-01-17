@@ -1,0 +1,75 @@
+<!-- Onboarding: Select Repositories -->
+<div class="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col items-center justify-center px-4">
+  <div class="max-w-md w-full">
+    <!-- Logo/Brand -->
+    <div class="text-center mb-8">
+      <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Select Repositories</h1>
+      <p class="mt-2 text-gray-600 dark:text-gray-400">Choose the repositories you want to deploy</p>
+    </div>
+
+    <!-- Progress indicator -->
+    <div class="flex items-center justify-center mb-8">
+      <div class="flex items-center">
+        <div class="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-white font-semibold">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+          </svg>
+        </div>
+        <div class="w-16 h-1 bg-blue-600 mx-2"></div>
+        <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold">2</div>
+        <div class="w-16 h-1 bg-gray-300 dark:bg-gray-700 mx-2"></div>
+        <div class="w-8 h-8 bg-gray-300 dark:bg-gray-700 rounded-full flex items-center justify-center text-gray-600 dark:text-gray-400 font-semibold">3</div>
+      </div>
+    </div>
+
+    <!-- Card -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8">
+      <form action="/onboarding/repositories" method="POST">
+        {{#if repositories.length}}
+          <div class="space-y-3 mb-6 max-h-80 overflow-y-auto">
+            {{#each repositories}}
+              <label class="flex items-center p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors">
+                <input
+                  type="checkbox"
+                  name="repositories"
+                  value="{{this.id}}"
+                  class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                />
+                <div class="ml-3 flex-1">
+                  <span class="text-gray-900 dark:text-white font-medium">{{this.full_name}}</span>
+                  {{#if this.private}}
+                    <span class="ml-2 px-2 py-0.5 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded">Private</span>
+                  {{/if}}
+                </div>
+              </label>
+            {{/each}}
+          </div>
+        {{else}}
+          <div class="text-center py-8 text-gray-500 dark:text-gray-400">
+            <p>No repositories found.</p>
+            <p class="text-sm mt-2">Make sure you've granted access to the repositories you want to deploy.</p>
+          </div>
+        {{/if}}
+
+        <button
+          type="submit"
+          class="w-full px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Continue
+        </button>
+
+        <a
+          href="/dashboard"
+          class="block mt-4 text-center text-sm text-gray-500 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+        >
+          Skip for now
+        </a>
+      </form>
+    </div>
+
+    <!-- Help text -->
+    <p class="mt-6 text-center text-sm text-gray-500 dark:text-gray-500">
+      You can always add more repositories later in settings
+    </p>
+  </div>
+</div>

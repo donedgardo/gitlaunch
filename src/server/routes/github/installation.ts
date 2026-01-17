@@ -28,6 +28,6 @@ export function registerInstallationRoutes(
 
     await deps.gitHubAppService.linkInstallation(accountId, installationId);
 
-    return reply.redirect("/settings/repositories");
+    return reply.redirect("/onboarding/repositories");
   });
 }

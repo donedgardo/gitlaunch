@@ -88,9 +88,14 @@ export function registerGitHubAuthRoutes(
 
         let accountId = memberships[0]?.accountId;
 
+        // Track if this is a new user for onboarding redirect
+        let isNewUser = false;
+        let account = null;
+
         // If no account, create default account and membership (Phase 1.18)
         if (memberships.length === 0) {
-          const account = await accountRepository.create({
+          isNewUser = true;
+          account = await accountRepository.create({
             name: `${githubUser.login}'s Account`,
             slug: githubUser.login.toLowerCase().replace(/[^a-z0-9-]/g, "-"),
           });
@@ -102,6 +107,9 @@ export function registerGitHubAuthRoutes(
           });
 
           accountId = account._id;
+        } else {
+          // Fetch existing account to check installation status
+          account = await accountRepository.findById(memberships[0].accountId);
         }
 
         // Create session
@@ -118,6 +126,12 @@ export function registerGitHubAuthRoutes(
           path: "/",
           maxAge: 15 * 60, // 15 minutes
         });
+
+        // Redirect new users to onboarding, returning users to dashboard
+        // Users without GitHub App installation also go to onboarding
+        if (isNewUser || !account?.githubInstallationId) {
+          return reply.redirect("/onboarding");
+        }
 
         return reply.redirect("/dashboard");
       } catch (error) {

@@ -68,9 +68,9 @@ describe("GitHub Installation Routes", () => {
         },
       });
 
-      // Then: redirects to settings page
+      // Then: redirects to onboarding repository selection
       expect(response.statusCode).toBe(302);
-      expect(response.headers.location).toBe("/settings/repositories");
+      expect(response.headers.location).toBe("/onboarding/repositories");
 
       // And: installation is linked to account
       const updated = await accountRepo.findById(account._id);

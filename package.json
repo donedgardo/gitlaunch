@@ -11,7 +11,8 @@
     "start": "node dist/index.js",
     "test": "yarn test:watch --run",
     "test:e2e": "vitest --run --dir src/tests",
-    "test:watch": "vitest --exclude src/tests",
+    "test:acceptance": "playwright test",
+    "test:watch": "vitest",
     "prepare": "husky",
     "postbuild": "ncp src/templates dist/templates && ncp src/public dist/public"
   },
@@ -30,6 +31,7 @@
     "mongodb": "^6.5.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.57.0",
     "@types/bcrypt": "^6.0.0",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/supertest": "^6.0.2",
