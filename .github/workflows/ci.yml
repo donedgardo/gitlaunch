@@ -46,14 +46,14 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
-      MONGODB_URI: mongodb://localhost:27017/launchpad-test
+      MONGODB_URI: mongodb://localhost:27017
       PORT: 3050
       PUBLIC_URL: http://localhost:3050
       COOKIE_SECRET_SIGNATURE: test-secret-for-ci
       API_KEY: test-api-key
-      GITHUB_CLIENT_ID: test-client-id
-      GITHUB_CLIENT_SECRET: test-client-secret
       GITHUB_APP_ID: "123456"
+      GITHUB_APP_CLIENT_ID: test-client-id
+      GITHUB_APP_CLIENT_SECRET: test-client-secret
       GITHUB_APP_PRIVATE_KEY: test-private-key
     steps:
       - uses: actions/checkout@v4
@@ -66,12 +66,15 @@ jobs:
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
+      - name: Install Playwright browsers
+        run: npx playwright install chromium
+
       - name: Build
         run: yarn build
 
       - name: Start server
         run: |
-          yarn start &
+          npx tsx src/index.ts &
           sleep 5
 
       - name: Wait for server

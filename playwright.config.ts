@@ -21,7 +21,7 @@ export default defineConfig({
   webServer: {
     command: "npx tsx src/index.ts",
     url: "http://localhost:3050",
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: true,
     timeout: 30 * 1000,
   },
 });
