@@ -3,7 +3,7 @@ import { ObjectId } from "mongodb";
 import { BuildRepository, Build } from "../../repositories/buildRepository";
 import { RepositoryRepository } from "../../repositories/repositoryRepository";
 import { DeploymentStatus } from "../service/deploymentStatus";
-import { IDispatchService } from "../service/IDispatchService";
+import { BuildDispatchServiceI } from "./buildDispatchService";
 
 export type CreateBuildInput = {
   accountId: ObjectId;
@@ -24,7 +24,7 @@ export class BuildService {
     private buildRepo: BuildRepository,
     private repoRepo: RepositoryRepository,
     private eventEmitter: EventEmitter,
-    private dispatcher: IDispatchService,
+    private dispatcher: BuildDispatchServiceI,
   ) {}
 
   async createBuild(input: CreateBuildInput): Promise<Build> {
@@ -81,7 +81,12 @@ export class BuildService {
 
     // Trigger dispatch if status is DISPATCHING
     if (input.status === DeploymentStatus.DISPATCHING) {
-      await this.dispatcher.dispatch(input.environment, input.buildId);
+      await this.dispatcher.dispatch(
+        input.accountId,
+        input.repositoryId,
+        input.buildId,
+        input.environment,
+      );
     }
 
     // Update the build

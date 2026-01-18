@@ -15,7 +15,7 @@ import { RepositoryRepository } from "../../repositories/repositoryRepository";
 import { BuildRepository } from "../../repositories/buildRepository";
 import { BuildService } from "./buildService";
 import { DeploymentStatus } from "../service/deploymentStatus";
-import { IDispatchService } from "../service/IDispatchService";
+import { BuildDispatchServiceI } from "./buildDispatchService";
 
 describe("BuildService", () => {
   let mongoServer: MongoMemoryServer;
@@ -25,7 +25,7 @@ describe("BuildService", () => {
   let repoRepo: RepositoryRepository;
   let buildRepo: BuildRepository;
   let eventEmitter: EventEmitter;
-  let mockDispatcher: IDispatchService;
+  let mockDispatcher: BuildDispatchServiceI;
   let service: BuildService;
 
   beforeAll(async () => {
@@ -359,10 +359,12 @@ describe("BuildService", () => {
         status: DeploymentStatus.DISPATCHING,
       });
 
-      // Then: dispatch is called
+      // Then: dispatch is called with full context
       expect(mockDispatcher.dispatch).toHaveBeenCalledWith(
-        "staging",
+        account._id,
+        repository._id,
         "dispatch-me",
+        "staging",
       );
     });
 

@@ -17,7 +17,7 @@ import { createApiKeyAuthMiddleware } from "./middleware/apiKeyAuth";
 import { GitHubOAuthService } from "../services/auth/githubOAuthService";
 import { BuildRepository } from "../repositories/buildRepository";
 import { BuildService } from "../services/build/buildService";
-import { IDispatchService } from "../services/service/IDispatchService";
+import { NoOpBuildDispatchService } from "../services/build/buildDispatchService";
 import { SessionService } from "../services/auth/sessionService";
 import { UserRepository } from "../repositories/userRepository";
 import { AccountRepository } from "../repositories/accountRepository";
@@ -64,17 +64,13 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
   // Services
   const apiKeyService = new ApiKeyService(apiKeyRepository, accountRepository);
 
-  // No-op dispatcher for now - actual dispatch will be handled per-repository
-  const noOpDispatcher: IDispatchService = {
-    dispatch: async () => {
-      // Will be implemented with repository-specific GitHub integration
-    },
-  };
+  // No-op dispatcher for now - use BuildDispatchService for actual GitHub dispatch
+  const buildDispatchService = new NoOpBuildDispatchService();
   const buildService = new BuildService(
     buildRepository,
     repositoryRepository,
     eventEmitter,
-    noOpDispatcher,
+    buildDispatchService,
   );
 
   // Session middleware

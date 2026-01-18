@@ -21,7 +21,7 @@ import { RepositoryRepository } from "../../../repositories/repositoryRepository
 import { BuildRepository } from "../../../repositories/buildRepository";
 import { BuildService } from "../../../services/build/buildService";
 import { registerBuildsRoutes } from "./builds";
-import { IDispatchService } from "../../../services/service/IDispatchService";
+import { BuildDispatchServiceI } from "../../../services/build/buildDispatchService";
 import { DeploymentStatus } from "../../../services/service/deploymentStatus";
 import { ApiKeyScope } from "../../../repositories/apiKeyRepository";
 
@@ -61,7 +61,7 @@ describe("Builds API Routes", () => {
   let repoRepo: RepositoryRepository;
   let buildRepo: BuildRepository;
   let buildService: BuildService;
-  let mockDispatcher: IDispatchService;
+  let mockDispatcher: BuildDispatchServiceI;
   let eventEmitter: EventEmitter;
 
   let testAccountId: ObjectId;
@@ -348,8 +348,10 @@ describe("Builds API Routes", () => {
       const body = JSON.parse(response.body);
       expect(body.deployments["staging"]).toBe(DeploymentStatus.DISPATCHING);
       expect(mockDispatcher.dispatch).toHaveBeenCalledWith(
-        "staging",
+        testAccountId,
+        testRepositoryId,
         "deploy-me",
+        "staging",
       );
     });
 
