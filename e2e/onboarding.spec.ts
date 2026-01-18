@@ -176,4 +176,56 @@ test.describe("Onboarding - GitHub App Installation", () => {
     // Should be redirected to dashboard
     await expect(page).toHaveURL(/\/dashboard/);
   });
+
+  test("API key is never exposed in URL (security)", async ({ page }) => {
+    // Authenticate as user WITH GitHub App installed
+    await authenticateTestUser(page, TEST_USERS.userWithGitHubApp);
+
+    // Visit repository selection page
+    await page.goto("/onboarding/repositories");
+
+    // Click Continue to complete onboarding
+    await page.getByRole("button", { name: /continue/i }).click();
+
+    // Wait for navigation to complete page
+    await expect(page).toHaveURL(/\/onboarding\/complete/);
+
+    // SECURITY CHECK: URL must NOT contain the API key or any query parameters
+    const currentUrl = page.url();
+    expect(currentUrl).not.toContain("key=");
+    expect(currentUrl).not.toContain("pk_");
+    expect(currentUrl).toBe(
+      `${process.env.TEST_BASE_URL || "http://localhost:3050"}/onboarding/complete`,
+    );
+
+    // Verify the API key IS displayed on the page (it's in the cookie-based response)
+    const apiKeyElement = page.locator("#api-key");
+    await expect(apiKeyElement).toBeVisible();
+    const apiKeyText = await apiKeyElement.textContent();
+    expect(apiKeyText).toMatch(/^pk_/); // Key starts with pk_
+
+    // Double-check: the displayed key is NOT in the URL
+    expect(currentUrl).not.toContain(apiKeyText);
+  });
+
+  test("refreshing complete page redirects to dashboard (one-time display)", async ({
+    page,
+  }) => {
+    // Authenticate as user WITH GitHub App installed
+    await authenticateTestUser(page, TEST_USERS.userWithGitHubApp);
+
+    // Complete onboarding flow
+    await page.goto("/onboarding/repositories");
+    await page.getByRole("button", { name: /continue/i }).click();
+    await expect(page).toHaveURL(/\/onboarding\/complete/);
+
+    // Verify API key is shown
+    await expect(page.locator("#api-key")).toBeVisible();
+
+    // Refresh the page (simulating user trying to see key again)
+    await page.reload();
+
+    // Should be redirected to dashboard (cookie was cleared)
+    await expect(page).toHaveURL(/\/dashboard/);
+  });
 });

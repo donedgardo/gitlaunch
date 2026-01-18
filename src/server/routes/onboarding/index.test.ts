@@ -358,5 +358,65 @@ describe("Onboarding Routes", () => {
       expect(response.statusCode).toBe(302);
       expect(response.headers.location).toBe("/dashboard");
     });
+
+    it("should reject tampered cookie and redirect to dashboard", async () => {
+      // Given: an authenticated user
+      const account = await accountRepo.create({
+        name: "My Org",
+        slug: "my-org-tampered",
+      });
+      const userId = new ObjectId();
+      const sessionToken = sessionService.createSession({
+        userId,
+        accountId: account._id,
+      });
+
+      // And: a tampered (unsigned) cookie value
+      const tamperedCookie = "pk_stolen_key_attempt";
+
+      // When: visiting complete page with tampered cookie
+      const response = await app.inject({
+        method: "GET",
+        url: "/onboarding/complete",
+        cookies: {
+          session: sessionToken,
+          onboarding_api_key: tamperedCookie,
+        },
+      });
+
+      // Then: redirects to dashboard (cookie rejected)
+      expect(response.statusCode).toBe(302);
+      expect(response.headers.location).toBe("/dashboard");
+    });
+
+    it("should reject cookie signed with wrong secret", async () => {
+      // Given: an authenticated user
+      const account = await accountRepo.create({
+        name: "My Org",
+        slug: "my-org-wrongsecret",
+      });
+      const userId = new ObjectId();
+      const sessionToken = sessionService.createSession({
+        userId,
+        accountId: account._id,
+      });
+
+      // And: a cookie signed with a different secret
+      const wrongSecretCookie = sign("pk_test_key", "wrong-secret");
+
+      // When: visiting complete page with wrongly signed cookie
+      const response = await app.inject({
+        method: "GET",
+        url: "/onboarding/complete",
+        cookies: {
+          session: sessionToken,
+          onboarding_api_key: wrongSecretCookie,
+        },
+      });
+
+      // Then: redirects to dashboard (signature mismatch)
+      expect(response.statusCode).toBe(302);
+      expect(response.headers.location).toBe("/dashboard");
+    });
   });
 });
