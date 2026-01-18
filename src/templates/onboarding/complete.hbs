@@ -1,0 +1,147 @@
+<!-- Navigation -->
+<nav class="fixed w-full bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-800 z-50">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex justify-between h-16 items-center">
+      <div class="flex items-center">
+        <span class="text-xl font-bold text-gray-900 dark:text-white">GitDeploy</span>
+      </div>
+      <div class="flex items-center">
+        <span class="text-sm text-gray-500 dark:text-gray-400">Setup Complete</span>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- Main Content -->
+<div class="min-h-screen bg-gray-50 dark:bg-gray-900 pt-16">
+  <div class="max-w-2xl mx-auto px-4 py-16 sm:py-24">
+    <!-- Progress Steps -->
+    <div class="mb-12">
+      <div style="display: flex; align-items: center; justify-content: center;">
+        <div style="display: flex; align-items: center;">
+          <!-- Step 1: Complete -->
+          <div style="display: flex; flex-direction: column; align-items: center;">
+            <div style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;" class="bg-green-500 rounded-full text-white">
+              <svg style="width: 24px; height: 24px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+              </svg>
+            </div>
+            <span class="mt-2 text-sm text-green-600 dark:text-green-400">Connect</span>
+          </div>
+
+          <div style="width: 80px; height: 4px;" class="bg-green-500 mx-4"></div>
+
+          <!-- Step 2: Complete -->
+          <div style="display: flex; flex-direction: column; align-items: center;">
+            <div style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;" class="bg-green-500 rounded-full text-white">
+              <svg style="width: 24px; height: 24px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+              </svg>
+            </div>
+            <span class="mt-2 text-sm text-green-600 dark:text-green-400">Select Repos</span>
+          </div>
+
+          <div style="width: 80px; height: 4px;" class="bg-green-500 mx-4"></div>
+
+          <!-- Step 3: Complete -->
+          <div style="display: flex; flex-direction: column; align-items: center;">
+            <div style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;" class="bg-green-500 rounded-full text-white">
+              <svg style="width: 24px; height: 24px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+              </svg>
+            </div>
+            <span class="mt-2 text-sm text-green-600 dark:text-green-400">Deploy</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Header -->
+    <div class="text-center mb-10">
+      <div style="width: 80px; height: 80px; display: flex; align-items: center; justify-content: center;" class="bg-green-100 dark:bg-green-900/30 rounded-full mx-auto mb-6">
+        <svg style="width: 40px; height: 40px;" class="text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+      </div>
+      <h1 class="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white">
+        You're All Set!
+      </h1>
+      <p class="mt-4 text-lg text-gray-600 dark:text-gray-400">
+        Your account is ready. Save your API key below to start deploying.
+      </p>
+    </div>
+
+    <!-- API Key Card -->
+    <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-lg overflow-hidden">
+      <div class="p-8 sm:p-10">
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">Your API Key</h2>
+        <p class="text-sm text-gray-600 dark:text-gray-400 mb-6">
+          This key will only be shown once. Store it securely - you'll need it to trigger deployments.
+        </p>
+
+        <!-- API Key Display -->
+        <div class="relative">
+          <div class="bg-gray-900 dark:bg-gray-950 rounded-xl p-4 font-mono text-sm text-green-400 break-all">
+            <code id="api-key">{{apiKey}}</code>
+          </div>
+          <button
+            onclick="copyApiKey()"
+            class="absolute top-3 right-3 p-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
+            title="Copy to clipboard"
+          >
+            <svg id="copy-icon" style="width: 20px; height: 20px;" class="text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+            </svg>
+            <svg id="check-icon" style="width: 20px; height: 20px; display: none;" class="text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Warning Box -->
+        <div class="mt-6 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl">
+          <div style="display: flex;">
+            <svg style="width: 20px; height: 20px; min-width: 20px;" class="text-amber-600 dark:text-amber-400 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+            </svg>
+            <p class="text-sm text-amber-800 dark:text-amber-200">
+              <strong>Important:</strong> Copy this key now. For security reasons, we won't show it again.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer Actions -->
+      <div class="px-8 sm:px-10 py-6 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700">
+        <a
+          href="/dashboard"
+          hx-boost="false"
+          class="block w-full px-6 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/25 text-center"
+        >
+          Continue to Dashboard
+        </a>
+      </div>
+    </div>
+
+    <!-- Help Text -->
+    <p class="mt-8 text-center text-sm text-gray-500 dark:text-gray-500">
+      Need help getting started? Check out our <a href="/docs" class="text-blue-600 hover:underline">documentation</a>
+    </p>
+  </div>
+</div>
+
+<script>
+function copyApiKey() {
+  const apiKey = document.getElementById('api-key').textContent;
+  navigator.clipboard.writeText(apiKey).then(() => {
+    const copyIcon = document.getElementById('copy-icon');
+    const checkIcon = document.getElementById('check-icon');
+    copyIcon.style.display = 'none';
+    checkIcon.style.display = 'block';
+    setTimeout(() => {
+      copyIcon.style.display = 'block';
+      checkIcon.style.display = 'none';
+    }, 2000);
+  });
+}
+</script>

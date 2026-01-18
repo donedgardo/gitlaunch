@@ -127,7 +127,7 @@ test.describe("Onboarding - GitHub App Installation", () => {
     await expect(page).toHaveURL(/\/dashboard/);
   });
 
-  test("clicking Continue on repository selection goes to dashboard", async ({
+  test("clicking Continue on repository selection shows API key", async ({
     page,
   }) => {
     // Authenticate as user WITH GitHub App installed
@@ -143,6 +143,35 @@ test.describe("Onboarding - GitHub App Installation", () => {
 
     // Click the Continue button
     await page.getByRole("button", { name: /continue/i }).click();
+
+    // Should be redirected to onboarding complete page
+    await expect(page).toHaveURL(/\/onboarding\/complete/);
+
+    // Should see the API key heading and the key itself
+    await expect(
+      page.getByRole("heading", { name: /your api key/i }),
+    ).toBeVisible();
+    await expect(page.locator("#api-key")).toBeVisible();
+
+    // Should have a link to dashboard
+    await expect(
+      page.getByRole("link", { name: /continue to dashboard/i }),
+    ).toBeVisible();
+  });
+
+  test("onboarding complete page leads to dashboard", async ({ page }) => {
+    // Authenticate as user WITH GitHub App installed
+    await authenticateTestUser(page, TEST_USERS.userWithGitHubApp);
+
+    // Visit repository selection page and complete onboarding
+    await page.goto("/onboarding/repositories");
+    await page.getByRole("button", { name: /continue/i }).click();
+
+    // Should be on complete page
+    await expect(page).toHaveURL(/\/onboarding\/complete/);
+
+    // Click continue to dashboard
+    await page.getByRole("link", { name: /continue to dashboard/i }).click();
 
     // Should be redirected to dashboard
     await expect(page).toHaveURL(/\/dashboard/);

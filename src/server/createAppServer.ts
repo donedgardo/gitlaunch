@@ -18,7 +18,9 @@ import { UserRepository } from "../repositories/userRepository";
 import { AccountRepository } from "../repositories/accountRepository";
 import { MembershipRepository } from "../repositories/membershipRepository";
 import { RepositoryRepository } from "../repositories/repositoryRepository";
+import { ApiKeyRepository } from "../repositories/apiKeyRepository";
 import { GitHubAppService } from "../services/github/githubAppService";
+import { ApiKeyService } from "../services/apiKey/apiKeyService";
 import { ServiceI } from "../services/service/interface";
 import { DbClientI } from "./health/dbClientI";
 
@@ -51,6 +53,10 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
   const accountRepository = new AccountRepository(database);
   const membershipRepository = new MembershipRepository(database);
   const repositoryRepository = new RepositoryRepository(database);
+  const apiKeyRepository = new ApiKeyRepository(database);
+
+  // Services
+  const apiKeyService = new ApiKeyService(apiKeyRepository, accountRepository);
 
   // Session middleware
   registerSessionMiddleware(server, {
@@ -82,6 +88,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     accountRepository,
     repositoryRepository,
     gitHubAppService,
+    apiKeyService,
   });
 
   return server;

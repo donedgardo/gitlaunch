@@ -3,18 +3,25 @@ import { ObjectId } from "mongodb";
 import { AccountRepository } from "../../../repositories/accountRepository";
 import { RepositoryRepository } from "../../../repositories/repositoryRepository";
 import { GitHubAppService } from "../../../services/github/githubAppService";
+import { ApiKeyService } from "../../../services/apiKey/apiKeyService";
 
 export type OnboardingRoutesDeps = {
   accountRepository: AccountRepository;
   repositoryRepository: RepositoryRepository;
   gitHubAppService: GitHubAppService;
+  apiKeyService: ApiKeyService;
 };
 
 export function registerOnboardingRoutes(
   app: FastifyInstance,
   deps: OnboardingRoutesDeps,
 ): void {
-  const { accountRepository, repositoryRepository, gitHubAppService } = deps;
+  const {
+    accountRepository,
+    repositoryRepository,
+    gitHubAppService,
+    apiKeyService,
+  } = deps;
 
   // GET /onboarding - Main onboarding page
   app.get(
@@ -156,7 +163,67 @@ export function registerOnboardingRoutes(
         }
       }
 
-      return reply.redirect("/dashboard");
+      // Generate API key for the account
+      const { key } = await apiKeyService.generate({
+        accountId: account._id,
+        createdByUserId: new ObjectId(request.session.userId),
+        name: "Default API Key",
+        scopes: ["builds:read", "builds:write", "deployments:write"],
+      });
+
+      // Redirect to onboarding complete page with the API key
+      return reply.redirect(
+        `/onboarding/complete?key=${encodeURIComponent(key)}`,
+      );
+    },
+  );
+
+  // GET /onboarding/complete - Show API key and completion message
+  app.get<{
+    Querystring: { key?: string };
+  }>(
+    "/onboarding/complete",
+    async (
+      request: FastifyRequest<{ Querystring: { key?: string } }>,
+      reply: FastifyReply,
+    ) => {
+      // Redirect to login if not authenticated
+      if (!request.session) {
+        return reply.redirect("/auth/github");
+      }
+
+      // If no API key in URL, redirect to dashboard
+      const apiKey = request.query.key;
+      if (!apiKey) {
+        return reply.redirect("/dashboard");
+      }
+
+      // Use template if view engine is available, otherwise simple HTML
+      if (typeof reply.view === "function") {
+        return reply.view(
+          "onboarding/complete",
+          {
+            title: "Setup Complete",
+            apiKey,
+          },
+          { layout: "/layouts/main.hbs" },
+        );
+      }
+
+      // Fallback for unit tests without view engine
+      return reply.header("Content-Type", "text/html").send(`
+          <!DOCTYPE html>
+          <html>
+          <head><title>Setup Complete</title></head>
+          <body>
+            <h1>Your API Key</h1>
+            <p>Save this key - you won't be able to see it again!</p>
+            <code id="api-key">${apiKey}</code>
+            <button onclick="navigator.clipboard.writeText('${apiKey}')">Copy</button>
+            <a href="/dashboard">Continue to Dashboard</a>
+          </body>
+          </html>
+        `);
     },
   );
 }
