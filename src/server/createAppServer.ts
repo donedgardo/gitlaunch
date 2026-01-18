@@ -10,9 +10,14 @@ import buildRoutes from "./build";
 import { registerGitHubAuthRoutes } from "./routes/auth/github";
 import { registerInstallationRoutes } from "./routes/github/installation";
 import { registerOnboardingRoutes } from "./routes/onboarding";
+import { registerBuildsRoutes } from "./routes/api/builds";
 import { registerSessionMiddleware } from "./middleware/sessionAuth";
+import { createApiKeyAuthMiddleware } from "./middleware/apiKeyAuth";
 
 import { GitHubOAuthService } from "../services/auth/githubOAuthService";
+import { BuildRepository } from "../repositories/buildRepository";
+import { BuildService } from "../services/build/buildService";
+import { IDispatchService } from "../services/service/IDispatchService";
 import { SessionService } from "../services/auth/sessionService";
 import { UserRepository } from "../repositories/userRepository";
 import { AccountRepository } from "../repositories/accountRepository";
@@ -54,9 +59,23 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
   const membershipRepository = new MembershipRepository(database);
   const repositoryRepository = new RepositoryRepository(database);
   const apiKeyRepository = new ApiKeyRepository(database);
+  const buildRepository = new BuildRepository(database);
 
   // Services
   const apiKeyService = new ApiKeyService(apiKeyRepository, accountRepository);
+
+  // No-op dispatcher for now - actual dispatch will be handled per-repository
+  const noOpDispatcher: IDispatchService = {
+    dispatch: async () => {
+      // Will be implemented with repository-specific GitHub integration
+    },
+  };
+  const buildService = new BuildService(
+    buildRepository,
+    repositoryRepository,
+    eventEmitter,
+    noOpDispatcher,
+  );
 
   // Session middleware
   registerSessionMiddleware(server, {
@@ -90,6 +109,22 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     gitHubAppService,
     apiKeyService,
   });
+
+  // API v1 routes (API key authenticated)
+  server.register(
+    async (apiServer) => {
+      // Add API key auth middleware for all /api/v1 routes
+      const apiKeyAuth = createApiKeyAuthMiddleware(apiKeyService);
+      apiServer.addHook("preHandler", apiKeyAuth);
+
+      // Register builds API routes
+      registerBuildsRoutes(apiServer, {
+        buildService,
+        repoRepo: repositoryRepository,
+      });
+    },
+    { prefix: "" }, // Routes already have /api/v1 prefix
+  );
 
   return server;
 }

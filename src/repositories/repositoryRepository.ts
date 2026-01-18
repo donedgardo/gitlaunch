@@ -67,4 +67,8 @@ export class RepositoryRepository {
   ): Promise<Repository | null> {
     return this.collection.findOne({ accountId, githubRepoId });
   }
+
+  async findById(id: ObjectId): Promise<Repository | null> {
+    return this.collection.findOne({ _id: id });
+  }
 }

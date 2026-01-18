@@ -129,4 +129,37 @@ describe("RepositoryRepository", () => {
       expect(repos).toEqual([]);
     });
   });
+
+  describe("findById", () => {
+    it("should return repository when found by ID", async () => {
+      // Given: a repository exists
+      const created = await repo.create({
+        accountId: testAccountId,
+        githubRepoId: 999,
+        githubFullName: "org/find-by-id",
+        githubOwner: "org",
+        githubRepoName: "find-by-id",
+        isPrivate: false,
+      });
+
+      // When: I look up by ID
+      const found = await repo.findById(created._id);
+
+      // Then: I get the repository
+      expect(found).not.toBeNull();
+      expect(found!._id.toString()).toBe(created._id.toString());
+      expect(found!.githubFullName).toBe("org/find-by-id");
+    });
+
+    it("should return null when repository not found", async () => {
+      // Given: a non-existent ID
+      const nonExistentId = new ObjectId();
+
+      // When: I look up by ID
+      const found = await repo.findById(nonExistentId);
+
+      // Then: I get null
+      expect(found).toBeNull();
+    });
+  });
 });
