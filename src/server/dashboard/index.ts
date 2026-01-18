@@ -12,7 +12,8 @@ export default function (services: ServiceI[]) {
       }
       done();
     });
-    server.get(`/dashboard`, (req, res) => {
+    // Handle both /dashboard and /dashboard/ (trailing slash)
+    const dashboardHandler = (req: any, res: any) => {
       // If no services configured, show empty dashboard
       if (services.length === 0) {
         return res.view(
@@ -29,7 +30,9 @@ export default function (services: ServiceI[]) {
         );
       }
       return redirectToFirstService(services, res);
-    });
+    };
+    server.get(`/dashboard`, dashboardHandler);
+    server.get(`/dashboard/`, dashboardHandler);
     for (let service of services) {
       const activeServiceName = service.getName();
       server.get(`/dashboard/${activeServiceName}`, async (req, reply) => {
