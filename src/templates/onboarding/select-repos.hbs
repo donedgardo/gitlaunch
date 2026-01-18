@@ -64,7 +64,7 @@
 
     <!-- Card -->
     <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-lg overflow-hidden">
-      <form action="/onboarding/repositories" method="POST">
+      <form action="/onboarding/repositories" method="POST" hx-boost="false">
         <div class="p-8 sm:p-10">
           {{#if repositories.length}}
             <!-- Repository List -->

@@ -126,4 +126,25 @@ test.describe("Onboarding - GitHub App Installation", () => {
     // Should be redirected to dashboard
     await expect(page).toHaveURL(/\/dashboard/);
   });
+
+  test("clicking Continue on repository selection goes to dashboard", async ({
+    page,
+  }) => {
+    // Authenticate as user WITH GitHub App installed
+    await authenticateTestUser(page, TEST_USERS.userWithGitHubApp);
+
+    // Visit repository selection page
+    await page.goto("/onboarding/repositories");
+
+    // Should see the selection page
+    await expect(
+      page.getByRole("heading", { name: /select repositories/i }),
+    ).toBeVisible();
+
+    // Click the Continue button
+    await page.getByRole("button", { name: /continue/i }).click();
+
+    // Should be redirected to dashboard
+    await expect(page).toHaveURL(/\/dashboard/);
+  });
 });
