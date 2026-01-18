@@ -21,8 +21,8 @@ Transform GitLaunch from a single-tenant deployment tool into a multi-tenant Saa
 | **Phase 2** | ✅ Complete | 31 tests | GitHub App integration                        |
 | **Phase 3** | ✅ Complete | 57 tests | API Keys & Multi-Account                      |
 | **Phase 4** | ✅ Complete | 39 tests | Stripe Billing                                |
-| **Phase 5** | ⏳ Pending  | -        | Landing Page & Onboarding                     |
-| **Phase 6** | ⏳ Pending  | -        | Migration & Cleanup                           |
+| **Phase 5** | ✅ Complete | 10 tests | Landing Page & Onboarding                     |
+| **Phase 6** | ✅ Complete | -        | Migration & Cleanup (fresh start)             |
 
 ### Phase 1 Completed Files
 
@@ -80,7 +80,34 @@ Transform GitLaunch from a single-tenant deployment tool into a multi-tenant Saa
 
 **Total Phase 4 Tests: 39** (all passing as of January 2026)
 
-**Total Tests: 262** (Phase 1 + Phase 2 + Phase 3 + Phase 4 + existing tests)
+**Total Phase 4 Tests: 39** (all passing as of January 2026)
+
+### Phase 5 Completed Files
+
+| File                                          | Tests | Description                               |
+| --------------------------------------------- | ----- | ----------------------------------------- |
+| `src/templates/index.hbs`                     | -     | Landing page with hero and pricing        |
+| `src/templates/onboarding/install-github.hbs` | -     | GitHub App installation prompt            |
+| `src/templates/onboarding/select-repos.hbs`   | -     | Repository selection page                 |
+| `src/templates/onboarding/complete.hbs`       | -     | API key display (one-time, secure)        |
+| `src/server/routes/onboarding/index.ts`       | 9     | Onboarding routes with API key generation |
+| `e2e/onboarding.spec.ts`                      | 10    | E2E acceptance tests for onboarding flow  |
+
+**Total Phase 5 Tests: 19** (9 unit + 10 E2E, all passing as of January 2026)
+
+### Phase 6 Completed (Cleanup)
+
+| Change                     | Description                                    |
+| -------------------------- | ---------------------------------------------- |
+| Removed Google OAuth       | Deleted googleOAuthService.ts, interface.ts    |
+| Removed legacy server      | Deleted src/server/index.ts (old createServer) |
+| Removed legacy auth routes | Deleted src/server/auth/index.ts               |
+| Removed SERVICES env var   | Deleted createServices.ts                      |
+| Removed GITHUB_ORG helper  | Removed from registerHandlebarsHelpers.ts      |
+| Cleaned up legacy tests    | Removed tests that depended on deleted files   |
+| Updated sample.env         | Removed legacy env vars, added GH_APP_NAME     |
+
+**Total Tests: 195** (Phase 1-5 + existing multi-tenant tests)
 
 ### Recent Refactoring (January 2026)
 
@@ -693,9 +720,18 @@ src/templates/onboarding/select-repos.hbs
 
 ### Phase 5 Verification
 
-- [ ] Landing page renders correctly
-- [ ] Signup flow works end-to-end
-- [ ] Onboarding guides user through setup
+- [x] Landing page renders correctly (E2E tests pass)
+- [x] Signup flow works end-to-end (E2E tests pass)
+- [x] Onboarding guides user through setup (E2E tests pass)
+- [x] API key generation on onboarding (unit + E2E tests pass)
+- [x] API key displayed securely via signed cookie (security tests pass)
+
+### Phase 6 Verification
+
+- [x] Google OAuth code removed
+- [x] Legacy env vars removed (SERVICES, GITHUB_PAT, GITHUB_ORG, API_KEY)
+- [x] Legacy test infrastructure cleaned up
+- [x] All tests pass (195 unit tests, 10 E2E tests)
 
 ### E2E Test
 
@@ -717,14 +753,13 @@ yarn test:e2e
 | Low      | Admin Dashboard                 | Analytics and usage metrics                      |
 | Low      | Deployment retry/error handling | Automatic retry logic for failed deployments     |
 
-### Phase 5 & 6 Remaining
+### All Phases Complete
 
-- Landing page and onboarding flow (Phase 5)
-- Migration scripts and cleanup (Phase 6)
+All 6 phases are now complete. The multi-tenant transformation is done.
 
 ### Next Steps
 
-1. Complete Phase 5 (Landing Page & Onboarding)
-2. Add email notifications (SendGrid/Postmark integration)
-3. Implement pagination for lists
-4. Create admin dashboard for analytics
+1. Add email notifications (SendGrid/Postmark integration)
+2. Implement pagination for lists
+3. Create admin dashboard for analytics
+4. Deploy to production

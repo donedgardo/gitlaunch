@@ -3,7 +3,6 @@ import { MongoClient } from "mongodb";
 import EventEmitter from "node:events";
 
 import { createAppServer } from "./server/createAppServer";
-import { createServices } from "./services/createServices";
 import { MongoDbClient } from "./services/auth/mongoDbClient";
 import {
   GitHubOAuthService,
@@ -23,12 +22,6 @@ const database = client.db("gitlaunch");
 
 // Event emitter for SSE
 const eventEmitter = new EventEmitter();
-
-// Legacy services (from SERVICES env var)
-const serviceNames = process.env.SERVICES
-  ? process.env.SERVICES.split(",").map((s) => s.trim())
-  : [];
-const services = createServices(serviceNames, database, eventEmitter);
 
 // GitHub OAuth service
 const githubHttpClient = new RealGitHubHttpClient(
@@ -65,7 +58,7 @@ const server = createAppServer({
   database,
   mongoClient: new MongoDbClient(client),
   eventEmitter,
-  services,
+  services: [], // Multi-tenant: services are per-account, not global
   githubOAuthService,
   sessionService,
   gitHubAppService,

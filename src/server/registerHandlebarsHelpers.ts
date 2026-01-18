@@ -18,11 +18,4 @@ export function registerHandlebarsHelpers() {
       return !status || status === DeploymentStatus.NONE;
     },
   );
-  handlebars.registerHelper(
-    "getBuildCommitLink",
-    function (serviceName: string, buildId: string) {
-      const githubOrg = process.env.GITHUB_ORG;
-      return `https://github.com/${githubOrg}/${serviceName}/commit/${buildId}`;
-    },
-  );
 }
