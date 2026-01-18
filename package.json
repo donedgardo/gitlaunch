@@ -4,6 +4,7 @@
   "license": "MIT",
   "scripts": {
     "build": "tsc",
+    "db:reset": "tsx scripts/reset-db.ts",
     "dev": "concurrently --kill-others \"yarn run server:watch\" \"yarn run tailwind:watch\"",
     "server:watch": "nodemon -e ts,hbs --exec tsx src/index.ts",
     "tailwind": "yarn tailwindcss -i ./src/styles/input.css -o src/public/css/main.css",
