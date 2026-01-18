@@ -1,0 +1,65 @@
+import "dotenv/config";
+import { Page } from "@playwright/test";
+import jwt from "jsonwebtoken";
+
+const COOKIE_SECRET = process.env.COOKIE_SECRET_SIGNATURE as string;
+
+export type TestUser = {
+  userId: string;
+  accountId: string;
+  hasGitHubApp?: boolean;
+};
+
+/**
+ * Creates a session token for testing
+ */
+export function createTestSessionToken(user: TestUser): string {
+  return jwt.sign(
+    {
+      userId: user.userId,
+      accountId: user.accountId,
+    },
+    COOKIE_SECRET,
+    { expiresIn: "15m" },
+  );
+}
+
+/**
+ * Authenticates a test user by setting the session cookie
+ */
+export async function authenticateTestUser(
+  page: Page,
+  user: TestUser,
+): Promise<void> {
+  const token = createTestSessionToken(user);
+
+  // Set the session cookie
+  await page.context().addCookies([
+    {
+      name: "session",
+      value: token,
+      domain: "localhost",
+      path: "/",
+      httpOnly: true,
+      secure: false,
+      sameSite: "Lax",
+    },
+  ]);
+}
+
+/**
+ * Test user IDs - these would need to exist in the test database
+ * For now using placeholder ObjectIds
+ */
+export const TEST_USERS = {
+  newUser: {
+    userId: "000000000000000000000001",
+    accountId: "000000000000000000000011",
+    hasGitHubApp: false,
+  },
+  userWithGitHubApp: {
+    userId: "000000000000000000000002",
+    accountId: "000000000000000000000022",
+    hasGitHubApp: true,
+  },
+};

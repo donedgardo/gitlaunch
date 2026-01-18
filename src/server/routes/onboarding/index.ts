@@ -37,7 +37,7 @@ export function registerOnboardingRoutes(
       }
 
       // Show GitHub App installation page
-      const githubAppName = process.env.GITHUB_APP_NAME || "gitdeploy";
+      const githubAppName = process.env.GITHUB_APP_NAME || "gitlaunchapp";
       const installUrl = `https://github.com/apps/${githubAppName}/installations/new`;
 
       return reply.view("onboarding/install-github", {

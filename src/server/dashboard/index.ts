@@ -6,7 +6,8 @@ import { redirectToFirstService } from "./redirectToFirstService";
 export default function (services: ServiceI[]) {
   return function (server: FastifyInstance, opts: any, done: any) {
     server.addHook("preHandler", (req, res, done) => {
-      if (!req.user) {
+      // Check for both new session (JWT) and legacy user auth
+      if (!req.session && !req.user) {
         return res.redirect("/");
       }
       done();
