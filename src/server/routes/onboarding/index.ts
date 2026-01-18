@@ -217,7 +217,7 @@ export function registerOnboardingRoutes(
           <head><title>Setup Complete</title></head>
           <body>
             <h1>Your API Key</h1>
-            <p>Save this key - you won't be able to see it again!</p>
+            <p>Use this key in your CI/CD pipelines to report build and deployment status.</p>
             <code id="api-key">${apiKey}</code>
             <button onclick="navigator.clipboard.writeText('${apiKey}')">Copy</button>
             <a href="/dashboard">Continue to Dashboard</a>
