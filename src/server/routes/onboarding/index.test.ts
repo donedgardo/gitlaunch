@@ -6,9 +6,11 @@ import cookie, { sign } from "@fastify/cookie";
 import formbody from "@fastify/formbody";
 import { AccountRepository } from "../../../repositories/accountRepository";
 import { RepositoryRepository } from "../../../repositories/repositoryRepository";
+import { MembershipRepository } from "../../../repositories/membershipRepository";
 import { ApiKeyRepository } from "../../../repositories/apiKeyRepository";
 import { GitHubAppService } from "../../../services/github/githubAppService";
 import { ApiKeyService } from "../../../services/apiKey/apiKeyService";
+import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
 import { SessionService } from "../../../services/auth/sessionService";
 import { sessionAuthMiddleware } from "../../middleware/sessionAuth";
 import { registerOnboardingRoutes } from "./index";
@@ -51,8 +53,10 @@ describe("Onboarding Routes", () => {
   let app: FastifyInstance;
   let accountRepo: AccountRepository;
   let repositoryRepo: RepositoryRepository;
+  let membershipRepo: MembershipRepository;
   let apiKeyRepo: ApiKeyRepository;
   let apiKeyService: ApiKeyService;
+  let planEnforcementService: PlanEnforcementService;
   let fakeGitHubAppService: FakeGitHubAppService;
   let sessionService: SessionService;
 
@@ -74,12 +78,19 @@ describe("Onboarding Routes", () => {
   beforeEach(async () => {
     await db.collection("accounts").deleteMany({});
     await db.collection("repositories").deleteMany({});
+    await db.collection("memberships").deleteMany({});
     await db.collection("apiKeys").deleteMany({});
 
     accountRepo = new AccountRepository(db);
     repositoryRepo = new RepositoryRepository(db);
+    membershipRepo = new MembershipRepository(db);
     apiKeyRepo = new ApiKeyRepository(db);
     apiKeyService = new ApiKeyService(apiKeyRepo, accountRepo);
+    planEnforcementService = new PlanEnforcementService(
+      accountRepo,
+      repositoryRepo,
+      membershipRepo,
+    );
     fakeGitHubAppService = new FakeGitHubAppService();
     sessionService = new SessionService(TEST_SECRET);
 
@@ -92,18 +103,20 @@ describe("Onboarding Routes", () => {
       gitHubAppService: fakeGitHubAppService as unknown as GitHubAppService,
       repositoryRepository: repositoryRepo,
       apiKeyService,
+      planEnforcementService,
     });
     await app.ready();
   });
 
   describe("POST /onboarding/repositories", () => {
     it("should save selected repositories to the account", async () => {
-      // Given: an account with GitHub App installed
+      // Given: an account with GitHub App installed (paid plan to allow multiple repos)
       const account = await accountRepo.create({
         name: "My Org",
         slug: "my-org",
       });
       await accountRepo.updateInstallation(account._id, 12345);
+      await accountRepo.upgradeToPaid(account._id, "cus_test", "sub_test");
 
       const userId = new ObjectId();
       const sessionToken = sessionService.createSession({
@@ -417,6 +430,220 @@ describe("Onboarding Routes", () => {
       // Then: redirects to dashboard (signature mismatch)
       expect(response.statusCode).toBe(302);
       expect(response.headers.location).toBe("/dashboard");
+    });
+  });
+
+  describe("Plan Enforcement", () => {
+    it("should reject selecting more repos than free plan allows", async () => {
+      // Given: an account on free plan (maxRepositories: 1)
+      const account = await accountRepo.create({
+        name: "Free Org",
+        slug: "free-org",
+      });
+      await accountRepo.updateInstallation(account._id, 12345);
+
+      const userId = new ObjectId();
+      const sessionToken = sessionService.createSession({
+        userId,
+        accountId: account._id,
+      });
+
+      // And: GitHub App has multiple repos available
+      fakeGitHubAppService.setRepos([
+        {
+          id: 1001,
+          full_name: "free-org/repo-one",
+          private: false,
+          owner: { login: "free-org" },
+          name: "repo-one",
+        },
+        {
+          id: 1002,
+          full_name: "free-org/repo-two",
+          private: false,
+          owner: { login: "free-org" },
+          name: "repo-two",
+        },
+      ]);
+
+      // When: user tries to select 2 repos (exceeds free plan limit of 1)
+      const response = await app.inject({
+        method: "POST",
+        url: "/onboarding/repositories",
+        cookies: {
+          session: sessionToken,
+        },
+        headers: {
+          "content-type": "application/x-www-form-urlencoded",
+        },
+        payload: "repositories=1001&repositories=1002",
+      });
+
+      // Then: returns 400 with error message
+      expect(response.statusCode).toBe(400);
+      const body = JSON.parse(response.body);
+      expect(body.error).toContain("free plan allows up to 1 repository");
+
+      // And: no repositories are saved
+      const savedRepos = await repositoryRepo.findByAccountId(account._id);
+      expect(savedRepos).toHaveLength(0);
+    });
+
+    it("should reject private repos on free plan", async () => {
+      // Given: an account on free plan (publicReposOnly: true)
+      const account = await accountRepo.create({
+        name: "Free Org",
+        slug: "free-org-private",
+      });
+      await accountRepo.updateInstallation(account._id, 12345);
+
+      const userId = new ObjectId();
+      const sessionToken = sessionService.createSession({
+        userId,
+        accountId: account._id,
+      });
+
+      // And: GitHub App has a private repo
+      fakeGitHubAppService.setRepos([
+        {
+          id: 1001,
+          full_name: "free-org/private-repo",
+          private: true,
+          owner: { login: "free-org" },
+          name: "private-repo",
+        },
+      ]);
+
+      // When: user tries to select a private repo
+      const response = await app.inject({
+        method: "POST",
+        url: "/onboarding/repositories",
+        cookies: {
+          session: sessionToken,
+        },
+        headers: {
+          "content-type": "application/x-www-form-urlencoded",
+        },
+        payload: "repositories=1001",
+      });
+
+      // Then: returns 400 with error message
+      expect(response.statusCode).toBe(400);
+      const body = JSON.parse(response.body);
+      expect(body.error).toContain("Private repositories require a paid plan");
+
+      // And: no repositories are saved
+      const savedRepos = await repositoryRepo.findByAccountId(account._id);
+      expect(savedRepos).toHaveLength(0);
+    });
+
+    it("should allow paid plan to select multiple repos", async () => {
+      // Given: an account on paid plan
+      const account = await accountRepo.create({
+        name: "Paid Org",
+        slug: "paid-org",
+      });
+      await accountRepo.updateInstallation(account._id, 12345);
+      await accountRepo.upgradeToPaid(account._id, "cus_123", "sub_123");
+
+      const userId = new ObjectId();
+      const sessionToken = sessionService.createSession({
+        userId,
+        accountId: account._id,
+      });
+
+      // And: GitHub App has multiple repos available
+      fakeGitHubAppService.setRepos([
+        {
+          id: 1001,
+          full_name: "paid-org/repo-one",
+          private: false,
+          owner: { login: "paid-org" },
+          name: "repo-one",
+        },
+        {
+          id: 1002,
+          full_name: "paid-org/repo-two",
+          private: false,
+          owner: { login: "paid-org" },
+          name: "repo-two",
+        },
+        {
+          id: 1003,
+          full_name: "paid-org/repo-three",
+          private: true,
+          owner: { login: "paid-org" },
+          name: "repo-three",
+        },
+      ]);
+
+      // When: user selects 3 repos including a private one
+      const response = await app.inject({
+        method: "POST",
+        url: "/onboarding/repositories",
+        cookies: {
+          session: sessionToken,
+        },
+        headers: {
+          "content-type": "application/x-www-form-urlencoded",
+        },
+        payload: "repositories=1001&repositories=1002&repositories=1003",
+      });
+
+      // Then: redirects to onboarding complete (success)
+      expect(response.statusCode).toBe(302);
+      expect(response.headers.location).toBe("/onboarding/complete");
+
+      // And: all repositories are saved
+      const savedRepos = await repositoryRepo.findByAccountId(account._id);
+      expect(savedRepos).toHaveLength(3);
+    });
+
+    it("should allow free plan to select one public repo", async () => {
+      // Given: an account on free plan
+      const account = await accountRepo.create({
+        name: "Free Org",
+        slug: "free-org-one",
+      });
+      await accountRepo.updateInstallation(account._id, 12345);
+
+      const userId = new ObjectId();
+      const sessionToken = sessionService.createSession({
+        userId,
+        accountId: account._id,
+      });
+
+      // And: GitHub App has repos available
+      fakeGitHubAppService.setRepos([
+        {
+          id: 1001,
+          full_name: "free-org/repo-one",
+          private: false,
+          owner: { login: "free-org" },
+          name: "repo-one",
+        },
+      ]);
+
+      // When: user selects 1 public repo (within free plan limits)
+      const response = await app.inject({
+        method: "POST",
+        url: "/onboarding/repositories",
+        cookies: {
+          session: sessionToken,
+        },
+        headers: {
+          "content-type": "application/x-www-form-urlencoded",
+        },
+        payload: "repositories=1001",
+      });
+
+      // Then: redirects to onboarding complete (success)
+      expect(response.statusCode).toBe(302);
+      expect(response.headers.location).toBe("/onboarding/complete");
+
+      // And: repository is saved
+      const savedRepos = await repositoryRepo.findByAccountId(account._id);
+      expect(savedRepos).toHaveLength(1);
     });
   });
 });

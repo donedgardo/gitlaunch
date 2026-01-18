@@ -27,6 +27,7 @@ import { ServiceRepository } from "../repositories/serviceRepository";
 import { ApiKeyRepository } from "../repositories/apiKeyRepository";
 import { GitHubAppService } from "../services/github/githubAppService";
 import { ApiKeyService } from "../services/apiKey/apiKeyService";
+import { PlanEnforcementService } from "../services/billing/planEnforcementService";
 import { ServiceI } from "../services/service/interface";
 import { DbClientI } from "./health/dbClientI";
 
@@ -65,6 +66,11 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
 
   // Services
   const apiKeyService = new ApiKeyService(apiKeyRepository, accountRepository);
+  const planEnforcementService = new PlanEnforcementService(
+    accountRepository,
+    repositoryRepository,
+    membershipRepository,
+  );
 
   // No-op dispatcher for now - use BuildDispatchService for actual GitHub dispatch
   const buildDispatchService = new NoOpBuildDispatchService();
@@ -106,6 +112,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     repositoryRepository,
     gitHubAppService,
     apiKeyService,
+    planEnforcementService,
   });
 
   // API v1 routes (API key authenticated)

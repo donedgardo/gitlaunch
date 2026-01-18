@@ -4,12 +4,14 @@ import { AccountRepository } from "../../../repositories/accountRepository";
 import { RepositoryRepository } from "../../../repositories/repositoryRepository";
 import { GitHubAppService } from "../../../services/github/githubAppService";
 import { ApiKeyService } from "../../../services/apiKey/apiKeyService";
+import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
 
 export type OnboardingRoutesDeps = {
   accountRepository: AccountRepository;
   repositoryRepository: RepositoryRepository;
   gitHubAppService: GitHubAppService;
   apiKeyService: ApiKeyService;
+  planEnforcementService: PlanEnforcementService;
 };
 
 export function registerOnboardingRoutes(
@@ -21,6 +23,7 @@ export function registerOnboardingRoutes(
     repositoryRepository,
     gitHubAppService,
     apiKeyService,
+    planEnforcementService,
   } = deps;
 
   // GET /onboarding - Main onboarding page
@@ -97,11 +100,17 @@ export function registerOnboardingRoutes(
         console.error("Failed to fetch repositories:", error);
       }
 
+      // Get plan usage info to show limits in UI
+      const usage = await planEnforcementService.getUsage(account._id);
+
       return reply.view(
         "onboarding/select-repos",
         {
           title: "Select Repositories",
           repositories,
+          maxRepositories: usage.repositories.limit,
+          privateReposAllowed: usage.privateReposAllowed,
+          plan: usage.plan,
         },
         { layout: "/layouts/main.hbs" },
       );
@@ -145,18 +154,66 @@ export function registerOnboardingRoutes(
             account._id,
           );
 
-          // Filter to only selected repos and save each one
-          for (const repo of availableRepos) {
-            if (selectedRepoIds.includes(repo.id)) {
-              await repositoryRepository.create({
-                accountId: account._id,
-                githubRepoId: repo.id,
-                githubFullName: repo.full_name,
-                githubOwner: repo.owner?.login || repo.full_name.split("/")[0],
-                githubRepoName: repo.name || repo.full_name.split("/")[1],
-                isPrivate: repo.private,
-              });
+          // Filter to only selected repos
+          const selectedRepos = availableRepos.filter((repo) =>
+            selectedRepoIds.includes(repo.id),
+          );
+
+          // Get plan usage to check limits
+          const usage = await planEnforcementService.getUsage(account._id);
+
+          // Check if selected count exceeds plan limit
+          if (selectedRepos.length > usage.repositories.limit) {
+            const errorMessage = `Your ${usage.plan} plan allows up to ${usage.repositories.limit} repository. Please select fewer repositories or upgrade your plan.`;
+            if (typeof reply.view === "function") {
+              return reply.view(
+                "onboarding/select-repos",
+                {
+                  title: "Select Repositories",
+                  repositories: availableRepos,
+                  maxRepositories: usage.repositories.limit,
+                  privateReposAllowed: usage.privateReposAllowed,
+                  plan: usage.plan,
+                  error: errorMessage,
+                },
+                { layout: "/layouts/main.hbs" },
+              );
             }
+            return reply.status(400).send({ error: errorMessage });
+          }
+
+          // Check if any private repos are selected when plan doesn't allow
+          const hasPrivateRepo = selectedRepos.some((repo) => repo.private);
+          if (hasPrivateRepo && !usage.privateReposAllowed) {
+            const errorMessage =
+              "Private repositories require a paid plan. Please select only public repositories or upgrade your plan.";
+            if (typeof reply.view === "function") {
+              return reply.view(
+                "onboarding/select-repos",
+                {
+                  title: "Select Repositories",
+                  repositories: availableRepos,
+                  maxRepositories: usage.repositories.limit,
+                  privateReposAllowed: usage.privateReposAllowed,
+                  plan: usage.plan,
+                  error: errorMessage,
+                },
+                { layout: "/layouts/main.hbs" },
+              );
+            }
+            return reply.status(400).send({ error: errorMessage });
+          }
+
+          // Save each selected repo
+          for (const repo of selectedRepos) {
+            await repositoryRepository.create({
+              accountId: account._id,
+              githubRepoId: repo.id,
+              githubFullName: repo.full_name,
+              githubOwner: repo.owner?.login || repo.full_name.split("/")[0],
+              githubRepoName: repo.name || repo.full_name.split("/")[1],
+              isPrivate: repo.private,
+            });
           }
         } catch (error) {
           console.error("Failed to save repositories:", error);
