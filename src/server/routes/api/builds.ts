@@ -1,13 +1,13 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { ObjectId } from "mongodb";
 import { BuildService } from "../../../services/build/buildService";
-import { RepositoryRepository } from "../../../repositories/repositoryRepository";
+import { ServiceRepository } from "../../../repositories/serviceRepository";
 import { requireScope } from "../../middleware/apiKeyAuth";
 import { DeploymentStatus } from "../../../services/service/deploymentStatus";
 
 export type BuildsRoutesDependencies = {
   buildService: BuildService;
-  repoRepo: RepositoryRepository;
+  serviceRepo: ServiceRepository;
 };
 
 type CreateBuildBody = {
@@ -18,11 +18,11 @@ type UpdateDeploymentStatusBody = {
   status: string;
 };
 
-type RepoIdParams = {
-  repoId: string;
+type ServiceIdParams = {
+  serviceId: string;
 };
 
-type BuildIdParams = RepoIdParams & {
+type BuildIdParams = ServiceIdParams & {
   buildId: string;
 };
 
@@ -34,48 +34,51 @@ export function registerBuildsRoutes(
   app: FastifyInstance,
   deps: BuildsRoutesDependencies,
 ) {
-  const { buildService, repoRepo } = deps;
+  const { buildService, serviceRepo } = deps;
 
-  // POST /api/v1/repos/:repoId/builds - Create a new build
-  app.post<{ Params: RepoIdParams; Body: CreateBuildBody }>(
-    "/api/v1/repos/:repoId/builds",
+  // POST /api/v1/services/:serviceId/builds - Create a new build
+  app.post<{ Params: ServiceIdParams; Body: CreateBuildBody }>(
+    "/api/v1/services/:serviceId/builds",
     { preHandler: requireScope("builds:write") },
     async (
-      request: FastifyRequest<{ Params: RepoIdParams; Body: CreateBuildBody }>,
+      request: FastifyRequest<{
+        Params: ServiceIdParams;
+        Body: CreateBuildBody;
+      }>,
       reply: FastifyReply,
     ) => {
-      const { repoId } = request.params;
+      const { serviceId: serviceIdParam } = request.params;
       const { buildId } = request.body;
       const accountId = request.apiKey!.accountId;
 
-      if (!ObjectId.isValid(repoId)) {
-        return reply.status(400).send({ error: "Invalid repository ID" });
+      if (!ObjectId.isValid(serviceIdParam)) {
+        return reply.status(400).send({ error: "Invalid service ID" });
       }
 
-      const repositoryId = new ObjectId(repoId);
+      const serviceId = new ObjectId(serviceIdParam);
 
-      // Validate repository belongs to account
-      const repository = await repoRepo.findById(repositoryId);
-      if (!repository) {
-        return reply.status(404).send({ error: "Repository not found" });
+      // Validate service belongs to account
+      const service = await serviceRepo.findById(serviceId);
+      if (!service) {
+        return reply.status(404).send({ error: "Service not found" });
       }
-      if (repository.accountId.toString() !== accountId.toString()) {
+      if (service.accountId.toString() !== accountId.toString()) {
         return reply
           .status(403)
-          .send({ error: "Repository does not belong to this account" });
+          .send({ error: "Service does not belong to this account" });
       }
 
       try {
         const build = await buildService.createBuild({
           accountId,
-          repositoryId,
+          serviceId,
           buildId,
         });
 
         return reply.status(201).send({
           _id: build._id.toString(),
           accountId: build.accountId.toString(),
-          repositoryId: build.repositoryId.toString(),
+          serviceId: build.serviceId.toString(),
           buildId: build.buildId,
           deployments: build.deployments,
           createdAt: build.createdAt,
@@ -89,35 +92,35 @@ export function registerBuildsRoutes(
     },
   );
 
-  // GET /api/v1/repos/:repoId/builds - List builds
-  app.get<{ Params: RepoIdParams }>(
-    "/api/v1/repos/:repoId/builds",
+  // GET /api/v1/services/:serviceId/builds - List builds
+  app.get<{ Params: ServiceIdParams }>(
+    "/api/v1/services/:serviceId/builds",
     { preHandler: requireScope("builds:read") },
     async (
-      request: FastifyRequest<{ Params: RepoIdParams }>,
+      request: FastifyRequest<{ Params: ServiceIdParams }>,
       reply: FastifyReply,
     ) => {
-      const { repoId } = request.params;
+      const { serviceId: serviceIdParam } = request.params;
       const accountId = request.apiKey!.accountId;
 
-      if (!ObjectId.isValid(repoId)) {
-        return reply.status(400).send({ error: "Invalid repository ID" });
+      if (!ObjectId.isValid(serviceIdParam)) {
+        return reply.status(400).send({ error: "Invalid service ID" });
       }
 
-      const repositoryId = new ObjectId(repoId);
+      const serviceId = new ObjectId(serviceIdParam);
 
-      // Validate repository belongs to account
-      const repository = await repoRepo.findById(repositoryId);
-      if (!repository) {
-        return reply.status(404).send({ error: "Repository not found" });
+      // Validate service belongs to account
+      const service = await serviceRepo.findById(serviceId);
+      if (!service) {
+        return reply.status(404).send({ error: "Service not found" });
       }
-      if (repository.accountId.toString() !== accountId.toString()) {
+      if (service.accountId.toString() !== accountId.toString()) {
         return reply
           .status(403)
-          .send({ error: "Repository does not belong to this account" });
+          .send({ error: "Service does not belong to this account" });
       }
 
-      const builds = await buildService.getBuilds(accountId, repositoryId);
+      const builds = await buildService.getBuilds(accountId, serviceId);
 
       return reply.send({
         builds: builds.map((build) => ({
@@ -131,39 +134,35 @@ export function registerBuildsRoutes(
     },
   );
 
-  // GET /api/v1/repos/:repoId/builds/:buildId - Get build details
+  // GET /api/v1/services/:serviceId/builds/:buildId - Get build details
   app.get<{ Params: BuildIdParams }>(
-    "/api/v1/repos/:repoId/builds/:buildId",
+    "/api/v1/services/:serviceId/builds/:buildId",
     { preHandler: requireScope("builds:read") },
     async (
       request: FastifyRequest<{ Params: BuildIdParams }>,
       reply: FastifyReply,
     ) => {
-      const { repoId, buildId } = request.params;
+      const { serviceId: serviceIdParam, buildId } = request.params;
       const accountId = request.apiKey!.accountId;
 
-      if (!ObjectId.isValid(repoId)) {
-        return reply.status(400).send({ error: "Invalid repository ID" });
+      if (!ObjectId.isValid(serviceIdParam)) {
+        return reply.status(400).send({ error: "Invalid service ID" });
       }
 
-      const repositoryId = new ObjectId(repoId);
+      const serviceId = new ObjectId(serviceIdParam);
 
-      // Validate repository belongs to account
-      const repository = await repoRepo.findById(repositoryId);
-      if (!repository) {
-        return reply.status(404).send({ error: "Repository not found" });
+      // Validate service belongs to account
+      const service = await serviceRepo.findById(serviceId);
+      if (!service) {
+        return reply.status(404).send({ error: "Service not found" });
       }
-      if (repository.accountId.toString() !== accountId.toString()) {
+      if (service.accountId.toString() !== accountId.toString()) {
         return reply
           .status(403)
-          .send({ error: "Repository does not belong to this account" });
+          .send({ error: "Service does not belong to this account" });
       }
 
-      const build = await buildService.getBuild(
-        accountId,
-        repositoryId,
-        buildId,
-      );
+      const build = await buildService.getBuild(accountId, serviceId, buildId);
 
       if (!build) {
         return reply.status(404).send({ error: "Build not found" });
@@ -172,7 +171,7 @@ export function registerBuildsRoutes(
       return reply.send({
         _id: build._id.toString(),
         accountId: build.accountId.toString(),
-        repositoryId: build.repositoryId.toString(),
+        serviceId: build.serviceId.toString(),
         buildId: build.buildId,
         deployments: build.deployments,
         deploymentLogs: build.deploymentLogs,
@@ -182,27 +181,27 @@ export function registerBuildsRoutes(
     },
   );
 
-  // POST /api/v1/repos/:repoId/builds/:buildId/deploy/:env - Trigger deployment
+  // POST /api/v1/services/:serviceId/builds/:buildId/deploy/:env - Trigger deployment
   app.post<{ Params: DeployParams }>(
-    "/api/v1/repos/:repoId/builds/:buildId/deploy/:env",
+    "/api/v1/services/:serviceId/builds/:buildId/deploy/:env",
     { preHandler: requireScope("deployments:write") },
     async (
       request: FastifyRequest<{ Params: DeployParams }>,
       reply: FastifyReply,
     ) => {
-      const { repoId, buildId, env } = request.params;
+      const { serviceId: serviceIdParam, buildId, env } = request.params;
       const accountId = request.apiKey!.accountId;
 
-      if (!ObjectId.isValid(repoId)) {
-        return reply.status(400).send({ error: "Invalid repository ID" });
+      if (!ObjectId.isValid(serviceIdParam)) {
+        return reply.status(400).send({ error: "Invalid service ID" });
       }
 
-      const repositoryId = new ObjectId(repoId);
+      const serviceId = new ObjectId(serviceIdParam);
 
       try {
         const build = await buildService.updateDeploymentStatus({
           accountId,
-          repositoryId,
+          serviceId,
           buildId,
           environment: env,
           status: DeploymentStatus.DISPATCHING,
@@ -222,7 +221,7 @@ export function registerBuildsRoutes(
         if (message === "Invalid environment") {
           return reply.status(400).send({ error: message });
         }
-        if (message === "Build not found") {
+        if (message === "Build not found" || message === "Service not found") {
           return reply.status(404).send({ error: message });
         }
         return reply.status(500).send({ error: message });
@@ -230,9 +229,9 @@ export function registerBuildsRoutes(
     },
   );
 
-  // PATCH /api/v1/repos/:repoId/builds/:buildId/deploy/:env - Update deployment status
+  // PATCH /api/v1/services/:serviceId/builds/:buildId/deploy/:env - Update deployment status
   app.patch<{ Params: DeployParams; Body: UpdateDeploymentStatusBody }>(
-    "/api/v1/repos/:repoId/builds/:buildId/deploy/:env",
+    "/api/v1/services/:serviceId/builds/:buildId/deploy/:env",
     { preHandler: requireScope("deployments:write") },
     async (
       request: FastifyRequest<{
@@ -241,15 +240,15 @@ export function registerBuildsRoutes(
       }>,
       reply: FastifyReply,
     ) => {
-      const { repoId, buildId, env } = request.params;
+      const { serviceId: serviceIdParam, buildId, env } = request.params;
       const { status } = request.body;
       const accountId = request.apiKey!.accountId;
 
-      if (!ObjectId.isValid(repoId)) {
-        return reply.status(400).send({ error: "Invalid repository ID" });
+      if (!ObjectId.isValid(serviceIdParam)) {
+        return reply.status(400).send({ error: "Invalid service ID" });
       }
 
-      const repositoryId = new ObjectId(repoId);
+      const serviceId = new ObjectId(serviceIdParam);
 
       // Validate status is a valid DeploymentStatus
       if (
@@ -261,7 +260,7 @@ export function registerBuildsRoutes(
       try {
         const build = await buildService.updateDeploymentStatus({
           accountId,
-          repositoryId,
+          serviceId,
           buildId,
           environment: env,
           status: status as DeploymentStatus,
@@ -281,7 +280,7 @@ export function registerBuildsRoutes(
         if (message === "Invalid environment") {
           return reply.status(400).send({ error: message });
         }
-        if (message === "Build not found") {
+        if (message === "Build not found" || message === "Service not found") {
           return reply.status(404).send({ error: message });
         }
         return reply.status(500).send({ error: message });

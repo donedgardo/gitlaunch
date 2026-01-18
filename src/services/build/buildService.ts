@@ -1,19 +1,19 @@
 import EventEmitter from "node:events";
 import { ObjectId } from "mongodb";
 import { BuildRepository, Build } from "../../repositories/buildRepository";
-import { RepositoryRepository } from "../../repositories/repositoryRepository";
+import { ServiceRepository } from "../../repositories/serviceRepository";
 import { DeploymentStatus } from "../service/deploymentStatus";
 import { BuildDispatchServiceI } from "./buildDispatchService";
 
 export type CreateBuildInput = {
   accountId: ObjectId;
-  repositoryId: ObjectId;
+  serviceId: ObjectId;
   buildId: string;
 };
 
 export type UpdateDeploymentStatusInput = {
   accountId: ObjectId;
-  repositoryId: ObjectId;
+  serviceId: ObjectId;
   buildId: string;
   environment: string;
   status: DeploymentStatus;
@@ -22,54 +22,51 @@ export type UpdateDeploymentStatusInput = {
 export class BuildService {
   constructor(
     private buildRepo: BuildRepository,
-    private repoRepo: RepositoryRepository,
+    private serviceRepo: ServiceRepository,
     private eventEmitter: EventEmitter,
     private dispatcher: BuildDispatchServiceI,
   ) {}
 
   async createBuild(input: CreateBuildInput): Promise<Build> {
-    // Validate repository exists and belongs to account
-    const repository = await this.repoRepo.findById(input.repositoryId);
-    if (!repository) {
-      throw new Error("Repository not found");
+    // Validate service exists and belongs to account
+    const service = await this.serviceRepo.findById(input.serviceId);
+    if (!service) {
+      throw new Error("Service not found");
     }
-    if (repository.accountId.toString() !== input.accountId.toString()) {
-      throw new Error("Repository does not belong to this account");
+    if (service.accountId.toString() !== input.accountId.toString()) {
+      throw new Error("Service does not belong to this account");
     }
 
     return this.buildRepo.create({
       accountId: input.accountId,
-      repositoryId: input.repositoryId,
+      serviceId: input.serviceId,
       buildId: input.buildId,
     });
   }
 
   async getBuild(
     accountId: ObjectId,
-    repositoryId: ObjectId,
+    serviceId: ObjectId,
     buildId: string,
   ): Promise<Build | null> {
-    return this.buildRepo.findByBuildId(accountId, repositoryId, buildId);
+    return this.buildRepo.findByBuildId(accountId, serviceId, buildId);
   }
 
-  async getBuilds(
-    accountId: ObjectId,
-    repositoryId: ObjectId,
-  ): Promise<Build[]> {
-    return this.buildRepo.findByAccountAndRepo(accountId, repositoryId);
+  async getBuilds(accountId: ObjectId, serviceId: ObjectId): Promise<Build[]> {
+    return this.buildRepo.findByAccountAndService(accountId, serviceId);
   }
 
   async updateDeploymentStatus(
     input: UpdateDeploymentStatusInput,
   ): Promise<Build> {
-    // Validate repository exists to get valid environments
-    const repository = await this.repoRepo.findById(input.repositoryId);
-    if (!repository) {
-      throw new Error("Repository not found");
+    // Validate service exists to get valid environments
+    const service = await this.serviceRepo.findById(input.serviceId);
+    if (!service) {
+      throw new Error("Service not found");
     }
 
     // Validate environment
-    const validEnvironments = repository.environments.map((e) => e.name);
+    const validEnvironments = service.environments.map((e) => e.name);
     if (!validEnvironments.includes(input.environment)) {
       throw new Error("Invalid environment");
     }
@@ -83,7 +80,7 @@ export class BuildService {
     if (input.status === DeploymentStatus.DISPATCHING) {
       await this.dispatcher.dispatch(
         input.accountId,
-        input.repositoryId,
+        input.serviceId,
         input.buildId,
         input.environment,
       );
@@ -92,7 +89,7 @@ export class BuildService {
     // Update the build
     const build = await this.buildRepo.updateDeploymentStatus(
       input.accountId,
-      input.repositoryId,
+      input.serviceId,
       input.buildId,
       input.environment,
       input.status,
@@ -107,7 +104,7 @@ export class BuildService {
       buildId: build.buildId,
       environment: input.environment,
       status: input.status,
-      repositoryId: input.repositoryId.toString(),
+      serviceId: input.serviceId.toString(),
     });
 
     return build;

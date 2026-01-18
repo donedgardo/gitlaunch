@@ -11,6 +11,7 @@ import {
 import { SessionService } from "./services/auth/sessionService";
 import { AccountRepository } from "./repositories/accountRepository";
 import { BuildRepository } from "./repositories/buildRepository";
+import { ServiceRepository } from "./repositories/serviceRepository";
 import { GitHubAppService } from "./services/github/githubAppService";
 import { GitHubAppClient } from "./services/github/githubAppClient";
 import { InstallationTokenService } from "./services/github/installationTokenService";
@@ -71,7 +72,9 @@ const PORT = parseInt(process.env.PORT || "3050");
 async function start() {
   // Ensure database indexes
   const buildRepository = new BuildRepository(database);
+  const serviceRepository = new ServiceRepository(database);
   await buildRepository.ensureIndexes();
+  await serviceRepository.ensureIndexes();
 
   await server.listen({ host: "0.0.0.0", port: PORT });
   console.info(`Server listening on port ${PORT}`);

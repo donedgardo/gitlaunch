@@ -11,7 +11,7 @@ describe("BuildRepository", () => {
   let repo: BuildRepository;
 
   const testAccountId = new ObjectId();
-  const testRepositoryId = new ObjectId();
+  const testServiceId = new ObjectId();
 
   beforeAll(async () => {
     mongoServer = await MongoMemoryServer.create();
@@ -32,10 +32,10 @@ describe("BuildRepository", () => {
 
   describe("create", () => {
     it("should create build with tenant isolation fields", async () => {
-      // Given: build details for an account and repository
+      // Given: build details for an account and service
       const input = {
         accountId: testAccountId,
-        repositoryId: testRepositoryId,
+        serviceId: testServiceId,
         buildId: "abc123",
       };
 
@@ -45,7 +45,7 @@ describe("BuildRepository", () => {
       // Then: I get back a build with tenant isolation fields
       expect(build._id).toBeDefined();
       expect(build.accountId.toString()).toBe(testAccountId.toString());
-      expect(build.repositoryId.toString()).toBe(testRepositoryId.toString());
+      expect(build.serviceId.toString()).toBe(testServiceId.toString());
       expect(build.buildId).toBe("abc123");
       expect(build.deployments).toEqual({});
       expect(build.deploymentLogs).toEqual([]);
@@ -57,7 +57,7 @@ describe("BuildRepository", () => {
       // Given: a build already exists
       const input = {
         accountId: testAccountId,
-        repositoryId: testRepositoryId,
+        serviceId: testServiceId,
         buildId: "existing-build",
       };
       const first = await repo.create(input);
@@ -71,33 +71,33 @@ describe("BuildRepository", () => {
 
     it("should allow same buildId for different repositories", async () => {
       // Given: a build exists for repo A
-      const repoA = new ObjectId();
-      const repoB = new ObjectId();
+      const serviceA = new ObjectId();
+      const serviceB = new ObjectId();
 
       await repo.create({
         accountId: testAccountId,
-        repositoryId: repoA,
+        serviceId: serviceA,
         buildId: "same-build-id",
       });
 
-      // When: I create a build with same buildId for repo B
+      // When: I create a build with same buildId for service B
       const buildB = await repo.create({
         accountId: testAccountId,
-        repositoryId: repoB,
+        serviceId: serviceB,
         buildId: "same-build-id",
       });
 
       // Then: a new build is created
-      expect(buildB.repositoryId.toString()).toBe(repoB.toString());
+      expect(buildB.serviceId.toString()).toBe(serviceB.toString());
     });
   });
 
   describe("findByBuildId", () => {
-    it("should find build by accountId, repositoryId, and buildId", async () => {
+    it("should find build by accountId, serviceId, and buildId", async () => {
       // Given: a build exists
       const input = {
         accountId: testAccountId,
-        repositoryId: testRepositoryId,
+        serviceId: testServiceId,
         buildId: "find-me",
       };
       await repo.create(input);
@@ -105,7 +105,7 @@ describe("BuildRepository", () => {
       // When: I look up by all three keys
       const found = await repo.findByBuildId(
         testAccountId,
-        testRepositoryId,
+        testServiceId,
         "find-me",
       );
 
@@ -119,7 +119,7 @@ describe("BuildRepository", () => {
       // When: I look up a non-existent buildId
       const found = await repo.findByBuildId(
         testAccountId,
-        testRepositoryId,
+        testServiceId,
         "non-existent",
       );
 
@@ -134,14 +134,14 @@ describe("BuildRepository", () => {
 
       await repo.create({
         accountId: accountA,
-        repositoryId: testRepositoryId,
+        serviceId: testServiceId,
         buildId: "tenant-build",
       });
 
       // When: account B tries to find the build
       const found = await repo.findByBuildId(
         accountB,
-        testRepositoryId,
+        testServiceId,
         "tenant-build",
       );
 
@@ -150,12 +150,12 @@ describe("BuildRepository", () => {
     });
   });
 
-  describe("findByAccountAndRepo", () => {
+  describe("findByAccountAndService", () => {
     it("should return builds for specific account and repo sorted by date desc", async () => {
       // Given: multiple builds exist
       await repo.create({
         accountId: testAccountId,
-        repositoryId: testRepositoryId,
+        serviceId: testServiceId,
         buildId: "build-1",
       });
 
@@ -164,14 +164,14 @@ describe("BuildRepository", () => {
 
       await repo.create({
         accountId: testAccountId,
-        repositoryId: testRepositoryId,
+        serviceId: testServiceId,
         buildId: "build-2",
       });
 
       // When: I list builds
-      const builds = await repo.findByAccountAndRepo(
+      const builds = await repo.findByAccountAndService(
         testAccountId,
-        testRepositoryId,
+        testServiceId,
       );
 
       // Then: I get them sorted by date descending (newest first)
@@ -187,19 +187,19 @@ describe("BuildRepository", () => {
 
       await repo.create({
         accountId: accountA,
-        repositoryId: testRepositoryId,
+        serviceId: testServiceId,
         buildId: "build-a",
       });
       await repo.create({
         accountId: accountB,
-        repositoryId: testRepositoryId,
+        serviceId: testServiceId,
         buildId: "build-b",
       });
 
       // When: account A lists builds
-      const builds = await repo.findByAccountAndRepo(
+      const builds = await repo.findByAccountAndService(
         accountA,
-        testRepositoryId,
+        testServiceId,
       );
 
       // Then: only account A's builds are returned
@@ -210,7 +210,7 @@ describe("BuildRepository", () => {
     it("should return empty array when no builds exist", async () => {
       // Given: no builds for this account/repo
       // When: I list builds
-      const builds = await repo.findByAccountAndRepo(
+      const builds = await repo.findByAccountAndService(
         new ObjectId(),
         new ObjectId(),
       );
@@ -225,14 +225,14 @@ describe("BuildRepository", () => {
       // Given: a build exists
       await repo.create({
         accountId: testAccountId,
-        repositoryId: testRepositoryId,
+        serviceId: testServiceId,
         buildId: "deploy-me",
       });
 
       // When: I update the deployment status
       const updated = await repo.updateDeploymentStatus(
         testAccountId,
-        testRepositoryId,
+        testServiceId,
         "deploy-me",
         "staging",
         DeploymentStatus.DEPLOYING,
@@ -247,14 +247,14 @@ describe("BuildRepository", () => {
       // Given: a build exists
       await repo.create({
         accountId: testAccountId,
-        repositoryId: testRepositoryId,
+        serviceId: testServiceId,
         buildId: "log-me",
       });
 
       // When: I update the deployment status
       const updated = await repo.updateDeploymentStatus(
         testAccountId,
-        testRepositoryId,
+        testServiceId,
         "log-me",
         "staging",
         DeploymentStatus.DEPLOYED,
@@ -272,7 +272,7 @@ describe("BuildRepository", () => {
       // Given: a build exists
       const build = await repo.create({
         accountId: testAccountId,
-        repositoryId: testRepositoryId,
+        serviceId: testServiceId,
         buildId: "timestamp-me",
       });
       const originalUpdatedAt = build.updatedAt;
@@ -283,7 +283,7 @@ describe("BuildRepository", () => {
       // When: I update the deployment status
       const updated = await repo.updateDeploymentStatus(
         testAccountId,
-        testRepositoryId,
+        testServiceId,
         "timestamp-me",
         "prod",
         DeploymentStatus.DEPLOYED,
@@ -300,7 +300,7 @@ describe("BuildRepository", () => {
       // When: I try to update non-existent build
       const result = await repo.updateDeploymentStatus(
         testAccountId,
-        testRepositoryId,
+        testServiceId,
         "non-existent",
         "staging",
         DeploymentStatus.DEPLOYED,
@@ -317,14 +317,14 @@ describe("BuildRepository", () => {
 
       await repo.create({
         accountId: accountA,
-        repositoryId: testRepositoryId,
+        serviceId: testServiceId,
         buildId: "tenant-update",
       });
 
       // When: account B tries to update it
       const result = await repo.updateDeploymentStatus(
         accountB,
-        testRepositoryId,
+        testServiceId,
         "tenant-update",
         "staging",
         DeploymentStatus.DEPLOYED,
@@ -343,7 +343,7 @@ describe("BuildRepository", () => {
       // And: a build exists
       await repo.create({
         accountId: testAccountId,
-        repositoryId: testRepositoryId,
+        serviceId: testServiceId,
         buildId: "unique-test",
       });
 
@@ -352,7 +352,7 @@ describe("BuildRepository", () => {
       await expect(
         db.collection("builds").insertOne({
           accountId: testAccountId,
-          repositoryId: testRepositoryId,
+          serviceId: testServiceId,
           buildId: "unique-test",
           deployments: {},
           deploymentLogs: [],

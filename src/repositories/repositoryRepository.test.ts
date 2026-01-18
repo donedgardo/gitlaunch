@@ -29,7 +29,7 @@ describe("RepositoryRepository", () => {
   });
 
   describe("create", () => {
-    it("should create repository with generated ID and default environments", async () => {
+    it("should create repository with generated ID and GitHub metadata", async () => {
       // Given: repository details for an account
       const input = {
         accountId: testAccountId,
@@ -43,27 +43,15 @@ describe("RepositoryRepository", () => {
       // When: I create the repository
       const repository = await repo.create(input);
 
-      // Then: I get back a repository with ID and default environments
+      // Then: I get back a repository with ID and GitHub info
       expect(repository._id).toBeDefined();
       expect(repository.accountId.toString()).toBe(testAccountId.toString());
       expect(repository.githubFullName).toBe("my-org/my-repo");
       expect(repository.githubRepoId).toBe(123456);
-      expect(repository.isActive).toBe(true);
-      expect(repository.workflowFile).toBe("deploy.yml");
-      expect(repository.eventType).toBe("deployment");
-
-      // Default environments
-      expect(repository.environments).toHaveLength(2);
-      expect(repository.environments[0]).toEqual({
-        name: "staging",
-        displayName: "Staging",
-        order: 0,
-      });
-      expect(repository.environments[1]).toEqual({
-        name: "prod",
-        displayName: "Production",
-        order: 1,
-      });
+      expect(repository.githubOwner).toBe("my-org");
+      expect(repository.githubRepoName).toBe("my-repo");
+      expect(repository.isPrivate).toBe(false);
+      expect(repository.createdAt).toBeInstanceOf(Date);
     });
 
     it("should persist the repository so it can be retrieved later", async () => {

@@ -11,6 +11,7 @@ import { MongoMemoryServer } from "mongodb-memory-server";
 import { MongoClient, Db, ObjectId } from "mongodb";
 import { AccountRepository } from "../../repositories/accountRepository";
 import { RepositoryRepository } from "../../repositories/repositoryRepository";
+import { ServiceRepository } from "../../repositories/serviceRepository";
 import {
   BuildDispatchService,
   NoOpBuildDispatchService,
@@ -23,6 +24,7 @@ describe("BuildDispatchService", () => {
   let db: Db;
   let accountRepo: AccountRepository;
   let repoRepo: RepositoryRepository;
+  let serviceRepo: ServiceRepository;
   let mockGithubDispatch: MultiTenantGithubDispatchService;
   let service: BuildDispatchService;
 
@@ -33,6 +35,7 @@ describe("BuildDispatchService", () => {
     db = client.db("test");
     accountRepo = new AccountRepository(db);
     repoRepo = new RepositoryRepository(db);
+    serviceRepo = new ServiceRepository(db);
 
     mockGithubDispatch = {
       dispatch: vi.fn().mockResolvedValue(undefined),
@@ -41,6 +44,7 @@ describe("BuildDispatchService", () => {
     service = new BuildDispatchService(
       accountRepo,
       repoRepo,
+      serviceRepo,
       mockGithubDispatch,
     );
   });
@@ -53,12 +57,13 @@ describe("BuildDispatchService", () => {
   beforeEach(async () => {
     await db.collection("accounts").deleteMany({});
     await db.collection("repositories").deleteMany({});
+    await db.collection("services").deleteMany({});
     vi.clearAllMocks();
   });
 
   describe("dispatch", () => {
     it("should call GitHub dispatch with correct parameters", async () => {
-      // Given: an account with GitHub installation and a repository
+      // Given: an account with GitHub installation, a repository, and a service
       const account = await accountRepo.create({
         name: "My Org",
         slug: "my-org",
@@ -74,20 +79,22 @@ describe("BuildDispatchService", () => {
         isPrivate: false,
       });
 
+      const svc = await serviceRepo.create({
+        accountId: account._id,
+        repositoryId: repository._id,
+        name: "backend",
+        eventType: "deploy-backend",
+      });
+
       // When: I dispatch a deployment
-      await service.dispatch(
-        account._id,
-        repository._id,
-        "build-123",
-        "staging",
-      );
+      await service.dispatch(account._id, svc._id, "build-123", "staging");
 
       // Then: GitHub dispatch is called with correct parameters
       expect(mockGithubDispatch.dispatch).toHaveBeenCalledWith({
         installationId: 12345,
         owner: "org",
         repo: "repo",
-        eventType: "deployment",
+        eventType: "deploy-backend",
         buildId: "build-123",
         environment: "staging",
       });
@@ -96,13 +103,13 @@ describe("BuildDispatchService", () => {
     it("should throw when account not found", async () => {
       // Given: a non-existent account ID
       const nonExistentAccountId = new ObjectId();
-      const nonExistentRepoId = new ObjectId();
+      const nonExistentServiceId = new ObjectId();
 
       // When/Then: dispatch should throw
       await expect(
         service.dispatch(
           nonExistentAccountId,
-          nonExistentRepoId,
+          nonExistentServiceId,
           "build-123",
           "staging",
         ),
@@ -125,30 +132,36 @@ describe("BuildDispatchService", () => {
         isPrivate: false,
       });
 
+      const svc = await serviceRepo.create({
+        accountId: account._id,
+        repositoryId: repository._id,
+        name: "backend",
+      });
+
       // When/Then: dispatch should throw
       await expect(
-        service.dispatch(account._id, repository._id, "build-123", "staging"),
+        service.dispatch(account._id, svc._id, "build-123", "staging"),
       ).rejects.toThrow("GitHub App not installed for this account");
     });
 
-    it("should throw when repository not found", async () => {
-      // Given: an account with GitHub installation but non-existent repo
+    it("should throw when service not found", async () => {
+      // Given: an account with GitHub installation but non-existent service
       const account = await accountRepo.create({
         name: "My Org",
-        slug: "my-org-no-repo",
+        slug: "my-org-no-service",
       });
       await accountRepo.updateInstallation(account._id, 12345);
-      const nonExistentRepoId = new ObjectId();
+      const nonExistentServiceId = new ObjectId();
 
       // When/Then: dispatch should throw
       await expect(
         service.dispatch(
           account._id,
-          nonExistentRepoId,
+          nonExistentServiceId,
           "build-123",
           "staging",
         ),
-      ).rejects.toThrow("Repository not found");
+      ).rejects.toThrow("Service not found");
     });
   });
 });

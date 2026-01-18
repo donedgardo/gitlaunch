@@ -12,6 +12,7 @@ import { MongoClient, Db, ObjectId } from "mongodb";
 import EventEmitter from "node:events";
 import { AccountRepository } from "../../repositories/accountRepository";
 import { RepositoryRepository } from "../../repositories/repositoryRepository";
+import { ServiceRepository } from "../../repositories/serviceRepository";
 import { BuildRepository } from "../../repositories/buildRepository";
 import { BuildService } from "./buildService";
 import { DeploymentStatus } from "../service/deploymentStatus";
@@ -23,6 +24,7 @@ describe("BuildService", () => {
   let db: Db;
   let accountRepo: AccountRepository;
   let repoRepo: RepositoryRepository;
+  let serviceRepo: ServiceRepository;
   let buildRepo: BuildRepository;
   let eventEmitter: EventEmitter;
   let mockDispatcher: BuildDispatchServiceI;
@@ -35,6 +37,7 @@ describe("BuildService", () => {
     db = client.db("test");
     accountRepo = new AccountRepository(db);
     repoRepo = new RepositoryRepository(db);
+    serviceRepo = new ServiceRepository(db);
     buildRepo = new BuildRepository(db);
     eventEmitter = new EventEmitter();
     mockDispatcher = {
@@ -42,7 +45,7 @@ describe("BuildService", () => {
     };
     service = new BuildService(
       buildRepo,
-      repoRepo,
+      serviceRepo,
       eventEmitter,
       mockDispatcher,
     );
@@ -56,13 +59,14 @@ describe("BuildService", () => {
   beforeEach(async () => {
     await db.collection("accounts").deleteMany({});
     await db.collection("repositories").deleteMany({});
+    await db.collection("services").deleteMany({});
     await db.collection("builds").deleteMany({});
     vi.clearAllMocks();
   });
 
   describe("createBuild", () => {
-    it("should create build when repository belongs to account", async () => {
-      // Given: an account with a repository
+    it("should create build when service belongs to account", async () => {
+      // Given: an account with a repository and service
       const account = await accountRepo.create({
         name: "My Org",
         slug: "my-org",
@@ -75,11 +79,16 @@ describe("BuildService", () => {
         githubRepoName: "repo",
         isPrivate: false,
       });
+      const svc = await serviceRepo.create({
+        accountId: account._id,
+        repositoryId: repository._id,
+        name: "backend",
+      });
 
       // When: I create a build
       const build = await service.createBuild({
         accountId: account._id,
-        repositoryId: repository._id,
+        serviceId: svc._id,
         buildId: "abc123",
       });
 
@@ -87,29 +96,29 @@ describe("BuildService", () => {
       expect(build._id).toBeDefined();
       expect(build.buildId).toBe("abc123");
       expect(build.accountId.toString()).toBe(account._id.toString());
-      expect(build.repositoryId.toString()).toBe(repository._id.toString());
+      expect(build.serviceId.toString()).toBe(svc._id.toString());
     });
 
-    it("should reject when repository does not exist", async () => {
-      // Given: an account but no repository
+    it("should reject when service does not exist", async () => {
+      // Given: an account but no service
       const account = await accountRepo.create({
         name: "My Org",
-        slug: "my-org-no-repo",
+        slug: "my-org-no-service",
       });
-      const nonExistentRepoId = new ObjectId();
+      const nonExistentServiceId = new ObjectId();
 
       // When/Then: creating a build should throw
       await expect(
         service.createBuild({
           accountId: account._id,
-          repositoryId: nonExistentRepoId,
+          serviceId: nonExistentServiceId,
           buildId: "abc123",
         }),
-      ).rejects.toThrow("Repository not found");
+      ).rejects.toThrow("Service not found");
     });
 
-    it("should reject when repository belongs to different account", async () => {
-      // Given: two accounts and a repo belonging to account A
+    it("should reject when service belongs to different account", async () => {
+      // Given: two accounts and a service belonging to account A
       const accountA = await accountRepo.create({
         name: "Account A",
         slug: "account-a",
@@ -126,15 +135,20 @@ describe("BuildService", () => {
         githubRepoName: "repo",
         isPrivate: false,
       });
+      const svc = await serviceRepo.create({
+        accountId: accountA._id,
+        repositoryId: repository._id,
+        name: "api",
+      });
 
-      // When/Then: account B tries to create a build for account A's repo
+      // When/Then: account B tries to create a build for account A's service
       await expect(
         service.createBuild({
           accountId: accountB._id,
-          repositoryId: repository._id,
+          serviceId: svc._id,
           buildId: "abc123",
         }),
-      ).rejects.toThrow("Repository does not belong to this account");
+      ).rejects.toThrow("Service does not belong to this account");
     });
   });
 
@@ -153,18 +167,19 @@ describe("BuildService", () => {
         githubRepoName: "repo",
         isPrivate: false,
       });
-      await service.createBuild({
+      const svc = await serviceRepo.create({
         accountId: account._id,
         repositoryId: repository._id,
+        name: "backend",
+      });
+      await service.createBuild({
+        accountId: account._id,
+        serviceId: svc._id,
         buildId: "find-me",
       });
 
       // When: I get the build
-      const build = await service.getBuild(
-        account._id,
-        repository._id,
-        "find-me",
-      );
+      const build = await service.getBuild(account._id, svc._id, "find-me");
 
       // Then: I get the build
       expect(build).not.toBeNull();
@@ -185,11 +200,16 @@ describe("BuildService", () => {
         githubRepoName: "repo",
         isPrivate: false,
       });
+      const svc = await serviceRepo.create({
+        accountId: account._id,
+        repositoryId: repository._id,
+        name: "backend",
+      });
 
       // When: I get a non-existent build
       const build = await service.getBuild(
         account._id,
-        repository._id,
+        svc._id,
         "non-existent",
       );
 
@@ -199,7 +219,7 @@ describe("BuildService", () => {
   });
 
   describe("getBuilds", () => {
-    it("should return builds for account and repository", async () => {
+    it("should return builds for account and service", async () => {
       // Given: multiple builds exist
       const account = await accountRepo.create({
         name: "My Org",
@@ -213,19 +233,24 @@ describe("BuildService", () => {
         githubRepoName: "repo",
         isPrivate: false,
       });
-      await service.createBuild({
+      const svc = await serviceRepo.create({
         accountId: account._id,
         repositoryId: repository._id,
+        name: "backend",
+      });
+      await service.createBuild({
+        accountId: account._id,
+        serviceId: svc._id,
         buildId: "build-1",
       });
       await service.createBuild({
         accountId: account._id,
-        repositoryId: repository._id,
+        serviceId: svc._id,
         buildId: "build-2",
       });
 
       // When: I list builds
-      const builds = await service.getBuilds(account._id, repository._id);
+      const builds = await service.getBuilds(account._id, svc._id);
 
       // Then: I get all builds
       expect(builds).toHaveLength(2);
@@ -247,16 +272,21 @@ describe("BuildService", () => {
         githubRepoName: "repo",
         isPrivate: false,
       });
-      await service.createBuild({
+      const svc = await serviceRepo.create({
         accountId: account._id,
         repositoryId: repository._id,
+        name: "backend",
+      });
+      await service.createBuild({
+        accountId: account._id,
+        serviceId: svc._id,
         buildId: "deploy-me",
       });
 
       // When: I update deployment status
       const build = await service.updateDeploymentStatus({
         accountId: account._id,
-        repositoryId: repository._id,
+        serviceId: svc._id,
         buildId: "deploy-me",
         environment: "staging",
         status: DeploymentStatus.DEPLOYED,
@@ -280,9 +310,14 @@ describe("BuildService", () => {
         githubRepoName: "repo",
         isPrivate: false,
       });
-      await service.createBuild({
+      const svc = await serviceRepo.create({
         accountId: account._id,
         repositoryId: repository._id,
+        name: "backend",
+      });
+      await service.createBuild({
+        accountId: account._id,
+        serviceId: svc._id,
         buildId: "invalid-env-build",
       });
 
@@ -290,7 +325,7 @@ describe("BuildService", () => {
       await expect(
         service.updateDeploymentStatus({
           accountId: account._id,
-          repositoryId: repository._id,
+          serviceId: svc._id,
           buildId: "invalid-env-build",
           environment: "invalid-env",
           status: DeploymentStatus.DEPLOYED,
@@ -312,9 +347,14 @@ describe("BuildService", () => {
         githubRepoName: "repo",
         isPrivate: false,
       });
-      await service.createBuild({
+      const svc = await serviceRepo.create({
         accountId: account._id,
         repositoryId: repository._id,
+        name: "backend",
+      });
+      await service.createBuild({
+        accountId: account._id,
+        serviceId: svc._id,
         buildId: "invalid-status-build",
       });
 
@@ -322,7 +362,7 @@ describe("BuildService", () => {
       await expect(
         service.updateDeploymentStatus({
           accountId: account._id,
-          repositoryId: repository._id,
+          serviceId: svc._id,
           buildId: "invalid-status-build",
           environment: "staging",
           status: "invalid-status" as DeploymentStatus,
@@ -344,16 +384,21 @@ describe("BuildService", () => {
         githubRepoName: "repo",
         isPrivate: false,
       });
-      await service.createBuild({
+      const svc = await serviceRepo.create({
         accountId: account._id,
         repositoryId: repository._id,
+        name: "backend",
+      });
+      await service.createBuild({
+        accountId: account._id,
+        serviceId: svc._id,
         buildId: "dispatch-me",
       });
 
       // When: I update status to DISPATCHING
       await service.updateDeploymentStatus({
         accountId: account._id,
-        repositoryId: repository._id,
+        serviceId: svc._id,
         buildId: "dispatch-me",
         environment: "staging",
         status: DeploymentStatus.DISPATCHING,
@@ -362,7 +407,7 @@ describe("BuildService", () => {
       // Then: dispatch is called with full context
       expect(mockDispatcher.dispatch).toHaveBeenCalledWith(
         account._id,
-        repository._id,
+        svc._id,
         "dispatch-me",
         "staging",
       );
@@ -382,9 +427,14 @@ describe("BuildService", () => {
         githubRepoName: "repo",
         isPrivate: false,
       });
-      await service.createBuild({
+      const svc = await serviceRepo.create({
         accountId: account._id,
         repositoryId: repository._id,
+        name: "backend",
+      });
+      await service.createBuild({
+        accountId: account._id,
+        serviceId: svc._id,
         buildId: "event-build",
       });
 
@@ -394,7 +444,7 @@ describe("BuildService", () => {
       // When: I update deployment status
       await service.updateDeploymentStatus({
         accountId: account._id,
-        repositoryId: repository._id,
+        serviceId: svc._id,
         buildId: "event-build",
         environment: "staging",
         status: DeploymentStatus.DEPLOYED,
@@ -406,7 +456,7 @@ describe("BuildService", () => {
           buildId: "event-build",
           environment: "staging",
           status: DeploymentStatus.DEPLOYED,
-          repositoryId: repository._id.toString(),
+          serviceId: svc._id.toString(),
         }),
       );
     });
@@ -425,12 +475,17 @@ describe("BuildService", () => {
         githubRepoName: "repo",
         isPrivate: false,
       });
+      const svc = await serviceRepo.create({
+        accountId: account._id,
+        repositoryId: repository._id,
+        name: "backend",
+      });
 
       // When/Then: updating non-existent build should throw
       await expect(
         service.updateDeploymentStatus({
           accountId: account._id,
-          repositoryId: repository._id,
+          serviceId: svc._id,
           buildId: "non-existent",
           environment: "staging",
           status: DeploymentStatus.DEPLOYED,

@@ -23,6 +23,7 @@ import { UserRepository } from "../repositories/userRepository";
 import { AccountRepository } from "../repositories/accountRepository";
 import { MembershipRepository } from "../repositories/membershipRepository";
 import { RepositoryRepository } from "../repositories/repositoryRepository";
+import { ServiceRepository } from "../repositories/serviceRepository";
 import { ApiKeyRepository } from "../repositories/apiKeyRepository";
 import { GitHubAppService } from "../services/github/githubAppService";
 import { ApiKeyService } from "../services/apiKey/apiKeyService";
@@ -58,6 +59,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
   const accountRepository = new AccountRepository(database);
   const membershipRepository = new MembershipRepository(database);
   const repositoryRepository = new RepositoryRepository(database);
+  const serviceRepository = new ServiceRepository(database);
   const apiKeyRepository = new ApiKeyRepository(database);
   const buildRepository = new BuildRepository(database);
 
@@ -68,7 +70,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
   const buildDispatchService = new NoOpBuildDispatchService();
   const buildService = new BuildService(
     buildRepository,
-    repositoryRepository,
+    serviceRepository,
     eventEmitter,
     buildDispatchService,
   );
@@ -116,7 +118,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
       // Register builds API routes
       registerBuildsRoutes(apiServer, {
         buildService,
-        repoRepo: repositoryRepository,
+        serviceRepo: serviceRepository,
       });
     },
     { prefix: "" }, // Routes already have /api/v1 prefix

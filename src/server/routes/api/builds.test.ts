@@ -18,6 +18,7 @@ import Fastify, {
 import EventEmitter from "node:events";
 import { AccountRepository } from "../../../repositories/accountRepository";
 import { RepositoryRepository } from "../../../repositories/repositoryRepository";
+import { ServiceRepository } from "../../../repositories/serviceRepository";
 import { BuildRepository } from "../../../repositories/buildRepository";
 import { BuildService } from "../../../services/build/buildService";
 import { registerBuildsRoutes } from "./builds";
@@ -59,13 +60,14 @@ describe("Builds API Routes", () => {
   let app: FastifyInstance;
   let accountRepo: AccountRepository;
   let repoRepo: RepositoryRepository;
+  let serviceRepo: ServiceRepository;
   let buildRepo: BuildRepository;
   let buildService: BuildService;
   let mockDispatcher: BuildDispatchServiceI;
   let eventEmitter: EventEmitter;
 
   let testAccountId: ObjectId;
-  let testRepositoryId: ObjectId;
+  let testServiceId: ObjectId;
   let currentAuthContext: { accountId: ObjectId; scopes: ApiKeyScope[] } | null;
 
   beforeAll(async () => {
@@ -76,6 +78,7 @@ describe("Builds API Routes", () => {
 
     accountRepo = new AccountRepository(db);
     repoRepo = new RepositoryRepository(db);
+    serviceRepo = new ServiceRepository(db);
     buildRepo = new BuildRepository(db);
     eventEmitter = new EventEmitter();
     mockDispatcher = {
@@ -84,7 +87,7 @@ describe("Builds API Routes", () => {
 
     buildService = new BuildService(
       buildRepo,
-      repoRepo,
+      serviceRepo,
       eventEmitter,
       mockDispatcher,
     );
@@ -104,10 +107,11 @@ describe("Builds API Routes", () => {
   beforeEach(async () => {
     await db.collection("accounts").deleteMany({});
     await db.collection("repositories").deleteMany({});
+    await db.collection("services").deleteMany({});
     await db.collection("builds").deleteMany({});
     vi.clearAllMocks();
 
-    // Create test account and repository first
+    // Create test account, repository, and service
     const account = await accountRepo.create({
       name: "Test Org",
       slug: `test-org-${Date.now()}`,
@@ -122,7 +126,13 @@ describe("Builds API Routes", () => {
       githubRepoName: "repo",
       isPrivate: false,
     });
-    testRepositoryId = repository._id;
+
+    const service = await serviceRepo.create({
+      accountId: testAccountId,
+      repositoryId: repository._id,
+      name: "backend",
+    });
+    testServiceId = service._id;
 
     // Default auth context with all scopes
     currentAuthContext = {
@@ -138,16 +148,16 @@ describe("Builds API Routes", () => {
     app.addHook("preHandler", mockAuth);
 
     // Register routes
-    registerBuildsRoutes(app, { buildService, repoRepo });
+    registerBuildsRoutes(app, { buildService, serviceRepo });
 
     await app.ready();
   });
 
-  describe("POST /api/v1/repos/:repoId/builds", () => {
+  describe("POST /api/v1/services/:serviceId/builds", () => {
     it("should create a build with valid API key and builds:write scope", async () => {
       const response = await app.inject({
         method: "POST",
-        url: `/api/v1/repos/${testRepositoryId}/builds`,
+        url: `/api/v1/services/${testServiceId}/builds`,
         headers: {
           authorization: "Bearer test-key",
           "content-type": "application/json",
@@ -166,7 +176,7 @@ describe("Builds API Routes", () => {
     it("should reject without API key", async () => {
       const response = await app.inject({
         method: "POST",
-        url: `/api/v1/repos/${testRepositoryId}/builds`,
+        url: `/api/v1/services/${testServiceId}/builds`,
         headers: {
           "content-type": "application/json",
         },
@@ -184,7 +194,7 @@ describe("Builds API Routes", () => {
 
       const response = await app.inject({
         method: "POST",
-        url: `/api/v1/repos/${testRepositoryId}/builds`,
+        url: `/api/v1/services/${testServiceId}/builds`,
         headers: {
           authorization: "Bearer invalid-key",
           "content-type": "application/json",
@@ -206,7 +216,7 @@ describe("Builds API Routes", () => {
 
       const response = await app.inject({
         method: "POST",
-        url: `/api/v1/repos/${testRepositoryId}/builds`,
+        url: `/api/v1/services/${testServiceId}/builds`,
         headers: {
           authorization: "Bearer test-key",
           "content-type": "application/json",
@@ -219,7 +229,7 @@ describe("Builds API Routes", () => {
       expect(response.statusCode).toBe(403);
     });
 
-    it("should reject when repository belongs to different account", async () => {
+    it("should reject when service belongs to different account", async () => {
       // Create another account and set it as the auth context
       const otherAccount = await accountRepo.create({
         name: "Other Org",
@@ -231,10 +241,10 @@ describe("Builds API Routes", () => {
         scopes: ["builds:read", "builds:write"],
       };
 
-      // Try to create build for a repository that belongs to testAccountId
+      // Try to create build for a service that belongs to testAccountId
       const response = await app.inject({
         method: "POST",
-        url: `/api/v1/repos/${testRepositoryId}/builds`,
+        url: `/api/v1/services/${testServiceId}/builds`,
         headers: {
           authorization: "Bearer test-key",
           "content-type": "application/json",
@@ -248,23 +258,23 @@ describe("Builds API Routes", () => {
     });
   });
 
-  describe("GET /api/v1/repos/:repoId/builds", () => {
+  describe("GET /api/v1/services/:serviceId/builds", () => {
     it("should list builds with builds:read scope", async () => {
       // Create some builds
       await buildService.createBuild({
         accountId: testAccountId,
-        repositoryId: testRepositoryId,
+        serviceId: testServiceId,
         buildId: "build-1",
       });
       await buildService.createBuild({
         accountId: testAccountId,
-        repositoryId: testRepositoryId,
+        serviceId: testServiceId,
         buildId: "build-2",
       });
 
       const response = await app.inject({
         method: "GET",
-        url: `/api/v1/repos/${testRepositoryId}/builds`,
+        url: `/api/v1/services/${testServiceId}/builds`,
         headers: {
           authorization: "Bearer test-key",
         },
@@ -284,7 +294,7 @@ describe("Builds API Routes", () => {
 
       const response = await app.inject({
         method: "GET",
-        url: `/api/v1/repos/${testRepositoryId}/builds`,
+        url: `/api/v1/services/${testServiceId}/builds`,
         headers: {
           authorization: "Bearer test-key",
         },
@@ -294,17 +304,17 @@ describe("Builds API Routes", () => {
     });
   });
 
-  describe("GET /api/v1/repos/:repoId/builds/:buildId", () => {
+  describe("GET /api/v1/services/:serviceId/builds/:buildId", () => {
     it("should get build details with builds:read scope", async () => {
       await buildService.createBuild({
         accountId: testAccountId,
-        repositoryId: testRepositoryId,
+        serviceId: testServiceId,
         buildId: "get-me",
       });
 
       const response = await app.inject({
         method: "GET",
-        url: `/api/v1/repos/${testRepositoryId}/builds/get-me`,
+        url: `/api/v1/services/${testServiceId}/builds/get-me`,
         headers: {
           authorization: "Bearer test-key",
         },
@@ -318,7 +328,7 @@ describe("Builds API Routes", () => {
     it("should return 404 when build not found", async () => {
       const response = await app.inject({
         method: "GET",
-        url: `/api/v1/repos/${testRepositoryId}/builds/non-existent`,
+        url: `/api/v1/services/${testServiceId}/builds/non-existent`,
         headers: {
           authorization: "Bearer test-key",
         },
@@ -328,17 +338,17 @@ describe("Builds API Routes", () => {
     });
   });
 
-  describe("POST /api/v1/repos/:repoId/builds/:buildId/deploy/:env", () => {
+  describe("POST /api/v1/services/:serviceId/builds/:buildId/deploy/:env", () => {
     it("should trigger deployment with deployments:write scope", async () => {
       await buildService.createBuild({
         accountId: testAccountId,
-        repositoryId: testRepositoryId,
+        serviceId: testServiceId,
         buildId: "deploy-me",
       });
 
       const response = await app.inject({
         method: "POST",
-        url: `/api/v1/repos/${testRepositoryId}/builds/deploy-me/deploy/staging`,
+        url: `/api/v1/services/${testServiceId}/builds/deploy-me/deploy/staging`,
         headers: {
           authorization: "Bearer test-key",
         },
@@ -349,7 +359,7 @@ describe("Builds API Routes", () => {
       expect(body.deployments["staging"]).toBe(DeploymentStatus.DISPATCHING);
       expect(mockDispatcher.dispatch).toHaveBeenCalledWith(
         testAccountId,
-        testRepositoryId,
+        testServiceId,
         "deploy-me",
         "staging",
       );
@@ -363,13 +373,13 @@ describe("Builds API Routes", () => {
 
       await buildService.createBuild({
         accountId: testAccountId,
-        repositoryId: testRepositoryId,
+        serviceId: testServiceId,
         buildId: "deploy-me-2",
       });
 
       const response = await app.inject({
         method: "POST",
-        url: `/api/v1/repos/${testRepositoryId}/builds/deploy-me-2/deploy/staging`,
+        url: `/api/v1/services/${testServiceId}/builds/deploy-me-2/deploy/staging`,
         headers: {
           authorization: "Bearer test-key",
         },
@@ -381,13 +391,13 @@ describe("Builds API Routes", () => {
     it("should reject invalid environment", async () => {
       await buildService.createBuild({
         accountId: testAccountId,
-        repositoryId: testRepositoryId,
+        serviceId: testServiceId,
         buildId: "invalid-env",
       });
 
       const response = await app.inject({
         method: "POST",
-        url: `/api/v1/repos/${testRepositoryId}/builds/invalid-env/deploy/invalid`,
+        url: `/api/v1/services/${testServiceId}/builds/invalid-env/deploy/invalid`,
         headers: {
           authorization: "Bearer test-key",
         },
@@ -397,17 +407,17 @@ describe("Builds API Routes", () => {
     });
   });
 
-  describe("PATCH /api/v1/repos/:repoId/builds/:buildId/deploy/:env", () => {
+  describe("PATCH /api/v1/services/:serviceId/builds/:buildId/deploy/:env", () => {
     it("should update deployment status with deployments:write scope", async () => {
       await buildService.createBuild({
         accountId: testAccountId,
-        repositoryId: testRepositoryId,
+        serviceId: testServiceId,
         buildId: "update-me",
       });
 
       const response = await app.inject({
         method: "PATCH",
-        url: `/api/v1/repos/${testRepositoryId}/builds/update-me/deploy/staging`,
+        url: `/api/v1/services/${testServiceId}/builds/update-me/deploy/staging`,
         headers: {
           authorization: "Bearer test-key",
           "content-type": "application/json",
@@ -425,13 +435,13 @@ describe("Builds API Routes", () => {
     it("should reject invalid status", async () => {
       await buildService.createBuild({
         accountId: testAccountId,
-        repositoryId: testRepositoryId,
+        serviceId: testServiceId,
         buildId: "invalid-status",
       });
 
       const response = await app.inject({
         method: "PATCH",
-        url: `/api/v1/repos/${testRepositoryId}/builds/invalid-status/deploy/staging`,
+        url: `/api/v1/services/${testServiceId}/builds/invalid-status/deploy/staging`,
         headers: {
           authorization: "Bearer test-key",
           "content-type": "application/json",

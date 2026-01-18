@@ -5,7 +5,7 @@ import { DeploymentLogRecord } from "../services/service/deploymentLogsRecord";
 export type Build = {
   _id: ObjectId;
   accountId: ObjectId;
-  repositoryId: ObjectId;
+  serviceId: ObjectId;
   buildId: string;
   deployments: Record<string, DeploymentStatus>;
   deploymentLogs: DeploymentLogRecord[];
@@ -15,7 +15,7 @@ export type Build = {
 
 export type CreateBuildInput = {
   accountId: ObjectId;
-  repositoryId: ObjectId;
+  serviceId: ObjectId;
   buildId: string;
 };
 
@@ -29,13 +29,13 @@ export class BuildRepository {
   async ensureIndexes(): Promise<void> {
     // Unique compound index for tenant isolation and duplicate prevention
     await this.collection.createIndex(
-      { accountId: 1, repositoryId: 1, buildId: 1 },
+      { accountId: 1, serviceId: 1, buildId: 1 },
       { unique: true },
     );
     // Index for listing builds sorted by date
     await this.collection.createIndex({
       accountId: 1,
-      repositoryId: 1,
+      serviceId: 1,
       createdAt: -1,
     });
   }
@@ -44,7 +44,7 @@ export class BuildRepository {
     // Check if build already exists for this account/repo/buildId combination
     const existing = await this.findByBuildId(
       input.accountId,
-      input.repositoryId,
+      input.serviceId,
       input.buildId,
     );
     if (existing) {
@@ -54,7 +54,7 @@ export class BuildRepository {
     const now = new Date();
     const build: Omit<Build, "_id"> = {
       accountId: input.accountId,
-      repositoryId: input.repositoryId,
+      serviceId: input.serviceId,
       buildId: input.buildId,
       deployments: {},
       deploymentLogs: [],
@@ -68,25 +68,25 @@ export class BuildRepository {
 
   async findByBuildId(
     accountId: ObjectId,
-    repositoryId: ObjectId,
+    serviceId: ObjectId,
     buildId: string,
   ): Promise<Build | null> {
-    return this.collection.findOne({ accountId, repositoryId, buildId });
+    return this.collection.findOne({ accountId, serviceId, buildId });
   }
 
-  async findByAccountAndRepo(
+  async findByAccountAndService(
     accountId: ObjectId,
-    repositoryId: ObjectId,
+    serviceId: ObjectId,
   ): Promise<Build[]> {
     return this.collection
-      .find({ accountId, repositoryId })
+      .find({ accountId, serviceId })
       .sort({ createdAt: -1 })
       .toArray();
   }
 
   async updateDeploymentStatus(
     accountId: ObjectId,
-    repositoryId: ObjectId,
+    serviceId: ObjectId,
     buildId: string,
     environment: string,
     status: DeploymentStatus,
@@ -94,7 +94,7 @@ export class BuildRepository {
     const log: DeploymentLogRecord = { environment, status };
 
     const result = await this.collection.findOneAndUpdate(
-      { accountId, repositoryId, buildId },
+      { accountId, serviceId, buildId },
       {
         $set: {
           [`deployments.${environment}`]: status,
