@@ -165,21 +165,18 @@ export function registerOnboardingRoutes(
           // Check if selected count exceeds plan limit
           if (selectedRepos.length > usage.repositories.limit) {
             const errorMessage = `Your ${usage.plan} plan allows up to ${usage.repositories.limit} repository. Please select fewer repositories or upgrade your plan.`;
-            if (typeof reply.view === "function") {
-              return reply.view(
-                "onboarding/select-repos",
-                {
-                  title: "Select Repositories",
-                  repositories: availableRepos,
-                  maxRepositories: usage.repositories.limit,
-                  privateReposAllowed: usage.privateReposAllowed,
-                  plan: usage.plan,
-                  error: errorMessage,
-                },
-                { layout: "/layouts/main.hbs" },
-              );
-            }
-            return reply.status(400).send({ error: errorMessage });
+            return reply.view(
+              "onboarding/select-repos",
+              {
+                title: "Select Repositories",
+                repositories: availableRepos,
+                maxRepositories: usage.repositories.limit,
+                privateReposAllowed: usage.privateReposAllowed,
+                plan: usage.plan,
+                error: errorMessage,
+              },
+              { layout: "/layouts/main.hbs" },
+            );
           }
 
           // Check if any private repos are selected when plan doesn't allow
@@ -187,21 +184,18 @@ export function registerOnboardingRoutes(
           if (hasPrivateRepo && !usage.privateReposAllowed) {
             const errorMessage =
               "Private repositories require a paid plan. Please select only public repositories or upgrade your plan.";
-            if (typeof reply.view === "function") {
-              return reply.view(
-                "onboarding/select-repos",
-                {
-                  title: "Select Repositories",
-                  repositories: availableRepos,
-                  maxRepositories: usage.repositories.limit,
-                  privateReposAllowed: usage.privateReposAllowed,
-                  plan: usage.plan,
-                  error: errorMessage,
-                },
-                { layout: "/layouts/main.hbs" },
-              );
-            }
-            return reply.status(400).send({ error: errorMessage });
+            return reply.view(
+              "onboarding/select-repos",
+              {
+                title: "Select Repositories",
+                repositories: availableRepos,
+                maxRepositories: usage.repositories.limit,
+                privateReposAllowed: usage.privateReposAllowed,
+                plan: usage.plan,
+                error: errorMessage,
+              },
+              { layout: "/layouts/main.hbs" },
+            );
           }
 
           // Save each selected repo
@@ -268,32 +262,14 @@ export function registerOnboardingRoutes(
         return reply.redirect("/dashboard");
       }
 
-      // Use template if view engine is available, otherwise simple HTML
-      if (typeof reply.view === "function") {
-        return reply.view(
-          "onboarding/complete",
-          {
-            title: "Setup Complete",
-            apiKey,
-          },
-          { layout: "/layouts/main.hbs" },
-        );
-      }
-
-      // Fallback for unit tests without view engine
-      return reply.header("Content-Type", "text/html").send(`
-          <!DOCTYPE html>
-          <html>
-          <head><title>Setup Complete</title></head>
-          <body>
-            <h1>Your API Key</h1>
-            <p>Use this key in your CI/CD pipelines to report build and deployment status.</p>
-            <code id="api-key">${apiKey}</code>
-            <button onclick="navigator.clipboard.writeText('${apiKey}')">Copy</button>
-            <a href="/dashboard">Continue to Dashboard</a>
-          </body>
-          </html>
-        `);
+      return reply.view(
+        "onboarding/complete",
+        {
+          title: "Setup Complete",
+          apiKey,
+        },
+        { layout: "/layouts/main.hbs" },
+      );
     },
   );
 }

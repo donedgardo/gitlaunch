@@ -13,6 +13,7 @@ import { ApiKeyService } from "../../../services/apiKey/apiKeyService";
 import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
 import { SessionService } from "../../../services/auth/sessionService";
 import { sessionAuthMiddleware } from "../../middleware/sessionAuth";
+import { mockViewPlugin } from "../../testing/mockViewPlugin";
 import { registerOnboardingRoutes } from "./index";
 
 // Fake GitHubAppService that returns test repos
@@ -97,6 +98,7 @@ describe("Onboarding Routes", () => {
     app = Fastify();
     await app.register(cookie, { secret: COOKIE_SECRET });
     await app.register(formbody);
+    await app.register(mockViewPlugin);
     sessionAuthMiddleware(app, sessionService);
     registerOnboardingRoutes(app, {
       accountRepository: accountRepo,
@@ -479,10 +481,9 @@ describe("Onboarding Routes", () => {
         payload: "repositories=1001&repositories=1002",
       });
 
-      // Then: returns 400 with error message
-      expect(response.statusCode).toBe(400);
-      const body = JSON.parse(response.body);
-      expect(body.error).toContain("free plan allows up to 1 repository");
+      // Then: returns 200 with error message in rendered view
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain("free plan allows up to 1 repository");
 
       // And: no repositories are saved
       const savedRepos = await repositoryRepo.findByAccountId(account._id);
@@ -527,10 +528,11 @@ describe("Onboarding Routes", () => {
         payload: "repositories=1001",
       });
 
-      // Then: returns 400 with error message
-      expect(response.statusCode).toBe(400);
-      const body = JSON.parse(response.body);
-      expect(body.error).toContain("Private repositories require a paid plan");
+      // Then: returns 200 with error message in rendered view
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain(
+        "Private repositories require a paid plan",
+      );
 
       // And: no repositories are saved
       const savedRepos = await repositoryRepo.findByAccountId(account._id);
