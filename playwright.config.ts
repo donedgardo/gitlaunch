@@ -19,12 +19,9 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "E2E_TEST_MODE=true npx tsx src/index.ts",
+    command: "npx tsx e2e/server.ts",
     url: "http://localhost:3050",
     reuseExistingServer: true,
     timeout: 30 * 1000,
-    env: {
-      E2E_TEST_MODE: "true",
-    },
   },
 });
