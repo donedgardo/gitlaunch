@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { MongoMemoryServer } from "mongodb-memory-server";
 import { MongoClient, Db, ObjectId } from "mongodb";
 import Fastify, { FastifyInstance } from "fastify";
-import cookie from "@fastify/cookie";
+import cookie, { sign } from "@fastify/cookie";
 import formbody from "@fastify/formbody";
 import { AccountRepository } from "../../../repositories/accountRepository";
 import { RepositoryRepository } from "../../../repositories/repositoryRepository";
@@ -57,6 +57,7 @@ describe("Onboarding Routes", () => {
   let sessionService: SessionService;
 
   const TEST_SECRET = "test-secret-for-sessions";
+  const COOKIE_SECRET = "test-cookie-secret";
 
   beforeAll(async () => {
     mongoServer = await MongoMemoryServer.create();
@@ -83,7 +84,7 @@ describe("Onboarding Routes", () => {
     sessionService = new SessionService(TEST_SECRET);
 
     app = Fastify();
-    await app.register(cookie);
+    await app.register(cookie, { secret: COOKIE_SECRET });
     await app.register(formbody);
     sessionAuthMiddleware(app, sessionService);
     registerOnboardingRoutes(app, {
@@ -148,9 +149,9 @@ describe("Onboarding Routes", () => {
         payload: "repositories=1001&repositories=1002",
       });
 
-      // Then: redirects to onboarding complete page
+      // Then: redirects to onboarding complete page (key in cookie, not URL)
       expect(response.statusCode).toBe(302);
-      expect(response.headers.location).toMatch(/\/onboarding\/complete/);
+      expect(response.headers.location).toBe("/onboarding/complete");
 
       // And: selected repositories are saved to the database
       const savedRepos = await repositoryRepo.findByAccountId(account._id);
@@ -198,9 +199,16 @@ describe("Onboarding Routes", () => {
         payload: "repositories=1001",
       });
 
-      // Then: redirects to onboarding complete page with API key in URL
+      // Then: redirects to onboarding complete page (key in cookie, not URL)
       expect(response.statusCode).toBe(302);
-      expect(response.headers.location).toMatch(/\/onboarding\/complete\?key=/);
+      expect(response.headers.location).toBe("/onboarding/complete");
+
+      // And: a signed cookie is set with the API key
+      const cookies = response.cookies;
+      const apiKeyCookie = cookies.find(
+        (c: { name: string }) => c.name === "onboarding_api_key",
+      );
+      expect(apiKeyCookie).toBeDefined();
 
       // And: an API key is created in the database
       const apiKeys = await apiKeyRepo.findByAccountId(account._id);
@@ -238,9 +246,9 @@ describe("Onboarding Routes", () => {
         payload: "",
       });
 
-      // Then: redirects to onboarding complete page
+      // Then: redirects to onboarding complete page (key in cookie, not URL)
       expect(response.statusCode).toBe(302);
-      expect(response.headers.location).toMatch(/\/onboarding\/complete/);
+      expect(response.headers.location).toBe("/onboarding/complete");
 
       // And: no repositories are saved
       const savedRepos = await repositoryRepo.findByAccountId(account._id);
@@ -269,7 +277,7 @@ describe("Onboarding Routes", () => {
   });
 
   describe("GET /onboarding/complete", () => {
-    it("should display the API key from query parameter", async () => {
+    it("should display the API key from signed cookie", async () => {
       // Given: an authenticated user
       const account = await accountRepo.create({
         name: "My Org",
@@ -283,12 +291,16 @@ describe("Onboarding Routes", () => {
 
       const testApiKey = "pk_my-org-complete_abc123xyz";
 
-      // When: visiting the complete page with key in URL
+      // Create a signed cookie value
+      const signedCookie = sign(testApiKey, COOKIE_SECRET);
+
+      // When: visiting the complete page with signed cookie
       const response = await app.inject({
         method: "GET",
-        url: `/onboarding/complete?key=${encodeURIComponent(testApiKey)}`,
+        url: "/onboarding/complete",
         cookies: {
           session: sessionToken,
+          onboarding_api_key: signedCookie,
         },
       });
 
@@ -296,13 +308,24 @@ describe("Onboarding Routes", () => {
       expect(response.statusCode).toBe(200);
       expect(response.body).toContain(testApiKey);
       expect(response.body).toContain("Your API Key");
+
+      // And: cookie is cleared (one-time display)
+      const clearCookie = response.cookies.find(
+        (c: { name: string }) => c.name === "onboarding_api_key",
+      );
+      expect(clearCookie).toBeDefined();
+      expect(clearCookie?.value).toBe("");
     });
 
     it("should redirect to login if not authenticated", async () => {
       // When: no session is provided
+      const signedCookie = sign("pk_test_abc123", COOKIE_SECRET);
       const response = await app.inject({
         method: "GET",
-        url: "/onboarding/complete?key=pk_test_abc123",
+        url: "/onboarding/complete",
+        cookies: {
+          onboarding_api_key: signedCookie,
+        },
       });
 
       // Then: redirects to GitHub OAuth login
@@ -310,7 +333,7 @@ describe("Onboarding Routes", () => {
       expect(response.headers.location).toBe("/auth/github");
     });
 
-    it("should redirect to dashboard if no key provided", async () => {
+    it("should redirect to dashboard if no cookie provided", async () => {
       // Given: an authenticated user
       const account = await accountRepo.create({
         name: "My Org",
@@ -322,7 +345,7 @@ describe("Onboarding Routes", () => {
         accountId: account._id,
       });
 
-      // When: visiting complete page without key
+      // When: visiting complete page without cookie (already viewed)
       const response = await app.inject({
         method: "GET",
         url: "/onboarding/complete",

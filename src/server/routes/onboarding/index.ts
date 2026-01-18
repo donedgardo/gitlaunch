@@ -171,29 +171,42 @@ export function registerOnboardingRoutes(
         scopes: ["builds:read", "builds:write", "deployments:write"],
       });
 
-      // Redirect to onboarding complete page with the API key
-      return reply.redirect(
-        `/onboarding/complete?key=${encodeURIComponent(key)}`,
-      );
+      // Store API key in a signed, short-lived cookie (not in URL for security)
+      reply.setCookie("onboarding_api_key", key, {
+        signed: true,
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        path: "/onboarding/complete",
+        maxAge: 300, // 5 minutes - just enough time to view and copy
+      });
+
+      // Redirect to onboarding complete page (key is in cookie, not URL)
+      return reply.redirect("/onboarding/complete");
     },
   );
 
   // GET /onboarding/complete - Show API key and completion message
-  app.get<{
-    Querystring: { key?: string };
-  }>(
+  app.get(
     "/onboarding/complete",
-    async (
-      request: FastifyRequest<{ Querystring: { key?: string } }>,
-      reply: FastifyReply,
-    ) => {
+    async (request: FastifyRequest, reply: FastifyReply) => {
       // Redirect to login if not authenticated
       if (!request.session) {
         return reply.redirect("/auth/github");
       }
 
-      // If no API key in URL, redirect to dashboard
-      const apiKey = request.query.key;
+      // Get API key from signed cookie
+      const signedCookie = request.cookies.onboarding_api_key;
+      const apiKey = signedCookie
+        ? reply.unsignCookie(signedCookie).value
+        : null;
+
+      // Clear the cookie immediately (one-time display)
+      reply.clearCookie("onboarding_api_key", {
+        path: "/onboarding/complete",
+      });
+
+      // If no API key (already viewed or expired), redirect to dashboard
       if (!apiKey) {
         return reply.redirect("/dashboard");
       }
