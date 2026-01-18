@@ -13,6 +13,21 @@ export default function (services: ServiceI[]) {
       done();
     });
     server.get(`/dashboard`, (req, res) => {
+      // If no services configured, show empty dashboard
+      if (services.length === 0) {
+        return res.view(
+          "dashboard",
+          {
+            services: [],
+            activeService: null,
+            environments: [],
+            builds: [],
+          },
+          {
+            layout: "/layouts/main.hbs",
+          },
+        );
+      }
       return redirectToFirstService(services, res);
     });
     for (let service of services) {
