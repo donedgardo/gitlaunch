@@ -334,4 +334,43 @@ describe("BuildRepository", () => {
       expect(result).toBeNull();
     });
   });
+
+  describe("ensureIndexes", () => {
+    it("should create unique compound index that prevents duplicates", async () => {
+      // Given: indexes are created
+      await repo.ensureIndexes();
+
+      // And: a build exists
+      await repo.create({
+        accountId: testAccountId,
+        repositoryId: testRepositoryId,
+        buildId: "unique-test",
+      });
+
+      // When: I try to insert a duplicate directly (bypassing create logic)
+      // Then: it should throw a duplicate key error
+      await expect(
+        db.collection("builds").insertOne({
+          accountId: testAccountId,
+          repositoryId: testRepositoryId,
+          buildId: "unique-test",
+          deployments: {},
+          deploymentLogs: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }),
+      ).rejects.toThrow(/duplicate key/);
+    });
+
+    it("should be idempotent - calling multiple times succeeds", async () => {
+      // When: I call ensureIndexes multiple times
+      await repo.ensureIndexes();
+      await repo.ensureIndexes();
+      await repo.ensureIndexes();
+
+      // Then: no error is thrown (indexes already exist)
+      const indexes = await db.collection("builds").indexes();
+      expect(indexes.length).toBeGreaterThanOrEqual(3); // _id + 2 custom indexes
+    });
+  });
 });

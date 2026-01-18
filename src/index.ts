@@ -10,6 +10,7 @@ import {
 } from "./services/auth/githubOAuthService";
 import { SessionService } from "./services/auth/sessionService";
 import { AccountRepository } from "./repositories/accountRepository";
+import { BuildRepository } from "./repositories/buildRepository";
 import { GitHubAppService } from "./services/github/githubAppService";
 import { GitHubAppClient } from "./services/github/githubAppClient";
 import { InstallationTokenService } from "./services/github/installationTokenService";
@@ -66,6 +67,17 @@ const server = createAppServer({
 
 const PORT = parseInt(process.env.PORT || "3050");
 
-server.listen({ host: "0.0.0.0", port: PORT }).then(() => {
+// Initialize indexes and start server
+async function start() {
+  // Ensure database indexes
+  const buildRepository = new BuildRepository(database);
+  await buildRepository.ensureIndexes();
+
+  await server.listen({ host: "0.0.0.0", port: PORT });
   console.info(`Server listening on port ${PORT}`);
+}
+
+start().catch((err) => {
+  console.error("Failed to start server:", err);
+  process.exit(1);
 });

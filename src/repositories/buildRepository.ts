@@ -26,6 +26,20 @@ export class BuildRepository {
     this.collection = db.collection<Build>("builds");
   }
 
+  async ensureIndexes(): Promise<void> {
+    // Unique compound index for tenant isolation and duplicate prevention
+    await this.collection.createIndex(
+      { accountId: 1, repositoryId: 1, buildId: 1 },
+      { unique: true },
+    );
+    // Index for listing builds sorted by date
+    await this.collection.createIndex({
+      accountId: 1,
+      repositoryId: 1,
+      createdAt: -1,
+    });
+  }
+
   async create(input: CreateBuildInput): Promise<Build> {
     // Check if build already exists for this account/repo/buildId combination
     const existing = await this.findByBuildId(
