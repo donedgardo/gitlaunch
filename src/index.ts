@@ -12,6 +12,9 @@ import {
 import { SessionService } from "./services/auth/sessionService";
 import { AccountRepository } from "./repositories/accountRepository";
 import { GitHubAppService } from "./services/github/githubAppService";
+import { GitHubAppClient } from "./services/github/githubAppClient";
+import { InstallationTokenService } from "./services/github/installationTokenService";
+import { RealGitHubApiClient } from "./services/github/githubApiClient";
 
 // MongoDB connection
 const mongodb_uri = process.env.MONGODB_URI as string;
@@ -45,7 +48,17 @@ const sessionService = new SessionService(
 
 // GitHub App service
 const accountRepository = new AccountRepository(database);
-const gitHubAppService = new GitHubAppService(accountRepository);
+const gitHubAppClient = new GitHubAppClient({
+  appId: process.env.GITHUB_APP_ID as string,
+  privateKey: process.env.GITHUB_APP_PRIVATE_KEY as string,
+});
+const installationTokenService = new InstallationTokenService(gitHubAppClient);
+const gitHubApiClient = new RealGitHubApiClient();
+const gitHubAppService = new GitHubAppService(
+  accountRepository,
+  installationTokenService,
+  gitHubApiClient,
+);
 
 // Create server
 const server = createAppServer({
