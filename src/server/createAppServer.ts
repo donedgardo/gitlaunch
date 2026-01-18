@@ -17,6 +17,7 @@ import { SessionService } from "../services/auth/sessionService";
 import { UserRepository } from "../repositories/userRepository";
 import { AccountRepository } from "../repositories/accountRepository";
 import { MembershipRepository } from "../repositories/membershipRepository";
+import { RepositoryRepository } from "../repositories/repositoryRepository";
 import { GitHubAppService } from "../services/github/githubAppService";
 import { ServiceI } from "../services/service/interface";
 import { DbClientI } from "./health/dbClientI";
@@ -49,6 +50,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
   const userRepository = new UserRepository(database);
   const accountRepository = new AccountRepository(database);
   const membershipRepository = new MembershipRepository(database);
+  const repositoryRepository = new RepositoryRepository(database);
 
   // Session middleware
   registerSessionMiddleware(server, {
@@ -78,6 +80,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
   // Onboarding routes
   registerOnboardingRoutes(server, {
     accountRepository,
+    repositoryRepository,
     gitHubAppService,
   });
 

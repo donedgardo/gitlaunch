@@ -1,10 +1,12 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { ObjectId } from "mongodb";
 import { AccountRepository } from "../../../repositories/accountRepository";
+import { RepositoryRepository } from "../../../repositories/repositoryRepository";
 import { GitHubAppService } from "../../../services/github/githubAppService";
 
 export type OnboardingRoutesDeps = {
   accountRepository: AccountRepository;
+  repositoryRepository: RepositoryRepository;
   gitHubAppService: GitHubAppService;
 };
 
@@ -12,7 +14,7 @@ export function registerOnboardingRoutes(
   app: FastifyInstance,
   deps: OnboardingRoutesDeps,
 ): void {
-  const { accountRepository, gitHubAppService } = deps;
+  const { accountRepository, repositoryRepository, gitHubAppService } = deps;
 
   // GET /onboarding - Main onboarding page
   app.get(
@@ -101,11 +103,11 @@ export function registerOnboardingRoutes(
 
   // POST /onboarding/repositories - Save selected repositories
   app.post<{
-    Body: { repositories?: string[] };
+    Body: { repositories?: string | string[] };
   }>(
     "/onboarding/repositories",
     async (
-      request: FastifyRequest<{ Body: { repositories?: string[] } }>,
+      request: FastifyRequest<{ Body: { repositories?: string | string[] } }>,
       reply: FastifyReply,
     ) => {
       // Redirect to login if not authenticated
@@ -121,8 +123,38 @@ export function registerOnboardingRoutes(
         return reply.redirect("/auth/github");
       }
 
-      // TODO: Save selected repositories to the database
-      // For now, just redirect to dashboard
+      // Get selected repository IDs from form
+      const selectedRepoIds = request.body.repositories
+        ? Array.isArray(request.body.repositories)
+          ? request.body.repositories.map((id) => parseInt(id, 10))
+          : [parseInt(request.body.repositories, 10)]
+        : [];
+
+      // Save selected repositories if any
+      if (selectedRepoIds.length > 0) {
+        try {
+          // Fetch all available repos from GitHub App installation
+          const availableRepos = await gitHubAppService.listInstallationRepos(
+            account._id,
+          );
+
+          // Filter to only selected repos and save each one
+          for (const repo of availableRepos) {
+            if (selectedRepoIds.includes(repo.id)) {
+              await repositoryRepository.create({
+                accountId: account._id,
+                githubRepoId: repo.id,
+                githubFullName: repo.full_name,
+                githubOwner: repo.owner?.login || repo.full_name.split("/")[0],
+                githubRepoName: repo.name || repo.full_name.split("/")[1],
+                isPrivate: repo.private,
+              });
+            }
+          }
+        } catch (error) {
+          console.error("Failed to save repositories:", error);
+        }
+      }
 
       return reply.redirect("/dashboard");
     },
