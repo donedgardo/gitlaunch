@@ -13,8 +13,8 @@ inputs:
     description: "GitLaunch API URL"
     required: false
     default: "https://gitlaunch.io"
-  repository-id:
-    description: "GitLaunch repository ID"
+  service-id:
+    description: "GitLaunch service ID"
     required: true
   action:
     description: "Action to perform: report-build, update-status"

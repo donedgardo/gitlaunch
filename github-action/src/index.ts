@@ -19,7 +19,7 @@ async function run(): Promise<void> {
   try {
     const apiKey = core.getInput("api-key", { required: true });
     const apiUrl = core.getInput("api-url") || "https://gitlaunch.io";
-    const repositoryId = core.getInput("repository-id", { required: true });
+    const serviceId = core.getInput("service-id", { required: true });
     const action = core.getInput("action", { required: true }) as ActionType;
     const buildId = core.getInput("build-id", { required: true });
     const environment = core.getInput("environment");
@@ -32,7 +32,7 @@ async function run(): Promise<void> {
       },
     });
 
-    const baseUrl = `${apiUrl}/api/v1/repos/${repositoryId}`;
+    const baseUrl = `${apiUrl}/api/v1/services/${serviceId}`;
 
     switch (action) {
       case "report-build": {

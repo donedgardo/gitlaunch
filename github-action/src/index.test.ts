@@ -41,7 +41,7 @@ describe("GitLaunch Action", () => {
         const inputs: Record<string, string> = {
           "api-key": "pk_test_key",
           "api-url": "https://gitlaunch.io",
-          "repository-id": "repo123",
+          "service-id": "service123",
           action: "report-build",
           "build-id": "abc123",
         };
@@ -67,7 +67,7 @@ describe("GitLaunch Action", () => {
 
       // Then: build is reported
       expect(mockPostJson).toHaveBeenCalledWith(
-        "https://gitlaunch.io/api/v1/repos/repo123/builds",
+        "https://gitlaunch.io/api/v1/services/service123/builds",
         { buildId: "abc123" },
       );
       expect(mockSetOutput).toHaveBeenCalledWith("build-id", "abc123");
@@ -80,7 +80,7 @@ describe("GitLaunch Action", () => {
         const inputs: Record<string, string> = {
           "api-key": "pk_test_key",
           "api-url": "https://gitlaunch.io",
-          "repository-id": "repo123",
+          "service-id": "service123",
           action: "report-build",
           "build-id": "abc123",
         };
@@ -110,7 +110,7 @@ describe("GitLaunch Action", () => {
         const inputs: Record<string, string> = {
           "api-key": "pk_test_key",
           "api-url": "https://gitlaunch.io",
-          "repository-id": "repo123",
+          "service-id": "service123",
           action: "update-status",
           "build-id": "abc123",
           environment: "staging",
@@ -137,7 +137,7 @@ describe("GitLaunch Action", () => {
 
       // Then: status is updated
       expect(mockPatchJson).toHaveBeenCalledWith(
-        "https://gitlaunch.io/api/v1/repos/repo123/builds/abc123/deploy/staging",
+        "https://gitlaunch.io/api/v1/services/service123/builds/abc123/deploy/staging",
         { status: "deployed" },
       );
       expect(mockSetOutput).toHaveBeenCalledWith(
@@ -153,7 +153,7 @@ describe("GitLaunch Action", () => {
         const inputs: Record<string, string> = {
           "api-key": "pk_test_key",
           "api-url": "https://gitlaunch.io",
-          "repository-id": "repo123",
+          "service-id": "service123",
           action: "update-status",
           "build-id": "abc123",
           status: "deployed",
@@ -179,7 +179,7 @@ describe("GitLaunch Action", () => {
         const inputs: Record<string, string> = {
           "api-key": "pk_test_key",
           "api-url": "https://gitlaunch.io",
-          "repository-id": "repo123",
+          "service-id": "service123",
           action: "update-status",
           "build-id": "abc123",
           environment: "staging",
@@ -208,7 +208,7 @@ describe("GitLaunch Action", () => {
         const inputs: Record<string, string> = {
           "api-key": "pk_test_key",
           "api-url": "https://gitlaunch.io",
-          "repository-id": "repo123",
+          "service-id": "service123",
           action: "invalid-action",
           "build-id": "abc123",
         };

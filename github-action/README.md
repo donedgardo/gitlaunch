@@ -13,9 +13,10 @@ A GitHub Action to report builds and deployment status to [GitLaunch](https://gi
 ### Prerequisites
 
 1. Sign up for GitLaunch and connect your repository
-2. Get your API key from the GitLaunch dashboard
-3. Find your repository ID in the GitLaunch settings
-4. Add `GITLAUNCH_API_KEY` to your repository secrets
+2. Create a service for your deployable component (e.g., "backend", "frontend")
+3. Get your API key from the GitLaunch dashboard
+4. Find your service ID in the GitLaunch settings
+5. Add `GITLAUNCH_API_KEY` to your repository secrets
 
 ### Report a New Build
 
@@ -47,7 +48,7 @@ jobs:
         uses: gitlaunch/build-reporter@v1
         with:
           api-key: ${{ secrets.GITLAUNCH_API_KEY }}
-          repository-id: ${{ vars.GITLAUNCH_REPO_ID }}
+          service-id: ${{ vars.GITLAUNCH_SERVICE_ID }}
           action: report-build
           build-id: ${{ github.sha }}
 ```
@@ -74,7 +75,7 @@ jobs:
         uses: gitlaunch/build-reporter@v1
         with:
           api-key: ${{ secrets.GITLAUNCH_API_KEY }}
-          repository-id: ${{ vars.GITLAUNCH_REPO_ID }}
+          service-id: ${{ vars.GITLAUNCH_SERVICE_ID }}
           action: update-status
           build-id: ${{ github.event.client_payload.build-id }}
           environment: ${{ github.event.client_payload.env }}
@@ -91,7 +92,7 @@ jobs:
         uses: gitlaunch/build-reporter@v1
         with:
           api-key: ${{ secrets.GITLAUNCH_API_KEY }}
-          repository-id: ${{ vars.GITLAUNCH_REPO_ID }}
+          service-id: ${{ vars.GITLAUNCH_SERVICE_ID }}
           action: update-status
           build-id: ${{ github.event.client_payload.build-id }}
           environment: ${{ github.event.client_payload.env }}
@@ -103,7 +104,7 @@ jobs:
         uses: gitlaunch/build-reporter@v1
         with:
           api-key: ${{ secrets.GITLAUNCH_API_KEY }}
-          repository-id: ${{ vars.GITLAUNCH_REPO_ID }}
+          service-id: ${{ vars.GITLAUNCH_SERVICE_ID }}
           action: update-status
           build-id: ${{ github.event.client_payload.build-id }}
           environment: ${{ github.event.client_payload.env }}
@@ -148,7 +149,7 @@ jobs:
         uses: gitlaunch/build-reporter@v1
         with:
           api-key: ${{ secrets.GITLAUNCH_API_KEY }}
-          repository-id: ${{ vars.GITLAUNCH_REPO_ID }}
+          service-id: ${{ vars.GITLAUNCH_SERVICE_ID }}
           action: report-build
           build-id: ${{ github.sha }}
 
@@ -163,7 +164,7 @@ jobs:
         uses: gitlaunch/build-reporter@v1
         with:
           api-key: ${{ secrets.GITLAUNCH_API_KEY }}
-          repository-id: ${{ vars.GITLAUNCH_REPO_ID }}
+          service-id: ${{ vars.GITLAUNCH_SERVICE_ID }}
           action: update-status
           build-id: ${{ github.sha }}
           environment: staging
@@ -176,7 +177,7 @@ jobs:
         uses: gitlaunch/build-reporter@v1
         with:
           api-key: ${{ secrets.GITLAUNCH_API_KEY }}
-          repository-id: ${{ vars.GITLAUNCH_REPO_ID }}
+          service-id: ${{ vars.GITLAUNCH_SERVICE_ID }}
           action: update-status
           build-id: ${{ github.sha }}
           environment: staging
@@ -185,15 +186,15 @@ jobs:
 
 ## Inputs
 
-| Input           | Description                                          | Required            | Default                |
-| --------------- | ---------------------------------------------------- | ------------------- | ---------------------- |
-| `api-key`       | GitLaunch API key                                    | Yes                 | -                      |
-| `api-url`       | GitLaunch API URL                                    | No                  | `https://gitlaunch.io` |
-| `repository-id` | GitLaunch repository ID                              | Yes                 | -                      |
-| `action`        | Action to perform: `report-build` or `update-status` | Yes                 | `report-build`         |
-| `build-id`      | Build identifier (commit SHA, build number, etc.)    | Yes                 | -                      |
-| `environment`   | Deployment environment (staging, prod)               | For `update-status` | -                      |
-| `status`        | Deployment status                                    | For `update-status` | -                      |
+| Input         | Description                                          | Required            | Default                |
+| ------------- | ---------------------------------------------------- | ------------------- | ---------------------- |
+| `api-key`     | GitLaunch API key                                    | Yes                 | -                      |
+| `api-url`     | GitLaunch API URL                                    | No                  | `https://gitlaunch.io` |
+| `service-id`  | GitLaunch service ID                                 | Yes                 | -                      |
+| `action`      | Action to perform: `report-build` or `update-status` | Yes                 | `report-build`         |
+| `build-id`    | Build identifier (commit SHA, build number, etc.)    | Yes                 | -                      |
+| `environment` | Deployment environment (staging, prod)               | For `update-status` | -                      |
+| `status`      | Deployment status                                    | For `update-status` | -                      |
 
 ### Valid Status Values
 
