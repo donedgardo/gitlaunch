@@ -101,6 +101,49 @@ export default async function globalSetup() {
       createdAt: new Date(),
     });
 
+    // Create test user WITH GitHub App on PAID plan
+    const testUser3Id = new ObjectId("000000000000000000000003");
+    const testAccount3Id = new ObjectId("000000000000000000000033");
+
+    await db.collection("users").insertOne({
+      _id: testUser3Id,
+      githubId: 99903,
+      githubLogin: "test-user-paid",
+      email: "test-paid@example.com",
+      name: "Test User Paid",
+      avatarUrl: null,
+      createdAt: new Date(),
+      lastLoginAt: new Date(),
+    });
+
+    await db.collection("accounts").insertOne({
+      _id: testAccount3Id,
+      name: "Test Account Paid",
+      slug: "test-account-paid",
+      plan: "paid",
+      planLimits: {
+        maxRepositories: 5,
+        maxUsers: 10,
+        publicReposOnly: false,
+      },
+      stripeCustomerId: "cus_test_paid",
+      stripeSubscriptionId: "sub_test_paid",
+      paymentFailedAt: null,
+      githubInstallationId: 12346, // Has GitHub App installed
+      githubInstallationAccessToken: null,
+      githubInstallationTokenExpiresAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    await db.collection("memberships").insertOne({
+      _id: new ObjectId(),
+      userId: testUser3Id,
+      accountId: testAccount3Id,
+      role: "owner",
+      createdAt: new Date(),
+    });
+
     console.log("Test data created successfully");
   } finally {
     await client.close();

@@ -229,3 +229,178 @@ test.describe("Onboarding - GitHub App Installation", () => {
     await expect(page).toHaveURL(/\/dashboard/);
   });
 });
+
+test.describe("Onboarding - Plan Enforcement", () => {
+  test("free plan user sees plan limits in UI", async ({ page }) => {
+    // Authenticate as free plan user WITH GitHub App
+    await authenticateTestUser(page, TEST_USERS.userWithGitHubApp);
+
+    // Visit repository selection page
+    await page.goto("/onboarding/repositories");
+
+    // Should see plan limits notice
+    const planLimits = page.locator("#plan-limits");
+    await expect(planLimits).toBeVisible();
+
+    // Should see "free" plan and "1" repository limit
+    await expect(planLimits).toContainText("free");
+    await expect(page.locator("#max-repos")).toHaveText("1");
+
+    // Should see "public only" notice
+    await expect(page.locator("#public-only-notice")).toBeVisible();
+    await expect(page.locator("#public-only-notice")).toContainText(
+      "Public repos only",
+    );
+  });
+
+  test("paid plan user sees higher limits without public-only restriction", async ({
+    page,
+  }) => {
+    // Authenticate as paid plan user
+    await authenticateTestUser(page, TEST_USERS.paidUserWithGitHubApp);
+
+    // Visit repository selection page
+    await page.goto("/onboarding/repositories");
+
+    // Should see plan limits notice
+    const planLimits = page.locator("#plan-limits");
+    await expect(planLimits).toBeVisible();
+
+    // Should see "paid" plan and "5" repository limit
+    await expect(planLimits).toContainText("paid");
+    await expect(page.locator("#max-repos")).toHaveText("5");
+
+    // Should NOT see "public only" notice
+    await expect(page.locator("#public-only-notice")).not.toBeVisible();
+  });
+
+  test("free plan user gets error when selecting more than 1 repo", async ({
+    page,
+  }) => {
+    // Authenticate as free plan user WITH GitHub App
+    await authenticateTestUser(page, TEST_USERS.userWithGitHubApp);
+
+    // Visit repository selection page
+    await page.goto("/onboarding/repositories");
+
+    // Should see mock repositories
+    await expect(page.getByText("test-org/public-repo-1")).toBeVisible();
+    await expect(page.getByText("test-org/public-repo-2")).toBeVisible();
+
+    // Select 2 public repos (exceeds free plan limit of 1)
+    await page
+      .locator("label", { hasText: "test-org/public-repo-1" })
+      .locator('input[type="checkbox"]')
+      .check();
+    await page
+      .locator("label", { hasText: "test-org/public-repo-2" })
+      .locator('input[type="checkbox"]')
+      .check();
+
+    // Submit form
+    await page.getByRole("button", { name: /continue/i }).click();
+
+    // Should see error message
+    await expect(page.locator("#plan-error")).toBeVisible();
+    await expect(page.locator("#plan-error")).toContainText(
+      "free plan allows up to 1 repository",
+    );
+
+    // Should still be on the repo selection page
+    await expect(page).toHaveURL(/\/onboarding\/repositories/);
+  });
+
+  test("free plan user gets error when selecting private repo", async ({
+    page,
+  }) => {
+    // Authenticate as free plan user WITH GitHub App
+    await authenticateTestUser(page, TEST_USERS.userWithGitHubApp);
+
+    // Visit repository selection page
+    await page.goto("/onboarding/repositories");
+
+    // Should see private repo with "Private" badge
+    const privateRepoLabel = page.locator("label", {
+      hasText: "test-org/private-repo",
+    });
+    await expect(privateRepoLabel).toBeVisible();
+    await expect(privateRepoLabel).toContainText("Private");
+
+    // Select the private repo
+    await privateRepoLabel.locator('input[type="checkbox"]').check();
+
+    // Submit form
+    await page.getByRole("button", { name: /continue/i }).click();
+
+    // Should see error message about private repos
+    await expect(page.locator("#plan-error")).toBeVisible();
+    await expect(page.locator("#plan-error")).toContainText(
+      "Private repositories require a paid plan",
+    );
+
+    // Should still be on the repo selection page
+    await expect(page).toHaveURL(/\/onboarding\/repositories/);
+  });
+
+  test("paid plan user can select multiple repos including private", async ({
+    page,
+  }) => {
+    // Authenticate as paid plan user
+    await authenticateTestUser(page, TEST_USERS.paidUserWithGitHubApp);
+
+    // Visit repository selection page
+    await page.goto("/onboarding/repositories");
+
+    // Select multiple repos including private
+    await page
+      .locator("label", { hasText: "test-org/public-repo-1" })
+      .locator('input[type="checkbox"]')
+      .check();
+    await page
+      .locator("label", { hasText: "test-org/public-repo-2" })
+      .locator('input[type="checkbox"]')
+      .check();
+    await page
+      .locator("label", { hasText: "test-org/private-repo" })
+      .locator('input[type="checkbox"]')
+      .check();
+
+    // Submit form
+    await page.getByRole("button", { name: /continue/i }).click();
+
+    // Should be redirected to onboarding complete page (success)
+    await expect(page).toHaveURL(/\/onboarding\/complete/);
+
+    // Should see API key
+    await expect(
+      page.getByRole("heading", { name: /your api key/i }),
+    ).toBeVisible();
+  });
+
+  test("free plan user can select one public repo successfully", async ({
+    page,
+  }) => {
+    // Authenticate as free plan user WITH GitHub App
+    await authenticateTestUser(page, TEST_USERS.userWithGitHubApp);
+
+    // Visit repository selection page
+    await page.goto("/onboarding/repositories");
+
+    // Select 1 public repo (within free plan limit)
+    await page
+      .locator("label", { hasText: "test-org/public-repo-1" })
+      .locator('input[type="checkbox"]')
+      .check();
+
+    // Submit form
+    await page.getByRole("button", { name: /continue/i }).click();
+
+    // Should be redirected to onboarding complete page (success)
+    await expect(page).toHaveURL(/\/onboarding\/complete/);
+
+    // Should see API key
+    await expect(
+      page.getByRole("heading", { name: /your api key/i }),
+    ).toBeVisible();
+  });
+});

@@ -16,6 +16,8 @@ import { GitHubAppService } from "./services/github/githubAppService";
 import { GitHubAppClient } from "./services/github/githubAppClient";
 import { InstallationTokenService } from "./services/github/installationTokenService";
 import { RealGitHubApiClient } from "./services/github/githubApiClient";
+import { MockGitHubApiClient } from "./services/github/mockGitHubApiClient";
+import { MockInstallationTokenService } from "./services/github/mockInstallationTokenService";
 
 // MongoDB connection
 const mongodb_uri = process.env.MONGODB_URI as string;
@@ -43,17 +45,35 @@ const sessionService = new SessionService(
 
 // GitHub App service
 const accountRepository = new AccountRepository(database);
-const gitHubAppClient = new GitHubAppClient({
-  appId: process.env.GH_APP_ID as string,
-  privateKey: process.env.GH_APP_PRIVATE_KEY as string,
-});
-const installationTokenService = new InstallationTokenService(gitHubAppClient);
-const gitHubApiClient = new RealGitHubApiClient();
-const gitHubAppService = new GitHubAppService(
-  accountRepository,
-  installationTokenService,
-  gitHubApiClient,
-);
+const isE2ETestMode = process.env.E2E_TEST_MODE === "true";
+
+let gitHubAppService: GitHubAppService;
+if (isE2ETestMode) {
+  // Use mock clients for e2e tests
+  const mockTokenService = new MockInstallationTokenService();
+  const mockApiClient = new MockGitHubApiClient();
+  gitHubAppService = new GitHubAppService(
+    accountRepository,
+    mockTokenService as unknown as InstallationTokenService,
+    mockApiClient,
+  );
+  console.info("E2E Test Mode: Using mock GitHub API client");
+} else {
+  // Use real clients for production
+  const gitHubAppClient = new GitHubAppClient({
+    appId: process.env.GH_APP_ID as string,
+    privateKey: process.env.GH_APP_PRIVATE_KEY as string,
+  });
+  const installationTokenService = new InstallationTokenService(
+    gitHubAppClient,
+  );
+  const gitHubApiClient = new RealGitHubApiClient();
+  gitHubAppService = new GitHubAppService(
+    accountRepository,
+    installationTokenService,
+    gitHubApiClient,
+  );
+}
 
 // Create server
 const server = createAppServer({

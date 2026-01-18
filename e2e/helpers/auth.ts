@@ -52,14 +52,22 @@ export async function authenticateTestUser(
  * For now using placeholder ObjectIds
  */
 export const TEST_USERS = {
+  // Free plan user without GitHub App
   newUser: {
     userId: "000000000000000000000001",
     accountId: "000000000000000000000011",
     hasGitHubApp: false,
   },
+  // Free plan user with GitHub App
   userWithGitHubApp: {
     userId: "000000000000000000000002",
     accountId: "000000000000000000000022",
+    hasGitHubApp: true,
+  },
+  // Paid plan user with GitHub App
+  paidUserWithGitHubApp: {
+    userId: "000000000000000000000003",
+    accountId: "000000000000000000000033",
     hasGitHubApp: true,
   },
 };
