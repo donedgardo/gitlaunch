@@ -19,13 +19,13 @@ fi
 # Convert newlines to \n and wrap in quotes
 PRIVATE_KEY=$(awk '{printf "%s\\n", $0}' "$PEM_FILE" | sed 's/\\n$//')
 
-# Check if GITHUB_APP_PRIVATE_KEY already exists in .env
-if grep -q "^GITHUB_APP_PRIVATE_KEY=" .env 2>/dev/null; then
+# Check if GH_APP_PRIVATE_KEY already exists in .env
+if grep -q "^GH_APP_PRIVATE_KEY=" .env 2>/dev/null; then
   # Replace existing key (macOS compatible sed)
-  sed -i '' '/^GITHUB_APP_PRIVATE_KEY=/d' .env
+  sed -i '' '/^GH_APP_PRIVATE_KEY=/d' .env
 fi
 
 # Append the new key
-echo "GITHUB_APP_PRIVATE_KEY=\"$PRIVATE_KEY\"" >> .env
+echo "GH_APP_PRIVATE_KEY=\"$PRIVATE_KEY\"" >> .env
 
 echo "Private key added to .env"

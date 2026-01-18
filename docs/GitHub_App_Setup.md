@@ -52,11 +52,11 @@ Add to your `.env`:
 
 ```bash
 # GitHub App credentials
-GITHUB_APP_ID=123456
-GITHUB_APP_CLIENT_ID=Iv1.abc123...
-GITHUB_APP_CLIENT_SECRET=your_client_secret_here
-GITHUB_APP_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----"
-GITHUB_APP_WEBHOOK_SECRET=your_webhook_secret_here
+GH_APP_ID=123456
+GH_APP_CLIENT_ID=Iv1.abc123...
+GH_APP_CLIENT_SECRET=your_client_secret_here
+GH_APP_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----"
+GH_APP_WEBHOOK_SECRET=your_webhook_secret_here
 ```
 
 **Private Key Encoding Options:**
@@ -65,7 +65,7 @@ Option A - Inline with `\n` (shown above):
 
 ```bash
 # Replace newlines with \n in the PEM file
-GITHUB_APP_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\nMIIE...\n-----END RSA PRIVATE KEY-----"
+GH_APP_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\nMIIE...\n-----END RSA PRIVATE KEY-----"
 ```
 
 Option B - Base64 encoded:
@@ -73,7 +73,7 @@ Option B - Base64 encoded:
 ```bash
 # Encode the entire PEM file
 cat your-app.pem | base64 > private-key.b64
-GITHUB_APP_PRIVATE_KEY_BASE64=$(cat private-key.b64)
+GH_APP_PRIVATE_KEY_BASE64=$(cat private-key.b64)
 ```
 
 ## 7. Test Installation

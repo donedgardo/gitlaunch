@@ -51,10 +51,10 @@ jobs:
       PUBLIC_URL: http://localhost:3050
       COOKIE_SECRET_SIGNATURE: test-secret-for-ci
       API_KEY: test-api-key
-      GITHUB_APP_ID: "123456"
-      GITHUB_APP_CLIENT_ID: test-client-id
-      GITHUB_APP_CLIENT_SECRET: test-client-secret
-      GITHUB_APP_PRIVATE_KEY: test-private-key
+      GH_APP_ID: "123456"
+      GH_APP_CLIENT_ID: test-client-id
+      GH_APP_CLIENT_SECRET: test-client-secret
+      GH_APP_PRIVATE_KEY: test-private-key
     steps:
       - uses: actions/checkout@v4
 

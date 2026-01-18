@@ -81,8 +81,8 @@ See `sample.env` for required environment variables:
 
 - `MONGODB_URI` - MongoDB connection string
 - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` - OAuth credentials
-- `GITHUB_ORG` - Your GitHub organization name
-- `GITHUB_PAT` - GitHub Personal Access Token for dispatch
+- `GH_ORG` - Your GitHub organization name
+- `GH_PAT` - GitHub Personal Access Token for dispatch
 - `SERVICES` - Comma-separated list of service names to manage
 
 ## License

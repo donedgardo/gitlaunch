@@ -32,12 +32,12 @@ const services = createServices(serviceNames, database, eventEmitter);
 
 // GitHub OAuth service
 const githubHttpClient = new RealGitHubHttpClient(
-  process.env.GITHUB_APP_CLIENT_ID as string,
-  process.env.GITHUB_APP_CLIENT_SECRET as string,
+  process.env.GH_APP_CLIENT_ID as string,
+  process.env.GH_APP_CLIENT_SECRET as string,
 );
 const githubOAuthService = new GitHubOAuthService(githubHttpClient, {
-  clientId: process.env.GITHUB_APP_CLIENT_ID,
-  clientSecret: process.env.GITHUB_APP_CLIENT_SECRET,
+  clientId: process.env.GH_APP_CLIENT_ID,
+  clientSecret: process.env.GH_APP_CLIENT_SECRET,
   redirectUri: `${process.env.PUBLIC_URL}/auth/github/callback`,
 });
 
@@ -49,8 +49,8 @@ const sessionService = new SessionService(
 // GitHub App service
 const accountRepository = new AccountRepository(database);
 const gitHubAppClient = new GitHubAppClient({
-  appId: process.env.GITHUB_APP_ID as string,
-  privateKey: process.env.GITHUB_APP_PRIVATE_KEY as string,
+  appId: process.env.GH_APP_ID as string,
+  privateKey: process.env.GH_APP_PRIVATE_KEY as string,
 });
 const installationTokenService = new InstallationTokenService(gitHubAppClient);
 const gitHubApiClient = new RealGitHubApiClient();

@@ -84,7 +84,7 @@ Copy `sample.env` to `.env`. Required variables:
 - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` - OAuth credentials
 - `COOKIE_SECRET_SIGNATURE` - Cookie signing secret
 - `API_KEY` - API authentication key
-- `GITHUB_PAT` - GitHub Personal Access Token for dispatch workflows
+- `GH_PAT` - GitHub Personal Access Token for dispatch workflows
 
 ## TDD Development Mode
 

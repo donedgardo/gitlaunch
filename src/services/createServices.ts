@@ -23,8 +23,8 @@ export function createService(
   const buildStorage = new MongoBuildStorage(database, serviceName);
   const dispatchService = new GithubDispatchService(
     serviceName,
-    process.env.GITHUB_PAT as string,
-    process.env.GITHUB_ORG as string,
+    process.env.GH_PAT as string,
+    process.env.GH_ORG as string,
   );
   return new Service(serviceName, buildStorage, eventEmitter, dispatchService, [
     Environments.STAGING,
