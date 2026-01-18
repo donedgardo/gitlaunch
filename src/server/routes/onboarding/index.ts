@@ -40,11 +40,15 @@ export function registerOnboardingRoutes(
       const githubAppName = process.env.GITHUB_APP_NAME || "gitlaunchapp";
       const installUrl = `https://github.com/apps/${githubAppName}/installations/new`;
 
-      return reply.view("onboarding/install-github", {
-        title: "Connect GitHub",
-        accountName: account.name,
-        installUrl,
-      });
+      return reply.view(
+        "onboarding/install-github",
+        {
+          title: "Connect GitHub",
+          accountName: account.name,
+          installUrl,
+        },
+        { layout: "/layouts/main.hbs" },
+      );
     },
   );
 
@@ -84,10 +88,14 @@ export function registerOnboardingRoutes(
         console.error("Failed to fetch repositories:", error);
       }
 
-      return reply.view("onboarding/select-repos", {
-        title: "Select Repositories",
-        repositories,
-      });
+      return reply.view(
+        "onboarding/select-repos",
+        {
+          title: "Select Repositories",
+          repositories,
+        },
+        { layout: "/layouts/main.hbs" },
+      );
     },
   );
 
