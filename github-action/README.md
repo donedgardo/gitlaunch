@@ -215,6 +215,19 @@ jobs:
 - Use environment protection rules for production deployments
 - The API key should have appropriate scopes (`builds:write`, `deployments:write`)
 
+## Publishing to GitHub Marketplace
+
+To publish this action to the GitHub Marketplace:
+
+1. Create a separate repository `gitlaunch/build-reporter`
+2. Copy the contents of the `github-action/` directory to that repo
+3. Install dependencies: `yarn install`
+4. Build the action: `yarn build` (generates `dist/index.js`)
+5. Commit the `dist/` directory (required for GitHub Actions)
+6. Create a GitHub release with semantic versioning (e.g., v1.0.0)
+7. In the release, check "Publish this Action to the GitHub Marketplace"
+8. Add a v1 tag that points to the latest v1.x.x release for users using `@v1`
+
 ## License
 
 MIT
