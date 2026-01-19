@@ -3,14 +3,12 @@ import { ObjectId } from "mongodb";
 import { AccountRepository } from "../../../repositories/accountRepository";
 import { RepositoryRepository } from "../../../repositories/repositoryRepository";
 import { GitHubAppService } from "../../../services/github/githubAppService";
-import { ApiKeyService } from "../../../services/apiKey/apiKeyService";
 import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
 
 export type OnboardingRoutesDeps = {
   accountRepository: AccountRepository;
   repositoryRepository: RepositoryRepository;
   gitHubAppService: GitHubAppService;
-  apiKeyService: ApiKeyService;
   planEnforcementService: PlanEnforcementService;
 };
 
@@ -22,7 +20,6 @@ export function registerOnboardingRoutes(
     accountRepository,
     repositoryRepository,
     gitHubAppService,
-    apiKeyService,
     planEnforcementService,
   } = deps;
 
@@ -214,62 +211,8 @@ export function registerOnboardingRoutes(
         }
       }
 
-      // Generate API key for the account
-      const { key } = await apiKeyService.generate({
-        accountId: account._id,
-        createdByUserId: new ObjectId(request.session.userId),
-        name: "Default API Key",
-        scopes: ["builds:read", "builds:write", "deployments:write"],
-      });
-
-      // Store API key in a signed, short-lived cookie (not in URL for security)
-      reply.setCookie("onboarding_api_key", key, {
-        signed: true,
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
-        path: "/onboarding/complete",
-        maxAge: 300, // 5 minutes - just enough time to view and copy
-      });
-
-      // Redirect to onboarding complete page (key is in cookie, not URL)
-      return reply.redirect("/onboarding/complete");
-    },
-  );
-
-  // GET /onboarding/complete - Show API key and completion message
-  app.get(
-    "/onboarding/complete",
-    async (request: FastifyRequest, reply: FastifyReply) => {
-      // Redirect to login if not authenticated
-      if (!request.session) {
-        return reply.redirect("/auth/github");
-      }
-
-      // Get API key from signed cookie
-      const signedCookie = request.cookies.onboarding_api_key;
-      const apiKey = signedCookie
-        ? reply.unsignCookie(signedCookie).value
-        : null;
-
-      // Clear the cookie immediately (one-time display)
-      reply.clearCookie("onboarding_api_key", {
-        path: "/onboarding/complete",
-      });
-
-      // If no API key (already viewed or expired), redirect to dashboard
-      if (!apiKey) {
-        return reply.redirect("/dashboard");
-      }
-
-      return reply.view(
-        "onboarding/complete",
-        {
-          title: "Setup Complete",
-          apiKey,
-        },
-        { layout: "/layouts/main.hbs" },
-      );
+      // Redirect to dashboard - API key will be shown when creating a service
+      return reply.redirect("/dashboard");
     },
   );
 }

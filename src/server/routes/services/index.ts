@@ -3,18 +3,25 @@ import { ObjectId } from "mongodb";
 import { AccountRepository } from "../../../repositories/accountRepository";
 import { RepositoryRepository } from "../../../repositories/repositoryRepository";
 import { ServiceRepository } from "../../../repositories/serviceRepository";
+import { ApiKeyService } from "../../../services/apiKey/apiKeyService";
 
 export type ServiceRoutesDeps = {
   accountRepository: AccountRepository;
   repositoryRepository: RepositoryRepository;
   serviceRepository: ServiceRepository;
+  apiKeyService: ApiKeyService;
 };
 
 export function registerServiceRoutes(
   app: FastifyInstance,
   deps: ServiceRoutesDeps,
 ): void {
-  const { accountRepository, repositoryRepository, serviceRepository } = deps;
+  const {
+    accountRepository,
+    repositoryRepository,
+    serviceRepository,
+    apiKeyService,
+  } = deps;
 
   // GET /services/new - Show create service form
   app.get(
@@ -120,14 +127,49 @@ export function registerServiceRoutes(
 
       // Create the service
       try {
-        await serviceRepository.create({
+        const service = await serviceRepository.create({
           accountId: account._id,
           repositoryId: new ObjectId(repositoryId),
           name: name.trim(),
         });
 
-        // Redirect to dashboard
-        return reply.redirect(`/dashboard`);
+        // Generate API key for this service
+        const { key } = await apiKeyService.generate({
+          accountId: account._id,
+          createdByUserId: new ObjectId(request.session.userId),
+          name: `${name.trim()} API Key`,
+          scopes: ["builds:read", "builds:write", "deployments:write"],
+        });
+
+        // Store API key in a signed, short-lived cookie (not in URL for security)
+        reply.setCookie("service_api_key", key, {
+          signed: true,
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "strict",
+          path: "/services/created",
+          maxAge: 300, // 5 minutes - just enough time to view and copy
+        });
+
+        // Store service info in cookie for the created page
+        reply.setCookie(
+          "created_service",
+          JSON.stringify({
+            id: service._id.toString(),
+            name: service.name,
+          }),
+          {
+            signed: true,
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "strict",
+            path: "/services/created",
+            maxAge: 300,
+          },
+        );
+
+        // Redirect to service created page
+        return reply.redirect("/services/created");
       } catch (error: any) {
         // Handle duplicate service name error
         if (error.code === 11000) {
@@ -147,6 +189,51 @@ export function registerServiceRoutes(
         }
         throw error;
       }
+    },
+  );
+
+  // GET /services/created - Show API key and getting started guide
+  app.get(
+    "/services/created",
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      // Redirect to login if not authenticated
+      if (!request.session) {
+        return reply.redirect("/auth/github");
+      }
+
+      // Get API key from signed cookie
+      const apiKeyCookie = request.cookies.service_api_key;
+      const apiKey = apiKeyCookie
+        ? reply.unsignCookie(apiKeyCookie).value
+        : null;
+
+      // Get service info from signed cookie
+      const serviceCookie = request.cookies.created_service;
+      const serviceInfoRaw = serviceCookie
+        ? reply.unsignCookie(serviceCookie).value
+        : null;
+
+      // Clear cookies immediately (one-time display)
+      reply.clearCookie("service_api_key", { path: "/services/created" });
+      reply.clearCookie("created_service", { path: "/services/created" });
+
+      // If no API key or service info (already viewed or expired), redirect to dashboard
+      if (!apiKey || !serviceInfoRaw) {
+        return reply.redirect("/dashboard");
+      }
+
+      const serviceInfo = JSON.parse(serviceInfoRaw);
+
+      return reply.view(
+        "services/created",
+        {
+          title: "Service Created",
+          apiKey,
+          serviceId: serviceInfo.id,
+          serviceName: serviceInfo.name,
+        },
+        { layout: "/layouts/main.hbs" },
+      );
     },
   );
 }

@@ -9,7 +9,8 @@ import { authenticateTestUser, TEST_USERS } from "./helpers/auth";
  * 2. Authenticated user without GitHub App sees onboarding
  * 3. Onboarding prompts user to install GitHub App
  * 4. After installation, user sees repository selection
- * 5. User with GitHub App installed goes directly to dashboard
+ * 5. After selecting repos, user goes to dashboard
+ * 6. API key is shown when creating a service (not during onboarding)
  */
 
 test.describe("Onboarding - GitHub App Installation", () => {
@@ -127,7 +128,7 @@ test.describe("Onboarding - GitHub App Installation", () => {
     await expect(page).toHaveURL(/\/dashboard/);
   });
 
-  test("clicking Continue on repository selection shows API key", async ({
+  test("clicking Continue on repository selection goes to dashboard", async ({
     page,
   }) => {
     // Authenticate as user WITH GitHub App installed
@@ -144,87 +145,7 @@ test.describe("Onboarding - GitHub App Installation", () => {
     // Click the Continue button
     await page.getByRole("button", { name: /continue/i }).click();
 
-    // Should be redirected to onboarding complete page
-    await expect(page).toHaveURL(/\/onboarding\/complete/);
-
-    // Should see the API key heading and the key itself
-    await expect(
-      page.getByRole("heading", { name: /your api key/i }),
-    ).toBeVisible();
-    await expect(page.locator("#api-key")).toBeVisible();
-
-    // Should have a link to dashboard
-    await expect(
-      page.getByRole("link", { name: /continue to dashboard/i }),
-    ).toBeVisible();
-  });
-
-  test("onboarding complete page leads to dashboard", async ({ page }) => {
-    // Authenticate as user WITH GitHub App installed
-    await authenticateTestUser(page, TEST_USERS.userWithGitHubApp);
-
-    // Visit repository selection page and complete onboarding
-    await page.goto("/onboarding/repositories");
-    await page.getByRole("button", { name: /continue/i }).click();
-
-    // Should be on complete page
-    await expect(page).toHaveURL(/\/onboarding\/complete/);
-
-    // Click continue to dashboard
-    await page.getByRole("link", { name: /continue to dashboard/i }).click();
-
-    // Should be redirected to dashboard
-    await expect(page).toHaveURL(/\/dashboard/);
-  });
-
-  test("API key is never exposed in URL (security)", async ({ page }) => {
-    // Authenticate as user WITH GitHub App installed
-    await authenticateTestUser(page, TEST_USERS.userWithGitHubApp);
-
-    // Visit repository selection page
-    await page.goto("/onboarding/repositories");
-
-    // Click Continue to complete onboarding
-    await page.getByRole("button", { name: /continue/i }).click();
-
-    // Wait for navigation to complete page
-    await expect(page).toHaveURL(/\/onboarding\/complete/);
-
-    // SECURITY CHECK: URL must NOT contain the API key or any query parameters
-    const currentUrl = page.url();
-    expect(currentUrl).not.toContain("key=");
-    expect(currentUrl).not.toContain("pk_");
-    // Verify the URL ends with /onboarding/complete (no query params)
-    expect(currentUrl).toMatch(/\/onboarding\/complete$/);
-
-    // Verify the API key IS displayed on the page (it's in the cookie-based response)
-    const apiKeyElement = page.locator("#api-key");
-    await expect(apiKeyElement).toBeVisible();
-    const apiKeyText = await apiKeyElement.textContent();
-    expect(apiKeyText).toMatch(/^pk_/); // Key starts with pk_
-
-    // Double-check: the displayed key is NOT in the URL
-    expect(currentUrl).not.toContain(apiKeyText);
-  });
-
-  test("refreshing complete page redirects to dashboard (one-time display)", async ({
-    page,
-  }) => {
-    // Authenticate as user WITH GitHub App installed
-    await authenticateTestUser(page, TEST_USERS.userWithGitHubApp);
-
-    // Complete onboarding flow
-    await page.goto("/onboarding/repositories");
-    await page.getByRole("button", { name: /continue/i }).click();
-    await expect(page).toHaveURL(/\/onboarding\/complete/);
-
-    // Verify API key is shown
-    await expect(page.locator("#api-key")).toBeVisible();
-
-    // Refresh the page (simulating user trying to see key again)
-    await page.reload();
-
-    // Should be redirected to dashboard (cookie was cleared)
+    // Should be redirected to dashboard (API key shown when creating service)
     await expect(page).toHaveURL(/\/dashboard/);
   });
 });
@@ -367,13 +288,8 @@ test.describe("Onboarding - Plan Enforcement", () => {
     // Submit form
     await page.getByRole("button", { name: /continue/i }).click();
 
-    // Should be redirected to onboarding complete page (success)
-    await expect(page).toHaveURL(/\/onboarding\/complete/);
-
-    // Should see API key
-    await expect(
-      page.getByRole("heading", { name: /your api key/i }),
-    ).toBeVisible();
+    // Should be redirected to dashboard (success)
+    await expect(page).toHaveURL(/\/dashboard/);
   });
 
   test("free plan user can select one public repo successfully", async ({
@@ -394,12 +310,7 @@ test.describe("Onboarding - Plan Enforcement", () => {
     // Submit form
     await page.getByRole("button", { name: /continue/i }).click();
 
-    // Should be redirected to onboarding complete page (success)
-    await expect(page).toHaveURL(/\/onboarding\/complete/);
-
-    // Should see API key
-    await expect(
-      page.getByRole("heading", { name: /your api key/i }),
-    ).toBeVisible();
+    // Should be redirected to dashboard (success)
+    await expect(page).toHaveURL(/\/dashboard/);
   });
 });
