@@ -101,7 +101,7 @@
 
     <!-- Card -->
     <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-lg overflow-hidden">
-      <form action="/onboarding/repositories" method="POST" hx-boost="false">
+      <form action="/onboarding/repositories" method="POST">
         <div class="p-8 sm:p-10">
           {{#if repositories.length}}
             <!-- Repository List -->
@@ -156,7 +156,6 @@
               </p>
               <a
                 href="https://github.com/apps/gitlaunchapp/installations/new"
-                hx-boost="false"
                 style="display: inline-flex; align-items: center;"
                 class="mt-6 text-blue-600 hover:text-blue-700 font-medium"
               >
@@ -181,7 +180,6 @@
             </button>
             <a
               href="/dashboard"
-              hx-boost="false"
               class="flex-1 px-6 py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-semibold rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-center"
             >
               Skip for now

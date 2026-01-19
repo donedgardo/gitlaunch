@@ -81,4 +81,8 @@ export class ServiceRepository {
   ): Promise<Service[]> {
     return this.collection.find({ accountId, repositoryId }).toArray();
   }
+
+  async findByAccountId(accountId: ObjectId): Promise<Service[]> {
+    return this.collection.find({ accountId }).toArray();
+  }
 }

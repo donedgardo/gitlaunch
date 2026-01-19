@@ -10,6 +10,7 @@ import buildRoutes from "./build";
 import { registerGitHubAuthRoutes } from "./routes/auth/github";
 import { registerInstallationRoutes } from "./routes/github/installation";
 import { registerOnboardingRoutes } from "./routes/onboarding";
+import { registerServiceRoutes } from "./routes/services";
 import { registerBuildsRoutes } from "./routes/api/builds";
 import { registerSessionMiddleware } from "./middleware/sessionAuth";
 import { createApiKeyAuthMiddleware } from "./middleware/apiKeyAuth";
@@ -113,6 +114,13 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     gitHubAppService,
     apiKeyService,
     planEnforcementService,
+  });
+
+  // Service management routes
+  registerServiceRoutes(server, {
+    accountRepository,
+    repositoryRepository,
+    serviceRepository,
   });
 
   // API v1 routes (API key authenticated)

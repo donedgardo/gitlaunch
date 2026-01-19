@@ -63,4 +63,20 @@ test.describe("Dashboard - Empty State", () => {
     // Should be redirected to home page
     await expect(page).toHaveURL("/");
   });
+
+  test("clicking Create Service button navigates to service creation page", async ({
+    page,
+  }) => {
+    // Authenticate as user with GitHub App
+    await authenticateTestUser(page, TEST_USERS.userWithGitHubApp);
+
+    // Visit dashboard
+    await page.goto("/dashboard");
+
+    // Click the Create Service button
+    await page.getByRole("link", { name: /create service/i }).click();
+
+    // Should navigate to service creation page (or onboarding if no repos)
+    await expect(page).toHaveURL(/\/(services\/new|onboarding)/);
+  });
 });

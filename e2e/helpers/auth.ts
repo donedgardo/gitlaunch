@@ -70,4 +70,10 @@ export const TEST_USERS = {
     accountId: "000000000000000000000033",
     hasGitHubApp: true,
   },
+  // User with GitHub App AND repositories (for service creation)
+  userWithRepos: {
+    userId: "000000000000000000000004",
+    accountId: "000000000000000000000044",
+    hasGitHubApp: true,
+  },
 };

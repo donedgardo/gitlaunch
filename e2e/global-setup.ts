@@ -14,6 +14,8 @@ export default async function globalSetup() {
     await db.collection("users").deleteMany({ githubLogin: /^test-/ });
     await db.collection("accounts").deleteMany({ slug: /^test-/ });
     await db.collection("memberships").deleteMany({});
+    await db.collection("repositories").deleteMany({});
+    await db.collection("services").deleteMany({});
 
     // Create test user without GitHub App
     const testUser1Id = new ObjectId("000000000000000000000001");
@@ -141,6 +143,62 @@ export default async function globalSetup() {
       userId: testUser3Id,
       accountId: testAccount3Id,
       role: "owner",
+      createdAt: new Date(),
+    });
+
+    // Create test user WITH GitHub App AND repositories (for service creation tests)
+    const testUser4Id = new ObjectId("000000000000000000000004");
+    const testAccount4Id = new ObjectId("000000000000000000000044");
+    const testRepo1Id = new ObjectId("000000000000000000000101");
+
+    await db.collection("users").insertOne({
+      _id: testUser4Id,
+      githubId: 99904,
+      githubLogin: "test-user-with-repos",
+      email: "test-with-repos@example.com",
+      name: "Test User With Repos",
+      avatarUrl: null,
+      createdAt: new Date(),
+      lastLoginAt: new Date(),
+    });
+
+    await db.collection("accounts").insertOne({
+      _id: testAccount4Id,
+      name: "Test Account With Repos",
+      slug: "test-account-with-repos",
+      plan: "free",
+      planLimits: {
+        maxRepositories: 3,
+        maxUsers: 1,
+        publicReposOnly: false,
+      },
+      stripeCustomerId: null,
+      stripeSubscriptionId: null,
+      paymentFailedAt: null,
+      githubInstallationId: 12347, // Has GitHub App installed
+      githubInstallationAccessToken: null,
+      githubInstallationTokenExpiresAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    await db.collection("memberships").insertOne({
+      _id: new ObjectId(),
+      userId: testUser4Id,
+      accountId: testAccount4Id,
+      role: "owner",
+      createdAt: new Date(),
+    });
+
+    // Add a repository for this user
+    await db.collection("repositories").insertOne({
+      _id: testRepo1Id,
+      accountId: testAccount4Id,
+      githubRepoId: 200001,
+      githubFullName: "test-org/test-repo",
+      githubOwner: "test-org",
+      githubRepoName: "test-repo",
+      isPrivate: false,
       createdAt: new Date(),
     });
 
