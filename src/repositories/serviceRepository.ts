@@ -85,4 +85,11 @@ export class ServiceRepository {
   async findByAccountId(accountId: ObjectId): Promise<Service[]> {
     return this.collection.find({ accountId }).toArray();
   }
+
+  async findByAccountIdAndName(
+    accountId: ObjectId,
+    name: string,
+  ): Promise<Service | null> {
+    return this.collection.findOne({ accountId, name });
+  }
 }

@@ -89,8 +89,13 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
 
   // Routes
   server.register(healthRoute(mongoClient));
-  server.register(homeRoute(services));
-  server.register(dashboardRoutes(services));
+  server.register(homeRoute());
+  server.register(
+    dashboardRoutes({
+      serviceRepository,
+      buildRepository,
+    }),
+  );
   server.register(buildRoutes(services, eventEmitter));
 
   // GitHub OAuth routes
