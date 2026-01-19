@@ -1,3 +1,4 @@
+{{#if builds.length}}
 <table id="build-table" class="table-auto" hx-swap-oob="true">
   <thead>
   <tr>
@@ -15,3 +16,8 @@
   {{/each}}
   </tbody>
 </table>
+{{else}}
+<div id="build-table" hx-swap-oob="true">
+  {{> emptyBuilds serviceId=serviceName }}
+</div>
+{{/if}}

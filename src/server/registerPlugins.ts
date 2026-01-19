@@ -22,6 +22,7 @@ export function registerPlugins(server: FastifyInstance) {
         navigation: "/partials/navigation.hbs",
         buildRow: "/partials/buildRow.hbs",
         buildTable: "/partials/buildTable.hbs",
+        emptyBuilds: "/partials/emptyBuilds.hbs",
       },
     },
   });
