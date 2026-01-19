@@ -8,7 +8,7 @@ import {
   IGitHubAppClient,
   InstallationToken,
 } from "./installationTokenService";
-import { HttpClient } from "./githubAppClient";
+import { IHttpClient } from "./githubAppClient";
 
 // Fake GitHub App client
 class FakeGitHubAppClient implements IGitHubAppClient {
@@ -23,7 +23,7 @@ class FakeGitHubAppClient implements IGitHubAppClient {
 }
 
 // Fake HTTP client to capture dispatch requests
-class FakeHttpClient implements HttpClient {
+class FakeHttpClient implements IHttpClient {
   public requests: { url: string; options: RequestInit }[] = [];
   public responseStatus = 204;
 

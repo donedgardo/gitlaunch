@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { RealGitHubApiClient, HttpClient } from "./githubApiClient";
+import { GitHubApiClient, IHttpClient } from "./githubApiClient";
 
 // Fake HTTP client
-class FakeHttpClient implements HttpClient {
+class FakeHttpClient implements IHttpClient {
   public lastRequest: { url: string; options: RequestInit } | null = null;
   public responseToReturn = {
     repositories: [
@@ -32,13 +32,13 @@ class FakeHttpClient implements HttpClient {
   }
 }
 
-describe("RealGitHubApiClient", () => {
+describe("GitHubApiClient", () => {
   let fakeHttp: FakeHttpClient;
-  let client: RealGitHubApiClient;
+  let client: GitHubApiClient;
 
   beforeEach(() => {
     fakeHttp = new FakeHttpClient();
-    client = new RealGitHubApiClient(fakeHttp);
+    client = new GitHubApiClient(fakeHttp);
   });
 
   describe("listInstallationRepos", () => {

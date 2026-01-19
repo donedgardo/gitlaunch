@@ -1,5 +1,5 @@
 import { InstallationTokenService } from "./installationTokenService";
-import { HttpClient, DefaultHttpClient } from "./githubAppClient";
+import { IHttpClient, HttpClient } from "./githubAppClient";
 
 export type DispatchInput = {
   installationId: number;
@@ -13,7 +13,7 @@ export type DispatchInput = {
 export class MultiTenantGithubDispatchService {
   constructor(
     private tokenService: InstallationTokenService,
-    private http: HttpClient = new DefaultHttpClient(),
+    private http: IHttpClient = new HttpClient(),
   ) {}
 
   async dispatch(input: DispatchInput): Promise<void> {

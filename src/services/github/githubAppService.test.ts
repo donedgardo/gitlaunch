@@ -4,7 +4,7 @@ import { MongoClient, Db } from "mongodb";
 import { AccountRepository } from "../../repositories/accountRepository";
 import {
   GitHubAppService,
-  GitHubApiClient,
+  IGitHubApiClient,
   GitHubRepo,
 } from "./githubAppService";
 import {
@@ -23,7 +23,7 @@ class FakeGitHubAppClient implements IGitHubAppClient {
 }
 
 // Fake GitHub API client
-class FakeGitHubApiClient implements GitHubApiClient {
+class FakeGitHubApiClient implements IGitHubApiClient {
   public reposToReturn: GitHubRepo[] = [
     {
       id: 1,

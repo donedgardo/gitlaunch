@@ -13,7 +13,7 @@ export type GitHubUserResponse = {
 };
 
 // Interface for HTTP client - allows injection of real or fake implementation
-export interface GitHubHttpClient {
+export interface IGitHubHttpClient {
   exchangeCodeForToken(code: string): Promise<GitHubTokenResponse>;
   getUserInfo(accessToken: string): Promise<GitHubUserResponse>;
 }
@@ -27,10 +27,10 @@ export type GitHubOAuthConfig = {
 const GITHUB_AUTHORIZE_URL = "https://github.com/login/oauth/authorize";
 
 export class GitHubOAuthService {
-  private httpClient: GitHubHttpClient;
+  private httpClient: IGitHubHttpClient;
   private config: GitHubOAuthConfig;
 
-  constructor(httpClient: GitHubHttpClient, config: GitHubOAuthConfig = {}) {
+  constructor(httpClient: IGitHubHttpClient, config: GitHubOAuthConfig = {}) {
     this.httpClient = httpClient;
     this.config = config;
   }
@@ -58,8 +58,8 @@ export class GitHubOAuthService {
   }
 }
 
-// Real HTTP client implementation for production
-export class RealGitHubHttpClient implements GitHubHttpClient {
+// HTTP client implementation for production
+export class GitHubHttpClient implements IGitHubHttpClient {
   private clientId: string;
   private clientSecret: string;
 

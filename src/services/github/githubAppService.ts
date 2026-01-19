@@ -10,7 +10,7 @@ export type GitHubRepo = {
   owner: { login: string };
 };
 
-export interface GitHubApiClient {
+export interface IGitHubApiClient {
   listInstallationRepos(token: string): Promise<GitHubRepo[]>;
 }
 
@@ -18,7 +18,7 @@ export class GitHubAppService {
   constructor(
     private accountRepo: AccountRepository,
     private tokenService?: InstallationTokenService,
-    private apiClient?: GitHubApiClient,
+    private apiClient?: IGitHubApiClient,
   ) {}
 
   async linkInstallation(

@@ -1,13 +1,13 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import {
   GitHubOAuthService,
-  GitHubHttpClient,
+  IGitHubHttpClient,
   GitHubTokenResponse,
   GitHubUserResponse,
 } from "./githubOAuthService";
 
 // Fake implementation for testing - tests behavior, not HTTP details
-class FakeGitHubHttpClient implements GitHubHttpClient {
+class FakeGitHubHttpClient implements IGitHubHttpClient {
   private tokenResponses: Map<string, GitHubTokenResponse> = new Map();
   private userResponses: Map<string, GitHubUserResponse> = new Map();
 

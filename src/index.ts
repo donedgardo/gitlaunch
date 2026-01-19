@@ -6,7 +6,7 @@ import { createAppServer } from "./server/createAppServer";
 import { MongoDbClient } from "./services/auth/mongoDbClient";
 import {
   GitHubOAuthService,
-  RealGitHubHttpClient,
+  GitHubHttpClient,
 } from "./services/auth/githubOAuthService";
 import { SessionService } from "./services/auth/sessionService";
 import { AccountRepository } from "./repositories/accountRepository";
@@ -15,7 +15,7 @@ import { ServiceRepository } from "./repositories/serviceRepository";
 import { GitHubAppService } from "./services/github/githubAppService";
 import { GitHubAppClient } from "./services/github/githubAppClient";
 import { InstallationTokenService } from "./services/github/installationTokenService";
-import { RealGitHubApiClient } from "./services/github/githubApiClient";
+import { GitHubApiClient } from "./services/github/githubApiClient";
 
 // MongoDB connection
 const mongodb_uri = process.env.MONGODB_URI as string;
@@ -26,7 +26,7 @@ const database = client.db("gitlaunch");
 const eventEmitter = new EventEmitter();
 
 // GitHub OAuth service
-const githubHttpClient = new RealGitHubHttpClient(
+const githubHttpClient = new GitHubHttpClient(
   process.env.GH_APP_CLIENT_ID as string,
   process.env.GH_APP_CLIENT_SECRET as string,
 );
@@ -48,7 +48,7 @@ const gitHubAppClient = new GitHubAppClient({
   privateKey: process.env.GH_APP_PRIVATE_KEY as string,
 });
 const installationTokenService = new InstallationTokenService(gitHubAppClient);
-const gitHubApiClient = new RealGitHubApiClient();
+const gitHubApiClient = new GitHubApiClient();
 const gitHubAppService = new GitHubAppService(
   accountRepository,
   installationTokenService,

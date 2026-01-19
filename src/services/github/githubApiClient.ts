@@ -1,10 +1,10 @@
-import { GitHubApiClient, GitHubRepo } from "./githubAppService";
+import { IGitHubApiClient, GitHubRepo } from "./githubAppService";
 
-export interface HttpClient {
+export interface IHttpClient {
   fetch(url: string, options?: RequestInit): Promise<Response>;
 }
 
-class DefaultHttpClient implements HttpClient {
+class HttpClient implements IHttpClient {
   fetch(url: string, options?: RequestInit): Promise<Response> {
     return fetch(url, options);
   }
@@ -14,8 +14,8 @@ type GitHubReposResponse = {
   repositories: GitHubRepo[];
 };
 
-export class RealGitHubApiClient implements GitHubApiClient {
-  constructor(private http: HttpClient = new DefaultHttpClient()) {}
+export class GitHubApiClient implements IGitHubApiClient {
+  constructor(private http: IHttpClient = new HttpClient()) {}
 
   async listInstallationRepos(token: string): Promise<GitHubRepo[]> {
     const response = await this.http.fetch(

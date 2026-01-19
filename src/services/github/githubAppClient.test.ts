@@ -4,7 +4,7 @@ import jwt from "jsonwebtoken";
 import {
   GitHubAppClient,
   GitHubAppConfig,
-  HttpClient,
+  IHttpClient,
 } from "./githubAppClient";
 
 // Generate a test RSA key pair at runtime
@@ -15,7 +15,7 @@ const { privateKey: TEST_PRIVATE_KEY } = generateKeyPairSync("rsa", {
 });
 
 // Fake HTTP client for testing
-class FakeHttpClient implements HttpClient {
+class FakeHttpClient implements IHttpClient {
   public lastRequest: { url: string; options: RequestInit } | null = null;
   public responseToReturn = {
     token: "ghs_installation_token_from_github",

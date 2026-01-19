@@ -4,7 +4,7 @@ import cookie from "@fastify/cookie";
 import { registerGitHubAuthRoutes } from "./github";
 import {
   GitHubOAuthService,
-  GitHubHttpClient,
+  IGitHubHttpClient,
   GitHubTokenResponse,
   GitHubUserResponse,
 } from "../../../services/auth/githubOAuthService";
@@ -16,7 +16,7 @@ import { MongoMemoryServer } from "mongodb-memory-server";
 import { MongoClient, Db } from "mongodb";
 
 // Fake GitHub HTTP client for testing
-class FakeGitHubHttpClient implements GitHubHttpClient {
+class FakeGitHubHttpClient implements IGitHubHttpClient {
   private tokenResponses: Map<string, GitHubTokenResponse> = new Map();
   private userResponses: Map<string, GitHubUserResponse> = new Map();
 

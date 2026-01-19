@@ -9,12 +9,12 @@ export type GitHubAppConfig = {
   privateKey: string;
 };
 
-export interface HttpClient {
+export interface IHttpClient {
   fetch(url: string, options?: RequestInit): Promise<Response>;
 }
 
 // Default HTTP client using global fetch
-export class DefaultHttpClient implements HttpClient {
+export class HttpClient implements IHttpClient {
   fetch(url: string, options?: RequestInit): Promise<Response> {
     return fetch(url, options);
   }
@@ -27,11 +27,11 @@ type GitHubInstallationTokenResponse = {
 
 export class GitHubAppClient implements IGitHubAppClient {
   private config: GitHubAppConfig;
-  private http: HttpClient;
+  private http: IHttpClient;
 
-  constructor(config: GitHubAppConfig, http?: HttpClient) {
+  constructor(config: GitHubAppConfig, http?: IHttpClient) {
     this.config = config;
-    this.http = http ?? new DefaultHttpClient();
+    this.http = http ?? new HttpClient();
   }
 
   async getInstallationToken(
