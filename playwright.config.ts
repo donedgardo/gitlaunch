@@ -22,8 +22,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    // Clear yarn's npm_config_* env vars to avoid npm warnings
-    command: `env -u npm_config_version_git_tag -u npm_config_argv -u npm_config_workspaces_experimental -u npm_config_workpsaces_experimental -u npm_config_version_commit_hooks -u npm_config_version_git_message -u npm_config_version_tag_prefix PORT=${E2E_PORT} npx tsx e2e/server.ts`,
+    command: `PORT=${E2E_PORT} npx tsx e2e/server.ts`,
     url: `http://localhost:${E2E_PORT}`,
     reuseExistingServer: !process.env.CI, // Always start fresh in CI
     timeout: 30 * 1000,
