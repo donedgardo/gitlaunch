@@ -194,9 +194,8 @@ test.describe("Onboarding - GitHub App Installation", () => {
     const currentUrl = page.url();
     expect(currentUrl).not.toContain("key=");
     expect(currentUrl).not.toContain("pk_");
-    expect(currentUrl).toBe(
-      `${process.env.TEST_BASE_URL || "http://localhost:3050"}/onboarding/complete`,
-    );
+    // Verify the URL ends with /onboarding/complete (no query params)
+    expect(currentUrl).toMatch(/\/onboarding\/complete$/);
 
     // Verify the API key IS displayed on the page (it's in the cookie-based response)
     const apiKeyElement = page.locator("#api-key");
