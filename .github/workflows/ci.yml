@@ -47,8 +47,8 @@ jobs:
           --health-retries 5
     env:
       MONGODB_URI: mongodb://localhost:27017
-      PORT: 3050
-      PUBLIC_URL: http://localhost:3050
+      PORT: 3051
+      PUBLIC_URL: http://localhost:3051
       COOKIE_SECRET_SIGNATURE: test-secret-for-ci
       GH_APP_ID: "123456"
       GH_APP_CLIENT_ID: test-client-id
@@ -71,24 +71,6 @@ jobs:
 
       - name: Build
         run: yarn build
-
-      - name: Start server (with MSW for e2e tests)
-        run: |
-          npx tsx e2e/server.ts &
-          sleep 5
-
-      - name: Wait for server
-        run: |
-          for i in {1..30}; do
-            if curl -s http://localhost:3050/health > /dev/null 2>&1; then
-              echo "Server is ready"
-              exit 0
-            fi
-            echo "Waiting for server... ($i/30)"
-            sleep 1
-          done
-          echo "Server failed to start"
-          exit 1
 
       - name: Run E2E tests
         run: yarn test:e2e
