@@ -36,6 +36,9 @@ coverage/
 # TypeScript
 *.tsbuildinfo
 
+# Generated CSS (Tailwind)
+src/public/css/main.css
+
 # Claude
 .claude/
 test-results/
