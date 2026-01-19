@@ -202,6 +202,51 @@ export default async function globalSetup() {
       createdAt: new Date(),
     });
 
+    // Create test user WITH GitHub App but NO repositories (for service redirect test)
+    const testUser5Id = new ObjectId("000000000000000000000005");
+    const testAccount5Id = new ObjectId("000000000000000000000055");
+
+    await db.collection("users").insertOne({
+      _id: testUser5Id,
+      githubId: 99905,
+      githubLogin: "test-user-no-repos",
+      email: "test-no-repos@example.com",
+      name: "Test User No Repos",
+      avatarUrl: null,
+      createdAt: new Date(),
+      lastLoginAt: new Date(),
+    });
+
+    await db.collection("accounts").insertOne({
+      _id: testAccount5Id,
+      name: "Test Account No Repos",
+      slug: "test-account-no-repos",
+      plan: "free",
+      planLimits: {
+        maxRepositories: 1,
+        maxUsers: 1,
+        publicReposOnly: true,
+      },
+      stripeCustomerId: null,
+      stripeSubscriptionId: null,
+      paymentFailedAt: null,
+      githubInstallationId: 12348, // Has GitHub App installed
+      githubInstallationAccessToken: null,
+      githubInstallationTokenExpiresAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    await db.collection("memberships").insertOne({
+      _id: new ObjectId(),
+      userId: testUser5Id,
+      accountId: testAccount5Id,
+      role: "owner",
+      createdAt: new Date(),
+    });
+
+    // NOTE: No repositories are created for this user
+
     console.log("Test data created successfully");
   } finally {
     await client.close();

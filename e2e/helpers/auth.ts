@@ -76,4 +76,10 @@ export const TEST_USERS = {
     accountId: "000000000000000000000044",
     hasGitHubApp: true,
   },
+  // User with GitHub App but NO repositories (for testing redirect to onboarding)
+  userWithGitHubAppNoRepos: {
+    userId: "000000000000000000000005",
+    accountId: "000000000000000000000055",
+    hasGitHubApp: true,
+  },
 };

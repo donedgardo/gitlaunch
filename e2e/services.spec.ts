@@ -15,7 +15,7 @@ test.describe("Service Creation", () => {
     page,
   }) => {
     // Authenticate as user with GitHub App but no repositories
-    await authenticateTestUser(page, TEST_USERS.userWithGitHubApp);
+    await authenticateTestUser(page, TEST_USERS.userWithGitHubAppNoRepos);
 
     // Try to access create service page
     await page.goto("/services/new");
