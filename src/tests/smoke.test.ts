@@ -1,11 +1,26 @@
-import { ACCEPTANCE_TEST_URL } from "./config";
-import { describe, it, expect } from "vitest";
-import request from "supertest";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { FastifyInstance } from "fastify";
+import { createTestServer } from "./helpers/testServer";
 
 describe("Smoke Test", () => {
+  let server: FastifyInstance;
+
+  beforeAll(async () => {
+    server = createTestServer();
+    await server.ready();
+  });
+
+  afterAll(async () => {
+    await server.close();
+  });
+
   it("checks if the server responds to the health check", async () => {
-    const response = await request(ACCEPTANCE_TEST_URL).get("/health");
-    expect(response.status).toBe(200);
-    expect(response.body.status).toBe("OK");
+    const response = await server.inject({
+      method: "GET",
+      url: "/health",
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().status).toBe("OK");
   });
 });
