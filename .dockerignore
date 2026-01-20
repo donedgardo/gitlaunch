@@ -1,0 +1,52 @@
+# Dependencies
+node_modules
+
+# Build output (rebuilt in container)
+dist
+
+# Git
+.git
+.gitignore
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# Environment files
+.env
+.env.*
+*.pem
+
+# Test files
+coverage
+test-results
+playwright-report
+e2e
+*.test.ts
+*.spec.ts
+
+# Documentation
+docs
+*.md
+!README.md
+
+# CI/CD
+.github
+
+# Development files
+.claude
+.husky
+nodemon.json
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+logs
+*.log
+
+# GitHub Action (separate project)
+github-action
