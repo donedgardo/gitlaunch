@@ -1,6 +1,38 @@
 # Railway Deployment Setup
 
-This document describes how to set up Railway deployment for GitDeploy using Docker.
+This document describes how to set up Railway deployment for GitDeploy using Docker and GitHub Container Registry (GHCR).
+
+## Architecture
+
+```
+Push to main
+     │
+     ▼
+┌─────────────────┐
+│ Quality Checks  │ (type check, format, unit tests)
+└────────┬────────┘
+         ↓
+┌─────────────────┐
+│Integration Tests│ (E2E with Playwright)
+└────────┬────────┘
+         ↓
+┌─────────────────┐
+│  Build Docker   │
+│  Push to GHCR   │ → ghcr.io/donedgardo/launchpad:latest
+└────────┬────────┘
+         ↓
+┌─────────────────┐
+│ Deploy Railway  │ (pulls from GHCR)
+└─────────────────┘
+```
+
+**Benefits of this approach:**
+
+- **Build once, deploy anywhere** - Same image can deploy to Railway, AWS, Fly.io, etc.
+- **Faster deploys** - Railway pulls pre-built image instead of rebuilding
+- **Consistent** - Same image in dev, staging, and production
+- **Versioned** - Each commit gets a unique image tag (SHA)
+- **Rollback** - Instantly deploy any previous version
 
 ## Prerequisites
 
@@ -23,6 +55,15 @@ Dockerfile
     ├── Copy compiled dist/ from builder
     ├── Run as non-root user (nodejs)
     └── Health check on /health endpoint
+```
+
+### Container Registry
+
+Images are automatically pushed to GitHub Container Registry:
+
+```
+ghcr.io/donedgardo/launchpad:latest    # Latest main branch
+ghcr.io/donedgardo/launchpad:<sha>     # Specific commit
 ```
 
 ### Local Docker Testing
@@ -60,27 +101,27 @@ This opens a browser window to authenticate.
 
 ## Step 3: Create Railway Project
 
-Option A - Create new project:
-
 ```bash
 cd /path/to/launchpad
 railway init
 ```
 
-Option B - Link to existing project:
+Or link to existing project:
 
 ```bash
 railway link
 ```
 
-## Step 4: Configure Railway Service
+## Step 4: Configure Railway Service with GHCR Image
 
 In the Railway dashboard:
 
 1. Go to your project
-2. Add a new service → Select "Empty Service"
-3. Go to Service Settings → Build
-4. Railway will auto-detect the Dockerfile
+2. Click "New" → "Docker Image"
+3. Enter the image URL: `ghcr.io/donedgardo/launchpad:latest`
+4. Click "Deploy"
+
+> **Note:** The image is public, so no authentication is needed. For private images, you'd need Railway Pro and add GitHub credentials.
 
 ### Environment Variables
 
@@ -147,33 +188,31 @@ Go to your GitHub repository:
 
 ### Automatic Deployment (CI/CD)
 
-The GitHub Actions workflow (`.github/workflows/ci.yml`) automatically deploys on every push to `main` after tests pass:
+The GitHub Actions workflow (`.github/workflows/ci.yml`) automatically:
 
-```
-Push to main
-    ↓
-┌─────────────────┐
-│ Quality Checks  │ (type check, format, unit tests)
-└────────┬────────┘
-         ↓
-┌─────────────────┐
-│Integration Tests│ (E2E with Playwright)
-└────────┬────────┘
-         ↓
-┌─────────────────┐
-│ Deploy Railway  │ (Docker build + deploy)
-└─────────────────┘
-```
+1. Runs quality checks and tests
+2. Builds Docker image and pushes to GHCR
+3. Triggers Railway to redeploy with the new image
+
+Just push to `main` and everything happens automatically.
 
 ### Manual Deploy
 
 ```bash
-# Deploy via CLI (Railway builds the Docker image)
-railway up
+# Trigger redeploy via CLI (pulls latest image from GHCR)
+railway redeploy --service <service-id>
 
-# Or with specific service
-railway up --service <service-id>
+# Or deploy a specific image tag
+# (update service settings in Railway dashboard to use specific tag)
 ```
+
+### Deploy a Specific Version
+
+To rollback or deploy a specific version:
+
+1. Go to Railway dashboard → Service → Settings
+2. Change the image tag from `latest` to a specific SHA
+3. Example: `ghcr.io/donedgardo/launchpad:abc1234`
 
 ## Troubleshooting
 
@@ -187,11 +226,11 @@ railway up --service <service-id>
 - Verify `RAILWAY_TOKEN` is valid and not expired
 - Regenerate token if needed
 
-### Docker build fails
+### Image not found on GHCR
 
-- Check Railway build logs for errors
-- Test locally: `docker build -t test .`
-- Ensure all required files are not in `.dockerignore`
+- Check the GitHub Actions workflow ran successfully
+- Verify the image exists: `docker pull ghcr.io/donedgardo/launchpad:latest`
+- Check package visibility in GitHub (Settings → Packages)
 
 ### App crashes on Railway
 
@@ -220,11 +259,11 @@ railway open
 # Check service status
 railway status
 
+# Trigger redeploy
+railway redeploy --service <service-id>
+
 # Run command in Railway environment
 railway run <command>
-
-# SSH into container (if enabled)
-railway shell
 ```
 
 ## Docker Image Details
@@ -242,3 +281,21 @@ The production Docker image includes:
 - Non-root user execution
 - No source code in production image (only compiled JS)
 - Minimal Alpine base image
+
+## Deploying to Other Platforms
+
+Since the image is on GHCR, you can deploy anywhere:
+
+### Fly.io
+
+```bash
+fly launch --image ghcr.io/donedgardo/launchpad:latest
+```
+
+### AWS ECS
+
+Use the image URI `ghcr.io/donedgardo/launchpad:latest` in your task definition.
+
+### DigitalOcean App Platform
+
+Create app from container registry → Enter GHCR image URL.
