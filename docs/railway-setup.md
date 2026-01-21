@@ -17,12 +17,23 @@ Push to main
 └────────┬────────┘
          ↓
 ┌─────────────────┐
-│  Build Docker   │
-│  Push to GHCR   │ → ghcr.io/donedgardo/launchpad:latest
+│  Build Docker   │ → ghcr.io/donedgardo/launchpad:latest
+│  Push to GHCR   │ → ghcr.io/donedgardo/launchpad:<sha>
 └────────┬────────┘
          ↓
 ┌─────────────────┐
-│ Deploy Railway  │ (pulls from GHCR)
+│Deploy to Staging│ (automatic)
+└─────────────────┘
+
+
+Manual Deployment (workflow_dispatch):
+┌─────────────────┐
+│  Select Env     │ → staging / production
+│  Select Tag     │ → latest / <sha>
+└────────┬────────┘
+         ↓
+┌─────────────────┐
+│    Deploy       │
 └─────────────────┘
 ```
 
@@ -33,6 +44,7 @@ Push to main
 - **Consistent** - Same image in dev, staging, and production
 - **Versioned** - Each commit gets a unique image tag (SHA)
 - **Rollback** - Instantly deploy any previous version
+- **Environment isolation** - Separate secrets/config per environment
 
 ## Prerequisites
 
@@ -167,52 +179,90 @@ Configure these in Railway (Service → Variables):
 3. Go to Settings
 4. Find the Service ID (also visible in the URL: `railway.app/project/.../service/[SERVICE_ID]`)
 
-## Step 6: Add Secrets to GitHub
+## Step 6: Set Up GitHub Environments
 
-Go to your GitHub repository:
-**Settings → Secrets and variables → Actions**
+GitHub Environments allow separate secrets/variables per environment.
 
-### Add Secret:
+### Create Environments
 
-| Name            | Value                              |
-| --------------- | ---------------------------------- |
-| `RAILWAY_TOKEN` | Your Railway API token from Step 5 |
+Go to: **Settings → Environments**
 
-### Add Variable:
+1. Create `staging` environment
+2. Create `production` environment (optional: add protection rules)
 
-| Name                 | Value                       |
-| -------------------- | --------------------------- |
-| `RAILWAY_SERVICE_ID` | Your service ID from Step 5 |
+### Add Secrets Per Environment
+
+For each environment, add:
+
+| Name            | Value                                  |
+| --------------- | -------------------------------------- |
+| `RAILWAY_TOKEN` | Railway API token for this environment |
+
+### Add Variables Per Environment
+
+| Name                 | Value                                   |
+| -------------------- | --------------------------------------- |
+| `RAILWAY_SERVICE_ID` | Railway service ID for this environment |
+
+### Example Setup
+
+```
+GitHub Repository
+├── Environments
+│   ├── staging
+│   │   ├── RAILWAY_TOKEN (secret)
+│   │   └── RAILWAY_SERVICE_ID (variable)
+│   └── production
+│       ├── RAILWAY_TOKEN (secret)
+│       ├── RAILWAY_SERVICE_ID (variable)
+│       └── Protection: Require approval
+```
 
 ## Step 7: Deploy
 
-### Automatic Deployment (CI/CD)
+### Automatic Deployment (Staging)
 
-The GitHub Actions workflow (`.github/workflows/ci.yml`) automatically:
+The CI workflow (`.github/workflows/ci.yml`) automatically:
 
 1. Runs quality checks and tests
 2. Builds Docker image and pushes to GHCR
-3. Triggers Railway to redeploy with the new image
+3. **Deploys to staging** automatically
 
-Just push to `main` and everything happens automatically.
+Just push to `main` and staging updates automatically.
 
-### Manual Deploy
+### Manual Deployment (Any Environment)
+
+Use the Deploy workflow for manual deployments:
+
+1. Go to **Actions → Deploy → Run workflow**
+2. Select environment: `staging` or `production`
+3. Enter image tag: `latest` or specific SHA (e.g., `abc1234`)
+4. Click **Run workflow**
+
+Or use GitHub CLI:
 
 ```bash
-# Trigger redeploy via CLI (pulls latest image from GHCR)
-railway redeploy --service <service-id>
+# Deploy latest to production
+gh workflow run deploy.yml -f environment=production -f image_tag=latest
 
-# Or deploy a specific image tag
-# (update service settings in Railway dashboard to use specific tag)
+# Deploy specific version to staging
+gh workflow run deploy.yml -f environment=staging -f image_tag=abc1234
 ```
 
-### Deploy a Specific Version
+### Deploy via Railway CLI
 
-To rollback or deploy a specific version:
+```bash
+# Trigger redeploy (pulls latest image)
+railway redeploy --service <service-id>
+```
 
-1. Go to Railway dashboard → Service → Settings
-2. Change the image tag from `latest` to a specific SHA
-3. Example: `ghcr.io/donedgardo/launchpad:abc1234`
+### Rollback
+
+To rollback to a previous version:
+
+1. Find the commit SHA you want to deploy
+2. Trigger manual deploy with that SHA as image_tag
+3. Or update Railway service to use specific tag: `ghcr.io/donedgardo/launchpad:<sha>`
 
 ## Troubleshooting
 
