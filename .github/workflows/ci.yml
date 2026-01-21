@@ -129,11 +129,11 @@ jobs:
           echo "| latest | \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest\` |" >> $GITHUB_STEP_SUMMARY
           echo "| ${{ steps.sha.outputs.short_sha }} | \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.sha.outputs.short_sha }}\` |" >> $GITHUB_STEP_SUMMARY
 
-  deploy-staging:
-    name: Deploy to Staging
+  deploy-dev:
+    name: Deploy to Dev
     needs: [build]
     uses: ./.github/workflows/deploy.yml
     with:
-      environment: staging
+      environment: dev
       image_tag: ${{ needs.build.outputs.image_tag }}
     secrets: inherit
