@@ -10,6 +10,7 @@ RUN yarn install --frozen-lockfile
 # Copy source files
 COPY tsconfig.json ./
 COPY src ./src
+COPY @types ./@types
 COPY tailwind.config.js ./
 
 # Build TypeScript
