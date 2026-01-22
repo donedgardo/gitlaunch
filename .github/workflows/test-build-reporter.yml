@@ -13,10 +13,8 @@ jobs:
     name: Report Dummy Build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
       - name: Report build to GitLaunch
-        uses: ./github-action
+        uses: donedgardo/build-reporter@v1
         with:
           api-key: ${{ secrets.GITLAUNCH_API_KEY }}
           service-id: ${{ vars.GITLAUNCH_SERVICE_ID }}
