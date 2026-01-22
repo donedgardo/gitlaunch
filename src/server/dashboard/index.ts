@@ -3,14 +3,16 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { ObjectId } from "mongodb";
 import { ServiceRepository } from "../../repositories/serviceRepository";
 import { BuildRepository, Build } from "../../repositories/buildRepository";
+import { RepositoryRepository } from "../../repositories/repositoryRepository";
 
 export type DashboardRoutesDeps = {
   serviceRepository: ServiceRepository;
   buildRepository: BuildRepository;
+  repositoryRepository: RepositoryRepository;
 };
 
 export default function (deps: DashboardRoutesDeps) {
-  const { serviceRepository, buildRepository } = deps;
+  const { serviceRepository, buildRepository, repositoryRepository } = deps;
 
   return function (server: FastifyInstance, opts: any, done: any) {
     server.addHook("preHandler", (req, res, done) => {
@@ -92,6 +94,12 @@ export default function (deps: DashboardRoutesDeps) {
         // Get environment names
         const environments = activeService.environments.map((e) => e.name);
 
+        // Load repository info for commit links
+        const repository = await repositoryRepository.findById(
+          activeService.repositoryId,
+        );
+        const githubFullName = repository?.githubFullName || "";
+
         // Load builds for this service
         const builds = await buildRepository.findByAccountAndService(
           accountId,
@@ -111,6 +119,7 @@ export default function (deps: DashboardRoutesDeps) {
             serviceName: serviceName,
             environments,
             builds: formattedBuilds,
+            githubFullName,
           });
           return reply
             .header("Content-Type", "text/html")
@@ -125,6 +134,7 @@ export default function (deps: DashboardRoutesDeps) {
             activeService: serviceName,
             environments,
             builds: formattedBuilds,
+            githubFullName,
           },
           {
             layout: "/layouts/main.hbs",

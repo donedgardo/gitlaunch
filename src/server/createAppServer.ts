@@ -94,6 +94,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     dashboardRoutes({
       serviceRepository,
       buildRepository,
+      repositoryRepository,
     }),
   );
   server.register(

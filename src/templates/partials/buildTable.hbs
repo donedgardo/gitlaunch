@@ -12,7 +12,7 @@
   </thead>
   <tbody>
   {{#each builds as |build| }}
-    {{> buildRow build=build environments=../environments serviceName=../serviceName }}
+    {{> buildRow build=build environments=../environments serviceName=../serviceName githubFullName=../githubFullName }}
   {{/each}}
   </tbody>
 </table>
