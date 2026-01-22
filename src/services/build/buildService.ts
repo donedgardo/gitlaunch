@@ -37,11 +37,20 @@ export class BuildService {
       throw new Error("Service does not belong to this account");
     }
 
-    return this.buildRepo.create({
+    const build = await this.buildRepo.create({
       accountId: input.accountId,
       serviceId: input.serviceId,
       buildId: input.buildId,
     });
+
+    // Emit event for SSE updates (used by setup page to detect first build)
+    this.eventEmitter.emit("build:created", {
+      buildId: build.buildId,
+      serviceId: input.serviceId.toString(),
+      serviceName: service.name,
+    });
+
+    return build;
   }
 
   async getBuild(

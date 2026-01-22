@@ -1,3 +1,12 @@
+<!-- Hidden SSE listener for auto-redirect when build is created -->
+<div
+  id="build-listener"
+  hx-ext="sse"
+  sse-connect="/build-created-stream/{{serviceId}}"
+  sse-swap="build:created"
+  hx-swap="outerHTML"
+></div>
+
 <div class="max-w-2xl mx-auto px-4 py-16">
   <!-- Success Header -->
   <div class="text-center mb-10">

@@ -41,6 +41,31 @@ export default function (services: ServiceI[], eventEmitter: EventEmitter) {
 
       req.socket.on("close", () => abortController.abort());
     });
+
+    // SSE endpoint for detecting when a build is created (used by setup page)
+    server.get("/build-created-stream/:serviceId", async (req, res) => {
+      const { serviceId } = req.params as { serviceId: string };
+      const abortController = new AbortController();
+
+      res.sse(
+        (async function* () {
+          for await (const [event] of on(eventEmitter, "build:created", {
+            signal: abortController.signal,
+          })) {
+            if (event.serviceId === serviceId) {
+              // Send HTML that HTMX will swap, triggering a redirect
+              const redirectHtml = `<div id="build-listener" hx-get="/dashboard/${event.serviceName}" hx-trigger="load" hx-push-url="true" hx-target="body"></div>`;
+              yield {
+                event: "build:created",
+                data: redirectHtml.replace(/(\r\n|\n|\r)/gm, ""),
+              };
+            }
+          }
+        })(),
+      );
+
+      req.socket.on("close", () => abortController.abort());
+    });
     for (let service of services) {
       const serviceName = service.getName();
       server.patch(
