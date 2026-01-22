@@ -1,0 +1,24 @@
+name: Test Build Reporter
+
+on:
+  workflow_dispatch:
+    inputs:
+      build-id:
+        description: "Build ID to report (defaults to random UUID)"
+        required: false
+        type: string
+
+jobs:
+  report-build:
+    name: Report Dummy Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Report build to GitLaunch
+        uses: ./github-action
+        with:
+          api-key: ${{ secrets.GITLAUNCH_API_KEY }}
+          service-id: ${{ vars.GITLAUNCH_SERVICE_ID }}
+          action: report-build
+          build-id: ${{ inputs.build-id || github.sha }}
