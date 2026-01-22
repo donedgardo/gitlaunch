@@ -17,6 +17,7 @@ jobs:
         uses: donedgardo/build-reporter@v1.0.0
         with:
           api-key: ${{ secrets.GITLAUNCH_API_KEY }}
+          api-url: https://gitlaunch.dev
           service-id: ${{ vars.GITLAUNCH_SERVICE_ID }}
           action: report-build
           build-id: ${{ inputs.build-id || github.sha }}
