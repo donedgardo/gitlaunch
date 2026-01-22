@@ -131,7 +131,7 @@
           <div class="relative">
             <div class="bg-gray-900 dark:bg-gray-950 rounded-xl p-4 font-mono text-sm text-green-400 overflow-x-auto">
               <pre><code>- name: Report build
-  uses: donedgardo/build-reporter@v1
+  uses: donedgardo/build-reporter@v1.0.0
   with:
     api-key: $&#123;&#123; secrets.GITLAUNCH_API_KEY &#125;&#125;
     service-id: $&#123;&#123; vars.GITLAUNCH_SERVICE_ID &#125;&#125;
@@ -221,7 +221,7 @@ function copyServiceId() {
 
 function copyWorkflowCode() {
   const code = `- name: Report build
-  uses: donedgardo/build-reporter@v1
+  uses: donedgardo/build-reporter@v1.0.0
   with:
     api-key: \${{ secrets.GITLAUNCH_API_KEY }}
     service-id: \${{ vars.GITLAUNCH_SERVICE_ID }}
