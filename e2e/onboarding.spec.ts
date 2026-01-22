@@ -42,7 +42,7 @@ test.describe("Onboarding - GitHub App Installation", () => {
 
     // Should see the onboarding page
     await expect(
-      page.getByRole("heading", { name: /welcome to gitdeploy/i }),
+      page.getByRole("heading", { name: /welcome to gitlaunch/i }),
     ).toBeVisible();
   });
 
@@ -57,10 +57,10 @@ test.describe("Onboarding - GitHub App Installation", () => {
 
     // Verify onboarding content
     await expect(
-      page.getByRole("heading", { name: /welcome to gitdeploy/i }),
+      page.getByRole("heading", { name: /welcome to gitlaunch/i }),
     ).toBeVisible();
     await expect(
-      page.getByText(/install the gitdeploy github app/i),
+      page.getByText(/install the gitlaunch github app/i),
     ).toBeVisible();
 
     // Verify install button exists and links to GitHub

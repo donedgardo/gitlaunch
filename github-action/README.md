@@ -1,6 +1,6 @@
 # GitLaunch Build Reporter
 
-A GitHub Action to report builds and deployment status to [GitLaunch](https://gitdeploy.dev) for deployment management.
+A GitHub Action to report builds and deployment status to [GitLaunch](https://gitlaunch.dev) for deployment management.
 
 ## Features
 
@@ -189,7 +189,7 @@ jobs:
 | Input         | Description                                          | Required            | Default                 |
 | ------------- | ---------------------------------------------------- | ------------------- | ----------------------- |
 | `api-key`     | GitLaunch API key                                    | Yes                 | -                       |
-| `api-url`     | GitLaunch API URL                                    | No                  | `https://gitdeploy.dev` |
+| `api-url`     | GitLaunch API URL                                    | No                  | `https://gitlaunch.dev` |
 | `service-id`  | GitLaunch service ID                                 | Yes                 | -                       |
 | `action`      | Action to perform: `report-build` or `update-status` | Yes                 | `report-build`          |
 | `build-id`    | Build identifier (commit SHA, build number, etc.)    | Yes                 | -                       |
