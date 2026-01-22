@@ -13,11 +13,11 @@ COPY src ./src
 COPY @types ./@types
 COPY tailwind.config.js ./
 
-# Build TypeScript
-RUN yarn build
-
-# Build Tailwind CSS
+# Build Tailwind CSS (must run before build so postbuild copies it)
 RUN yarn tailwind
+
+# Build TypeScript (postbuild copies src/public to dist/public)
+RUN yarn build
 
 # Production stage
 FROM node:20-alpine AS production
