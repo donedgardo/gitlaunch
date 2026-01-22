@@ -1,10 +1,20 @@
 import EventEmitter, { on } from "node:events";
 import { FastifyInstance, FastifyReply } from "fastify";
+import { ObjectId } from "mongodb";
 import { ServiceI } from "../../services/service/interface";
+import { ServiceRepository } from "../../repositories/serviceRepository";
 import * as Handlebars from "handlebars";
 import { FastifyRequestType } from "fastify/types/type-provider";
 
-export default function (services: ServiceI[], eventEmitter: EventEmitter) {
+export type BuildRoutesDeps = {
+  services: ServiceI[];
+  eventEmitter: EventEmitter;
+  serviceRepository: ServiceRepository;
+};
+
+export default function (deps: BuildRoutesDeps) {
+  const { services, eventEmitter, serviceRepository } = deps;
+
   return function (server: FastifyInstance, opts: any, done: any) {
     server.addHook("preHandler", (req, res, done) => {
       if (req.session || req.user || req.isApiKeyValid) {
@@ -45,6 +55,17 @@ export default function (services: ServiceI[], eventEmitter: EventEmitter) {
     // SSE endpoint for detecting when a build is created (used by setup page)
     server.get("/build-created-stream/:serviceId", async (req, res) => {
       const { serviceId } = req.params as { serviceId: string };
+
+      // Verify the user owns this service
+      const accountId = req.session?.accountId || req.apiKey?.accountId;
+      if (!accountId || !ObjectId.isValid(serviceId)) {
+        return res.status(403).send("Not authorized");
+      }
+
+      const service = await serviceRepository.findById(new ObjectId(serviceId));
+      if (!service || service.accountId.toString() !== accountId.toString()) {
+        return res.status(403).send("Not authorized");
+      }
 
       // Create a queue to buffer events
       const eventQueue: any[] = [];

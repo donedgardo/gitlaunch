@@ -96,7 +96,13 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
       buildRepository,
     }),
   );
-  server.register(buildRoutes(services, eventEmitter));
+  server.register(
+    buildRoutes({
+      services,
+      eventEmitter,
+      serviceRepository,
+    }),
+  );
 
   // GitHub OAuth routes
   registerGitHubAuthRoutes(server, {
