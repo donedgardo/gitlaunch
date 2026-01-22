@@ -117,6 +117,46 @@ describe("BuildService", () => {
       ).rejects.toThrow("Service not found");
     });
 
+    it("should emit build:created event when build is created", async () => {
+      // Given: an account with a repository and service
+      const account = await accountRepo.create({
+        name: "My Org",
+        slug: "my-org-event",
+      });
+      const repository = await repoRepo.create({
+        accountId: account._id,
+        githubRepoId: 999,
+        githubFullName: "org/repo-event",
+        githubOwner: "org",
+        githubRepoName: "repo-event",
+        isPrivate: false,
+      });
+      const svc = await serviceRepo.create({
+        accountId: account._id,
+        repositoryId: repository._id,
+        name: "event-service",
+      });
+
+      const eventReceived = vi.fn();
+      eventEmitter.on("build:created", eventReceived);
+
+      // When: I create a build
+      await service.createBuild({
+        accountId: account._id,
+        serviceId: svc._id,
+        buildId: "new-build-123",
+      });
+
+      // Then: build:created event is emitted with service info
+      expect(eventReceived).toHaveBeenCalledWith(
+        expect.objectContaining({
+          buildId: "new-build-123",
+          serviceId: svc._id.toString(),
+          serviceName: "event-service",
+        }),
+      );
+    });
+
     it("should reject when service belongs to different account", async () => {
       // Given: two accounts and a service belonging to account A
       const accountA = await accountRepo.create({

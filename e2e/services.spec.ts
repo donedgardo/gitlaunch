@@ -221,4 +221,52 @@ test.describe("Service Creation", () => {
     // Should be redirected to dashboard
     await expect(page).toHaveURL(/\/dashboard/);
   });
+
+  test("auto-redirects to dashboard when first build is reported via API", async ({
+    page,
+    request,
+  }) => {
+    // Authenticate as user with repositories
+    await authenticateTestUser(page, TEST_USERS.userWithRepos);
+
+    // Create a service
+    const serviceName = `auto-redirect-service-${Date.now()}`;
+    await page.goto("/services/new");
+    await page.locator("#repositoryId").selectOption({ index: 1 });
+    await page.locator("#name").fill(serviceName);
+    await page.getByRole("button", { name: /create service/i }).click();
+
+    // Should be on the setup page
+    await expect(page).toHaveURL(/\/services\/created/);
+
+    // Extract API key and service ID from the page
+    const apiKey = (await page.locator("#api-key").textContent())?.trim();
+    const serviceId = (await page.locator("#service-id").textContent())?.trim();
+
+    expect(apiKey).toMatch(/^pk_/);
+    expect(serviceId).toBeTruthy();
+
+    // Wait for SSE connection to establish
+    await page.waitForTimeout(1000);
+
+    // Report a build via the API (use port 3051 which is the E2E test server)
+    const buildId = `build-${Date.now()}`;
+    const response = await request.post(
+      `http://localhost:3051/api/v1/services/${serviceId}/builds`,
+      {
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        data: { buildId },
+      },
+    );
+
+    expect(response.status()).toBe(201);
+
+    // Page should automatically redirect to dashboard when build is created
+    await expect(page).toHaveURL(new RegExp(`/dashboard/${serviceName}`), {
+      timeout: 10000,
+    });
+  });
 });

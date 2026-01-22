@@ -7,7 +7,7 @@ import { FastifyRequestType } from "fastify/types/type-provider";
 export default function (services: ServiceI[], eventEmitter: EventEmitter) {
   return function (server: FastifyInstance, opts: any, done: any) {
     server.addHook("preHandler", (req, res, done) => {
-      if (req.user || req.isApiKeyValid) {
+      if (req.session || req.user || req.isApiKeyValid) {
         return done();
       }
       return res.status(403).send("Not Authorized");
@@ -45,26 +45,52 @@ export default function (services: ServiceI[], eventEmitter: EventEmitter) {
     // SSE endpoint for detecting when a build is created (used by setup page)
     server.get("/build-created-stream/:serviceId", async (req, res) => {
       const { serviceId } = req.params as { serviceId: string };
-      const abortController = new AbortController();
+
+      // Create a queue to buffer events
+      const eventQueue: any[] = [];
+      let resolver: ((value: any) => void) | null = null;
+
+      const listener = (event: any) => {
+        if (event.serviceId === serviceId) {
+          if (resolver) {
+            resolver(event);
+            resolver = null;
+          } else {
+            eventQueue.push(event);
+          }
+        }
+      };
+
+      eventEmitter.on("build:created", listener);
 
       res.sse(
         (async function* () {
-          for await (const [event] of on(eventEmitter, "build:created", {
-            signal: abortController.signal,
-          })) {
-            if (event.serviceId === serviceId) {
-              // Send HTML that HTMX will swap, triggering a redirect
-              const redirectHtml = `<div id="build-listener" hx-get="/dashboard/${event.serviceName}" hx-trigger="load" hx-push-url="true" hx-target="body"></div>`;
+          try {
+            while (true) {
+              const event =
+                eventQueue.length > 0
+                  ? eventQueue.shift()
+                  : await new Promise((resolve) => {
+                      resolver = resolve;
+                    });
+
               yield {
                 event: "build:created",
-                data: redirectHtml.replace(/(\r\n|\n|\r)/gm, ""),
+                data: JSON.stringify({
+                  serviceName: event.serviceName,
+                  buildId: event.buildId,
+                }),
               };
             }
+          } finally {
+            eventEmitter.off("build:created", listener);
           }
         })(),
       );
 
-      req.socket.on("close", () => abortController.abort());
+      req.socket.on("close", () => {
+        eventEmitter.off("build:created", listener);
+      });
     });
     for (let service of services) {
       const serviceName = service.getName();

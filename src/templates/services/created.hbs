@@ -1,11 +1,3 @@
-<!-- Hidden SSE listener for auto-redirect when build is created -->
-<div
-  id="build-listener"
-  hx-ext="sse"
-  sse-connect="/build-created-stream/{{serviceId}}"
-  sse-swap="build:created"
-  hx-swap="outerHTML"
-></div>
 
 <div class="max-w-2xl mx-auto px-4 py-16">
   <!-- Success Header -->
@@ -246,4 +238,20 @@ function copyWorkflowCode() {
     }, 2000);
   });
 }
+
+// Listen for build:created SSE event and redirect to dashboard
+(function() {
+  var serviceId = '{{serviceId}}';
+  var eventSource = new EventSource('/build-created-stream/' + serviceId);
+
+  eventSource.addEventListener('build:created', function(e) {
+    var data = JSON.parse(e.data);
+    eventSource.close();
+    window.location.href = '/dashboard/' + data.serviceName;
+  });
+
+  eventSource.onerror = function() {
+    eventSource.close();
+  };
+})();
 </script>
