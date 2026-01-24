@@ -39,7 +39,7 @@ jobs:
         with:
           api-key: ${{ secrets.GITLAUNCH_API_KEY }}
           service-id: 697434f8f9d1eb666d8571de
-          action: report-deployment
+          action: update-status
           build-id: ${{ env.BUILD_ID }}
           environment: ${{ env.ENVIRONMENT }}
           status: deploying
@@ -60,7 +60,7 @@ jobs:
         with:
           api-key: ${{ secrets.GITLAUNCH_API_KEY }}
           service-id: 697434f8f9d1eb666d8571de
-          action: report-deployment
+          action: update-status
           build-id: ${{ env.BUILD_ID }}
           environment: ${{ env.ENVIRONMENT }}
           status: deployed
@@ -72,7 +72,7 @@ jobs:
         with:
           api-key: ${{ secrets.GITLAUNCH_API_KEY }}
           service-id: 697434f8f9d1eb666d8571de
-          action: report-deployment
+          action: update-status
           build-id: ${{ env.BUILD_ID }}
           environment: ${{ env.ENVIRONMENT }}
           status: error
@@ -84,7 +84,7 @@ jobs:
         with:
           api-key: ${{ secrets.GITLAUNCH_API_KEY }}
           service-id: 697434f8f9d1eb666d8571de
-          action: report-deployment
+          action: update-status
           build-id: ${{ env.BUILD_ID }}
           environment: ${{ env.ENVIRONMENT }}
           status: cancelled

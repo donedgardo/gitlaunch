@@ -137,7 +137,7 @@ jobs:
         with:
           api-key: $&#123;&#123; secrets.GITLAUNCH_API_KEY &#125;&#125;
           service-id: {{serviceId}}
-          action: report-deployment
+          action: update-status
           build-id: $&#123;&#123; github.event.client_payload.buildId &#125;&#125;
           environment: $&#123;&#123; github.event.client_payload.environment &#125;&#125;
           status: deploying
@@ -156,7 +156,7 @@ jobs:
         with:
           api-key: $&#123;&#123; secrets.GITLAUNCH_API_KEY &#125;&#125;
           service-id: {{serviceId}}
-          action: report-deployment
+          action: update-status
           build-id: $&#123;&#123; github.event.client_payload.buildId &#125;&#125;
           environment: $&#123;&#123; github.event.client_payload.environment &#125;&#125;
           status: deployed
@@ -168,7 +168,7 @@ jobs:
         with:
           api-key: $&#123;&#123; secrets.GITLAUNCH_API_KEY &#125;&#125;
           service-id: {{serviceId}}
-          action: report-deployment
+          action: update-status
           build-id: $&#123;&#123; github.event.client_payload.buildId &#125;&#125;
           environment: $&#123;&#123; github.event.client_payload.environment &#125;&#125;
           status: error
@@ -180,7 +180,7 @@ jobs:
         with:
           api-key: $&#123;&#123; secrets.GITLAUNCH_API_KEY &#125;&#125;
           service-id: {{serviceId}}
-          action: report-deployment
+          action: update-status
           build-id: $&#123;&#123; github.event.client_payload.buildId &#125;&#125;
           environment: $&#123;&#123; github.event.client_payload.environment &#125;&#125;
           status: cancelled</code></pre>
