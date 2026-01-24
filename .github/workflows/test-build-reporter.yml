@@ -9,8 +9,8 @@ on:
         type: string
 
 jobs:
-  report-build:
-    name: Report Dummy Build
+  report-fronted-build:
+    name: Report Dummy Frontend Build
     runs-on: ubuntu-latest
     steps:
       - name: Report build to GitLaunch
@@ -19,5 +19,17 @@ jobs:
           api-key: ${{ secrets.GITLAUNCH_API_KEY }}
           api-url: https://gitlaunch.dev
           service-id: ${{ vars.GITLAUNCH_SERVICE_ID }}
+          action: report-build
+          build-id: ${{ inputs.build-id || github.sha }}
+
+  report-backend-build:
+    name: Report Dummy Backend Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Reportbuild to GitLaunch
+        uses: donedgardo/build-reporter@v1
+        with:
+          api-key: ${{ secrets.GITLAUNCH_API_KEY }}
+          service-id: backend
           action: report-build
           build-id: ${{ inputs.build-id || github.sha }}
