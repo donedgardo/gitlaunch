@@ -5,6 +5,7 @@ import { RepositoryRepository } from "../../../repositories/repositoryRepository
 import { ServiceRepository } from "../../../repositories/serviceRepository";
 import { ApiKeyService } from "../../../services/apiKey/apiKeyService";
 import { GitHubAppService } from "../../../services/github/githubAppService";
+import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
 
 export type ServiceRoutesDeps = {
   accountRepository: AccountRepository;
@@ -12,6 +13,7 @@ export type ServiceRoutesDeps = {
   serviceRepository: ServiceRepository;
   apiKeyService: ApiKeyService;
   githubAppService?: GitHubAppService;
+  planEnforcementService: PlanEnforcementService;
 };
 
 export function registerServiceRoutes(
@@ -24,6 +26,7 @@ export function registerServiceRoutes(
     serviceRepository,
     apiKeyService,
     githubAppService,
+    planEnforcementService,
   } = deps;
 
   // GET /services/new - Show create service form
@@ -123,6 +126,23 @@ export function registerServiceRoutes(
             title: "Create Service",
             repositories,
             error: "Invalid repository selected.",
+          },
+          { layout: "/layouts/main.hbs" },
+        );
+      }
+
+      // Check plan limit for services
+      const canAdd = await planEnforcementService.canAddService(account._id);
+      if (!canAdd.allowed) {
+        const repositories = await repositoryRepository.findByAccountId(
+          account._id,
+        );
+        return reply.view(
+          "services/new",
+          {
+            title: "Create Service",
+            repositories,
+            error: canAdd.reason,
           },
           { layout: "/layouts/main.hbs" },
         );

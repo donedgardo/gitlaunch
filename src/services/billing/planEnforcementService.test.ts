@@ -3,6 +3,7 @@ import { MongoMemoryServer } from "mongodb-memory-server";
 import { MongoClient, Db, ObjectId } from "mongodb";
 import { AccountRepository } from "../../repositories/accountRepository";
 import { RepositoryRepository } from "../../repositories/repositoryRepository";
+import { ServiceRepository } from "../../repositories/serviceRepository";
 import {
   MembershipRepository,
   MembershipRole,
@@ -18,6 +19,7 @@ describe("PlanEnforcementService", () => {
   let db: Db;
   let accountRepo: AccountRepository;
   let repoRepo: RepositoryRepository;
+  let serviceRepo: ServiceRepository;
   let membershipRepo: MembershipRepository;
   let service: PlanEnforcementService;
 
@@ -28,8 +30,14 @@ describe("PlanEnforcementService", () => {
     db = client.db("test");
     accountRepo = new AccountRepository(db);
     repoRepo = new RepositoryRepository(db);
+    serviceRepo = new ServiceRepository(db);
     membershipRepo = new MembershipRepository(db);
-    service = new PlanEnforcementService(accountRepo, repoRepo, membershipRepo);
+    service = new PlanEnforcementService(
+      accountRepo,
+      repoRepo,
+      serviceRepo,
+      membershipRepo,
+    );
   });
 
   afterAll(async () => {
@@ -40,6 +48,7 @@ describe("PlanEnforcementService", () => {
   beforeEach(async () => {
     await db.collection("accounts").deleteMany({});
     await db.collection("repositories").deleteMany({});
+    await db.collection("services").deleteMany({});
     await db.collection("accountMemberships").deleteMany({});
   });
 
@@ -226,6 +235,126 @@ describe("PlanEnforcementService", () => {
 
       // Then: it's allowed
       expect(result.allowed).toBe(true);
+    });
+  });
+
+  describe("canAddService", () => {
+    it("should allow free account to add first service", async () => {
+      // Given: a free account with a repository but no services
+      const account = await accountRepo.create({
+        name: "Free Service Org",
+        slug: "free-service-org",
+      });
+      const repo = await repoRepo.create({
+        accountId: account._id,
+        githubRepoId: 7000,
+        githubFullName: "org/service-repo",
+        githubOwner: "org",
+        githubRepoName: "service-repo",
+        isPrivate: false,
+      });
+
+      // When: checking if service can be added
+      const result = await service.canAddService(account._id);
+
+      // Then: it's allowed
+      expect(result.allowed).toBe(true);
+    });
+
+    it("should reject free account adding second service", async () => {
+      // Given: a free account with one service
+      const account = await accountRepo.create({
+        name: "Free Service Org 2",
+        slug: "free-service-org-2",
+      });
+      const repo = await repoRepo.create({
+        accountId: account._id,
+        githubRepoId: 7001,
+        githubFullName: "org/service-repo2",
+        githubOwner: "org",
+        githubRepoName: "service-repo2",
+        isPrivate: false,
+      });
+      await serviceRepo.create({
+        accountId: account._id,
+        repositoryId: repo._id,
+        name: "existing-service",
+      });
+
+      // When: checking if another service can be added
+      const result = await service.canAddService(account._id);
+
+      // Then: it's rejected with upgrade message
+      expect(result.allowed).toBe(false);
+      expect(result.reason).toContain("limit");
+      expect(result.upgradeRequired).toBe(true);
+    });
+
+    it("should allow paid account to add up to 10 services", async () => {
+      // Given: a paid account with 9 services
+      const account = await accountRepo.create({
+        name: "Paid Service Org",
+        slug: "paid-service-org",
+      });
+      await accountRepo.upgradeToPaid(account._id, "cus_svc", "sub_svc");
+      const repo = await repoRepo.create({
+        accountId: account._id,
+        githubRepoId: 7002,
+        githubFullName: "org/paid-service-repo",
+        githubOwner: "org",
+        githubRepoName: "paid-service-repo",
+        isPrivate: false,
+      });
+
+      for (let i = 0; i < 9; i++) {
+        await serviceRepo.create({
+          accountId: account._id,
+          repositoryId: repo._id,
+          name: `service-${i}`,
+        });
+      }
+
+      // When: checking if 10th service can be added
+      const result = await service.canAddService(account._id);
+
+      // Then: it's allowed
+      expect(result.allowed).toBe(true);
+    });
+
+    it("should reject paid account exceeding 10 services", async () => {
+      // Given: a paid account with 10 services
+      const account = await accountRepo.create({
+        name: "Full Service Org",
+        slug: "full-service-org",
+      });
+      await accountRepo.upgradeToPaid(
+        account._id,
+        "cus_full_svc",
+        "sub_full_svc",
+      );
+      const repo = await repoRepo.create({
+        accountId: account._id,
+        githubRepoId: 7003,
+        githubFullName: "org/full-service-repo",
+        githubOwner: "org",
+        githubRepoName: "full-service-repo",
+        isPrivate: false,
+      });
+
+      for (let i = 0; i < 10; i++) {
+        await serviceRepo.create({
+          accountId: account._id,
+          repositoryId: repo._id,
+          name: `full-service-${i}`,
+        });
+      }
+
+      // When: checking if 11th service can be added
+      const result = await service.canAddService(account._id);
+
+      // Then: it's rejected
+      expect(result.allowed).toBe(false);
+      expect(result.reason).toContain("limit");
     });
   });
 

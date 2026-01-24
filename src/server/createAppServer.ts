@@ -70,6 +70,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
   const planEnforcementService = new PlanEnforcementService(
     accountRepository,
     repositoryRepository,
+    serviceRepository,
     membershipRepository,
   );
 
@@ -134,6 +135,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     serviceRepository,
     apiKeyService,
     githubAppService: gitHubAppService,
+    planEnforcementService,
   });
 
   // API v1 routes (API key authenticated)

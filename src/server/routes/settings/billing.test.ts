@@ -14,6 +14,7 @@ import {
 } from "../../../services/billing/stripeService";
 import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
 import { RepositoryRepository } from "../../../repositories/repositoryRepository";
+import { ServiceRepository } from "../../../repositories/serviceRepository";
 import { MembershipRepository } from "../../../repositories/membershipRepository";
 import { SessionService } from "../../../services/auth/sessionService";
 import { sessionAuthMiddleware } from "../../middleware/sessionAuth";
@@ -59,6 +60,7 @@ describe("Billing Routes", () => {
     accountRepo = new AccountRepository(db);
     userRepo = new UserRepository(db);
     const repoRepo = new RepositoryRepository(db);
+    const serviceRepo = new ServiceRepository(db);
     const membershipRepo = new MembershipRepository(db);
     stripeService = new StripeService(new FakeStripeClient(), {
       proPriceId: "price_pro",
@@ -68,6 +70,7 @@ describe("Billing Routes", () => {
     planService = new PlanEnforcementService(
       accountRepo,
       repoRepo,
+      serviceRepo,
       membershipRepo,
     );
   });

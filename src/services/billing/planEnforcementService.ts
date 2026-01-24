@@ -1,6 +1,7 @@
 import { ObjectId } from "mongodb";
 import { AccountRepository, Plan } from "../../repositories/accountRepository";
 import { RepositoryRepository } from "../../repositories/repositoryRepository";
+import { ServiceRepository } from "../../repositories/serviceRepository";
 import { MembershipRepository } from "../../repositories/membershipRepository";
 
 export class PlanLimitError extends Error {
@@ -24,6 +25,10 @@ export type UsageInfo = {
     current: number;
     limit: number;
   };
+  services: {
+    current: number;
+    limit: number;
+  };
   users: {
     current: number;
     limit: number;
@@ -36,6 +41,7 @@ export class PlanEnforcementService {
   constructor(
     private accountRepo: AccountRepository,
     private repoRepo: RepositoryRepository,
+    private serviceRepo: ServiceRepository,
     private membershipRepo: MembershipRepository,
   ) {}
 
@@ -101,6 +107,27 @@ export class PlanEnforcementService {
     return { allowed: true };
   }
 
+  async canAddService(accountId: ObjectId): Promise<LimitCheckResult> {
+    const account = await this.accountRepo.findById(accountId);
+    if (!account) {
+      return { allowed: false, reason: "Account not found" };
+    }
+
+    const services = await this.serviceRepo.findByAccountId(accountId);
+    const currentCount = services.length;
+    const limit = account.planLimits.maxServices;
+
+    if (currentCount >= limit) {
+      return {
+        allowed: false,
+        reason: `Service limit reached (${currentCount}/${limit}). Upgrade to add more services.`,
+        upgradeRequired: true,
+      };
+    }
+
+    return { allowed: true };
+  }
+
   async getUsage(accountId: ObjectId): Promise<UsageInfo> {
     const account = await this.accountRepo.findById(accountId);
     if (!account) {
@@ -108,12 +135,17 @@ export class PlanEnforcementService {
     }
 
     const repos = await this.repoRepo.findByAccountId(accountId);
+    const services = await this.serviceRepo.findByAccountId(accountId);
     const memberships = await this.membershipRepo.findByAccountId(accountId);
 
     return {
       repositories: {
         current: repos.length,
         limit: account.planLimits.maxRepositories,
+      },
+      services: {
+        current: services.length,
+        limit: account.planLimits.maxServices,
       },
       users: {
         current: memberships.length,
@@ -149,6 +181,16 @@ export class PlanEnforcementService {
     if (!result.allowed) {
       throw new PlanLimitError(
         result.reason || "User limit exceeded",
+        result.upgradeRequired,
+      );
+    }
+  }
+
+  async enforceServiceLimit(accountId: ObjectId): Promise<void> {
+    const result = await this.canAddService(accountId);
+    if (!result.allowed) {
+      throw new PlanLimitError(
+        result.reason || "Service limit exceeded",
         result.upgradeRequired,
       );
     }

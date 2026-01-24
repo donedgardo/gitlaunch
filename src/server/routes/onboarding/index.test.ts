@@ -6,6 +6,7 @@ import cookie from "@fastify/cookie";
 import formbody from "@fastify/formbody";
 import { AccountRepository } from "../../../repositories/accountRepository";
 import { RepositoryRepository } from "../../../repositories/repositoryRepository";
+import { ServiceRepository } from "../../../repositories/serviceRepository";
 import { MembershipRepository } from "../../../repositories/membershipRepository";
 import { GitHubAppService } from "../../../services/github/githubAppService";
 import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
@@ -75,14 +76,17 @@ describe("Onboarding Routes", () => {
   beforeEach(async () => {
     await db.collection("accounts").deleteMany({});
     await db.collection("repositories").deleteMany({});
+    await db.collection("services").deleteMany({});
     await db.collection("memberships").deleteMany({});
 
     accountRepo = new AccountRepository(db);
     repositoryRepo = new RepositoryRepository(db);
+    const serviceRepo = new ServiceRepository(db);
     membershipRepo = new MembershipRepository(db);
     planEnforcementService = new PlanEnforcementService(
       accountRepo,
       repositoryRepo,
+      serviceRepo,
       membershipRepo,
     );
     fakeGitHubAppService = new FakeGitHubAppService();

@@ -7,6 +7,7 @@ export enum Plan {
 
 export type PlanLimits = {
   maxRepositories: number;
+  maxServices: number;
   maxUsers: number;
   publicReposOnly: boolean;
 };
@@ -34,6 +35,7 @@ export type CreateAccountInput = {
 
 const FREE_PLAN_LIMITS: PlanLimits = {
   maxRepositories: 1,
+  maxServices: 1,
   maxUsers: 1,
   publicReposOnly: true,
 };
@@ -101,6 +103,7 @@ export class AccountRepository {
   ): Promise<void> {
     const PAID_PLAN_LIMITS: PlanLimits = {
       maxRepositories: 5,
+      maxServices: 10,
       maxUsers: 5,
       publicReposOnly: false,
     };
