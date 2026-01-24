@@ -33,8 +33,9 @@ jobs:
         with:
           ref: ${{ env.BUILD_ID }}
 
-      # Report: Deployment started
+      # Report: Deployment started (skip for dev)
       - name: Report deploying
+        if: env.ENVIRONMENT != 'dev'
         uses: donedgardo/build-reporter@v1
         with:
           api-key: ${{ secrets.GITLAUNCH_API_KEY }}
@@ -53,9 +54,9 @@ jobs:
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 
-      # Report: Deployment succeeded
+      # Report: Deployment succeeded (skip for dev)
       - name: Report deployed
-        if: success()
+        if: success() && env.ENVIRONMENT != 'dev'
         uses: donedgardo/build-reporter@v1
         with:
           api-key: ${{ secrets.GITLAUNCH_API_KEY }}
@@ -65,9 +66,9 @@ jobs:
           environment: ${{ env.ENVIRONMENT }}
           status: deployed
 
-      # Report: Deployment failed
+      # Report: Deployment failed (skip for dev)
       - name: Report error
-        if: failure()
+        if: failure() && env.ENVIRONMENT != 'dev'
         uses: donedgardo/build-reporter@v1
         with:
           api-key: ${{ secrets.GITLAUNCH_API_KEY }}
@@ -77,9 +78,9 @@ jobs:
           environment: ${{ env.ENVIRONMENT }}
           status: error
 
-      # Report: Deployment cancelled
+      # Report: Deployment cancelled (skip for dev)
       - name: Report cancelled
-        if: cancelled()
+        if: cancelled() && env.ENVIRONMENT != 'dev'
         uses: donedgardo/build-reporter@v1
         with:
           api-key: ${{ secrets.GITLAUNCH_API_KEY }}
