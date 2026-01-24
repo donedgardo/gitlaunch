@@ -1,21 +1,25 @@
 {{#if builds.length}}
-<table id="build-table" class="table-auto" hx-swap-oob="true">
-  <thead>
-  <tr>
-    <th>Build</th>
-    {{#each environments as |env|}}
-      <th>
-        {{env}}
+<div id="build-table" class="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700" hx-swap-oob="true">
+  <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+    <thead class="bg-gray-50 dark:bg-gray-800">
+    <tr>
+      <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+        Commit
       </th>
+      {{#each environments as |env|}}
+        <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+          {{env}}
+        </th>
+      {{/each}}
+    </tr>
+    </thead>
+    <tbody class="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+    {{#each builds as |build| }}
+      {{> buildRow build=build environments=../environments serviceName=../serviceName githubFullName=../githubFullName }}
     {{/each}}
-  </tr>
-  </thead>
-  <tbody>
-  {{#each builds as |build| }}
-    {{> buildRow build=build environments=../environments serviceName=../serviceName githubFullName=../githubFullName }}
-  {{/each}}
-  </tbody>
-</table>
+    </tbody>
+  </table>
+</div>
 {{else}}
 <div id="build-table" hx-swap-oob="true">
   {{> emptyBuilds serviceId=serviceName }}

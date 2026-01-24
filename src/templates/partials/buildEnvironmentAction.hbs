@@ -2,15 +2,17 @@
   id="{{serviceName}}-{{buildId}}-{{env}}"
   sse-swap="update:{{serviceName}}-{{buildId}}-{{env}}"
   hx-swap-oob="outerHTML"
+  class="px-4 py-3 text-center"
 >
   {{#if (showDeployButton status) }}
     <button
       hx-patch="/{{serviceName}}/build/{{buildId}}/{{env}}/dispatching"
       hx-target="#{{serviceName}}-{{buildId}}-{{env}}"
+      class="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-colors"
     >
       Deploy
     </button>
   {{else}}
-    <span>{{status}}</span>
+    <span class="{{getStatusBadgeClass status}}">{{status}}</span>
   {{/if}}
 </td>

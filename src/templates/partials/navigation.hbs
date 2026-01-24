@@ -1,12 +1,12 @@
-<nav id="main-navigation" class="flex justify-between" hx-swap-oob="true">
-  <ul class="py-3 flex flex-row flex-wrap text-base">
+<nav id="main-navigation" class="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900" hx-swap-oob="true">
+  <ul class="flex flex-row flex-wrap">
     {{#each services as |serviceName|}}
-      <li class="mx-3">
+      <li>
         <a
           href=""
           hx-get="/dashboard/{{serviceName}}"
           hx-push-url="/dashboard/{{serviceName}}"
-          class="{{#if (eq serviceName ../activeService)}}underline{{/if}}"
+          class="inline-block px-4 py-3 text-sm font-medium transition-colors {{#if (eq serviceName ../activeService)}}text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400{{else}}text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 border-b-2 border-transparent hover:border-gray-300 dark:hover:border-gray-600{{/if}}"
         >
           {{serviceName}}
         </a>
@@ -15,7 +15,7 @@
   </ul>
   <a
     href="/logout"
-    class="text-base px-5 py-2 border-2 border-transparent hover:border-blue-700"
+    class="mr-4 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors"
   >
     Logout
   </a>
