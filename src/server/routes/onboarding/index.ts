@@ -115,6 +115,7 @@ export function registerOnboardingRoutes(
           privateReposAllowed: usage.privateReposAllowed,
           plan: usage.plan,
           returnTo,
+          githubInstallationId: account.githubInstallationId,
         },
         { layout: "/layouts/main.hbs" },
       );
