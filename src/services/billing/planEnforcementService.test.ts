@@ -240,18 +240,10 @@ describe("PlanEnforcementService", () => {
 
   describe("canAddService", () => {
     it("should allow free account to add first service", async () => {
-      // Given: a free account with a repository but no services
+      // Given: a free account with no services
       const account = await accountRepo.create({
         name: "Free Service Org",
         slug: "free-service-org",
-      });
-      const repo = await repoRepo.create({
-        accountId: account._id,
-        githubRepoId: 7000,
-        githubFullName: "org/service-repo",
-        githubOwner: "org",
-        githubRepoName: "service-repo",
-        isPrivate: false,
       });
 
       // When: checking if service can be added

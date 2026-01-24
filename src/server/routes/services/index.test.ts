@@ -10,7 +10,9 @@ import path from "node:path";
 import { ServiceRepository } from "../../../repositories/serviceRepository";
 import { RepositoryRepository } from "../../../repositories/repositoryRepository";
 import { AccountRepository } from "../../../repositories/accountRepository";
+import { MembershipRepository } from "../../../repositories/membershipRepository";
 import { SessionService } from "../../../services/auth/sessionService";
+import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
 import { sessionAuthMiddleware } from "../../middleware/sessionAuth";
 import { registerHandlebarsHelpers } from "../../registerHandlebarsHelpers";
 import { registerServiceRoutes } from "./index";
@@ -73,6 +75,7 @@ describe("Service Routes - Workflow Configuration", () => {
   let apiKeyRepo: ApiKeyRepository;
   let sessionService: SessionService;
   let apiKeyService: ApiKeyService;
+  let planEnforcementService: PlanEnforcementService;
   let githubAppService: GitHubAppService;
   let fakeApiClient: FakeGitHubApiClient;
 
@@ -97,13 +100,21 @@ describe("Service Routes - Workflow Configuration", () => {
     await db.collection("repositories").deleteMany({});
     await db.collection("accounts").deleteMany({});
     await db.collection("apiKeys").deleteMany({});
+    await db.collection("accountMemberships").deleteMany({});
 
     serviceRepo = new ServiceRepository(db);
     repositoryRepo = new RepositoryRepository(db);
     accountRepo = new AccountRepository(db);
     apiKeyRepo = new ApiKeyRepository(db);
+    const membershipRepo = new MembershipRepository(db);
     sessionService = new SessionService(TEST_SECRET);
     apiKeyService = new ApiKeyService(apiKeyRepo, accountRepo);
+    planEnforcementService = new PlanEnforcementService(
+      accountRepo,
+      repositoryRepo,
+      serviceRepo,
+      membershipRepo,
+    );
 
     // Setup GitHub app service with fakes
     fakeApiClient = new FakeGitHubApiClient();
@@ -139,6 +150,7 @@ describe("Service Routes - Workflow Configuration", () => {
       serviceRepository: serviceRepo,
       apiKeyService,
       githubAppService,
+      planEnforcementService,
     });
     await app.ready();
   });

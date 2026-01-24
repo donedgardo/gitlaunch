@@ -66,6 +66,7 @@ describe("StripeService", () => {
     plan: Plan.Free,
     planLimits: {
       maxRepositories: 1,
+      maxServices: 1,
       maxUsers: 1,
       publicReposOnly: true,
     },
