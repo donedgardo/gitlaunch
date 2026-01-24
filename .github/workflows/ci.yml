@@ -86,13 +86,15 @@ jobs:
 
   report-build:
     name: Report build
+    runs-on: ubuntu-latest
     needs: [quality, integration, docker-build]
     uses: donedgardo/build-reporter@v1
     with:
-      api-key: ${{ secrets.GITLAUNCH_API_KEY }}
       service-id: 697434f8f9d1eb666d8571de
       action: report-build
       build-id: ${{ github.sha }}
+    secrets:
+      api-key: ${{ secrets.GITLAUNCH_API_KEY }}
 
   deploy-dev:
     name: Deploy to Dev
