@@ -1,4 +1,4 @@
-<div class="max-w-2xl mx-auto px-4 py-16">
+<div class="max-w-4xl mx-auto px-4 py-16">
   <!-- State: Builds exist but no deployments configured -->
   <div class="text-center mb-10">
     <div style="width: 80px; height: 80px; display: flex; align-items: center; justify-content: center;" class="bg-amber-100 dark:bg-amber-900/30 rounded-full mx-auto mb-6">
@@ -18,10 +18,10 @@
   <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-lg overflow-hidden mb-6">
     <div class="p-6 sm:p-8">
       <div style="display: flex; align-items: flex-start;">
-        <div style="width: 32px; height: 32px; min-width: 32px; display: flex; align-items: center; justify-content: center;" class="bg-blue-600 text-white rounded-full font-semibold mr-4">
+        <div style="width: 32px; height: 32px; min-width: 32px; display: flex; align-items: center; justify-content: center;" class="bg-blue-600 text-white rounded-full font-semibold mr-4 flex-shrink-0">
           1
         </div>
-        <div style="flex: 1;">
+        <div style="flex: 1; min-width: 0;">
           <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">
             Select Deployment Workflow
           </h2>
@@ -80,19 +80,19 @@
   <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-lg overflow-hidden mb-6">
     <div class="p-6 sm:p-8">
       <div style="display: flex; align-items: flex-start;">
-        <div style="width: 32px; height: 32px; min-width: 32px; display: flex; align-items: center; justify-content: center;" class="bg-gray-400 text-white rounded-full font-semibold mr-4">
+        <div style="width: 32px; height: 32px; min-width: 32px; display: flex; align-items: center; justify-content: center;" class="bg-gray-400 text-white rounded-full font-semibold mr-4 flex-shrink-0">
           2
         </div>
-        <div style="flex: 1;">
+        <div style="flex: 1; min-width: 0;">
           <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">
             Workflow Configuration
           </h2>
           <p class="text-gray-600 dark:text-gray-400 mb-4">
             Your workflow should listen for <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">repository_dispatch</code> events:
           </p>
-          <div class="relative">
-            <div class="bg-gray-900 dark:bg-gray-950 rounded-xl p-4 font-mono text-sm text-green-400 overflow-x-auto">
-              <pre><code>on:
+          <div class="relative -mx-6 sm:mx-0">
+            <div class="bg-gray-900 dark:bg-gray-950 sm:rounded-xl p-4 font-mono text-xs text-green-400 overflow-x-auto">
+              <pre class="whitespace-pre"><code>on:
   repository_dispatch:
     types: [deployment]
 
@@ -115,19 +115,19 @@ jobs:
   <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-lg overflow-hidden mb-6">
     <div class="p-6 sm:p-8">
       <div style="display: flex; align-items: flex-start;">
-        <div style="width: 32px; height: 32px; min-width: 32px; display: flex; align-items: center; justify-content: center;" class="bg-gray-400 text-white rounded-full font-semibold mr-4">
+        <div style="width: 32px; height: 32px; min-width: 32px; display: flex; align-items: center; justify-content: center;" class="bg-gray-400 text-white rounded-full font-semibold mr-4 flex-shrink-0">
           3
         </div>
-        <div style="flex: 1;">
+        <div style="flex: 1; min-width: 0;">
           <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">
             Report Deployment Status
           </h2>
           <p class="text-gray-600 dark:text-gray-400 mb-4">
             Use the build-reporter action to update deployment status throughout your workflow:
           </p>
-          <div class="relative">
-            <div class="bg-gray-900 dark:bg-gray-950 rounded-xl p-4 font-mono text-sm text-green-400 overflow-x-auto">
-              <pre><code>jobs:
+          <div class="relative -mx-6 sm:mx-0">
+            <div class="bg-gray-900 dark:bg-gray-950 sm:rounded-xl p-4 font-mono text-xs text-green-400 overflow-x-auto">
+              <pre class="whitespace-pre"><code>jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
@@ -190,27 +190,27 @@ jobs:
           <!-- Status Reference -->
           <div class="mt-6">
             <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-3">Available Status Values</h3>
-            <div class="grid grid-cols-2 gap-2">
-              <div class="flex items-center space-x-2 p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">
+            <div class="flex flex-wrap gap-2">
+              <div class="inline-flex items-center space-x-2 px-3 py-1.5 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">
                   deploying
                 </span>
                 <span class="text-xs text-gray-500 dark:text-gray-400">In progress</span>
               </div>
-              <div class="flex items-center space-x-2 p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300">
+              <div class="inline-flex items-center space-x-2 px-3 py-1.5 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300">
                   deployed
                 </span>
                 <span class="text-xs text-gray-500 dark:text-gray-400">Success</span>
               </div>
-              <div class="flex items-center space-x-2 p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300">
+              <div class="inline-flex items-center space-x-2 px-3 py-1.5 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300">
                   error
                 </span>
                 <span class="text-xs text-gray-500 dark:text-gray-400">Failed</span>
               </div>
-              <div class="flex items-center space-x-2 p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-600 dark:text-gray-300">
+              <div class="inline-flex items-center space-x-2 px-3 py-1.5 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-600 dark:text-gray-300">
                   cancelled
                 </span>
                 <span class="text-xs text-gray-500 dark:text-gray-400">Aborted</span>
