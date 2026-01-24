@@ -30,6 +30,8 @@ jobs:
       BUILD_ID: ${{ github.event.client_payload.buildId || inputs.build-id || github.sha }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.BUILD_ID }}
 
       # Report: Deployment started
       - name: Report deploying

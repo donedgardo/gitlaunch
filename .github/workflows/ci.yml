@@ -97,5 +97,15 @@ jobs:
           service-id: 697434f8f9d1eb666d8571de
           action: report-build
           build-id: ${{ github.sha }}
-    # Deployments are now triggered via GitLaunch dashboard
-    # which sends repository_dispatch events to deploy.yml
+
+  deploy-dev:
+    name: Deploy to Dev
+    runs-on: ubuntu-latest
+    needs: [report-build]
+    steps:
+      - name: Trigger deployment
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          event-type: deployment
+          client-payload: '{"buildId": "${{ github.sha }}", "environment": "dev"}'
