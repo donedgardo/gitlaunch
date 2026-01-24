@@ -1,6 +1,10 @@
 name: Deploy
 
 on:
+  repository_dispatch:
+    types: [deployment]
+
+  # Keep workflow_dispatch for manual deployments
   workflow_dispatch:
     inputs:
       environment:
@@ -11,35 +15,85 @@ on:
           - dev
           - staging
           - production
-
-  # Allow calling from other workflows
-  workflow_call:
-    inputs:
-      environment:
-        required: true
+      build-id:
+        description: "Build ID (commit SHA)"
+        required: false
         type: string
 
 jobs:
   deploy:
-    name: Deploy to ${{ inputs.environment }}
+    name: Deploy to ${{ github.event.client_payload.environment || inputs.environment }}
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment }}
+    environment: ${{ github.event.client_payload.environment || inputs.environment }}
+    env:
+      ENVIRONMENT: ${{ github.event.client_payload.environment || inputs.environment }}
+      BUILD_ID: ${{ github.event.client_payload.buildId || inputs.build-id || github.sha }}
     steps:
       - uses: actions/checkout@v4
+
+      # Report: Deployment started
+      - name: Report deploying
+        uses: donedgardo/build-reporter@v1
+        with:
+          api-key: ${{ secrets.GITLAUNCH_API_KEY }}
+          service-id: 697434f8f9d1eb666d8571de
+          action: report-deployment
+          build-id: ${{ env.BUILD_ID }}
+          environment: ${{ env.ENVIRONMENT }}
+          status: deploying
 
       - name: Install Railway CLI
         run: npm install -g @railway/cli
 
       - name: Deploy to Railway
+        id: deploy
         run: railway up --service ${{ secrets.RAILWAY_SERVICE_ID }} --detach
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 
+      # Report: Deployment succeeded
+      - name: Report deployed
+        if: success()
+        uses: donedgardo/build-reporter@v1
+        with:
+          api-key: ${{ secrets.GITLAUNCH_API_KEY }}
+          service-id: 697434f8f9d1eb666d8571de
+          action: report-deployment
+          build-id: ${{ env.BUILD_ID }}
+          environment: ${{ env.ENVIRONMENT }}
+          status: deployed
+
+      # Report: Deployment failed
+      - name: Report error
+        if: failure()
+        uses: donedgardo/build-reporter@v1
+        with:
+          api-key: ${{ secrets.GITLAUNCH_API_KEY }}
+          service-id: 697434f8f9d1eb666d8571de
+          action: report-deployment
+          build-id: ${{ env.BUILD_ID }}
+          environment: ${{ env.ENVIRONMENT }}
+          status: error
+
+      # Report: Deployment cancelled
+      - name: Report cancelled
+        if: cancelled()
+        uses: donedgardo/build-reporter@v1
+        with:
+          api-key: ${{ secrets.GITLAUNCH_API_KEY }}
+          service-id: 697434f8f9d1eb666d8571de
+          action: report-deployment
+          build-id: ${{ env.BUILD_ID }}
+          environment: ${{ env.ENVIRONMENT }}
+          status: cancelled
+
       - name: Deployment Summary
+        if: success()
         run: |
           echo "## Deployment Complete :rocket:" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
           echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Environment | ${{ inputs.environment }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Environment | ${{ env.ENVIRONMENT }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Build ID | ${{ env.BUILD_ID }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Triggered by | @${{ github.actor }} |" >> $GITHUB_STEP_SUMMARY
