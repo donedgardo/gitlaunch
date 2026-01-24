@@ -133,6 +133,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     repositoryRepository,
     serviceRepository,
     apiKeyService,
+    githubAppService: gitHubAppService,
   });
 
   // API v1 routes (API key authenticated)
