@@ -84,6 +84,16 @@ jobs:
       - name: Build Docker image
         run: docker build -t gitlaunch:ci .
 
+  report-build:
+    name: Report build
+    needs: [quality, integration, docker-build]
+    uses: donedgardo/build-reporter@v1
+    with:
+      api-key: ${{ secrets.GITLAUNCH_API_KEY }}
+      service-id: 697434f8f9d1eb666d8571de
+      action: report-build
+      build-id: ${{ github.sha }}
+
   deploy-dev:
     name: Deploy to Dev
     needs: [quality, integration, docker-build]
