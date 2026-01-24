@@ -1,4 +1,4 @@
-import EventEmitter, { on } from "node:events";
+import EventEmitter from "node:events";
 import { FastifyInstance, FastifyReply } from "fastify";
 import { ObjectId } from "mongodb";
 import { ServiceI } from "../../services/service/interface";
@@ -27,29 +27,66 @@ export default function (deps: BuildRoutesDeps) {
       const buildEnvActionTemplate = Handlebars.compile(
         "{{>buildEnvironmentAction}}",
       );
+
+      // Create a queue to buffer events
+      const eventQueue: any[] = [];
+      let resolver: ((value: any) => void) | null = null;
+
+      const listener = (updatedBuildEvents: any[]) => {
+        for (const event of updatedBuildEvents) {
+          if (resolver) {
+            resolver(event);
+            resolver = null;
+          } else {
+            eventQueue.push(event);
+          }
+        }
+      };
+
+      eventEmitter.on("build:update", listener);
+
       res.sse(
         (async function* () {
-          for await (const [updatedBuildEvents] of on(
-            eventEmitter,
-            "build:update",
-          )) {
-            for (const event of updatedBuildEvents) {
-              const html = buildEnvActionTemplate({
-                buildId: event.buildId,
-                env: event.environment,
-                serviceName: event.serviceName,
-                status: event.status,
-              });
-              yield {
-                event: `update:${event.serviceName}-${event.buildId}-${event.environment}`,
-                data: html.replace(/(\r\n|\n|\r)/gm, ""),
-              };
+          try {
+            while (!abortController.signal.aborted) {
+              // Wait for event or timeout for keep-alive
+              const event = await Promise.race([
+                eventQueue.length > 0
+                  ? Promise.resolve(eventQueue.shift())
+                  : new Promise((resolve) => {
+                      resolver = resolve;
+                    }),
+                new Promise((resolve) =>
+                  setTimeout(() => resolve(null), 25000),
+                ), // 25s keep-alive
+              ]);
+
+              if (event === null) {
+                // Send keep-alive comment to prevent proxy timeout
+                yield { comment: "keep-alive" };
+              } else {
+                const html = buildEnvActionTemplate({
+                  buildId: event.buildId,
+                  env: event.environment,
+                  serviceName: event.serviceName,
+                  status: event.status,
+                });
+                yield {
+                  event: `update:${event.serviceName}-${event.buildId}-${event.environment}`,
+                  data: html.replace(/(\r\n|\n|\r)/gm, ""),
+                };
+              }
             }
+          } finally {
+            eventEmitter.off("build:update", listener);
           }
         })(),
       );
 
-      req.socket.on("close", () => abortController.abort());
+      req.socket.on("close", () => {
+        abortController.abort();
+        eventEmitter.off("build:update", listener);
+      });
     });
 
     // SSE endpoint for detecting when a build is created (used by setup page)
