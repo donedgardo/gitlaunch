@@ -252,6 +252,64 @@ describe("Service Routes - Workflow Configuration", () => {
       const updatedService = await serviceRepo.findById(service._id);
       expect(updatedService?.workflowFile).toBe("deploy-prod.yml");
       expect(updatedService?.eventType).toBe("deploy-production");
+      expect(updatedService?.workflowConfigured).toBe(true);
+    });
+
+    it("should set workflowConfigured to true even when service was created without it", async () => {
+      // Given: an existing service without workflowConfigured field (simulating old data)
+      const account = await accountRepo.create({
+        name: "Legacy Org",
+        slug: "legacy-org",
+      });
+
+      const repository = await repositoryRepo.create({
+        accountId: account._id,
+        githubRepoId: 777,
+        githubFullName: "legacy-org/legacy-repo",
+        githubRepoName: "legacy-repo",
+        githubOwner: "legacy-org",
+        isPrivate: false,
+      });
+
+      // Insert directly into MongoDB without workflowConfigured field
+      const serviceId = new ObjectId();
+      await db.collection("services").insertOne({
+        _id: serviceId,
+        accountId: account._id,
+        repositoryId: repository._id,
+        name: "legacy-service",
+        environments: [{ name: "staging", displayName: "Staging", order: 0 }],
+        workflowFile: "deploy.yml",
+        eventType: "deployment",
+        isActive: true,
+        createdAt: new Date(),
+        // Note: workflowConfigured is NOT set
+      });
+
+      const userId = new ObjectId();
+      const sessionToken = sessionService.createSession({
+        userId,
+        accountId: account._id,
+      });
+
+      // When: POST /services/:id/configure-workflow
+      const response = await app.inject({
+        method: "POST",
+        url: `/services/${serviceId}/configure-workflow`,
+        cookies: {
+          session: sessionToken,
+        },
+        payload: {
+          workflowFile: "deploy.yml",
+          eventType: "deployment",
+        },
+      });
+
+      // Then: service updated with workflowConfigured=true
+      expect(response.statusCode).toBe(302);
+
+      const updatedService = await serviceRepo.findById(serviceId);
+      expect(updatedService?.workflowConfigured).toBe(true);
     });
   });
 });

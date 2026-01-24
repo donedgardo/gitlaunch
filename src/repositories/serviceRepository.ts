@@ -14,6 +14,7 @@ export type Service = {
   environments: Environment[];
   workflowFile: string;
   eventType: string;
+  workflowConfigured: boolean;
   isActive: boolean;
   createdAt: Date;
 };
@@ -56,6 +57,7 @@ export class ServiceRepository {
       environments: input.environments || DEFAULT_ENVIRONMENTS,
       workflowFile: input.workflowFile || "deploy.yml",
       eventType: input.eventType || "deployment",
+      workflowConfigured: false,
       isActive: true,
       createdAt: now,
     };
@@ -103,6 +105,7 @@ export class ServiceRepository {
         $set: {
           workflowFile: config.workflowFile,
           eventType: config.eventType,
+          workflowConfigured: true,
         },
       },
       { returnDocument: "after" },

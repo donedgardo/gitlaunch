@@ -13,7 +13,6 @@ import { SessionService } from "../../services/auth/sessionService";
 import { sessionAuthMiddleware } from "../middleware/sessionAuth";
 import { registerHandlebarsHelpers } from "../registerHandlebarsHelpers";
 import dashboardRoutes from "./index";
-import { DeploymentStatus } from "../../services/service/deploymentStatus";
 
 describe("Dashboard Routes", () => {
   let mongoServer: MongoMemoryServer;
@@ -127,8 +126,8 @@ describe("Dashboard Routes", () => {
       expect(response.body).toContain('href="/services/new"');
     });
 
-    it("should show deployment setup guide when builds exist but no deployments", async () => {
-      // Given: service with builds, no deployments
+    it("should show deployment setup guide when builds exist but workflow not configured", async () => {
+      // Given: service with builds, workflow not configured
       const accountId = new ObjectId();
       const userId = new ObjectId();
       const repositoryId = new ObjectId();
@@ -144,6 +143,7 @@ describe("Dashboard Routes", () => {
         createdAt: new Date(),
       });
 
+      // Service is created with workflowConfigured=false by default
       const service = await serviceRepo.create({
         accountId,
         repositoryId,
@@ -154,7 +154,7 @@ describe("Dashboard Routes", () => {
         ],
       });
 
-      // Create a build with no deployments
+      // Create a build
       await buildRepo.create({
         accountId,
         serviceId: service._id,
@@ -180,8 +180,8 @@ describe("Dashboard Routes", () => {
       expect(response.body).toContain("Configure Deployment Workflow");
     });
 
-    it("should not show deployment setup guide when deployments exist", async () => {
-      // Given: service with builds that have deployments
+    it("should not show deployment setup guide when workflow is configured", async () => {
+      // Given: service with builds and workflow configured
       const accountId = new ObjectId();
       const userId = new ObjectId();
       const repositoryId = new ObjectId();
@@ -200,26 +200,25 @@ describe("Dashboard Routes", () => {
       const service = await serviceRepo.create({
         accountId,
         repositoryId,
-        name: "has-deployments",
+        name: "has-workflow-configured",
         environments: [
           { name: "staging", displayName: "Staging", order: 0 },
           { name: "prod", displayName: "Production", order: 1 },
         ],
       });
 
-      // Create a build and add a deployment
+      // Mark workflow as configured
+      await serviceRepo.updateWorkflowConfiguration(service._id, {
+        workflowFile: "deploy.yml",
+        eventType: "deployment",
+      });
+
+      // Create a build
       await buildRepo.create({
         accountId,
         serviceId: service._id,
         buildId: "abc123",
       });
-      await buildRepo.updateDeploymentStatus(
-        accountId,
-        service._id,
-        "abc123",
-        "staging",
-        DeploymentStatus.DEPLOYED,
-      );
 
       const sessionToken = sessionService.createSession({
         userId,
@@ -229,7 +228,7 @@ describe("Dashboard Routes", () => {
       // When: visiting dashboard
       const response = await app.inject({
         method: "GET",
-        url: "/dashboard/has-deployments",
+        url: "/dashboard/has-workflow-configured",
         cookies: {
           session: sessionToken,
         },

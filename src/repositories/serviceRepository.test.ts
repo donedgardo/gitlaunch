@@ -53,6 +53,22 @@ describe("ServiceRepository", () => {
       expect(service.createdAt).toBeInstanceOf(Date);
     });
 
+    it("should create a service with workflowConfigured set to false by default", async () => {
+      // Given
+      const accountId = new ObjectId();
+      const repositoryId = new ObjectId();
+
+      // When
+      const service = await repo.create({
+        accountId,
+        repositoryId,
+        name: "my-service",
+      });
+
+      // Then
+      expect(service.workflowConfigured).toBe(false);
+    });
+
     it("should create a service with custom environments", async () => {
       // Given
       const accountId = new ObjectId();
@@ -220,6 +236,27 @@ describe("ServiceRepository", () => {
       expect(updated).not.toBeNull();
       expect(updated?.workflowFile).toBe("deploy-prod.yml");
       expect(updated?.eventType).toBe("deploy-prod");
+    });
+
+    it("should set workflowConfigured to true", async () => {
+      // Given: a service exists with workflowConfigured=false
+      const accountId = new ObjectId();
+      const repositoryId = new ObjectId();
+      const service = await repo.create({
+        accountId,
+        repositoryId,
+        name: "workflow-config-test",
+      });
+      expect(service.workflowConfigured).toBe(false);
+
+      // When: I update workflow configuration
+      const updated = await repo.updateWorkflowConfiguration(service._id, {
+        workflowFile: "deploy.yml",
+        eventType: "deployment",
+      });
+
+      // Then: workflowConfigured is set to true
+      expect(updated?.workflowConfigured).toBe(true);
     });
 
     it("should return null if service not found", async () => {

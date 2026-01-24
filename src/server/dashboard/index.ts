@@ -108,15 +108,10 @@ export default function (deps: DashboardRoutesDeps) {
         const formattedBuilds = formatBuildsForTemplate(builds, environments);
 
         // Check if we need to show deployment setup guide
-        // Show guide when builds exist but no deployments have been made
-        let needsDeploymentSetup = false;
-        if (builds.length > 0) {
-          const hasDeployments = await buildRepository.hasAnyDeployments(
-            accountId,
-            activeService._id,
-          );
-          needsDeploymentSetup = !hasDeployments;
-        }
+        // Show guide when builds exist but workflow hasn't been configured yet
+        // workflowConfigured may be undefined for services created before this feature
+        const needsDeploymentSetup =
+          builds.length > 0 && activeService.workflowConfigured !== true;
 
         // Handle HTMX partial request
         if (req.headers["hx-request"]) {
