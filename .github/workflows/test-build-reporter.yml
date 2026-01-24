@@ -30,6 +30,6 @@ jobs:
         uses: donedgardo/build-reporter@v1
         with:
           api-key: ${{ secrets.GITLAUNCH_API_KEY }}
-          service-id: backend
+          service-id: 69741bbf9f9398e0facd3d5a
           action: report-build
           build-id: ${{ inputs.build-id || github.sha }}
