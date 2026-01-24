@@ -199,6 +199,68 @@ describe("ServiceRepository", () => {
     });
   });
 
+  describe("updateWorkflowConfiguration", () => {
+    it("should update workflow file and event type", async () => {
+      // Given: a service exists
+      const accountId = new ObjectId();
+      const repositoryId = new ObjectId();
+      const service = await repo.create({
+        accountId,
+        repositoryId,
+        name: "update-workflow-test",
+      });
+
+      // When: I update workflow configuration
+      const updated = await repo.updateWorkflowConfiguration(service._id, {
+        workflowFile: "deploy-prod.yml",
+        eventType: "deploy-prod",
+      });
+
+      // Then: workflowFile and eventType are updated
+      expect(updated).not.toBeNull();
+      expect(updated?.workflowFile).toBe("deploy-prod.yml");
+      expect(updated?.eventType).toBe("deploy-prod");
+    });
+
+    it("should return null if service not found", async () => {
+      // Given: a non-existent service ID
+      const fakeId = new ObjectId();
+
+      // When: I update workflow configuration
+      const result = await repo.updateWorkflowConfiguration(fakeId, {
+        workflowFile: "deploy.yml",
+        eventType: "deployment",
+      });
+
+      // Then: null is returned
+      expect(result).toBeNull();
+    });
+
+    it("should only update specified fields", async () => {
+      // Given: a service with custom environments
+      const accountId = new ObjectId();
+      const repositoryId = new ObjectId();
+      const service = await repo.create({
+        accountId,
+        repositoryId,
+        name: "partial-update-test",
+        environments: [{ name: "dev", displayName: "Dev", order: 0 }],
+      });
+
+      // When: I update workflow configuration
+      const updated = await repo.updateWorkflowConfiguration(service._id, {
+        workflowFile: "new-workflow.yml",
+        eventType: "new-event",
+      });
+
+      // Then: environments are not changed
+      expect(updated?.environments).toEqual([
+        { name: "dev", displayName: "Dev", order: 0 },
+      ]);
+      expect(updated?.name).toBe("partial-update-test");
+    });
+  });
+
   describe("ensureIndexes", () => {
     it("should create unique index on accountId, repositoryId, name", async () => {
       // Given

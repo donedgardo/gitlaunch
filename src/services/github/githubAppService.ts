@@ -10,8 +10,20 @@ export type GitHubRepo = {
   owner: { login: string };
 };
 
+export type GitHubWorkflow = {
+  id: number;
+  name: string;
+  path: string;
+  state: string;
+};
+
 export interface IGitHubApiClient {
   listInstallationRepos(token: string): Promise<GitHubRepo[]>;
+  listWorkflows(
+    token: string,
+    owner: string,
+    repo: string,
+  ): Promise<GitHubWorkflow[]>;
 }
 
 export class GitHubAppService {
@@ -58,5 +70,31 @@ export class GitHubAppService {
       account.githubInstallationId,
     );
     return this.apiClient.listInstallationRepos(token);
+  }
+
+  async listRepositoryWorkflows(
+    accountId: ObjectId,
+    owner: string,
+    repo: string,
+  ): Promise<GitHubWorkflow[]> {
+    const account = await this.accountRepo.findById(accountId);
+    if (!account) {
+      throw new Error("Account not found");
+    }
+
+    if (!account.githubInstallationId) {
+      throw new Error("Account does not have a GitHub App installation");
+    }
+
+    if (!this.tokenService || !this.apiClient) {
+      throw new Error(
+        "Token service and API client required for listing workflows",
+      );
+    }
+
+    const { token } = await this.tokenService.getToken(
+      account.githubInstallationId,
+    );
+    return this.apiClient.listWorkflows(token, owner, repo);
   }
 }

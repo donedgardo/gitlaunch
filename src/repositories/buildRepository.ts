@@ -107,4 +107,18 @@ export class BuildRepository {
 
     return result;
   }
+
+  async hasAnyDeployments(
+    accountId: ObjectId,
+    serviceId: ObjectId,
+  ): Promise<boolean> {
+    // Check if any build has at least one deployment (non-empty deployments object)
+    const buildWithDeployment = await this.collection.findOne({
+      accountId,
+      serviceId,
+      $expr: { $gt: [{ $size: { $objectToArray: "$deployments" } }, 0] },
+    });
+
+    return buildWithDeployment !== null;
+  }
 }

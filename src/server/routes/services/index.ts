@@ -4,12 +4,14 @@ import { AccountRepository } from "../../../repositories/accountRepository";
 import { RepositoryRepository } from "../../../repositories/repositoryRepository";
 import { ServiceRepository } from "../../../repositories/serviceRepository";
 import { ApiKeyService } from "../../../services/apiKey/apiKeyService";
+import { GitHubAppService } from "../../../services/github/githubAppService";
 
 export type ServiceRoutesDeps = {
   accountRepository: AccountRepository;
   repositoryRepository: RepositoryRepository;
   serviceRepository: ServiceRepository;
   apiKeyService: ApiKeyService;
+  githubAppService?: GitHubAppService;
 };
 
 export function registerServiceRoutes(
@@ -21,6 +23,7 @@ export function registerServiceRoutes(
     repositoryRepository,
     serviceRepository,
     apiKeyService,
+    githubAppService,
   } = deps;
 
   // GET /services/new - Show create service form
@@ -234,6 +237,133 @@ export function registerServiceRoutes(
         },
         { layout: "/layouts/main.hbs" },
       );
+    },
+  );
+
+  // GET /services/:serviceId/workflows - Fetch workflows from GitHub
+  app.get<{ Params: { serviceId: string } }>(
+    "/services/:serviceId/workflows",
+    async (
+      request: FastifyRequest<{ Params: { serviceId: string } }>,
+      reply: FastifyReply,
+    ) => {
+      // Redirect to login if not authenticated
+      if (!request.session) {
+        return reply.redirect("/auth/github");
+      }
+
+      const accountId = new ObjectId(request.session.accountId);
+      const { serviceId } = request.params;
+
+      // Validate ObjectId
+      let serviceObjectId: ObjectId;
+      try {
+        serviceObjectId = new ObjectId(serviceId);
+      } catch {
+        return reply.status(400).send("Invalid service ID");
+      }
+
+      // Find the service
+      const service = await serviceRepository.findByAccountAndId(
+        accountId,
+        serviceObjectId,
+      );
+      if (!service) {
+        return reply.status(404).send("Service not found");
+      }
+
+      // Get the repository
+      const repository = await repositoryRepository.findById(
+        service.repositoryId,
+      );
+      if (!repository) {
+        return reply.status(404).send("Repository not found");
+      }
+
+      // Check if GitHub App service is available
+      if (!githubAppService) {
+        return reply
+          .status(500)
+          .send("<option value=''>GitHub integration not configured</option>");
+      }
+
+      try {
+        // Fetch workflows from GitHub
+        const workflows = await githubAppService.listRepositoryWorkflows(
+          accountId,
+          repository.githubOwner,
+          repository.githubRepoName,
+        );
+
+        // Return HTML options
+        const options = workflows
+          .map((w) => {
+            const filename = w.path.split("/").pop() || w.path;
+            return `<option value="${filename}">${w.name} (${filename})</option>`;
+          })
+          .join("\n");
+
+        return reply
+          .header("Content-Type", "text/html")
+          .send(
+            options ||
+              "<option value=''>No workflows found - create one first</option>",
+          );
+      } catch (error) {
+        return reply
+          .status(500)
+          .send("<option value=''>Failed to load workflows</option>");
+      }
+    },
+  );
+
+  // POST /services/:serviceId/configure-workflow - Save workflow configuration
+  app.post<{
+    Params: { serviceId: string };
+    Body: { workflowFile: string; eventType: string };
+  }>(
+    "/services/:serviceId/configure-workflow",
+    async (
+      request: FastifyRequest<{
+        Params: { serviceId: string };
+        Body: { workflowFile: string; eventType: string };
+      }>,
+      reply: FastifyReply,
+    ) => {
+      // Redirect to login if not authenticated
+      if (!request.session) {
+        return reply.redirect("/auth/github");
+      }
+
+      const accountId = new ObjectId(request.session.accountId);
+      const { serviceId } = request.params;
+      const { workflowFile, eventType } = request.body;
+
+      // Validate ObjectId
+      let serviceObjectId: ObjectId;
+      try {
+        serviceObjectId = new ObjectId(serviceId);
+      } catch {
+        return reply.status(400).send("Invalid service ID");
+      }
+
+      // Find the service
+      const service = await serviceRepository.findByAccountAndId(
+        accountId,
+        serviceObjectId,
+      );
+      if (!service) {
+        return reply.status(404).send("Service not found");
+      }
+
+      // Update the service configuration
+      await serviceRepository.updateWorkflowConfiguration(serviceObjectId, {
+        workflowFile: workflowFile || "deploy.yml",
+        eventType: eventType || "deployment",
+      });
+
+      // Redirect to dashboard
+      return reply.redirect(`/dashboard/${service.name}`);
     },
   );
 }

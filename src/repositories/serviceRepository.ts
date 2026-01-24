@@ -92,4 +92,22 @@ export class ServiceRepository {
   ): Promise<Service | null> {
     return this.collection.findOne({ accountId, name });
   }
+
+  async updateWorkflowConfiguration(
+    id: ObjectId,
+    config: { workflowFile: string; eventType: string },
+  ): Promise<Service | null> {
+    const result = await this.collection.findOneAndUpdate(
+      { _id: id },
+      {
+        $set: {
+          workflowFile: config.workflowFile,
+          eventType: config.eventType,
+        },
+      },
+      { returnDocument: "after" },
+    );
+
+    return result;
+  }
 }

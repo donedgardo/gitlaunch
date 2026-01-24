@@ -22,6 +22,8 @@ class FakeGitHubAppClient implements IGitHubAppClient {
   }
 }
 
+import { GitHubWorkflow } from "./githubAppService";
+
 // Fake GitHub API client
 class FakeGitHubApiClient implements IGitHubApiClient {
   public reposToReturn: GitHubRepo[] = [
@@ -41,8 +43,26 @@ class FakeGitHubApiClient implements IGitHubApiClient {
     },
   ];
 
+  public workflowsToReturn: GitHubWorkflow[] = [
+    { id: 1, name: "CI", path: ".github/workflows/ci.yml", state: "active" },
+    {
+      id: 2,
+      name: "Deploy",
+      path: ".github/workflows/deploy.yml",
+      state: "active",
+    },
+  ];
+
   async listInstallationRepos(_token: string): Promise<GitHubRepo[]> {
     return this.reposToReturn;
+  }
+
+  async listWorkflows(
+    _token: string,
+    _owner: string,
+    _repo: string,
+  ): Promise<GitHubWorkflow[]> {
+    return this.workflowsToReturn;
   }
 }
 
@@ -175,6 +195,60 @@ describe("GitHubAppService", () => {
       // When/Then: listing repos throws error
       await expect(
         serviceWithClients.listInstallationRepos(account._id),
+      ).rejects.toThrow("Account does not have a GitHub App installation");
+    });
+  });
+
+  describe("listRepositoryWorkflows", () => {
+    it("should return workflows for a repository", async () => {
+      // Given: an account with GitHub installation
+      const account = await accountRepo.create({
+        name: "My Org",
+        slug: "my-org-workflows",
+      });
+      await accountRepo.updateInstallation(account._id, 12345);
+
+      const fakeAppClient = new FakeGitHubAppClient();
+      const fakeApiClient = new FakeGitHubApiClient();
+      const tokenService = new InstallationTokenService(fakeAppClient);
+      const serviceWithClients = new GitHubAppService(
+        accountRepo,
+        tokenService,
+        fakeApiClient,
+      );
+
+      // When: I list workflows for a repo
+      const workflows = await serviceWithClients.listRepositoryWorkflows(
+        account._id,
+        "org",
+        "repo-1",
+      );
+
+      // Then: workflows are returned
+      expect(workflows).toHaveLength(2);
+      expect(workflows[0].name).toBe("CI");
+      expect(workflows[1].name).toBe("Deploy");
+    });
+
+    it("should throw error when account has no installation", async () => {
+      // Given: an account without installation
+      const account = await accountRepo.create({
+        name: "No Install Workflows",
+        slug: "no-install-workflows",
+      });
+
+      const fakeAppClient = new FakeGitHubAppClient();
+      const fakeApiClient = new FakeGitHubApiClient();
+      const tokenService = new InstallationTokenService(fakeAppClient);
+      const serviceWithClients = new GitHubAppService(
+        accountRepo,
+        tokenService,
+        fakeApiClient,
+      );
+
+      // When/Then: listing workflows throws error
+      await expect(
+        serviceWithClients.listRepositoryWorkflows(account._id, "org", "repo"),
       ).rejects.toThrow("Account does not have a GitHub App installation");
     });
   });

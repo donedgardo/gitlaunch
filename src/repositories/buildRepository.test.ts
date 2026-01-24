@@ -335,6 +335,94 @@ describe("BuildRepository", () => {
     });
   });
 
+  describe("hasAnyDeployments", () => {
+    it("should return false when builds exist but none have deployments", async () => {
+      // Given: builds with empty deployments
+      await repo.create({
+        accountId: testAccountId,
+        serviceId: testServiceId,
+        buildId: "build-no-deploy-1",
+      });
+      await repo.create({
+        accountId: testAccountId,
+        serviceId: testServiceId,
+        buildId: "build-no-deploy-2",
+      });
+
+      // When: I check hasAnyDeployments
+      const result = await repo.hasAnyDeployments(testAccountId, testServiceId);
+
+      // Then: false is returned
+      expect(result).toBe(false);
+    });
+
+    it("should return true when at least one build has a deployment", async () => {
+      // Given: one build without deployment, one with deployment
+      await repo.create({
+        accountId: testAccountId,
+        serviceId: testServiceId,
+        buildId: "build-no-deploy",
+      });
+      await repo.create({
+        accountId: testAccountId,
+        serviceId: testServiceId,
+        buildId: "build-with-deploy",
+      });
+      await repo.updateDeploymentStatus(
+        testAccountId,
+        testServiceId,
+        "build-with-deploy",
+        "staging",
+        DeploymentStatus.DEPLOYED,
+      );
+
+      // When: I check hasAnyDeployments
+      const result = await repo.hasAnyDeployments(testAccountId, testServiceId);
+
+      // Then: true is returned
+      expect(result).toBe(true);
+    });
+
+    it("should return false when no builds exist", async () => {
+      // Given: no builds for this service
+      const emptyServiceId = new ObjectId();
+
+      // When: I check hasAnyDeployments
+      const result = await repo.hasAnyDeployments(
+        testAccountId,
+        emptyServiceId,
+      );
+
+      // Then: false is returned
+      expect(result).toBe(false);
+    });
+
+    it("should enforce tenant isolation", async () => {
+      // Given: a build with deployment for account A
+      const accountA = new ObjectId();
+      const accountB = new ObjectId();
+
+      await repo.create({
+        accountId: accountA,
+        serviceId: testServiceId,
+        buildId: "account-a-build",
+      });
+      await repo.updateDeploymentStatus(
+        accountA,
+        testServiceId,
+        "account-a-build",
+        "staging",
+        DeploymentStatus.DEPLOYED,
+      );
+
+      // When: account B checks hasAnyDeployments
+      const result = await repo.hasAnyDeployments(accountB, testServiceId);
+
+      // Then: false is returned (tenant isolation)
+      expect(result).toBe(false);
+    });
+  });
+
   describe("ensureIndexes", () => {
     it("should create unique compound index that prevents duplicates", async () => {
       // Given: indexes are created

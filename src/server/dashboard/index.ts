@@ -107,6 +107,17 @@ export default function (deps: DashboardRoutesDeps) {
         );
         const formattedBuilds = formatBuildsForTemplate(builds, environments);
 
+        // Check if we need to show deployment setup guide
+        // Show guide when builds exist but no deployments have been made
+        let needsDeploymentSetup = false;
+        if (builds.length > 0) {
+          const hasDeployments = await buildRepository.hasAnyDeployments(
+            accountId,
+            activeService._id,
+          );
+          needsDeploymentSetup = !hasDeployments;
+        }
+
         // Handle HTMX partial request
         if (req.headers["hx-request"]) {
           const navigationTemplate = Handlebars.compile("{{>navigation}}");
@@ -117,9 +128,11 @@ export default function (deps: DashboardRoutesDeps) {
           const buildTableTemplate = Handlebars.compile("{{>buildTable}}");
           const buildTableHtml = buildTableTemplate({
             serviceName: serviceName,
+            serviceId: activeService._id.toString(),
             environments,
             builds: formattedBuilds,
             githubFullName,
+            needsDeploymentSetup,
           });
           return reply
             .header("Content-Type", "text/html")
@@ -132,9 +145,11 @@ export default function (deps: DashboardRoutesDeps) {
           {
             services: serviceNames,
             activeService: serviceName,
+            serviceId: activeService._id.toString(),
             environments,
             builds: formattedBuilds,
             githubFullName,
+            needsDeploymentSetup,
           },
           {
             layout: "/layouts/main.hbs",
