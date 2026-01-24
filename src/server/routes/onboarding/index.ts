@@ -62,9 +62,12 @@ export function registerOnboardingRoutes(
   );
 
   // GET /onboarding/repositories - Repository selection page
-  app.get(
+  app.get<{ Querystring: { returnTo?: string } }>(
     "/onboarding/repositories",
-    async (request: FastifyRequest, reply: FastifyReply) => {
+    async (
+      request: FastifyRequest<{ Querystring: { returnTo?: string } }>,
+      reply: FastifyReply,
+    ) => {
       // Redirect to login if not authenticated
       if (!request.session) {
         return reply.redirect("/auth/github");
@@ -100,6 +103,9 @@ export function registerOnboardingRoutes(
       // Get plan usage info to show limits in UI
       const usage = await planEnforcementService.getUsage(account._id);
 
+      // Get returnTo for redirecting after completion
+      const returnTo = request.query.returnTo;
+
       return reply.view(
         "onboarding/select-repos",
         {
@@ -108,6 +114,7 @@ export function registerOnboardingRoutes(
           maxRepositories: usage.repositories.limit,
           privateReposAllowed: usage.privateReposAllowed,
           plan: usage.plan,
+          returnTo,
         },
         { layout: "/layouts/main.hbs" },
       );
@@ -116,11 +123,13 @@ export function registerOnboardingRoutes(
 
   // POST /onboarding/repositories - Save selected repositories
   app.post<{
-    Body: { repositories?: string | string[] };
+    Body: { repositories?: string | string[]; returnTo?: string };
   }>(
     "/onboarding/repositories",
     async (
-      request: FastifyRequest<{ Body: { repositories?: string | string[] } }>,
+      request: FastifyRequest<{
+        Body: { repositories?: string | string[]; returnTo?: string };
+      }>,
       reply: FastifyReply,
     ) => {
       // Redirect to login if not authenticated
@@ -211,8 +220,9 @@ export function registerOnboardingRoutes(
         }
       }
 
-      // Redirect to dashboard - API key will be shown when creating a service
-      return reply.redirect("/dashboard");
+      // Redirect to returnTo if provided, otherwise to dashboard
+      const redirectTo = request.body.returnTo || "/dashboard";
+      return reply.redirect(redirectTo);
     },
   );
 }
