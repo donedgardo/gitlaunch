@@ -111,6 +111,117 @@ jobs:
     </div>
   </div>
 
+  <!-- Step 3: Report Deployment Status -->
+  <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-lg overflow-hidden mb-6">
+    <div class="p-6 sm:p-8">
+      <div style="display: flex; align-items: flex-start;">
+        <div style="width: 32px; height: 32px; min-width: 32px; display: flex; align-items: center; justify-content: center;" class="bg-gray-400 text-white rounded-full font-semibold mr-4">
+          3
+        </div>
+        <div style="flex: 1;">
+          <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+            Report Deployment Status
+          </h2>
+          <p class="text-gray-600 dark:text-gray-400 mb-4">
+            Use the build-reporter action to update deployment status throughout your workflow:
+          </p>
+          <div class="relative">
+            <div class="bg-gray-900 dark:bg-gray-950 rounded-xl p-4 font-mono text-sm text-green-400 overflow-x-auto">
+              <pre><code>jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      # Report: Deployment started
+      - name: Report deploying
+        uses: donedgardo/build-reporter@v1
+        with:
+          api-key: $&#123;&#123; secrets.GITLAUNCH_API_KEY &#125;&#125;
+          service-id: {{serviceId}}
+          action: report-deployment
+          build-id: $&#123;&#123; github.event.client_payload.buildId &#125;&#125;
+          environment: $&#123;&#123; github.event.client_payload.environment &#125;&#125;
+          status: deploying
+
+      # Your actual deployment steps here
+      - name: Deploy application
+        id: deploy
+        run: |
+          # Your deployment commands...
+          echo "Deploying to $&#123;&#123; github.event.client_payload.environment &#125;&#125;"
+
+      # Report: Deployment succeeded
+      - name: Report deployed
+        if: success()
+        uses: donedgardo/build-reporter@v1
+        with:
+          api-key: $&#123;&#123; secrets.GITLAUNCH_API_KEY &#125;&#125;
+          service-id: {{serviceId}}
+          action: report-deployment
+          build-id: $&#123;&#123; github.event.client_payload.buildId &#125;&#125;
+          environment: $&#123;&#123; github.event.client_payload.environment &#125;&#125;
+          status: deployed
+
+      # Report: Deployment failed
+      - name: Report error
+        if: failure()
+        uses: donedgardo/build-reporter@v1
+        with:
+          api-key: $&#123;&#123; secrets.GITLAUNCH_API_KEY &#125;&#125;
+          service-id: {{serviceId}}
+          action: report-deployment
+          build-id: $&#123;&#123; github.event.client_payload.buildId &#125;&#125;
+          environment: $&#123;&#123; github.event.client_payload.environment &#125;&#125;
+          status: error
+
+      # Report: Deployment cancelled
+      - name: Report cancelled
+        if: cancelled()
+        uses: donedgardo/build-reporter@v1
+        with:
+          api-key: $&#123;&#123; secrets.GITLAUNCH_API_KEY &#125;&#125;
+          service-id: {{serviceId}}
+          action: report-deployment
+          build-id: $&#123;&#123; github.event.client_payload.buildId &#125;&#125;
+          environment: $&#123;&#123; github.event.client_payload.environment &#125;&#125;
+          status: cancelled</code></pre>
+            </div>
+          </div>
+
+          <!-- Status Reference -->
+          <div class="mt-6">
+            <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-3">Available Status Values</h3>
+            <div class="grid grid-cols-2 gap-2">
+              <div class="flex items-center space-x-2 p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">
+                  deploying
+                </span>
+                <span class="text-xs text-gray-500 dark:text-gray-400">In progress</span>
+              </div>
+              <div class="flex items-center space-x-2 p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300">
+                  deployed
+                </span>
+                <span class="text-xs text-gray-500 dark:text-gray-400">Success</span>
+              </div>
+              <div class="flex items-center space-x-2 p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300">
+                  error
+                </span>
+                <span class="text-xs text-gray-500 dark:text-gray-400">Failed</span>
+              </div>
+              <div class="flex items-center space-x-2 p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-600 dark:text-gray-300">
+                  cancelled
+                </span>
+                <span class="text-xs text-gray-500 dark:text-gray-400">Aborted</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Documentation Link -->
   <div class="text-center">
     <a
