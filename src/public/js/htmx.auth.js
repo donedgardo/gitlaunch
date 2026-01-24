@@ -19,14 +19,16 @@ auth().then((token) => {
   authToken = token;
 });
 
-// gate htmx requests on the auth token
+// gate htmx requests on the auth token (only for API requests that need it)
 window.htmx.on("htmx:confirm", (e) => {
-  // if there is no auth token
-  if (authToken == null) {
+  // Only gate requests that need auth tokens (API endpoints)
+  // Dashboard navigation uses session cookies, not auth tokens
+  const url = e.detail.path || "";
+  if (url.startsWith("/api/") && authToken == null) {
     // stop the regular request from being issued
     e.preventDefault();
     // only issue it once the auth promise has resolved
-    auth.then(() => e.detail.issueRequest());
+    auth().then(() => e.detail.issueRequest());
   }
 });
 

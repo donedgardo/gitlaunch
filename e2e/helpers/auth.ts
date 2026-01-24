@@ -82,4 +82,10 @@ export const TEST_USERS = {
     accountId: "000000000000000000000055",
     hasGitHubApp: true,
   },
+  // User with multiple services (for navigation tests)
+  userWithMultipleServices: {
+    userId: "000000000000000000000006",
+    accountId: "000000000000000000000066",
+    hasGitHubApp: true,
+  },
 };

@@ -1,9 +1,9 @@
 {{#if needsDeploymentSetup}}
-<div id="build-table" hx-swap-oob="true">
+<div id="build-table">
   {{> deploymentSetupGuide serviceId=serviceId }}
 </div>
 {{else if builds.length}}
-<div id="build-table" class="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700" hx-swap-oob="true">
+<div id="build-table" class="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
   <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
     <thead class="bg-gray-50 dark:bg-gray-800">
     <tr>
@@ -25,7 +25,7 @@
   </table>
 </div>
 {{else}}
-<div id="build-table" hx-swap-oob="true">
+<div id="build-table">
   {{> emptyBuilds serviceId=serviceId }}
 </div>
 {{/if}}

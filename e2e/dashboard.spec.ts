@@ -80,3 +80,46 @@ test.describe("Dashboard - Empty State", () => {
     await expect(page).toHaveURL(/\/(services\/new|onboarding)/);
   });
 });
+
+test.describe("Dashboard - Navigation", () => {
+  test("clicking a service tab navigates to that service", async ({ page }) => {
+    // Authenticate as user with multiple services
+    await authenticateTestUser(page, TEST_USERS.userWithMultipleServices);
+
+    // Visit frontend service directly
+    await page.goto("/dashboard/frontend");
+    await expect(page).toHaveURL("/dashboard/frontend");
+
+    // Click on the backend service tab
+    const backendLink = page.getByRole("link", { name: "backend" });
+    await backendLink.click();
+
+    // Should navigate to backend service
+    await expect(page).toHaveURL("/dashboard/backend");
+
+    // The backend tab should now be active (has the blue styling)
+    await expect(backendLink).toHaveClass(/text-blue-600/);
+  });
+
+  test("navigation updates build table content via HTMX", async ({ page }) => {
+    // Authenticate as user with multiple services
+    await authenticateTestUser(page, TEST_USERS.userWithMultipleServices);
+
+    // Visit dashboard on frontend service
+    await page.goto("/dashboard/frontend");
+
+    // Click on the backend service tab
+    await page.getByRole("link", { name: "backend" }).click();
+
+    // Wait for HTMX to update the page
+    await expect(page).toHaveURL("/dashboard/backend");
+
+    // The navigation should show backend as active
+    const backendTab = page.getByRole("link", { name: "backend" });
+    await expect(backendTab).toHaveClass(/text-blue-600/);
+
+    // The frontend tab should not be active
+    const frontendTab = page.getByRole("link", { name: "frontend" });
+    await expect(frontendTab).not.toHaveClass(/text-blue-600/);
+  });
+});

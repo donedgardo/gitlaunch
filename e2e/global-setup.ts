@@ -247,6 +247,94 @@ export default async function globalSetup() {
 
     // NOTE: No repositories are created for this user
 
+    // Create test user WITH multiple services (for navigation tests)
+    const testUser6Id = new ObjectId("000000000000000000000006");
+    const testAccount6Id = new ObjectId("000000000000000000000066");
+    const testRepo2Id = new ObjectId("000000000000000000000102");
+    const testService1Id = new ObjectId("000000000000000000000201");
+    const testService2Id = new ObjectId("000000000000000000000202");
+
+    await db.collection("users").insertOne({
+      _id: testUser6Id,
+      githubId: 99906,
+      githubLogin: "test-user-with-services",
+      email: "test-with-services@example.com",
+      name: "Test User With Services",
+      avatarUrl: null,
+      createdAt: new Date(),
+      lastLoginAt: new Date(),
+    });
+
+    await db.collection("accounts").insertOne({
+      _id: testAccount6Id,
+      name: "Test Account With Services",
+      slug: "test-account-with-services",
+      plan: "free",
+      planLimits: {
+        maxRepositories: 3,
+        maxUsers: 1,
+        publicReposOnly: false,
+      },
+      stripeCustomerId: null,
+      stripeSubscriptionId: null,
+      paymentFailedAt: null,
+      githubInstallationId: 12349,
+      githubInstallationAccessToken: null,
+      githubInstallationTokenExpiresAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    await db.collection("memberships").insertOne({
+      _id: new ObjectId(),
+      userId: testUser6Id,
+      accountId: testAccount6Id,
+      role: "owner",
+      createdAt: new Date(),
+    });
+
+    await db.collection("repositories").insertOne({
+      _id: testRepo2Id,
+      accountId: testAccount6Id,
+      githubRepoId: 200002,
+      githubFullName: "test-org/multi-service-repo",
+      githubOwner: "test-org",
+      githubRepoName: "multi-service-repo",
+      isPrivate: false,
+      createdAt: new Date(),
+    });
+
+    // Create two services for navigation testing
+    await db.collection("services").insertOne({
+      _id: testService1Id,
+      accountId: testAccount6Id,
+      repositoryId: testRepo2Id,
+      name: "frontend",
+      environments: [
+        { name: "staging", displayName: "Staging", order: 0 },
+        { name: "prod", displayName: "Production", order: 1 },
+      ],
+      workflowFile: "deploy.yml",
+      eventType: "deployment",
+      isActive: true,
+      createdAt: new Date(),
+    });
+
+    await db.collection("services").insertOne({
+      _id: testService2Id,
+      accountId: testAccount6Id,
+      repositoryId: testRepo2Id,
+      name: "backend",
+      environments: [
+        { name: "staging", displayName: "Staging", order: 0 },
+        { name: "prod", displayName: "Production", order: 1 },
+      ],
+      workflowFile: "deploy.yml",
+      eventType: "deployment",
+      isActive: true,
+      createdAt: new Date(),
+    });
+
     console.log("Test data created successfully");
   } finally {
     await client.close();
