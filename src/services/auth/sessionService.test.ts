@@ -67,8 +67,8 @@ describe("SessionService", () => {
         accountId: new ObjectId(),
       });
 
-      // When: time passes beyond expiry (default 15 minutes)
-      vi.advanceTimersByTime(16 * 60 * 1000); // 16 minutes
+      // When: time passes beyond expiry (default 7 days)
+      vi.advanceTimersByTime(8 * 24 * 60 * 60 * 1000); // 8 days
 
       // Then: validation returns null
       const session = service.validateSession(token);

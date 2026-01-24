@@ -1,4 +1,5 @@
-import { FastifyInstance, FastifyRequest } from "fastify";
+import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
+import { ObjectId } from "mongodb";
 import {
   SessionService,
   SessionPayload,
@@ -25,17 +26,25 @@ export function registerSessionMiddleware(
   app.decorateRequest("session", null);
 
   // Add hook to parse session from cookie or header
-  app.addHook("preHandler", async (request: FastifyRequest) => {
-    const token = extractToken(request);
+  app.addHook(
+    "preHandler",
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const token = extractToken(request);
 
-    if (!token) {
-      request.session = null;
-      return;
-    }
+      if (!token) {
+        request.session = null;
+        return;
+      }
 
-    const session = sessionService.validateSession(token);
-    request.session = session;
-  });
+      const session = sessionService.validateSession(token);
+      request.session = session;
+
+      // Refresh session cookie on each request (sliding session)
+      if (session) {
+        refreshSessionCookie(reply, sessionService, session);
+      }
+    },
+  );
 }
 
 export function sessionAuthMiddleware(
@@ -46,16 +55,43 @@ export function sessionAuthMiddleware(
   app.decorateRequest("session", null);
 
   // Add hook to parse session from cookie or header
-  app.addHook("preHandler", async (request: FastifyRequest) => {
-    const token = extractToken(request);
+  app.addHook(
+    "preHandler",
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const token = extractToken(request);
 
-    if (!token) {
-      request.session = null;
-      return;
-    }
+      if (!token) {
+        request.session = null;
+        return;
+      }
 
-    const session = sessionService.validateSession(token);
-    request.session = session;
+      const session = sessionService.validateSession(token);
+      request.session = session;
+
+      // Refresh session cookie on each request (sliding session)
+      if (session) {
+        refreshSessionCookie(reply, sessionService, session);
+      }
+    },
+  );
+}
+
+function refreshSessionCookie(
+  reply: FastifyReply,
+  sessionService: SessionService,
+  session: SessionPayload,
+): void {
+  const newToken = sessionService.createSession({
+    userId: new ObjectId(session.userId),
+    accountId: new ObjectId(session.accountId),
+  });
+
+  reply.setCookie("session", newToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 7 * 24 * 60 * 60, // 7 days
   });
 }
 

@@ -15,7 +15,7 @@ export type SessionServiceOptions = {
   expiresInSeconds?: number;
 };
 
-const DEFAULT_EXPIRY_SECONDS = 15 * 60; // 15 minutes
+const DEFAULT_EXPIRY_SECONDS = 7 * 24 * 60 * 60; // 7 days
 
 export class SessionService {
   private secret: string;
