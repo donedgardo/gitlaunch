@@ -17,11 +17,9 @@ type EnvNameParams = ServiceIdParams & {
 
 type AddEnvironmentBody = {
   name: string;
-  displayName: string;
 };
 
 type UpdateEnvironmentBody = {
-  displayName?: string;
   order?: number;
 };
 
@@ -80,17 +78,15 @@ export function registerEnvironmentsRoutes(
       reply: FastifyReply,
     ) => {
       const { serviceId: serviceIdParam } = request.params;
-      const { name, displayName } = request.body;
+      const { name } = request.body;
       const accountId = request.apiKey!.accountId;
 
       if (!ObjectId.isValid(serviceIdParam)) {
         return reply.status(400).send({ error: "Invalid service ID" });
       }
 
-      if (!name || !displayName) {
-        return reply
-          .status(400)
-          .send({ error: "name and displayName are required" });
+      if (!name) {
+        return reply.status(400).send({ error: "name is required" });
       }
 
       const serviceId = new ObjectId(serviceIdParam);
@@ -99,7 +95,7 @@ export function registerEnvironmentsRoutes(
         const service = await environmentService.addEnvironment(
           accountId,
           serviceId,
-          { name, displayName },
+          { name },
         );
 
         return reply.status(201).send({
@@ -128,7 +124,7 @@ export function registerEnvironmentsRoutes(
       reply: FastifyReply,
     ) => {
       const { serviceId: serviceIdParam, envName } = request.params;
-      const { displayName, order } = request.body;
+      const { order } = request.body;
       const accountId = request.apiKey!.accountId;
 
       if (!ObjectId.isValid(serviceIdParam)) {
@@ -142,7 +138,7 @@ export function registerEnvironmentsRoutes(
           accountId,
           serviceId,
           envName,
-          { displayName, order },
+          { order },
         );
 
         return reply.send({

@@ -15,7 +15,7 @@ import { authenticateTestUser, TEST_USERS } from "./helpers/auth";
  * ─────────────────
  * 1. Users can VIEW their service's environments in the dashboard/settings
  * 2. Users can ADD new environments (e.g., "qa", "uat")
- * 3. Users can EDIT environment display names (e.g., "prod" → "Production US-East")
+ * 3. Users can EDIT environment order
  * 4. Users can REORDER environments to match their deployment flow
  * 5. Users can REMOVE environments they no longer need
  * 6. Changes are immediately reflected in the build deployment table
@@ -31,14 +31,14 @@ import { authenticateTestUser, TEST_USERS } from "./helpers/auth";
  *
  * Feature: Add Environment
  *   Given I am on service settings
- *   When I add a new environment "qa" with display name "QA Testing"
+ *   When I add a new environment "qa"
  *   Then the environment appears in the list
  *   And the dashboard build table shows the new column
  *
  * Feature: Edit Environment
  *   Given I have an environment "staging"
- *   When I change its display name to "Staging US-West"
- *   Then the new name appears in the dashboard
+ *   When I change its order
+ *   Then the new order is reflected in the dashboard
  *
  * Feature: Reorder Environments
  *   Given I have environments in order: staging, prod
@@ -71,9 +71,9 @@ test.describe("Environment Management", () => {
       await expect(
         page.getByRole("heading", { name: /environments/i }),
       ).toBeVisible();
-      // Check environment display names (first match for each)
-      await expect(page.getByText("Staging").first()).toBeVisible();
-      await expect(page.getByText("Production").first()).toBeVisible();
+      // Check environment names (first match for each)
+      await expect(page.getByText("staging").first()).toBeVisible();
+      await expect(page.getByText("prod").first()).toBeVisible();
     });
   });
 
@@ -87,14 +87,13 @@ test.describe("Environment Management", () => {
       await page.getByRole("button", { name: /add environment/i }).click();
       const addModal = page.locator("#add-env-modal");
       await addModal.locator("#env-name").fill("qa");
-      await addModal.locator("#env-display-name").fill("QA Testing");
       await addModal.getByRole("button", { name: /save/i }).click();
 
       // Wait for modal to close (HTMX request completed)
       await expect(addModal).toBeHidden();
 
       // Then: the environment appears in the list
-      await expect(page.getByText("QA Testing")).toBeVisible();
+      await expect(page.locator('[data-env="qa"]')).toBeVisible();
     });
 
     test("new environment appears in dashboard build table", async ({
@@ -108,11 +107,10 @@ test.describe("Environment Management", () => {
       await page.getByRole("button", { name: /add environment/i }).click();
       const addModal = page.locator("#add-env-modal");
       await addModal.locator("#env-name").fill("qa");
-      await addModal.locator("#env-display-name").fill("QA Testing");
       await addModal.getByRole("button", { name: /save/i }).click();
 
       // Verify it was added
-      await expect(page.getByText("QA Testing").first()).toBeVisible();
+      await expect(page.locator('[data-env="qa"]')).toBeVisible();
 
       // When: I go to the dashboard
       await page.goto("/dashboard");
@@ -123,65 +121,35 @@ test.describe("Environment Management", () => {
   });
 
   test.describe("Edit Environment", () => {
-    test("user can change environment display name", async ({ page }) => {
+    test("user can change environment order", async ({ page }) => {
       // Given: I have an environment "staging"
       await authenticateTestUser(page, TEST_USERS.userWithService);
       await page.goto("/services/000000000000000000000203/settings");
 
-      // When: I edit the staging environment
+      // When: I edit the staging environment order
       await page
         .locator('[data-env="staging"]')
         .getByRole("button", { name: /edit/i })
         .click();
       const editModal = page.locator("#edit-env-modal");
-      await editModal.locator("#env-display-name").clear();
-      await editModal.locator("#env-display-name").fill("Staging US-West");
+      await editModal.locator("#env-order").clear();
+      await editModal.locator("#env-order").fill("5");
       await editModal.getByRole("button", { name: /save/i }).click();
 
-      // Then: the new name is displayed
-      await expect(page.getByText("Staging US-West")).toBeVisible();
+      // Then: the modal closes and environment still exists
+      await expect(editModal).toBeHidden();
+      await expect(page.locator('[data-env="staging"]')).toBeVisible();
     });
 
-    test("dashboard column header shows environment displayName", async ({
-      page,
-    }) => {
-      // Given: I have an environment with displayName "Staging"
+    test("dashboard column header shows environment name", async ({ page }) => {
+      // Given: I have an environment named "staging"
       await authenticateTestUser(page, TEST_USERS.userWithService);
 
       // When: I visit the dashboard
       await page.goto("/dashboard");
 
-      // Then: I should see the displayName "Staging" in the column header, not the internal name "staging"
-      const stagingHeader = page.locator("th").filter({ hasText: "Staging" });
-      await expect(stagingHeader).toBeVisible();
-      // The header should show the capitalized displayName, not lowercase "staging"
-      await expect(stagingHeader).toHaveText("Staging");
-    });
-
-    test("renamed displayName appears in dashboard column header", async ({
-      page,
-    }) => {
-      // Given: I rename the "staging" environment displayName to "Staging US-West"
-      await authenticateTestUser(page, TEST_USERS.userWithService);
-      await page.goto("/services/000000000000000000000203/settings");
-
-      await page
-        .locator('[data-env="staging"]')
-        .getByRole("button", { name: /edit/i })
-        .click();
-      const editModal = page.locator("#edit-env-modal");
-      await editModal.locator("#env-display-name").clear();
-      await editModal.locator("#env-display-name").fill("Staging US-West");
-      await editModal.getByRole("button", { name: /save/i }).click();
-      await expect(editModal).toBeHidden();
-
-      // When: I navigate to the dashboard
-      await page.goto("/dashboard");
-
-      // Then: the column header shows the new displayName "Staging US-West"
-      const stagingHeader = page
-        .locator("th")
-        .filter({ hasText: "Staging US-West" });
+      // Then: I should see the name "staging" in the column header
+      const stagingHeader = page.locator("th").filter({ hasText: "staging" });
       await expect(stagingHeader).toBeVisible();
     });
   });
@@ -221,9 +189,8 @@ test.describe("Environment Management", () => {
       await page.getByRole("button", { name: /add environment/i }).click();
       const addModal = page.locator("#add-env-modal");
       await addModal.locator("#env-name").fill("temp-env");
-      await addModal.locator("#env-display-name").fill("Temporary");
       await addModal.getByRole("button", { name: /save/i }).click();
-      await expect(page.getByText("Temporary")).toBeVisible();
+      await expect(page.locator('[data-env="temp-env"]')).toBeVisible();
 
       // When: I delete the environment
       await page
@@ -234,9 +201,7 @@ test.describe("Environment Management", () => {
       await deleteModal.getByRole("button", { name: /confirm/i }).click();
 
       // Then: it no longer appears in the environment list
-      await expect(
-        page.locator("#environment-list").getByText("Temporary"),
-      ).not.toBeVisible();
+      await expect(page.locator('[data-env="temp-env"]')).not.toBeVisible();
     });
 
     test("cannot delete last remaining environment", async ({ page }) => {
@@ -271,7 +236,6 @@ test.describe("Environment Management", () => {
       await page.getByRole("button", { name: /add environment/i }).click();
       const addModal = page.locator("#add-env-modal");
       await addModal.locator("#env-name").fill("My Environment!"); // Invalid: spaces and !
-      await addModal.locator("#env-display-name").fill("Test");
       await addModal.getByRole("button", { name: /save/i }).click();
 
       // Then: I see an error message
@@ -289,7 +253,6 @@ test.describe("Environment Management", () => {
       await page.getByRole("button", { name: /add environment/i }).click();
       const addModal = page.locator("#add-env-modal");
       await addModal.locator("#env-name").fill("staging"); // Duplicate
-      await addModal.locator("#env-display-name").fill("Another Staging");
       await addModal.getByRole("button", { name: /save/i }).click();
 
       // Wait for modal to close (HTMX request completed)

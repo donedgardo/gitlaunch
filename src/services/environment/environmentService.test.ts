@@ -125,13 +125,12 @@ describe("EnvironmentService", () => {
       // When: I add a new environment
       const result = await envService.addEnvironment(account._id, service._id, {
         name: "dev",
-        displayName: "Development",
       });
 
       // Then: environment is added
       expect(result.environments).toHaveLength(3);
       expect(result.environments).toContainEqual(
-        expect.objectContaining({ name: "dev", displayName: "Development" }),
+        expect.objectContaining({ name: "dev" }),
       );
     });
 
@@ -159,7 +158,6 @@ describe("EnvironmentService", () => {
       await expect(
         envService.addEnvironment(account._id, service._id, {
           name: "Invalid Name",
-          displayName: "Invalid",
         }),
       ).rejects.toThrow(
         "Environment name must be lowercase alphanumeric with hyphens",
@@ -168,7 +166,6 @@ describe("EnvironmentService", () => {
       await expect(
         envService.addEnvironment(account._id, service._id, {
           name: "has_underscore",
-          displayName: "Underscore",
         }),
       ).rejects.toThrow(
         "Environment name must be lowercase alphanumeric with hyphens",
@@ -199,7 +196,6 @@ describe("EnvironmentService", () => {
       await expect(
         envService.addEnvironment(account._id, service._id, {
           name: "staging",
-          displayName: "Another Staging",
         }),
       ).rejects.toThrow("Environment name already exists");
     });
@@ -232,14 +228,13 @@ describe("EnvironmentService", () => {
       await expect(
         envService.addEnvironment(other._id, service._id, {
           name: "dev",
-          displayName: "Development",
         }),
       ).rejects.toThrow("Service not found");
     });
   });
 
   describe("updateEnvironment", () => {
-    it("should update environment displayName", async () => {
+    it("should update environment order", async () => {
       // Given: a service
       const account = await accountRepo.create({
         name: "My Org",
@@ -259,17 +254,17 @@ describe("EnvironmentService", () => {
         name: "service-update",
       });
 
-      // When: I update displayName
+      // When: I update order
       const result = await envService.updateEnvironment(
         account._id,
         service._id,
         "staging",
-        { displayName: "Staging Environment" },
+        { order: 5 },
       );
 
-      // Then: displayName is updated
+      // Then: order is updated
       const env = result.environments.find((e) => e.name === "staging");
-      expect(env?.displayName).toBe("Staging Environment");
+      expect(env?.order).toBe(5);
     });
 
     it("should throw if environment not found", async () => {
@@ -295,7 +290,7 @@ describe("EnvironmentService", () => {
       // When/Then: updating non-existent env fails
       await expect(
         envService.updateEnvironment(account._id, service._id, "nonexistent", {
-          displayName: "New Name",
+          order: 5,
         }),
       ).rejects.toThrow("Environment not found");
     });
@@ -367,9 +362,9 @@ describe("EnvironmentService", () => {
         repositoryId: repo._id,
         name: "service-remove",
         environments: [
-          { name: "dev", displayName: "Development", order: 0 },
-          { name: "staging", displayName: "Staging", order: 1 },
-          { name: "prod", displayName: "Production", order: 2 },
+          { name: "dev", order: 0 },
+          { name: "staging", order: 1 },
+          { name: "prod", order: 2 },
         ],
       });
 
@@ -405,7 +400,7 @@ describe("EnvironmentService", () => {
         accountId: account._id,
         repositoryId: repo._id,
         name: "service-last",
-        environments: [{ name: "prod", displayName: "Production", order: 0 }],
+        environments: [{ name: "prod", order: 0 }],
       });
 
       // When/Then: removing last environment fails

@@ -2,7 +2,6 @@ import { Db, ObjectId, Collection } from "mongodb";
 
 export type Environment = {
   name: string;
-  displayName: string;
   order: number;
 };
 
@@ -29,8 +28,8 @@ export type CreateServiceInput = {
 };
 
 const DEFAULT_ENVIRONMENTS: Environment[] = [
-  { name: "staging", displayName: "Staging", order: 0 },
-  { name: "prod", displayName: "Production", order: 1 },
+  { name: "staging", order: 0 },
+  { name: "prod", order: 1 },
 ];
 
 export class ServiceRepository {
@@ -136,12 +135,9 @@ export class ServiceRepository {
   async updateEnvironment(
     id: ObjectId,
     envName: string,
-    updates: { displayName?: string; order?: number },
+    updates: { order?: number },
   ): Promise<Service | null> {
-    const setFields: Record<string, string | number> = {};
-    if (updates.displayName !== undefined) {
-      setFields["environments.$.displayName"] = updates.displayName;
-    }
+    const setFields: Record<string, number> = {};
     if (updates.order !== undefined) {
       setFields["environments.$.order"] = updates.order;
     }

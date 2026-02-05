@@ -104,13 +104,13 @@ export function registerSettingsRoutes(
   // POST /services/:serviceId/environments - Add environment (HTMX)
   app.post<{
     Params: { serviceId: string };
-    Body: { name: string; displayName: string };
+    Body: { name: string };
   }>(
     "/services/:serviceId/environments",
     async (
       request: FastifyRequest<{
         Params: { serviceId: string };
-        Body: { name: string; displayName: string };
+        Body: { name: string };
       }>,
       reply: FastifyReply,
     ) => {
@@ -118,13 +118,13 @@ export function registerSettingsRoutes(
       if (!result) return;
 
       const { service, accountId } = result;
-      const { name, displayName } = request.body;
+      const { name } = request.body;
 
       try {
         const updatedService = await environmentService.addEnvironment(
           accountId,
           service._id,
-          { name, displayName },
+          { name },
         );
 
         // Sort environments by order
@@ -158,13 +158,13 @@ export function registerSettingsRoutes(
   // PATCH /services/:serviceId/environments/:name - Update environment (HTMX)
   app.patch<{
     Params: { serviceId: string; name: string };
-    Body: { displayName?: string; order?: string };
+    Body: { order?: string };
   }>(
     "/services/:serviceId/environments/:name",
     async (
       request: FastifyRequest<{
         Params: { serviceId: string; name: string };
-        Body: { displayName?: string; order?: string };
+        Body: { order?: string };
       }>,
       reply: FastifyReply,
     ) => {
@@ -173,13 +173,10 @@ export function registerSettingsRoutes(
 
       const { service, accountId } = result;
       const { name: envName } = request.params;
-      const { displayName, order } = request.body;
+      const { order } = request.body;
 
       try {
-        const updates: { displayName?: string; order?: number } = {};
-        if (displayName !== undefined) {
-          updates.displayName = displayName;
-        }
+        const updates: { order?: number } = {};
         if (order !== undefined) {
           updates.order = parseInt(order, 10);
         }

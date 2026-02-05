@@ -311,8 +311,8 @@ export default async function globalSetup() {
       repositoryId: testRepo3Id,
       name: "env-test-service",
       environments: [
-        { name: "staging", displayName: "Staging", order: 0 },
-        { name: "prod", displayName: "Production", order: 1 },
+        { name: "staging", order: 0 },
+        { name: "prod", order: 1 },
       ],
       workflowFile: "deploy.yml",
       eventType: "deployment",
@@ -405,8 +405,8 @@ export default async function globalSetup() {
       repositoryId: testRepo2Id,
       name: "frontend",
       environments: [
-        { name: "staging", displayName: "Staging", order: 0 },
-        { name: "prod", displayName: "Production", order: 1 },
+        { name: "staging", order: 0 },
+        { name: "prod", order: 1 },
       ],
       workflowFile: "deploy.yml",
       eventType: "deployment",
@@ -421,8 +421,8 @@ export default async function globalSetup() {
       repositoryId: testRepo2Id,
       name: "backend",
       environments: [
-        { name: "staging", displayName: "Staging", order: 0 },
-        { name: "prod", displayName: "Production", order: 1 },
+        { name: "staging", order: 0 },
+        { name: "prod", order: 1 },
       ],
       workflowFile: "deploy.yml",
       eventType: "deployment",

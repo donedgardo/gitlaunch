@@ -25,7 +25,7 @@ export default function (deps: DashboardRoutesDeps) {
     // Helper to convert Build to template-friendly format
     const formatBuildsForTemplate = (
       builds: Build[],
-      environments: { name: string; displayName: string }[],
+      environments: { name: string }[],
       serviceName: string,
     ) => {
       return builds.map((build) => ({
@@ -93,10 +93,9 @@ export default function (deps: DashboardRoutesDeps) {
           return reply.redirect("/dashboard");
         }
 
-        // Get environment names and displayNames
+        // Get environment names
         const environments = activeService.environments.map((e) => ({
           name: e.name,
-          displayName: e.displayName,
         }));
 
         // Load repository info for commit links

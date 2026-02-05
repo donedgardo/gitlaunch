@@ -193,14 +193,14 @@ describe("Environments API Routes", () => {
           authorization: "Bearer test-key",
           "content-type": "application/json",
         },
-        payload: { name: "dev", displayName: "Development" },
+        payload: { name: "dev" },
       });
 
       expect(response.statusCode).toBe(201);
       const body = response.json();
       expect(body.environments).toHaveLength(3);
       expect(body.environments).toContainEqual(
-        expect.objectContaining({ name: "dev", displayName: "Development" }),
+        expect.objectContaining({ name: "dev" }),
       );
     });
 
@@ -212,7 +212,7 @@ describe("Environments API Routes", () => {
           authorization: "Bearer test-key",
           "content-type": "application/json",
         },
-        payload: { name: "Invalid Name", displayName: "Invalid" },
+        payload: { name: "Invalid Name" },
       });
 
       expect(response.statusCode).toBe(400);
@@ -227,7 +227,7 @@ describe("Environments API Routes", () => {
           authorization: "Bearer test-key",
           "content-type": "application/json",
         },
-        payload: { name: "staging", displayName: "Another Staging" },
+        payload: { name: "staging" },
       });
 
       expect(response.statusCode).toBe(400);
@@ -242,7 +242,7 @@ describe("Environments API Routes", () => {
           authorization: "Bearer test-key",
           "content-type": "application/json",
         },
-        payload: { name: "dev" },
+        payload: {},
       });
 
       expect(response.statusCode).toBe(400);
@@ -262,7 +262,7 @@ describe("Environments API Routes", () => {
           authorization: "Bearer test-key",
           "content-type": "application/json",
         },
-        payload: { name: "dev", displayName: "Development" },
+        payload: { name: "dev" },
       });
 
       expect(response.statusCode).toBe(403);
@@ -270,25 +270,6 @@ describe("Environments API Routes", () => {
   });
 
   describe("PATCH /api/v1/services/:serviceId/environments/:envName", () => {
-    it("should update environment displayName", async () => {
-      const response = await app.inject({
-        method: "PATCH",
-        url: `/api/v1/services/${testServiceId}/environments/staging`,
-        headers: {
-          authorization: "Bearer test-key",
-          "content-type": "application/json",
-        },
-        payload: { displayName: "Staging Environment" },
-      });
-
-      expect(response.statusCode).toBe(200);
-      const body = response.json();
-      const staging = body.environments.find(
-        (e: { name: string }) => e.name === "staging",
-      );
-      expect(staging.displayName).toBe("Staging Environment");
-    });
-
     it("should update environment order", async () => {
       const response = await app.inject({
         method: "PATCH",
@@ -316,7 +297,7 @@ describe("Environments API Routes", () => {
           authorization: "Bearer test-key",
           "content-type": "application/json",
         },
-        payload: { displayName: "New Name" },
+        payload: { order: 5 },
       });
 
       expect(response.statusCode).toBe(404);

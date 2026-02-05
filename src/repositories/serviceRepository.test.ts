@@ -44,8 +44,8 @@ describe("ServiceRepository", () => {
       expect(service.repositoryId).toEqual(repositoryId);
       expect(service.name).toBe("backend");
       expect(service.environments).toEqual([
-        { name: "staging", displayName: "Staging", order: 0 },
-        { name: "prod", displayName: "Production", order: 1 },
+        { name: "staging", order: 0 },
+        { name: "prod", order: 1 },
       ]);
       expect(service.workflowFile).toBe("deploy.yml");
       expect(service.eventType).toBe("deployment");
@@ -74,9 +74,9 @@ describe("ServiceRepository", () => {
       const accountId = new ObjectId();
       const repositoryId = new ObjectId();
       const customEnvs = [
-        { name: "dev", displayName: "Development", order: 0 },
-        { name: "staging", displayName: "Staging", order: 1 },
-        { name: "prod", displayName: "Production", order: 2 },
+        { name: "dev", order: 0 },
+        { name: "staging", order: 1 },
+        { name: "prod", order: 2 },
       ];
 
       // When
@@ -281,7 +281,7 @@ describe("ServiceRepository", () => {
         accountId,
         repositoryId,
         name: "partial-update-test",
-        environments: [{ name: "dev", displayName: "Dev", order: 0 }],
+        environments: [{ name: "dev", order: 0 }],
       });
 
       // When: I update workflow configuration
@@ -291,9 +291,7 @@ describe("ServiceRepository", () => {
       });
 
       // Then: environments are not changed
-      expect(updated?.environments).toEqual([
-        { name: "dev", displayName: "Dev", order: 0 },
-      ]);
+      expect(updated?.environments).toEqual([{ name: "dev", order: 0 }]);
       expect(updated?.name).toBe("partial-update-test");
     });
   });
@@ -326,7 +324,7 @@ describe("ServiceRepository", () => {
       expect(service.environments).toHaveLength(2);
 
       // When: I add a new environment
-      const newEnv = { name: "dev", displayName: "Development", order: -1 };
+      const newEnv = { name: "dev", order: -1 };
       const updated = await repo.addEnvironment(service._id, newEnv);
 
       // Then: the environment is added
@@ -342,7 +340,6 @@ describe("ServiceRepository", () => {
       // When: I try to add an environment
       const result = await repo.addEnvironment(fakeId, {
         name: "dev",
-        displayName: "Development",
         order: 0,
       });
 
@@ -352,30 +349,6 @@ describe("ServiceRepository", () => {
   });
 
   describe("updateEnvironment", () => {
-    it("should update an existing environment's displayName", async () => {
-      // Given: a service with default environments
-      const accountId = new ObjectId();
-      const repositoryId = new ObjectId();
-      const service = await repo.create({
-        accountId,
-        repositoryId,
-        name: "update-env-test",
-      });
-
-      // When: I update the staging environment's displayName
-      const updated = await repo.updateEnvironment(service._id, "staging", {
-        displayName: "Staging Environment",
-      });
-
-      // Then: the environment is updated
-      expect(updated).not.toBeNull();
-      const stagingEnv = updated?.environments.find(
-        (e) => e.name === "staging",
-      );
-      expect(stagingEnv?.displayName).toBe("Staging Environment");
-      expect(stagingEnv?.order).toBe(0); // order unchanged
-    });
-
     it("should update an existing environment's order", async () => {
       // Given: a service with default environments
       const accountId = new ObjectId();
@@ -397,7 +370,6 @@ describe("ServiceRepository", () => {
         (e) => e.name === "staging",
       );
       expect(stagingEnv?.order).toBe(5);
-      expect(stagingEnv?.displayName).toBe("Staging"); // displayName unchanged
     });
 
     it("should return null if service not found", async () => {
@@ -406,7 +378,7 @@ describe("ServiceRepository", () => {
 
       // When: I try to update an environment
       const result = await repo.updateEnvironment(fakeId, "staging", {
-        displayName: "New Name",
+        order: 5,
       });
 
       // Then: null is returned
@@ -425,7 +397,7 @@ describe("ServiceRepository", () => {
 
       // When: I try to update non-existent environment
       const updated = await repo.updateEnvironment(service._id, "dev", {
-        displayName: "Development",
+        order: 5,
       });
 
       // Then: service is returned but unchanged (no env named "dev")
@@ -523,7 +495,7 @@ describe("ServiceRepository", () => {
         name: "preserve-fields-test",
         workflowFile: "custom-deploy.yml",
         eventType: "custom-event",
-        environments: [{ name: "dev", displayName: "Dev", order: 0 }],
+        environments: [{ name: "dev", order: 0 }],
       });
 
       // When: I mark workflow as configured
@@ -534,9 +506,7 @@ describe("ServiceRepository", () => {
       expect(updated?.workflowFile).toBe("custom-deploy.yml");
       expect(updated?.eventType).toBe("custom-event");
       expect(updated?.name).toBe("preserve-fields-test");
-      expect(updated?.environments).toEqual([
-        { name: "dev", displayName: "Dev", order: 0 },
-      ]);
+      expect(updated?.environments).toEqual([{ name: "dev", order: 0 }]);
     });
   });
 });

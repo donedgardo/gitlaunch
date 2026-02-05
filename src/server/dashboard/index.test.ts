@@ -102,8 +102,8 @@ describe("Dashboard Routes", () => {
         repositoryId,
         name: "my-service",
         environments: [
-          { name: "staging", displayName: "Staging", order: 0 },
-          { name: "prod", displayName: "Production", order: 1 },
+          { name: "staging", order: 0 },
+          { name: "prod", order: 1 },
         ],
       });
 
@@ -149,8 +149,8 @@ describe("Dashboard Routes", () => {
         repositoryId,
         name: "needs-setup-service",
         environments: [
-          { name: "staging", displayName: "Staging", order: 0 },
-          { name: "prod", displayName: "Production", order: 1 },
+          { name: "staging", order: 0 },
+          { name: "prod", order: 1 },
         ],
       });
 
@@ -202,8 +202,8 @@ describe("Dashboard Routes", () => {
         repositoryId,
         name: "has-workflow-configured",
         environments: [
-          { name: "staging", displayName: "Staging", order: 0 },
-          { name: "prod", displayName: "Production", order: 1 },
+          { name: "staging", order: 0 },
+          { name: "prod", order: 1 },
         ],
       });
 

@@ -17,21 +17,20 @@
         {{this.order}}
       </div>
       <div>
-        <p class="text-sm font-medium text-gray-900 dark:text-white">{{this.displayName}}</p>
-        <p class="text-xs text-gray-500 dark:text-gray-400">{{this.name}}</p>
+        <p class="text-sm font-medium text-gray-900 dark:text-white">{{this.name}}</p>
       </div>
     </div>
     <div class="flex items-center space-x-2">
       <button
         type="button"
-        onclick="openEditModal('{{this.name}}', '{{this.displayName}}', {{this.order}})"
+        onclick="openEditModal('{{this.name}}', {{this.order}})"
         class="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
       >
         Edit
       </button>
       <button
         type="button"
-        onclick="openDeleteModal('{{this.name}}', '{{this.displayName}}')"
+        onclick="openDeleteModal('{{this.name}}')"
         {{#unless ../canDelete}}disabled{{/unless}}
         class="px-3 py-1.5 text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
         {{#unless ../canDelete}}title="Cannot delete the last environment"{{/unless}}

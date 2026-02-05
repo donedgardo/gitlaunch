@@ -7,11 +7,9 @@ import {
 
 export type AddEnvironmentInput = {
   name: string;
-  displayName: string;
 };
 
 export type UpdateEnvironmentInput = {
-  displayName?: string;
   order?: number;
 };
 
@@ -52,7 +50,6 @@ export class EnvironmentService {
 
     const newEnv: Environment = {
       name: input.name,
-      displayName: input.displayName,
       order: maxOrder + 1,
     };
 

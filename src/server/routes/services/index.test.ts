@@ -278,7 +278,7 @@ describe("Service Routes - Workflow Configuration", () => {
         accountId: account._id,
         repositoryId: repository._id,
         name: "legacy-service",
-        environments: [{ name: "staging", displayName: "Staging", order: 0 }],
+        environments: [{ name: "staging", order: 0 }],
         workflowFile: "deploy.yml",
         eventType: "deployment",
         isActive: true,
