@@ -119,6 +119,7 @@ export default function (deps: DashboardRoutesDeps) {
           const navigationHtml = navigationTemplate({
             services: serviceNames,
             activeService: serviceName,
+            serviceId: activeService._id.toString(),
           });
           const buildTableTemplate = Handlebars.compile("{{>buildTable}}");
           const buildTableHtml = buildTableTemplate({
