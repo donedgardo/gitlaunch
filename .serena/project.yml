@@ -1,0 +1,14 @@
+project_name: GitLaunch
+root_path: /home/donedgardo/.openclaw/workspace/launchpad
+language_backend: LSP
+languages:
+  - typescript
+  - javascript
+include_patterns:
+  - "src/**/*.ts"
+  - "src/**/*.hbs"
+  - "e2e/**/*.ts"
+exclude_patterns:
+  - "node_modules/**"
+  - "dist/**"
+  - ".git/**"

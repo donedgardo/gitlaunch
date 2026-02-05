@@ -501,6 +501,63 @@ describe("BuildService", () => {
       );
     });
 
+    it("should emit build:update event as array with serviceName for SSE listener", async () => {
+      // Given: a build exists and event listener is registered
+      const account = await accountRepo.create({
+        name: "My Org",
+        slug: "my-org-sse-event",
+      });
+      const repository = await repoRepo.create({
+        accountId: account._id,
+        githubRepoId: 456,
+        githubFullName: "org/sse-repo",
+        githubOwner: "org",
+        githubRepoName: "sse-repo",
+        isPrivate: false,
+      });
+      const svc = await serviceRepo.create({
+        accountId: account._id,
+        repositoryId: repository._id,
+        name: "api-service",
+      });
+      await service.createBuild({
+        accountId: account._id,
+        serviceId: svc._id,
+        buildId: "sse-build",
+      });
+
+      const eventReceived = vi.fn();
+      eventEmitter.on("build:update", eventReceived);
+
+      // When: I update deployment status
+      await service.updateDeploymentStatus({
+        accountId: account._id,
+        serviceId: svc._id,
+        buildId: "sse-build",
+        environment: "staging",
+        status: DeploymentStatus.DEPLOYED,
+      });
+
+      // Then: event is emitted as an ARRAY (for SSE listener compatibility)
+      expect(eventReceived).toHaveBeenCalledTimes(1);
+      const emittedPayload = eventReceived.mock.calls[0][0];
+
+      // SSE listener expects an array
+      expect(Array.isArray(emittedPayload)).toBe(true);
+      expect(emittedPayload).toHaveLength(1);
+
+      // Each event must have serviceName (not just serviceId) for SSE template
+      expect(emittedPayload[0]).toEqual(
+        expect.objectContaining({
+          buildId: "sse-build",
+          environment: "staging",
+          status: DeploymentStatus.DEPLOYED,
+          serviceId: svc._id.toString(),
+          serviceName: "api-service",
+        }),
+      );
+    });
+
     it("should reject when build not found", async () => {
       // Given: no build exists
       const account = await accountRepo.create({
