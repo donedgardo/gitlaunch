@@ -3,15 +3,23 @@ import { ObjectId } from "mongodb";
 import { ServiceRepository } from "../../repositories/serviceRepository";
 import { BuildRepository, Build } from "../../repositories/buildRepository";
 import { RepositoryRepository } from "../../repositories/repositoryRepository";
+import { BuildService } from "../../services/build/buildService";
+import { DeploymentStatus } from "../../services/service/deploymentStatus";
 
 export type DashboardRoutesDeps = {
   serviceRepository: ServiceRepository;
   buildRepository: BuildRepository;
   repositoryRepository: RepositoryRepository;
+  buildService: BuildService;
 };
 
 export default function (deps: DashboardRoutesDeps) {
-  const { serviceRepository, buildRepository, repositoryRepository } = deps;
+  const {
+    serviceRepository,
+    buildRepository,
+    repositoryRepository,
+    buildService,
+  } = deps;
 
   return function (server: FastifyInstance, opts: any, done: any) {
     server.addHook("preHandler", (req, res, done) => {
@@ -155,6 +163,72 @@ export default function (deps: DashboardRoutesDeps) {
             layout: "/layouts/main.hbs",
           },
         );
+      },
+    );
+
+    // PATCH /:serviceName/build/:buildId/:env/dispatching - Trigger deployment from dashboard
+    server.patch<{
+      Params: { serviceName: string; buildId: string; env: string };
+    }>(
+      "/:serviceName/build/:buildId/:env/dispatching",
+      async (
+        req: FastifyRequest<{
+          Params: { serviceName: string; buildId: string; env: string };
+        }>,
+        reply: FastifyReply,
+      ) => {
+        const accountId = new ObjectId(req.session!.accountId);
+        const { serviceName, buildId, env } = req.params;
+
+        // Find the service by name and verify ownership
+        const service = await serviceRepository.findByAccountIdAndName(
+          accountId,
+          serviceName,
+        );
+        if (!service) {
+          return reply.status(404).send({ error: "Service not found" });
+        }
+
+        try {
+          const build = await buildService.updateDeploymentStatus({
+            accountId,
+            serviceId: service._id,
+            buildId,
+            environment: env,
+            status: DeploymentStatus.DISPATCHING,
+          });
+
+          // Return the partial for HTMX swap
+          return reply.view(
+            "/partials/buildEnvironmentAction.hbs",
+            {
+              buildId,
+              status: build.deployments[env],
+              env,
+              serviceName,
+              isOobSwap: true,
+            },
+            { layout: "" },
+          );
+        } catch (error) {
+          const message =
+            error instanceof Error
+              ? error.message
+              : "Failed to trigger deployment";
+          if (
+            message === "Invalid environment" ||
+            message === "Invalid deployment status"
+          ) {
+            return reply.status(400).send({ error: message });
+          }
+          if (
+            message === "Build not found" ||
+            message === "Service not found"
+          ) {
+            return reply.status(404).send({ error: message });
+          }
+          return reply.status(500).send({ error: message });
+        }
       },
     );
 

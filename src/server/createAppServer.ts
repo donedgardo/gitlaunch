@@ -20,7 +20,11 @@ import { createApiKeyAuthMiddleware } from "./middleware/apiKeyAuth";
 import { GitHubOAuthService } from "../services/auth/githubOAuthService";
 import { BuildRepository } from "../repositories/buildRepository";
 import { BuildService } from "../services/build/buildService";
-import { NoOpBuildDispatchService } from "../services/build/buildDispatchService";
+import {
+  BuildDispatchService,
+  NoOpBuildDispatchService,
+} from "../services/build/buildDispatchService";
+import { MultiTenantGithubDispatchService } from "../services/github/githubDispatchService";
 import { SessionService } from "../services/auth/sessionService";
 import { UserRepository } from "../repositories/userRepository";
 import { AccountRepository } from "../repositories/accountRepository";
@@ -100,6 +104,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
       serviceRepository,
       buildRepository,
       repositoryRepository,
+      buildService,
     }),
   );
   server.register(
