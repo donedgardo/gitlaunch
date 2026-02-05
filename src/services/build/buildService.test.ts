@@ -589,5 +589,93 @@ describe("BuildService", () => {
         }),
       ).rejects.toThrow("Build not found");
     });
+
+    it("should mark workflow as configured on first deployment status update", async () => {
+      // Given: a service with workflowConfigured=false and a build
+      const account = await accountRepo.create({
+        name: "My Org",
+        slug: "my-org-auto-config",
+      });
+      const repository = await repoRepo.create({
+        accountId: account._id,
+        githubRepoId: 789,
+        githubFullName: "org/auto-config-repo",
+        githubOwner: "org",
+        githubRepoName: "auto-config-repo",
+        isPrivate: false,
+      });
+      const svc = await serviceRepo.create({
+        accountId: account._id,
+        repositoryId: repository._id,
+        name: "auto-config-service",
+      });
+      expect(svc.workflowConfigured).toBe(false);
+
+      await service.createBuild({
+        accountId: account._id,
+        serviceId: svc._id,
+        buildId: "auto-config-build",
+      });
+
+      // When: I update deployment status
+      await service.updateDeploymentStatus({
+        accountId: account._id,
+        serviceId: svc._id,
+        buildId: "auto-config-build",
+        environment: "staging",
+        status: DeploymentStatus.DEPLOYED,
+      });
+
+      // Then: workflowConfigured is set to true
+      const updatedService = await serviceRepo.findById(svc._id);
+      expect(updatedService?.workflowConfigured).toBe(true);
+    });
+
+    it("should not update workflowConfigured if already true", async () => {
+      // Given: a service with workflowConfigured=true
+      const account = await accountRepo.create({
+        name: "My Org",
+        slug: "my-org-already-configured",
+      });
+      const repository = await repoRepo.create({
+        accountId: account._id,
+        githubRepoId: 999,
+        githubFullName: "org/already-configured-repo",
+        githubOwner: "org",
+        githubRepoName: "already-configured-repo",
+        isPrivate: false,
+      });
+      const svc = await serviceRepo.create({
+        accountId: account._id,
+        repositoryId: repository._id,
+        name: "already-configured-service",
+      });
+      // Manually set workflowConfigured to true via updateWorkflowConfiguration
+      await serviceRepo.updateWorkflowConfiguration(svc._id, {
+        workflowFile: "deploy.yml",
+        eventType: "deployment",
+      });
+      const configuredService = await serviceRepo.findById(svc._id);
+      expect(configuredService?.workflowConfigured).toBe(true);
+
+      await service.createBuild({
+        accountId: account._id,
+        serviceId: svc._id,
+        buildId: "already-configured-build",
+      });
+
+      // When: I update deployment status (workflow already configured)
+      await service.updateDeploymentStatus({
+        accountId: account._id,
+        serviceId: svc._id,
+        buildId: "already-configured-build",
+        environment: "staging",
+        status: DeploymentStatus.DEPLOYED,
+      });
+
+      // Then: service still has workflowConfigured=true (no error, idempotent)
+      const finalService = await serviceRepo.findById(svc._id);
+      expect(finalService?.workflowConfigured).toBe(true);
+    });
   });
 });

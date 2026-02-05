@@ -312,4 +312,51 @@ describe("ServiceRepository", () => {
       ).rejects.toThrow();
     });
   });
+
+  describe("markWorkflowConfigured", () => {
+    it("should set workflowConfigured to true", async () => {
+      // Given: a service with workflowConfigured=false
+      const accountId = new ObjectId();
+      const repositoryId = new ObjectId();
+      const service = await repo.create({
+        accountId,
+        repositoryId,
+        name: "auto-configure-test",
+      });
+      expect(service.workflowConfigured).toBe(false);
+
+      // When: I mark workflow as configured
+      await repo.markWorkflowConfigured(service._id);
+
+      // Then: workflowConfigured is set to true
+      const updated = await repo.findById(service._id);
+      expect(updated?.workflowConfigured).toBe(true);
+    });
+
+    it("should not modify other fields", async () => {
+      // Given: a service with custom configuration
+      const accountId = new ObjectId();
+      const repositoryId = new ObjectId();
+      const service = await repo.create({
+        accountId,
+        repositoryId,
+        name: "preserve-fields-test",
+        workflowFile: "custom-deploy.yml",
+        eventType: "custom-event",
+        environments: [{ name: "dev", displayName: "Dev", order: 0 }],
+      });
+
+      // When: I mark workflow as configured
+      await repo.markWorkflowConfigured(service._id);
+
+      // Then: other fields are preserved
+      const updated = await repo.findById(service._id);
+      expect(updated?.workflowFile).toBe("custom-deploy.yml");
+      expect(updated?.eventType).toBe("custom-event");
+      expect(updated?.name).toBe("preserve-fields-test");
+      expect(updated?.environments).toEqual([
+        { name: "dev", displayName: "Dev", order: 0 },
+      ]);
+    });
+  });
 });
