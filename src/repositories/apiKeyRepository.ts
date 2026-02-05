@@ -1,6 +1,11 @@
 import { Db, ObjectId, Collection } from "mongodb";
 
-export type ApiKeyScope = "builds:read" | "builds:write" | "deployments:write";
+export type ApiKeyScope =
+  | "builds:read"
+  | "builds:write"
+  | "deployments:write"
+  | "services:read"
+  | "services:write";
 
 export type ApiKey = {
   _id: ObjectId;

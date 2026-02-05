@@ -12,6 +12,7 @@ import { registerInstallationRoutes } from "./routes/github/installation";
 import { registerOnboardingRoutes } from "./routes/onboarding";
 import { registerServiceRoutes } from "./routes/services";
 import { registerBuildsRoutes } from "./routes/api/builds";
+import { registerEnvironmentsRoutes } from "./routes/api/environments";
 import { registerSessionMiddleware } from "./middleware/sessionAuth";
 import { createApiKeyAuthMiddleware } from "./middleware/apiKeyAuth";
 
@@ -28,6 +29,7 @@ import { ServiceRepository } from "../repositories/serviceRepository";
 import { ApiKeyRepository } from "../repositories/apiKeyRepository";
 import { GitHubAppService } from "../services/github/githubAppService";
 import { ApiKeyService } from "../services/apiKey/apiKeyService";
+import { EnvironmentService } from "../services/environment/environmentService";
 import { PlanEnforcementService } from "../services/billing/planEnforcementService";
 import { ServiceI } from "../services/service/interface";
 import { DbClientI } from "./health/dbClientI";
@@ -82,6 +84,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     eventEmitter,
     buildDispatchService,
   );
+  const environmentService = new EnvironmentService(serviceRepository);
 
   // Session middleware
   registerSessionMiddleware(server, {
@@ -149,6 +152,11 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
       registerBuildsRoutes(apiServer, {
         buildService,
         serviceRepo: serviceRepository,
+      });
+
+      // Register environments API routes
+      registerEnvironmentsRoutes(apiServer, {
+        environmentService,
       });
     },
     { prefix: "" }, // Routes already have /api/v1 prefix
