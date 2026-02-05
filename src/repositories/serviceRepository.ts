@@ -113,4 +113,11 @@ export class ServiceRepository {
 
     return result;
   }
+
+  async markWorkflowConfigured(id: ObjectId): Promise<void> {
+    await this.collection.updateOne(
+      { _id: id },
+      { $set: { workflowConfigured: true } },
+    );
+  }
 }

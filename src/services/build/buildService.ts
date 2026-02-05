@@ -116,6 +116,11 @@ export class BuildService {
       throw new Error("Build not found");
     }
 
+    // Auto-mark workflow as configured if not already
+    if (!service.workflowConfigured) {
+      await this.serviceRepo.markWorkflowConfigured(input.serviceId);
+    }
+
     // Emit event for SSE updates (as array for SSE listener compatibility)
     const updateEvent: BuildUpdateEvent = {
       buildId: build.buildId,
