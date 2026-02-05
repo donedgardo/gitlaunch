@@ -88,4 +88,10 @@ export const TEST_USERS = {
     accountId: "000000000000000000000066",
     hasGitHubApp: true,
   },
+  // User with a service (for environment management tests)
+  userWithService: {
+    userId: "000000000000000000000007",
+    accountId: "000000000000000000000077",
+    hasGitHubApp: true,
+  },
 };
