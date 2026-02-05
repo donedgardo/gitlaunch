@@ -313,6 +313,44 @@ describe("ServiceRepository", () => {
     });
   });
 
+  describe("addEnvironment", () => {
+    it("should add an environment to the service", async () => {
+      // Given: a service with default environments
+      const accountId = new ObjectId();
+      const repositoryId = new ObjectId();
+      const service = await repo.create({
+        accountId,
+        repositoryId,
+        name: "add-env-test",
+      });
+      expect(service.environments).toHaveLength(2);
+
+      // When: I add a new environment
+      const newEnv = { name: "dev", displayName: "Development", order: -1 };
+      const updated = await repo.addEnvironment(service._id, newEnv);
+
+      // Then: the environment is added
+      expect(updated).not.toBeNull();
+      expect(updated?.environments).toHaveLength(3);
+      expect(updated?.environments).toContainEqual(newEnv);
+    });
+
+    it("should return null if service not found", async () => {
+      // Given: a non-existent service ID
+      const fakeId = new ObjectId();
+
+      // When: I try to add an environment
+      const result = await repo.addEnvironment(fakeId, {
+        name: "dev",
+        displayName: "Development",
+        order: 0,
+      });
+
+      // Then: null is returned
+      expect(result).toBeNull();
+    });
+  });
+
   describe("markWorkflowConfigured", () => {
     it("should set workflowConfigured to true", async () => {
       // Given: a service with workflowConfigured=false

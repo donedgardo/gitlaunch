@@ -120,4 +120,16 @@ export class ServiceRepository {
       { $set: { workflowConfigured: true } },
     );
   }
+
+  async addEnvironment(
+    id: ObjectId,
+    env: Environment,
+  ): Promise<Service | null> {
+    const result = await this.collection.findOneAndUpdate(
+      { _id: id },
+      { $push: { environments: env } },
+      { returnDocument: "after" },
+    );
+    return result;
+  }
 }
