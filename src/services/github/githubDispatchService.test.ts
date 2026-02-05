@@ -55,6 +55,7 @@ describe("MultiTenantGithubDispatchService", () => {
         eventType: "deployment",
         buildId: "build-123",
         environment: "staging",
+        serviceId: "service-abc",
       };
 
       // When: I dispatch
@@ -76,6 +77,7 @@ describe("MultiTenantGithubDispatchService", () => {
         eventType: "deployment",
         buildId: "build-123",
         environment: "staging",
+        serviceId: "service-abc",
       };
 
       // When: I dispatch
@@ -89,7 +91,7 @@ describe("MultiTenantGithubDispatchService", () => {
       expect(headers["Authorization"]).toBe("Bearer ghs_installation_token");
     });
 
-    it("should send event type and client payload", async () => {
+    it("should send event type and client payload with service-id", async () => {
       // Given: dispatch input
       const input: DispatchInput = {
         installationId: 12345,
@@ -98,17 +100,19 @@ describe("MultiTenantGithubDispatchService", () => {
         eventType: "deploy",
         buildId: "build-456",
         environment: "prod",
+        serviceId: "service-xyz",
       };
 
       // When: I dispatch
       await service.dispatch(input);
 
-      // Then: body contains correct payload
+      // Then: body contains correct payload including service-id
       const body = JSON.parse(fakeHttp.requests[0].options.body as string);
       expect(body.event_type).toBe("deploy");
       expect(body.client_payload).toEqual({
         env: "prod",
         "build-id": "build-456",
+        "service-id": "service-xyz",
       });
     });
 
@@ -122,6 +126,7 @@ describe("MultiTenantGithubDispatchService", () => {
         eventType: "deployment",
         buildId: "build-123",
         environment: "staging",
+        serviceId: "service-abc",
       };
 
       // When/Then: dispatch throws error

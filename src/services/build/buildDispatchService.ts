@@ -58,6 +58,7 @@ export class BuildDispatchService implements BuildDispatchServiceI {
       eventType: service.eventType,
       buildId,
       environment,
+      serviceId: serviceId.toString(),
     };
 
     await this.githubDispatch.dispatch(input);

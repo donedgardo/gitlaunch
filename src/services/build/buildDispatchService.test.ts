@@ -97,6 +97,7 @@ describe("BuildDispatchService", () => {
         eventType: "deploy-backend",
         buildId: "build-123",
         environment: "staging",
+        serviceId: svc._id.toString(),
       });
     });
 

@@ -8,6 +8,7 @@ export type DispatchInput = {
   eventType: string;
   buildId: string;
   environment: string;
+  serviceId: string;
 };
 
 export class MultiTenantGithubDispatchService {
@@ -33,6 +34,7 @@ export class MultiTenantGithubDispatchService {
           client_payload: {
             env: input.environment,
             "build-id": input.buildId,
+            "service-id": input.serviceId,
           },
         }),
       },
