@@ -1,19 +1,16 @@
 import EventEmitter from "node:events";
-import { FastifyInstance, FastifyReply } from "fastify";
+import { FastifyInstance } from "fastify";
 import { ObjectId } from "mongodb";
-import { ServiceI } from "../../services/service/interface";
 import { ServiceRepository } from "../../repositories/serviceRepository";
 import * as Handlebars from "handlebars";
-import { FastifyRequestType } from "fastify/types/type-provider";
 
 export type BuildRoutesDeps = {
-  services: ServiceI[];
   eventEmitter: EventEmitter;
   serviceRepository: ServiceRepository;
 };
 
 export default function (deps: BuildRoutesDeps) {
-  const { services, eventEmitter, serviceRepository } = deps;
+  const { eventEmitter, serviceRepository } = deps;
 
   return function (server: FastifyInstance, opts: any, done: any) {
     server.addHook("preHandler", (req, res, done) => {
@@ -152,45 +149,6 @@ export default function (deps: BuildRoutesDeps) {
         eventEmitter.off("build:created", listener);
       });
     });
-    for (let service of services) {
-      const serviceName = service.getName();
-      server.patch(
-        `/${serviceName}/build/:buildId/:environment/:status`,
-        updateBuildStatusHandler(service),
-      );
-      server.post(`/api/${serviceName}/build/:buildId`, async (req, res) => {
-        const { buildId } = req.params as any;
-        await service.create(buildId);
-        res.send();
-      });
-      server.patch(
-        `/api/${serviceName}/build/:buildId/:environment/:status`,
-        updateBuildStatusHandler(service),
-      );
-    }
     done();
-  };
-}
-
-function updateBuildStatusHandler(service: ServiceI) {
-  return async (req: FastifyRequestType, res: FastifyReply) => {
-    const { buildId, environment, status } = req.params as any;
-    try {
-      const build = await service.updateDeploymentStatus(
-        buildId,
-        environment,
-        status,
-      );
-      return res.view("/partials/buildEnvironmentAction.hbs", {
-        buildId,
-        status: build.deployments[environment],
-        env: environment,
-        serviceName: service.getName(),
-        isOobSwap: true,
-      });
-    } catch (e) {
-      console.error(e);
-      return res.status(404).send();
-    }
   };
 }

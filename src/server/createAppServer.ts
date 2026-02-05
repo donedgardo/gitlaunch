@@ -34,14 +34,12 @@ import { InstallationTokenService } from "../services/github/installationTokenSe
 import { ApiKeyService } from "../services/apiKey/apiKeyService";
 import { EnvironmentService } from "../services/environment/environmentService";
 import { PlanEnforcementService } from "../services/billing/planEnforcementService";
-import { ServiceI } from "../services/service/interface";
 import { DbClientI } from "./health/dbClientI";
 
 export type AppServerDeps = {
   database: Db;
   mongoClient: DbClientI;
   eventEmitter: EventEmitter;
-  services: ServiceI[];
   githubOAuthService: GitHubOAuthService;
   sessionService: SessionService;
   gitHubAppService: GitHubAppService;
@@ -53,7 +51,6 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     database,
     mongoClient,
     eventEmitter,
-    services,
     githubOAuthService,
     sessionService,
     gitHubAppService,
@@ -117,7 +114,6 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
   );
   server.register(
     buildRoutes({
-      services,
       eventEmitter,
       serviceRepository,
     }),

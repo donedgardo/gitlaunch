@@ -1,5 +1,5 @@
 import handlebars from "handlebars";
-import { BuildRecord } from "../services/buildStorage/buildRecord";
+import { Build } from "../repositories/buildRepository";
 import { DeploymentStatus } from "../services/service/deploymentStatus";
 
 export function registerHandlebarsHelpers() {
@@ -8,7 +8,7 @@ export function registerHandlebarsHelpers() {
   });
   handlebars.registerHelper(
     "getStatus",
-    function (build: BuildRecord, environment: string) {
+    function (build: Build, environment: string) {
       return build.deployments[environment];
     },
   );

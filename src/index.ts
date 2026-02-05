@@ -60,7 +60,6 @@ const server = createAppServer({
   database,
   mongoClient: new MongoDbClient(client),
   eventEmitter,
-  services: [], // Multi-tenant: services are per-account, not global
   githubOAuthService,
   sessionService,
   gitHubAppService,
