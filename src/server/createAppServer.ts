@@ -20,10 +20,7 @@ import { createApiKeyAuthMiddleware } from "./middleware/apiKeyAuth";
 import { GitHubOAuthService } from "../services/auth/githubOAuthService";
 import { BuildRepository } from "../repositories/buildRepository";
 import { BuildService } from "../services/build/buildService";
-import {
-  BuildDispatchService,
-  NoOpBuildDispatchService,
-} from "../services/build/buildDispatchService";
+import { BuildDispatchService } from "../services/build/buildDispatchService";
 import { MultiTenantGithubDispatchService } from "../services/github/githubDispatchService";
 import { SessionService } from "../services/auth/sessionService";
 import { UserRepository } from "../repositories/userRepository";
@@ -33,6 +30,7 @@ import { RepositoryRepository } from "../repositories/repositoryRepository";
 import { ServiceRepository } from "../repositories/serviceRepository";
 import { ApiKeyRepository } from "../repositories/apiKeyRepository";
 import { GitHubAppService } from "../services/github/githubAppService";
+import { InstallationTokenService } from "../services/github/installationTokenService";
 import { ApiKeyService } from "../services/apiKey/apiKeyService";
 import { EnvironmentService } from "../services/environment/environmentService";
 import { PlanEnforcementService } from "../services/billing/planEnforcementService";
@@ -47,6 +45,7 @@ export type AppServerDeps = {
   githubOAuthService: GitHubOAuthService;
   sessionService: SessionService;
   gitHubAppService: GitHubAppService;
+  installationTokenService: InstallationTokenService;
 };
 
 export function createAppServer(deps: AppServerDeps): FastifyInstance {
@@ -58,6 +57,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     githubOAuthService,
     sessionService,
     gitHubAppService,
+    installationTokenService,
   } = deps;
 
   const server = Fastify();
@@ -81,8 +81,16 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     membershipRepository,
   );
 
-  // No-op dispatcher for now - use BuildDispatchService for actual GitHub dispatch
-  const buildDispatchService = new NoOpBuildDispatchService();
+  // GitHub dispatch service for triggering workflows
+  const githubDispatchService = new MultiTenantGithubDispatchService(
+    installationTokenService,
+  );
+  const buildDispatchService = new BuildDispatchService(
+    accountRepository,
+    repositoryRepository,
+    serviceRepository,
+    githubDispatchService,
+  );
   const buildService = new BuildService(
     buildRepository,
     serviceRepository,

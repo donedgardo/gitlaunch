@@ -64,6 +64,7 @@ const server = createAppServer({
   githubOAuthService,
   sessionService,
   gitHubAppService,
+  installationTokenService,
 });
 
 const PORT = parseInt(process.env.PORT || "3050");
