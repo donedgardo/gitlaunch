@@ -94,6 +94,7 @@ export function registerSettingsRoutes(
           canDelete: environments.length > 1,
           services: serviceNames,
           activeService: service.name,
+          serviceId: service._id.toString(),
         },
         { layout: "/layouts/main.hbs" },
       );
