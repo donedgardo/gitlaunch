@@ -27,6 +27,10 @@ export function registerHandlebarsHelpers() {
       return `https://github.com/${githubFullName}/commit/${buildId}`;
     },
   );
+  handlebars.registerHelper("shortSha", function (sha: string) {
+    if (!sha) return "";
+    return sha.substring(0, 7);
+  });
   handlebars.registerHelper(
     "getStatusBadgeClass",
     function (status: DeploymentStatus) {
