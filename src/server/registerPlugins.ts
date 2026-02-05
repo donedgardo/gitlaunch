@@ -25,6 +25,7 @@ export function registerPlugins(server: FastifyInstance) {
         emptyBuilds: "/partials/emptyBuilds.hbs",
         deploymentSetupGuide: "/partials/deploymentSetupGuide.hbs",
         environmentList: "/partials/environmentList.hbs",
+        htmxDashboard: "/partials/htmxDashboard.hbs",
       },
     },
   });

@@ -90,8 +90,11 @@ test.describe("Dashboard - Navigation", () => {
     await page.goto("/dashboard/frontend");
     await expect(page).toHaveURL("/dashboard/frontend");
 
-    // Click on the backend service tab
-    const backendLink = page.getByRole("link", { name: "backend" });
+    // Click on the backend service tab (use exact match to avoid commit link)
+    const backendLink = page.getByRole("link", {
+      name: "backend",
+      exact: true,
+    });
     await backendLink.click();
 
     // Should navigate to backend service
@@ -108,18 +111,41 @@ test.describe("Dashboard - Navigation", () => {
     // Visit dashboard on frontend service
     await page.goto("/dashboard/frontend");
 
-    // Click on the backend service tab
-    await page.getByRole("link", { name: "backend" }).click();
+    // Click on the backend service tab (use exact match to avoid commit link)
+    await page.getByRole("link", { name: "backend", exact: true }).click();
 
     // Wait for HTMX to update the page
     await expect(page).toHaveURL("/dashboard/backend");
 
-    // The navigation should show backend as active
-    const backendTab = page.getByRole("link", { name: "backend" });
+    // The navigation should show backend as active (use exact match)
+    const backendTab = page.getByRole("link", { name: "backend", exact: true });
     await expect(backendTab).toHaveClass(/text-blue-600/);
 
-    // The frontend tab should not be active
-    const frontendTab = page.getByRole("link", { name: "frontend" });
+    // The frontend tab should not be active (use exact match)
+    const frontendTab = page.getByRole("link", {
+      name: "frontend",
+      exact: true,
+    });
     await expect(frontendTab).not.toHaveClass(/text-blue-600/);
+  });
+
+  test("deploy buttons remain visible after HTMX navigation", async ({
+    page,
+  }) => {
+    // Authenticate as user with multiple services (both have builds)
+    await authenticateTestUser(page, TEST_USERS.userWithMultipleServices);
+
+    // Visit frontend service - should show deploy button for prod (staging is deployed)
+    await page.goto("/dashboard/frontend");
+    await expect(page.getByRole("button", { name: "Deploy" })).toBeVisible();
+
+    // Navigate to backend service via tab
+    await page.getByRole("link", { name: "backend" }).click();
+    await expect(page).toHaveURL("/dashboard/backend");
+
+    // Backend service should also show deploy buttons (both envs have null status)
+    await expect(
+      page.getByRole("button", { name: "Deploy" }).first(),
+    ).toBeVisible();
   });
 });

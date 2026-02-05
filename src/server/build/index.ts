@@ -70,6 +70,7 @@ export default function (deps: BuildRoutesDeps) {
                   env: event.environment,
                   serviceName: event.serviceName,
                   status: event.status,
+                  isOobSwap: true,
                 });
                 yield {
                   event: `update:${event.serviceName}-${event.buildId}-${event.environment}`,
@@ -184,6 +185,7 @@ function updateBuildStatusHandler(service: ServiceI) {
         status: build.deployments[environment],
         env: environment,
         serviceName: service.getName(),
+        isOobSwap: true,
       });
     } catch (e) {
       console.error(e);

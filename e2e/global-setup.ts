@@ -410,6 +410,7 @@ export default async function globalSetup() {
       ],
       workflowFile: "deploy.yml",
       eventType: "deployment",
+      workflowConfigured: true,
       isActive: true,
       createdAt: new Date(),
     });
@@ -425,9 +426,30 @@ export default async function globalSetup() {
       ],
       workflowFile: "deploy.yml",
       eventType: "deployment",
+      workflowConfigured: true,
       isActive: true,
       createdAt: new Date(),
     });
+
+    // Add builds for both services (enables deploy button tests after navigation)
+    await db.collection("builds").insertMany([
+      {
+        _id: new ObjectId("000000000000000000000401"),
+        accountId: testAccount6Id,
+        serviceId: testService1Id,
+        buildId: "frontend-build-1",
+        deployments: { staging: "deployed", prod: null },
+        createdAt: new Date(),
+      },
+      {
+        _id: new ObjectId("000000000000000000000402"),
+        accountId: testAccount6Id,
+        serviceId: testService2Id,
+        buildId: "backend-build-1",
+        deployments: { staging: null, prod: null },
+        createdAt: new Date(),
+      },
+    ]);
 
     console.log("Test data created successfully");
   } finally {

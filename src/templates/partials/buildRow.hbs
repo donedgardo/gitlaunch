@@ -9,11 +9,11 @@
       {{build.id}}
     </a>
   </td>
-  {{#each environments as |env|}}
+  {{#each build.environments as |env|}}
     {{> buildEnvironmentAction
       buildId=../build.id
       env=env
-      serviceName=../serviceName
+      serviceName=../build.serviceName
       status=(getStatus ../build env)
     }}
   {{/each}}

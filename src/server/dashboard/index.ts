@@ -1,4 +1,3 @@
-import * as Handlebars from "handlebars";
 import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { ObjectId } from "mongodb";
 import { ServiceRepository } from "../../repositories/serviceRepository";
@@ -27,9 +26,12 @@ export default function (deps: DashboardRoutesDeps) {
     const formatBuildsForTemplate = (
       builds: Build[],
       environments: string[],
+      serviceName: string,
     ) => {
       return builds.map((build) => ({
         id: build.buildId,
+        environments, // Include environments in each build for Handlebars partial scope
+        serviceName, // Include serviceName in each build for Handlebars partial scope
         deployments: environments.reduce(
           (acc, env) => {
             acc[env] = build.deployments[env] || null;
@@ -105,7 +107,11 @@ export default function (deps: DashboardRoutesDeps) {
           accountId,
           activeService._id,
         );
-        const formattedBuilds = formatBuildsForTemplate(builds, environments);
+        const formattedBuilds = formatBuildsForTemplate(
+          builds,
+          environments,
+          serviceName,
+        );
 
         // Check if we need to show deployment setup guide
         // Show guide when builds exist but workflow hasn't been configured yet
@@ -113,26 +119,22 @@ export default function (deps: DashboardRoutesDeps) {
         const needsDeploymentSetup =
           builds.length > 0 && activeService.workflowConfigured !== true;
 
-        // Handle HTMX partial request
+        // Handle HTMX partial request - no layout wrapper needed
         if (req.headers["hx-request"]) {
-          const navigationTemplate = Handlebars.compile("{{>navigation}}");
-          const navigationHtml = navigationTemplate({
-            services: serviceNames,
-            activeService: serviceName,
-            serviceId: activeService._id.toString(),
-          });
-          const buildTableTemplate = Handlebars.compile("{{>buildTable}}");
-          const buildTableHtml = buildTableTemplate({
-            serviceName: serviceName,
-            serviceId: activeService._id.toString(),
-            environments,
-            builds: formattedBuilds,
-            githubFullName,
-            needsDeploymentSetup,
-          });
-          return reply
-            .header("Content-Type", "text/html")
-            .send(navigationHtml + buildTableHtml);
+          return reply.view(
+            "partials/htmxDashboard",
+            {
+              services: serviceNames,
+              activeService: serviceName,
+              serviceId: activeService._id.toString(),
+              serviceName: serviceName,
+              environments,
+              builds: formattedBuilds,
+              githubFullName,
+              needsDeploymentSetup,
+            },
+            { layout: "" },
+          );
         }
 
         // Full page render
