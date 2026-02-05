@@ -437,6 +437,62 @@ describe("ServiceRepository", () => {
     });
   });
 
+  describe("removeEnvironment", () => {
+    it("should remove an environment from the service", async () => {
+      // Given: a service with default environments (staging, prod)
+      const accountId = new ObjectId();
+      const repositoryId = new ObjectId();
+      const service = await repo.create({
+        accountId,
+        repositoryId,
+        name: "remove-env-test",
+      });
+      expect(service.environments).toHaveLength(2);
+
+      // When: I remove the staging environment
+      const updated = await repo.removeEnvironment(service._id, "staging");
+
+      // Then: the environment is removed
+      expect(updated).not.toBeNull();
+      expect(updated?.environments).toHaveLength(1);
+      expect(
+        updated?.environments.find((e) => e.name === "staging"),
+      ).toBeUndefined();
+      expect(
+        updated?.environments.find((e) => e.name === "prod"),
+      ).toBeDefined();
+    });
+
+    it("should return null if service not found", async () => {
+      // Given: a non-existent service ID
+      const fakeId = new ObjectId();
+
+      // When: I try to remove an environment
+      const result = await repo.removeEnvironment(fakeId, "staging");
+
+      // Then: null is returned
+      expect(result).toBeNull();
+    });
+
+    it("should return unchanged service if environment not found", async () => {
+      // Given: a service without a "dev" environment
+      const accountId = new ObjectId();
+      const repositoryId = new ObjectId();
+      const service = await repo.create({
+        accountId,
+        repositoryId,
+        name: "no-remove-env-test",
+      });
+
+      // When: I try to remove non-existent environment
+      const updated = await repo.removeEnvironment(service._id, "dev");
+
+      // Then: service is returned unchanged
+      expect(updated).not.toBeNull();
+      expect(updated?.environments).toHaveLength(2);
+    });
+  });
+
   describe("markWorkflowConfigured", () => {
     it("should set workflowConfigured to true", async () => {
       // Given: a service with workflowConfigured=false

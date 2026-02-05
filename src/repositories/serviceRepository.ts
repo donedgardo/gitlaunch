@@ -164,4 +164,16 @@ export class ServiceRepository {
 
     return result;
   }
+
+  async removeEnvironment(
+    id: ObjectId,
+    envName: string,
+  ): Promise<Service | null> {
+    const result = await this.collection.findOneAndUpdate(
+      { _id: id },
+      { $pull: { environments: { name: envName } } },
+      { returnDocument: "after" },
+    );
+    return result;
+  }
 }
