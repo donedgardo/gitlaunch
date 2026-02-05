@@ -82,6 +82,8 @@ export function registerSettingsRoutes(
           service: {
             id: service._id.toString(),
             name: service.name,
+            workflowFile: service.workflowFile,
+            eventType: service.eventType,
           },
           repository: repository
             ? {
@@ -264,6 +266,56 @@ export function registerSettingsRoutes(
           serviceId: service._id.toString(),
           error: message,
         });
+      }
+    },
+  );
+
+  // PATCH /services/:serviceId/workflow - Update workflow configuration (HTMX)
+  app.patch<{
+    Params: { serviceId: string };
+    Body: { workflowFile: string; eventType: string };
+  }>(
+    "/services/:serviceId/workflow",
+    async (
+      request: FastifyRequest<{
+        Params: { serviceId: string };
+        Body: { workflowFile: string; eventType: string };
+      }>,
+      reply: FastifyReply,
+    ) => {
+      const result = await loadServiceWithAuth(request, reply);
+      if (!result) return;
+
+      const { service } = result;
+      const { workflowFile, eventType } = request.body;
+
+      try {
+        await serviceRepository.updateWorkflowConfiguration(service._id, {
+          workflowFile: workflowFile || "deploy.yml",
+          eventType: eventType || "deployment",
+        });
+
+        // Return success response with HX-Trigger for toast notification
+        reply.header(
+          "HX-Trigger",
+          JSON.stringify({
+            showToast: { message: "Workflow settings saved", type: "success" },
+          }),
+        );
+        return reply.status(200).send();
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Failed to update workflow configuration";
+
+        reply.header(
+          "HX-Trigger",
+          JSON.stringify({
+            showToast: { message, type: "error" },
+          }),
+        );
+        return reply.status(400).send();
       }
     },
   );

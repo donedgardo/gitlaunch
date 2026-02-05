@@ -1,0 +1,251 @@
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
+import { MongoMemoryServer } from "mongodb-memory-server";
+import { MongoClient, Db, ObjectId } from "mongodb";
+import Fastify, { FastifyInstance } from "fastify";
+import cookie from "@fastify/cookie";
+import formbody from "@fastify/formbody";
+import view from "@fastify/view";
+import * as handlebars from "handlebars";
+import path from "node:path";
+import { ServiceRepository } from "../../../repositories/serviceRepository";
+import { RepositoryRepository } from "../../../repositories/repositoryRepository";
+import { AccountRepository } from "../../../repositories/accountRepository";
+import { SessionService } from "../../../services/auth/sessionService";
+import { EnvironmentService } from "../../../services/environment/environmentService";
+import { sessionAuthMiddleware } from "../../middleware/sessionAuth";
+import { registerHandlebarsHelpers } from "../../registerHandlebarsHelpers";
+import { registerSettingsRoutes } from "./settings";
+
+describe("Settings Routes - Workflow Configuration", () => {
+  let mongoServer: MongoMemoryServer;
+  let client: MongoClient;
+  let db: Db;
+  let app: FastifyInstance;
+  let serviceRepo: ServiceRepository;
+  let repositoryRepo: RepositoryRepository;
+  let accountRepo: AccountRepository;
+  let sessionService: SessionService;
+  let environmentService: EnvironmentService;
+
+  const TEST_SECRET = "test-secret-for-sessions";
+  const COOKIE_SECRET = "test-cookie-secret";
+
+  beforeAll(async () => {
+    mongoServer = await MongoMemoryServer.create();
+    client = new MongoClient(mongoServer.getUri());
+    await client.connect();
+    db = client.db("test");
+    registerHandlebarsHelpers();
+  });
+
+  afterAll(async () => {
+    await client.close();
+    await mongoServer.stop();
+  });
+
+  beforeEach(async () => {
+    await db.collection("services").deleteMany({});
+    await db.collection("repositories").deleteMany({});
+    await db.collection("accounts").deleteMany({});
+
+    serviceRepo = new ServiceRepository(db);
+    repositoryRepo = new RepositoryRepository(db);
+    accountRepo = new AccountRepository(db);
+    sessionService = new SessionService(TEST_SECRET);
+    environmentService = new EnvironmentService(serviceRepo);
+
+    app = Fastify();
+    await app.register(cookie, { secret: COOKIE_SECRET });
+    await app.register(formbody);
+    await app.register(view, {
+      engine: { handlebars },
+      root: path.join(__dirname, "../../../templates"),
+      options: {
+        partials: {
+          navigation: "/partials/navigation.hbs",
+          environmentList: "/partials/environmentList.hbs",
+        },
+      },
+    });
+    sessionAuthMiddleware(app, sessionService);
+    registerSettingsRoutes(app, {
+      serviceRepository: serviceRepo,
+      repositoryRepository: repositoryRepo,
+      environmentService,
+    });
+    await app.ready();
+  });
+
+  describe("PATCH /services/:serviceId/workflow", () => {
+    it("should update workflow configuration and return success", async () => {
+      // Given: a service with default workflow settings
+      const account = await accountRepo.create({
+        name: "Test Org",
+        slug: "test-org",
+      });
+
+      const repository = await repositoryRepo.create({
+        accountId: account._id,
+        githubRepoId: 999,
+        githubFullName: "test-org/my-repo",
+        githubRepoName: "my-repo",
+        githubOwner: "test-org",
+        isPrivate: false,
+      });
+
+      const service = await serviceRepo.create({
+        accountId: account._id,
+        repositoryId: repository._id,
+        name: "my-service",
+      });
+
+      const userId = new ObjectId();
+      const sessionToken = sessionService.createSession({
+        userId,
+        accountId: account._id,
+      });
+
+      // When: PATCH /services/:id/workflow
+      const response = await app.inject({
+        method: "PATCH",
+        url: `/services/${service._id}/workflow`,
+        cookies: {
+          session: sessionToken,
+        },
+        payload: {
+          workflowFile: "custom-deploy.yml",
+          eventType: "custom-deployment",
+        },
+      });
+
+      // Then: service updated, success response
+      expect(response.statusCode).toBe(200);
+
+      // Verify service was updated
+      const updatedService = await serviceRepo.findById(service._id);
+      expect(updatedService?.workflowFile).toBe("custom-deploy.yml");
+      expect(updatedService?.eventType).toBe("custom-deployment");
+      expect(updatedService?.workflowConfigured).toBe(true);
+    });
+
+    it("should return 401 when not authenticated", async () => {
+      // Given: a service
+      const account = await accountRepo.create({
+        name: "Test Org",
+        slug: "test-org",
+      });
+
+      const repository = await repositoryRepo.create({
+        accountId: account._id,
+        githubRepoId: 999,
+        githubFullName: "test-org/my-repo",
+        githubRepoName: "my-repo",
+        githubOwner: "test-org",
+        isPrivate: false,
+      });
+
+      const service = await serviceRepo.create({
+        accountId: account._id,
+        repositoryId: repository._id,
+        name: "my-service",
+      });
+
+      // When: PATCH without session
+      const response = await app.inject({
+        method: "PATCH",
+        url: `/services/${service._id}/workflow`,
+        payload: {
+          workflowFile: "custom-deploy.yml",
+          eventType: "custom-deployment",
+        },
+      });
+
+      // Then: redirect to auth
+      expect(response.statusCode).toBe(302);
+      expect(response.headers.location).toBe("/auth/github");
+    });
+
+    it("should return 404 when service not found", async () => {
+      // Given: an account but no service
+      const account = await accountRepo.create({
+        name: "Test Org",
+        slug: "test-org",
+      });
+
+      const userId = new ObjectId();
+      const sessionToken = sessionService.createSession({
+        userId,
+        accountId: account._id,
+      });
+
+      const fakeServiceId = new ObjectId();
+
+      // When: PATCH non-existent service
+      const response = await app.inject({
+        method: "PATCH",
+        url: `/services/${fakeServiceId}/workflow`,
+        cookies: {
+          session: sessionToken,
+        },
+        payload: {
+          workflowFile: "custom-deploy.yml",
+          eventType: "custom-deployment",
+        },
+      });
+
+      // Then: 404
+      expect(response.statusCode).toBe(404);
+    });
+
+    it("should return 404 when service belongs to another account", async () => {
+      // Given: a service belonging to another account
+      const otherAccount = await accountRepo.create({
+        name: "Other Org",
+        slug: "other-org",
+      });
+
+      const repository = await repositoryRepo.create({
+        accountId: otherAccount._id,
+        githubRepoId: 999,
+        githubFullName: "other-org/my-repo",
+        githubRepoName: "my-repo",
+        githubOwner: "other-org",
+        isPrivate: false,
+      });
+
+      const service = await serviceRepo.create({
+        accountId: otherAccount._id,
+        repositoryId: repository._id,
+        name: "my-service",
+      });
+
+      // Given: a different user
+      const myAccount = await accountRepo.create({
+        name: "My Org",
+        slug: "my-org",
+      });
+
+      const userId = new ObjectId();
+      const sessionToken = sessionService.createSession({
+        userId,
+        accountId: myAccount._id,
+      });
+
+      // When: PATCH service owned by other account
+      const response = await app.inject({
+        method: "PATCH",
+        url: `/services/${service._id}/workflow`,
+        cookies: {
+          session: sessionToken,
+        },
+        payload: {
+          workflowFile: "custom-deploy.yml",
+          eventType: "custom-deployment",
+        },
+      });
+
+      // Then: 404 (don't reveal service exists)
+      expect(response.statusCode).toBe(404);
+    });
+  });
+});

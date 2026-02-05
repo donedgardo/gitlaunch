@@ -9,8 +9,54 @@
   </head>
   <body class="bg-white dark:bg-gray-900">
     {{{body}}}
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2"></div>
+
     <script src="/public/js/htmx.min.js"></script>
     <script src="/public/js/htmx.sse.min.js"></script>
     <script src="/public/js/htmx.auth.js"></script>
+    <script>
+      // Toast notification system
+      function showToast(message, type = 'success') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        
+        const bgColor = type === 'success' 
+          ? 'bg-green-600' 
+          : type === 'error' 
+          ? 'bg-red-600' 
+          : 'bg-blue-600';
+        
+        toast.className = `${bgColor} text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-2 transform transition-all duration-300 translate-x-full`;
+        toast.innerHTML = `
+          <span>${message}</span>
+          <button onclick="this.parentElement.remove()" class="ml-2 hover:opacity-75">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        `;
+        
+        container.appendChild(toast);
+        
+        // Animate in
+        requestAnimationFrame(() => {
+          toast.classList.remove('translate-x-full');
+        });
+        
+        // Auto-remove after 4 seconds
+        setTimeout(() => {
+          toast.classList.add('translate-x-full');
+          setTimeout(() => toast.remove(), 300);
+        }, 4000);
+      }
+      
+      // Listen for showToast events from HTMX
+      document.body.addEventListener('showToast', function(evt) {
+        const { message, type } = evt.detail;
+        showToast(message, type);
+      });
+    </script>
   </body>
 </html>
