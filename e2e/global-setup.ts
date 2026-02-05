@@ -16,6 +16,7 @@ export default async function globalSetup() {
     await db.collection("memberships").deleteMany({});
     await db.collection("repositories").deleteMany({});
     await db.collection("services").deleteMany({});
+    await db.collection("builds").deleteMany({});
 
     // Create test user without GitHub App
     const testUser1Id = new ObjectId("000000000000000000000001");
@@ -315,9 +316,30 @@ export default async function globalSetup() {
       ],
       workflowFile: "deploy.yml",
       eventType: "deployment",
+      workflowConfigured: true,
       isActive: true,
       createdAt: new Date(),
     });
+
+    // Add builds for userWithService (enables build table tests)
+    await db.collection("builds").insertMany([
+      {
+        _id: new ObjectId("000000000000000000000301"),
+        accountId: testAccount7Id,
+        serviceId: testService3Id,
+        buildId: "abc123",
+        deployments: { staging: "deployed", prod: null },
+        createdAt: new Date(),
+      },
+      {
+        _id: new ObjectId("000000000000000000000302"),
+        accountId: testAccount7Id,
+        serviceId: testService3Id,
+        buildId: "def456",
+        deployments: { staging: "deployed", prod: "deployed" },
+        createdAt: new Date(),
+      },
+    ]);
 
     // Create test user WITH multiple services (for navigation tests)
     const testUser6Id = new ObjectId("000000000000000000000006");

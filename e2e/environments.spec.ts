@@ -97,13 +97,9 @@ test.describe("Environment Management", () => {
       await expect(page.getByText("QA Testing")).toBeVisible();
     });
 
-    test.skip("new environment appears in dashboard build table", async ({
+    test("new environment appears in dashboard build table", async ({
       page,
     }) => {
-      // SKIPPED: This test requires builds to exist for the build table to show.
-      // Environment columns are verified implicitly when builds are present.
-      // The build table only appears once there are builds to display.
-
       // Given: I am logged in and add a new environment "qa"
       await authenticateTestUser(page, TEST_USERS.userWithService);
       await page.goto("/services/000000000000000000000203/settings");
@@ -116,7 +112,7 @@ test.describe("Environment Management", () => {
       await addModal.getByRole("button", { name: /save/i }).click();
 
       // Verify it was added
-      await expect(page.getByText("QA Testing")).toBeVisible();
+      await expect(page.getByText("QA Testing").first()).toBeVisible();
 
       // When: I go to the dashboard
       await page.goto("/dashboard");
