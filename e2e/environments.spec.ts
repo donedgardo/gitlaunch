@@ -65,16 +65,15 @@ test.describe("Environment Management", () => {
       await authenticateTestUser(page, TEST_USERS.userWithService);
 
       // When: I navigate to service settings
-      await page.goto("/dashboard");
-      await page
-        .getByRole("link", { name: /settings/i })
-        .first()
-        .click();
+      await page.goto("/services/000000000000000000000203/settings");
 
       // Then: I should see the environments section with defaults
-      await expect(page.getByText(/environments/i)).toBeVisible();
-      await expect(page.getByText("staging")).toBeVisible();
-      await expect(page.getByText(/prod/i)).toBeVisible();
+      await expect(
+        page.getByRole("heading", { name: /environments/i }),
+      ).toBeVisible();
+      // Check environment display names (first match for each)
+      await expect(page.getByText("Staging").first()).toBeVisible();
+      await expect(page.getByText("Production").first()).toBeVisible();
     });
   });
 
@@ -82,17 +81,14 @@ test.describe("Environment Management", () => {
     test("user can add a new environment", async ({ page }) => {
       // Given: I am on service settings
       await authenticateTestUser(page, TEST_USERS.userWithService);
-      await page.goto("/dashboard");
-      await page
-        .getByRole("link", { name: /settings/i })
-        .first()
-        .click();
+      await page.goto("/services/000000000000000000000203/settings");
 
       // When: I add a new environment
       await page.getByRole("button", { name: /add environment/i }).click();
-      await page.locator("#env-name").fill("qa");
-      await page.locator("#env-display-name").fill("QA Testing");
-      await page.getByRole("button", { name: /save/i }).click();
+      const addModal = page.locator("#add-env-modal");
+      await addModal.locator("#env-name").fill("qa");
+      await addModal.locator("#env-display-name").fill("QA Testing");
+      await addModal.getByRole("button", { name: /save/i }).click();
 
       // Then: the environment appears in the list
       await expect(page.getByText("QA Testing")).toBeVisible();
@@ -117,20 +113,17 @@ test.describe("Environment Management", () => {
     test("user can change environment display name", async ({ page }) => {
       // Given: I have an environment "staging"
       await authenticateTestUser(page, TEST_USERS.userWithService);
-      await page.goto("/dashboard");
-      await page
-        .getByRole("link", { name: /settings/i })
-        .first()
-        .click();
+      await page.goto("/services/000000000000000000000203/settings");
 
       // When: I edit the staging environment
       await page
         .locator('[data-env="staging"]')
         .getByRole("button", { name: /edit/i })
         .click();
-      await page.locator("#env-display-name").clear();
-      await page.locator("#env-display-name").fill("Staging US-West");
-      await page.getByRole("button", { name: /save/i }).click();
+      const editModal = page.locator("#edit-env-modal");
+      await editModal.locator("#env-display-name").clear();
+      await editModal.locator("#env-display-name").fill("Staging US-West");
+      await editModal.getByRole("button", { name: /save/i }).click();
 
       // Then: the new name is displayed
       await expect(page.getByText("Staging US-West")).toBeVisible();
@@ -141,20 +134,17 @@ test.describe("Environment Management", () => {
     test("user can change environment order", async ({ page }) => {
       // Given: I have environments in order: staging (0), prod (1)
       await authenticateTestUser(page, TEST_USERS.userWithService);
-      await page.goto("/dashboard");
-      await page
-        .getByRole("link", { name: /settings/i })
-        .first()
-        .click();
+      await page.goto("/services/000000000000000000000203/settings");
 
       // When: I change prod's order to 0 (before staging)
       await page
         .locator('[data-env="prod"]')
         .getByRole("button", { name: /edit/i })
         .click();
-      await page.locator("#env-order").clear();
-      await page.locator("#env-order").fill("0");
-      await page.getByRole("button", { name: /save/i }).click();
+      const editModal = page.locator("#edit-env-modal");
+      await editModal.locator("#env-order").clear();
+      await editModal.locator("#env-order").fill("0");
+      await editModal.getByRole("button", { name: /save/i }).click();
 
       // Then: prod appears before staging in the list
       const envItems = page.locator("[data-env]");
@@ -167,17 +157,14 @@ test.describe("Environment Management", () => {
     test("user can delete an environment", async ({ page }) => {
       // Given: I have an extra environment "qa"
       await authenticateTestUser(page, TEST_USERS.userWithService);
-      await page.goto("/dashboard");
-      await page
-        .getByRole("link", { name: /settings/i })
-        .first()
-        .click();
+      await page.goto("/services/000000000000000000000203/settings");
 
       // First add one so we can delete it
       await page.getByRole("button", { name: /add environment/i }).click();
-      await page.locator("#env-name").fill("temp-env");
-      await page.locator("#env-display-name").fill("Temporary");
-      await page.getByRole("button", { name: /save/i }).click();
+      const addModal = page.locator("#add-env-modal");
+      await addModal.locator("#env-name").fill("temp-env");
+      await addModal.locator("#env-display-name").fill("Temporary");
+      await addModal.getByRole("button", { name: /save/i }).click();
       await expect(page.getByText("Temporary")).toBeVisible();
 
       // When: I delete the environment
@@ -185,20 +172,19 @@ test.describe("Environment Management", () => {
         .locator('[data-env="temp-env"]')
         .getByRole("button", { name: /delete/i })
         .click();
-      await page.getByRole("button", { name: /confirm/i }).click();
+      const deleteModal = page.locator("#delete-env-modal");
+      await deleteModal.getByRole("button", { name: /confirm/i }).click();
 
-      // Then: it no longer appears
-      await expect(page.getByText("Temporary")).not.toBeVisible();
+      // Then: it no longer appears in the environment list
+      await expect(
+        page.locator("#environment-list").getByText("Temporary"),
+      ).not.toBeVisible();
     });
 
     test("cannot delete last remaining environment", async ({ page }) => {
       // Given: I only have one environment left
       await authenticateTestUser(page, TEST_USERS.userWithService);
-      await page.goto("/dashboard");
-      await page
-        .getByRole("link", { name: /settings/i })
-        .first()
-        .click();
+      await page.goto("/services/000000000000000000000203/settings");
 
       // Remove all but one (if possible via UI)
       // Then try to delete the last one
@@ -221,17 +207,14 @@ test.describe("Environment Management", () => {
     test("rejects invalid environment name format", async ({ page }) => {
       // Given: I am on service settings
       await authenticateTestUser(page, TEST_USERS.userWithService);
-      await page.goto("/dashboard");
-      await page
-        .getByRole("link", { name: /settings/i })
-        .first()
-        .click();
+      await page.goto("/services/000000000000000000000203/settings");
 
       // When: I try to add an environment with invalid name
       await page.getByRole("button", { name: /add environment/i }).click();
-      await page.locator("#env-name").fill("My Environment!"); // Invalid: spaces and !
-      await page.locator("#env-display-name").fill("Test");
-      await page.getByRole("button", { name: /save/i }).click();
+      const addModal = page.locator("#add-env-modal");
+      await addModal.locator("#env-name").fill("My Environment!"); // Invalid: spaces and !
+      await addModal.locator("#env-display-name").fill("Test");
+      await addModal.getByRole("button", { name: /save/i }).click();
 
       // Then: I see an error message
       await expect(
@@ -242,17 +225,14 @@ test.describe("Environment Management", () => {
     test("rejects duplicate environment name", async ({ page }) => {
       // Given: I already have a "staging" environment
       await authenticateTestUser(page, TEST_USERS.userWithService);
-      await page.goto("/dashboard");
-      await page
-        .getByRole("link", { name: /settings/i })
-        .first()
-        .click();
+      await page.goto("/services/000000000000000000000203/settings");
 
       // When: I try to add another "staging" environment
       await page.getByRole("button", { name: /add environment/i }).click();
-      await page.locator("#env-name").fill("staging"); // Duplicate
-      await page.locator("#env-display-name").fill("Another Staging");
-      await page.getByRole("button", { name: /save/i }).click();
+      const addModal = page.locator("#add-env-modal");
+      await addModal.locator("#env-name").fill("staging"); // Duplicate
+      await addModal.locator("#env-display-name").fill("Another Staging");
+      await addModal.getByRole("button", { name: /save/i }).click();
 
       // Then: I see an error about duplicate name
       await expect(page.getByText(/already exists|duplicate/i)).toBeVisible();
