@@ -5,6 +5,14 @@ import { ServiceRepository } from "../../repositories/serviceRepository";
 import { DeploymentStatus } from "../service/deploymentStatus";
 import { BuildDispatchServiceI } from "./buildDispatchService";
 
+export type BuildUpdateEvent = {
+  buildId: string;
+  environment: string;
+  status: DeploymentStatus;
+  serviceId: string;
+  serviceName: string;
+};
+
 export type CreateBuildInput = {
   accountId: ObjectId;
   serviceId: ObjectId;
@@ -109,15 +117,14 @@ export class BuildService {
     }
 
     // Emit event for SSE updates (as array for SSE listener compatibility)
-    this.eventEmitter.emit("build:update", [
-      {
-        buildId: build.buildId,
-        environment: input.environment,
-        status: input.status,
-        serviceId: input.serviceId.toString(),
-        serviceName: service.name,
-      },
-    ]);
+    const updateEvent: BuildUpdateEvent = {
+      buildId: build.buildId,
+      environment: input.environment,
+      status: input.status,
+      serviceId: input.serviceId.toString(),
+      serviceName: service.name,
+    };
+    this.eventEmitter.emit("build:update", [updateEvent]);
 
     return build;
   }
