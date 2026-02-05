@@ -1,5 +1,8 @@
 import { test, expect } from "@playwright/test";
+import { MongoClient, ObjectId } from "mongodb";
 import { authenticateTestUser, TEST_USERS } from "./helpers/auth";
+
+const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017";
 
 /**
  * Environment Management E2E Tests
@@ -155,6 +158,29 @@ test.describe("Environment Management", () => {
   });
 
   test.describe("Reorder Environments", () => {
+    // Reset environment orders before each test to ensure test isolation
+    // This is needed because "Edit Environment" tests may change the order
+    test.beforeEach(async () => {
+      const client = new MongoClient(MONGODB_URI);
+      try {
+        await client.connect();
+        const db = client.db("gitlaunch");
+        await db.collection("services").updateOne(
+          { _id: new ObjectId("000000000000000000000203") },
+          {
+            $set: {
+              environments: [
+                { name: "staging", order: 0 },
+                { name: "prod", order: 1 },
+              ],
+            },
+          },
+        );
+      } finally {
+        await client.close();
+      }
+    });
+
     test("user can change environment order", async ({ page }) => {
       // Given: I have environments in order: staging (0), prod (1)
       await authenticateTestUser(page, TEST_USERS.userWithService);
