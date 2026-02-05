@@ -268,7 +268,7 @@ describe("Dashboard Routes", () => {
     });
   });
 
-  describe("PATCH /:serviceName/build/:buildId/:env/dispatching", () => {
+  describe("PATCH /services/:serviceId/builds/:buildId/deploy/:env", () => {
     it("should trigger deployment and return HTML partial for HTMX swap", async () => {
       // Given: an authenticated user with a service and build
       const accountId = new ObjectId();
@@ -310,7 +310,7 @@ describe("Dashboard Routes", () => {
       // When: triggering deployment
       const response = await app.inject({
         method: "PATCH",
-        url: "/deploy-service/build/build-123/staging/dispatching",
+        url: `/services/${service._id}/builds/build-123/deploy/staging`,
         cookies: {
           session: sessionToken,
         },
@@ -332,6 +332,7 @@ describe("Dashboard Routes", () => {
       // Given: authenticated user but service doesn't exist
       const accountId = new ObjectId();
       const userId = new ObjectId();
+      const nonExistentServiceId = new ObjectId();
 
       const sessionToken = sessionService.createSession({
         userId,
@@ -341,7 +342,7 @@ describe("Dashboard Routes", () => {
       // When: triggering deployment for non-existent service
       const response = await app.inject({
         method: "PATCH",
-        url: "/non-existent/build/build-123/staging/dispatching",
+        url: `/services/${nonExistentServiceId}/builds/build-123/deploy/staging`,
         cookies: {
           session: sessionToken,
         },
@@ -391,7 +392,7 @@ describe("Dashboard Routes", () => {
       // When: attacker tries to deploy
       const response = await app.inject({
         method: "PATCH",
-        url: "/protected-service/build/protected-build/staging/dispatching",
+        url: `/services/${service._id}/builds/protected-build/deploy/staging`,
         cookies: {
           session: sessionToken,
         },
@@ -440,7 +441,7 @@ describe("Dashboard Routes", () => {
       // When: trying to deploy to an invalid environment
       const response = await app.inject({
         method: "PATCH",
-        url: "/limited-envs/build/build-456/invalid-env/dispatching",
+        url: `/services/${service._id}/builds/build-456/deploy/invalid-env`,
         cookies: {
           session: sessionToken,
         },
@@ -452,14 +453,38 @@ describe("Dashboard Routes", () => {
 
     it("should redirect to home when not authenticated", async () => {
       // When: accessing deploy route without session
+      const fakeServiceId = new ObjectId();
       const response = await app.inject({
         method: "PATCH",
-        url: "/some-service/build/build-123/staging/dispatching",
+        url: `/services/${fakeServiceId}/builds/build-123/deploy/staging`,
       });
 
       // Then: redirect to home
       expect(response.statusCode).toBe(302);
       expect(response.headers.location).toBe("/");
+    });
+
+    it("should return 400 for invalid service ID format", async () => {
+      // Given: authenticated user
+      const accountId = new ObjectId();
+      const userId = new ObjectId();
+
+      const sessionToken = sessionService.createSession({
+        userId,
+        accountId,
+      });
+
+      // When: triggering deployment with invalid serviceId
+      const response = await app.inject({
+        method: "PATCH",
+        url: "/services/not-a-valid-objectid/builds/build-123/deploy/staging",
+        cookies: {
+          session: sessionToken,
+        },
+      });
+
+      // Then: 400 response
+      expect(response.statusCode).toBe(400);
     });
   });
 });

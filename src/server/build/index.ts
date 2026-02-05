@@ -69,6 +69,7 @@ export default function (deps: BuildRoutesDeps) {
                   buildId: event.buildId,
                   env: event.environment,
                   serviceName: event.serviceName,
+                  serviceId: event.serviceId,
                   status: event.status,
                   isOobSwap: true,
                 });

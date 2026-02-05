@@ -35,11 +35,13 @@ export default function (deps: DashboardRoutesDeps) {
       builds: Build[],
       environments: { name: string }[],
       serviceName: string,
+      serviceId: string,
     ) => {
       return builds.map((build) => ({
         id: build.buildId,
         environments, // Include environments in each build for Handlebars partial scope
         serviceName, // Include serviceName in each build for Handlebars partial scope
+        serviceId, // Include serviceId for deploy button URLs
         deployments: environments.reduce(
           (acc, env) => {
             acc[env.name] = build.deployments[env.name] || null;
@@ -121,6 +123,7 @@ export default function (deps: DashboardRoutesDeps) {
           builds,
           environments,
           serviceName,
+          activeService._id.toString(),
         );
 
         // Check if we need to show deployment setup guide
@@ -166,24 +169,29 @@ export default function (deps: DashboardRoutesDeps) {
       },
     );
 
-    // PATCH /:serviceName/build/:buildId/:env/dispatching - Trigger deployment from dashboard
+    // PATCH /services/:serviceId/builds/:buildId/deploy/:env - Trigger deployment from dashboard
     server.patch<{
-      Params: { serviceName: string; buildId: string; env: string };
+      Params: { serviceId: string; buildId: string; env: string };
     }>(
-      "/:serviceName/build/:buildId/:env/dispatching",
+      "/services/:serviceId/builds/:buildId/deploy/:env",
       async (
         req: FastifyRequest<{
-          Params: { serviceName: string; buildId: string; env: string };
+          Params: { serviceId: string; buildId: string; env: string };
         }>,
         reply: FastifyReply,
       ) => {
         const accountId = new ObjectId(req.session!.accountId);
-        const { serviceName, buildId, env } = req.params;
+        const { serviceId, buildId, env } = req.params;
 
-        // Find the service by name and verify ownership
-        const service = await serviceRepository.findByAccountIdAndName(
+        // Validate serviceId format
+        if (!ObjectId.isValid(serviceId)) {
+          return reply.status(400).send({ error: "Invalid service ID" });
+        }
+
+        // Find the service by ID and verify ownership
+        const service = await serviceRepository.findByAccountAndId(
           accountId,
-          serviceName,
+          new ObjectId(serviceId),
         );
         if (!service) {
           return reply.status(404).send({ error: "Service not found" });
@@ -205,7 +213,8 @@ export default function (deps: DashboardRoutesDeps) {
               buildId,
               status: build.deployments[env],
               env,
-              serviceName,
+              serviceName: service.name,
+              serviceId,
               isOobSwap: true,
             },
             { layout: "" },

@@ -6,7 +6,7 @@
 >
   {{#if (showDeployButton status) }}
     <button
-      hx-patch="/{{serviceName}}/build/{{buildId}}/{{env}}/dispatching"
+      hx-patch="/services/{{serviceId}}/builds/{{buildId}}/deploy/{{env}}"
       hx-target="#{{serviceName}}-{{buildId}}-{{env}}"
       class="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-colors"
     >
