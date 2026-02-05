@@ -261,10 +261,16 @@ export function registerServiceRoutes(
   );
 
   // GET /services/:serviceId/workflows - Fetch workflows from GitHub
-  app.get<{ Params: { serviceId: string } }>(
+  app.get<{
+    Params: { serviceId: string };
+    Querystring: { selected?: string };
+  }>(
     "/services/:serviceId/workflows",
     async (
-      request: FastifyRequest<{ Params: { serviceId: string } }>,
+      request: FastifyRequest<{
+        Params: { serviceId: string };
+        Querystring: { selected?: string };
+      }>,
       reply: FastifyReply,
     ) => {
       // Redirect to login if not authenticated
@@ -274,6 +280,7 @@ export function registerServiceRoutes(
 
       const accountId = new ObjectId(request.session.accountId);
       const { serviceId } = request.params;
+      const { selected } = request.query;
 
       // Validate ObjectId
       let serviceObjectId: ObjectId;
@@ -315,11 +322,12 @@ export function registerServiceRoutes(
           repository.githubRepoName,
         );
 
-        // Return HTML options
+        // Return HTML options with optional pre-selection
         const options = workflows
           .map((w) => {
             const filename = w.path.split("/").pop() || w.path;
-            return `<option value="${filename}">${w.name} (${filename})</option>`;
+            const isSelected = selected === filename ? " selected" : "";
+            return `<option value="${filename}"${isSelected}>${w.name} (${filename})</option>`;
           })
           .join("\n");
 
