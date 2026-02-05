@@ -31,6 +31,28 @@ const mockRepos = [
   },
 ];
 
+// Mock GitHub workflows for testing workflow dropdown
+const mockWorkflows = [
+  {
+    id: 1,
+    name: "CI",
+    path: ".github/workflows/ci.yml",
+    state: "active",
+  },
+  {
+    id: 2,
+    name: "Deploy",
+    path: ".github/workflows/deploy.yml",
+    state: "active",
+  },
+  {
+    id: 3,
+    name: "Release",
+    path: ".github/workflows/release.yml",
+    state: "active",
+  },
+];
+
 export const handlers = [
   // Mock GitHub App installation repos endpoint
   http.get("https://api.github.com/installation/repositories", () => {
@@ -47,6 +69,18 @@ export const handlers = [
       return HttpResponse.json({
         token: "ghs_mock_installation_token",
         expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+      });
+    },
+  ),
+
+  // Mock GitHub Actions workflows endpoint (required for workflow dropdown)
+  // This endpoint requires `actions: read` permission on the GitHub App
+  http.get(
+    "https://api.github.com/repos/:owner/:repo/actions/workflows",
+    () => {
+      return HttpResponse.json({
+        total_count: mockWorkflows.length,
+        workflows: mockWorkflows,
       });
     },
   ),
