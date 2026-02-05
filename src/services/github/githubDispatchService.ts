@@ -32,9 +32,9 @@ export class MultiTenantGithubDispatchService {
         body: JSON.stringify({
           event_type: input.eventType,
           client_payload: {
-            env: input.environment,
-            "build-id": input.buildId,
-            "service-id": input.serviceId,
+            environment: input.environment,
+            buildId: input.buildId,
+            serviceId: input.serviceId,
           },
         }),
       },

@@ -106,13 +106,13 @@ describe("MultiTenantGithubDispatchService", () => {
       // When: I dispatch
       await service.dispatch(input);
 
-      // Then: body contains correct payload including service-id
+      // Then: body contains correct payload with camelCase keys
       const body = JSON.parse(fakeHttp.requests[0].options.body as string);
       expect(body.event_type).toBe("deploy");
       expect(body.client_payload).toEqual({
-        env: "prod",
-        "build-id": "build-456",
-        "service-id": "service-xyz",
+        environment: "prod",
+        buildId: "build-456",
+        serviceId: "service-xyz",
       });
     });
 
