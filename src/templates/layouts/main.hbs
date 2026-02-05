@@ -57,6 +57,20 @@
         const { message, type } = evt.detail;
         showToast(message, type);
       });
+      
+      // Enable HTMX on service nav links only when #build-table exists (dashboard pages)
+      document.addEventListener('DOMContentLoaded', function() {
+        if (document.getElementById('build-table')) {
+          document.querySelectorAll('.service-nav-link').forEach(function(link) {
+            if (link.dataset.hxGet) {
+              link.setAttribute('hx-get', link.dataset.hxGet);
+              link.setAttribute('hx-target', link.dataset.hxTarget);
+              link.setAttribute('hx-push-url', link.dataset.hxPushUrl);
+              htmx.process(link);
+            }
+          });
+        }
+      });
     </script>
   </body>
 </html>

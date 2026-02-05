@@ -4,7 +4,10 @@
       <li class="flex items-center">
         <a
           href="/dashboard/{{serviceName}}"
-          class="inline-block px-4 py-3 text-sm font-medium transition-colors {{#if (eq serviceName ../activeService)}}text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400{{else}}text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 border-b-2 border-transparent hover:border-gray-300 dark:hover:border-gray-600{{/if}}"
+          data-hx-get="/dashboard/{{serviceName}}"
+          data-hx-target="#build-table"
+          data-hx-push-url="true"
+          class="service-nav-link inline-block px-4 py-3 text-sm font-medium transition-colors {{#if (eq serviceName ../activeService)}}text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400{{else}}text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 border-b-2 border-transparent hover:border-gray-300 dark:hover:border-gray-600{{/if}}"
         >
           {{serviceName}}
         </a>
