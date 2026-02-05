@@ -299,6 +299,52 @@ describe("EnvironmentService", () => {
         }),
       ).rejects.toThrow("Environment not found");
     });
+
+    it("should reorder environments when order is changed", async () => {
+      // Given: a service with staging (order 0) and prod (order 1)
+      const account = await accountRepo.create({
+        name: "My Org",
+        slug: "my-org-reorder",
+      });
+      const repo = await repoRepo.create({
+        accountId: account._id,
+        githubRepoId: 200,
+        githubFullName: "org/repo-reorder",
+        githubOwner: "org",
+        githubRepoName: "repo-reorder",
+        isPrivate: false,
+      });
+      const service = await serviceRepo.create({
+        accountId: account._id,
+        repositoryId: repo._id,
+        name: "service-reorder",
+      });
+
+      // Verify initial order
+      const initial = await envService.listEnvironments(
+        account._id,
+        service._id,
+      );
+      expect(initial.find((e) => e.name === "staging")?.order).toBe(0);
+      expect(initial.find((e) => e.name === "prod")?.order).toBe(1);
+
+      // When: I change prod's order to 0 (move to first position)
+      const result = await envService.updateEnvironment(
+        account._id,
+        service._id,
+        "prod",
+        { order: 0 },
+      );
+
+      // Then: prod is at order 0 and staging shifted to order 1
+      const sortedEnvs = [...result.environments].sort(
+        (a, b) => a.order - b.order,
+      );
+      expect(sortedEnvs[0].name).toBe("prod");
+      expect(sortedEnvs[0].order).toBe(0);
+      expect(sortedEnvs[1].name).toBe("staging");
+      expect(sortedEnvs[1].order).toBe(1);
+    });
   });
 
   describe("removeEnvironment", () => {

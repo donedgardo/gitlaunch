@@ -138,7 +138,9 @@ export function registerSettingsRoutes(
         const message =
           error instanceof Error ? error.message : "Failed to add environment";
 
-        return reply.status(400).view("partials/environmentList", {
+        // Return 200 so HTMX swaps the content (HTMX doesn't swap on 4xx by default)
+        // The error is displayed in the partial template
+        return reply.view("partials/environmentList", {
           environments: [...service.environments].sort(
             (a, b) => a.order - b.order,
           ),
