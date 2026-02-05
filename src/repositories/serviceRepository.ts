@@ -132,4 +132,36 @@ export class ServiceRepository {
     );
     return result;
   }
+
+  async updateEnvironment(
+    id: ObjectId,
+    envName: string,
+    updates: { displayName?: string; order?: number },
+  ): Promise<Service | null> {
+    const setFields: Record<string, string | number> = {};
+    if (updates.displayName !== undefined) {
+      setFields["environments.$.displayName"] = updates.displayName;
+    }
+    if (updates.order !== undefined) {
+      setFields["environments.$.order"] = updates.order;
+    }
+
+    // If no fields to update, just return the current document
+    if (Object.keys(setFields).length === 0) {
+      return this.findById(id);
+    }
+
+    const result = await this.collection.findOneAndUpdate(
+      { _id: id, "environments.name": envName },
+      { $set: setFields },
+      { returnDocument: "after" },
+    );
+
+    // If no match (environment not found), return the service as-is
+    if (!result) {
+      return this.findById(id);
+    }
+
+    return result;
+  }
 }

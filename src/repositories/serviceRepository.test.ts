@@ -351,6 +351,92 @@ describe("ServiceRepository", () => {
     });
   });
 
+  describe("updateEnvironment", () => {
+    it("should update an existing environment's displayName", async () => {
+      // Given: a service with default environments
+      const accountId = new ObjectId();
+      const repositoryId = new ObjectId();
+      const service = await repo.create({
+        accountId,
+        repositoryId,
+        name: "update-env-test",
+      });
+
+      // When: I update the staging environment's displayName
+      const updated = await repo.updateEnvironment(service._id, "staging", {
+        displayName: "Staging Environment",
+      });
+
+      // Then: the environment is updated
+      expect(updated).not.toBeNull();
+      const stagingEnv = updated?.environments.find(
+        (e) => e.name === "staging",
+      );
+      expect(stagingEnv?.displayName).toBe("Staging Environment");
+      expect(stagingEnv?.order).toBe(0); // order unchanged
+    });
+
+    it("should update an existing environment's order", async () => {
+      // Given: a service with default environments
+      const accountId = new ObjectId();
+      const repositoryId = new ObjectId();
+      const service = await repo.create({
+        accountId,
+        repositoryId,
+        name: "update-order-test",
+      });
+
+      // When: I update the staging environment's order
+      const updated = await repo.updateEnvironment(service._id, "staging", {
+        order: 5,
+      });
+
+      // Then: the order is updated
+      expect(updated).not.toBeNull();
+      const stagingEnv = updated?.environments.find(
+        (e) => e.name === "staging",
+      );
+      expect(stagingEnv?.order).toBe(5);
+      expect(stagingEnv?.displayName).toBe("Staging"); // displayName unchanged
+    });
+
+    it("should return null if service not found", async () => {
+      // Given: a non-existent service ID
+      const fakeId = new ObjectId();
+
+      // When: I try to update an environment
+      const result = await repo.updateEnvironment(fakeId, "staging", {
+        displayName: "New Name",
+      });
+
+      // Then: null is returned
+      expect(result).toBeNull();
+    });
+
+    it("should return unchanged service if environment not found", async () => {
+      // Given: a service without a "dev" environment
+      const accountId = new ObjectId();
+      const repositoryId = new ObjectId();
+      const service = await repo.create({
+        accountId,
+        repositoryId,
+        name: "no-env-test",
+      });
+
+      // When: I try to update non-existent environment
+      const updated = await repo.updateEnvironment(service._id, "dev", {
+        displayName: "Development",
+      });
+
+      // Then: service is returned but unchanged (no env named "dev")
+      expect(updated).not.toBeNull();
+      expect(updated?.environments).toHaveLength(2);
+      expect(
+        updated?.environments.find((e) => e.name === "dev"),
+      ).toBeUndefined();
+    });
+  });
+
   describe("markWorkflowConfigured", () => {
     it("should set workflowConfigured to true", async () => {
       // Given: a service with workflowConfigured=false
