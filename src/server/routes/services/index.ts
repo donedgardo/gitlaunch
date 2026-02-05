@@ -310,7 +310,7 @@ export function registerServiceRoutes(
       // Check if GitHub App service is available
       if (!githubAppService) {
         return reply
-          .status(500)
+          .header("Content-Type", "text/html")
           .send("<option value=''>GitHub integration not configured</option>");
       }
 
@@ -338,8 +338,14 @@ export function registerServiceRoutes(
               "<option value=''>No workflows found - create one first</option>",
           );
       } catch (error) {
+        console.error(
+          "Failed to fetch workflows for repo:",
+          repository.githubOwner,
+          repository.githubRepoName,
+          error,
+        );
         return reply
-          .status(500)
+          .header("Content-Type", "text/html")
           .send("<option value=''>Failed to load workflows</option>");
       }
     },
