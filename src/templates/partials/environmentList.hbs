@@ -1,0 +1,50 @@
+{{#if error}}
+<div class="px-6 py-3 bg-red-50 dark:bg-red-900/20 border-b border-red-200 dark:border-red-800">
+  <p class="text-sm text-red-800 dark:text-red-200">
+    <svg class="inline w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+    </svg>
+    {{error}}
+  </p>
+</div>
+{{/if}}
+
+<div class="divide-y divide-gray-200 dark:divide-gray-700">
+  {{#each environments}}
+  <div class="px-6 py-4 flex items-center justify-between" data-env="{{this.name}}">
+    <div class="flex items-center space-x-4">
+      <div class="flex items-center justify-center w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded-lg text-sm font-medium text-gray-500 dark:text-gray-400">
+        {{this.order}}
+      </div>
+      <div>
+        <p class="text-sm font-medium text-gray-900 dark:text-white">{{this.displayName}}</p>
+        <p class="text-xs text-gray-500 dark:text-gray-400">{{this.name}}</p>
+      </div>
+    </div>
+    <div class="flex items-center space-x-2">
+      <button
+        type="button"
+        onclick="openEditModal('{{this.name}}', '{{this.displayName}}', {{this.order}})"
+        class="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+      >
+        Edit
+      </button>
+      <button
+        type="button"
+        onclick="openDeleteModal('{{this.name}}', '{{this.displayName}}')"
+        {{#unless ../canDelete}}disabled{{/unless}}
+        class="px-3 py-1.5 text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+        {{#unless ../canDelete}}title="Cannot delete the last environment"{{/unless}}
+      >
+        Delete
+      </button>
+    </div>
+  </div>
+  {{/each}}
+</div>
+
+{{#unless environments}}
+<div class="px-6 py-8 text-center">
+  <p class="text-gray-500 dark:text-gray-400">No environments configured</p>
+</div>
+{{/unless}}

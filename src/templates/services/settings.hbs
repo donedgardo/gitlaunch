@@ -1,0 +1,261 @@
+{{> navigation }}
+
+<!-- Main Content -->
+<div class="min-h-screen bg-gray-50 dark:bg-gray-900">
+  <div class="max-w-4xl mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="mb-8">
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
+            {{service.name}} Settings
+          </h1>
+          {{#if repository}}
+          <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            <svg class="inline w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path>
+            </svg>
+            {{repository.fullName}}
+          </p>
+          {{/if}}
+        </div>
+        <a
+          href="/dashboard/{{service.name}}"
+          class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+        >
+          ← Back to Dashboard
+        </a>
+      </div>
+    </div>
+
+    <!-- Environments Section -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
+      <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Environments</h2>
+            <p class="text-sm text-gray-500 dark:text-gray-400">
+              Manage deployment environments for this service
+            </p>
+          </div>
+          <button
+            type="button"
+            onclick="document.getElementById('add-env-modal').classList.remove('hidden')"
+            class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Add Environment
+          </button>
+        </div>
+      </div>
+
+      <!-- Environment List -->
+      <div id="environment-list">
+        {{> environmentList environments=environments canDelete=canDelete serviceId=service.id }}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Environment Modal -->
+<div id="add-env-modal" class="hidden fixed inset-0 z-50 overflow-y-auto">
+  <div class="flex items-center justify-center min-h-screen px-4">
+    <div class="fixed inset-0 bg-black/50" onclick="document.getElementById('add-env-modal').classList.add('hidden')"></div>
+    <div class="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full p-6">
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Add Environment</h3>
+      <form
+        hx-post="/services/{{service.id}}/environments"
+        hx-target="#environment-list"
+        hx-swap="innerHTML"
+        hx-on::after-request="if(event.detail.successful) { document.getElementById('add-env-modal').classList.add('hidden'); this.reset(); }"
+      >
+        <div class="space-y-4">
+          <div>
+            <label for="env-name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Name
+            </label>
+            <input
+              type="text"
+              id="env-name"
+              name="name"
+              required
+              placeholder="e.g., qa, uat, staging"
+              pattern="[a-z0-9]+(-[a-z0-9]+)*"
+              class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              Lowercase letters, numbers, and hyphens only
+            </p>
+          </div>
+          <div>
+            <label for="env-display-name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Display Name
+            </label>
+            <input
+              type="text"
+              id="env-display-name"
+              name="displayName"
+              required
+              placeholder="e.g., QA Testing, User Acceptance"
+              class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+        </div>
+        <div class="mt-6 flex justify-end space-x-3">
+          <button
+            type="button"
+            onclick="document.getElementById('add-env-modal').classList.add('hidden')"
+            class="px-4 py-2 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            class="px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Save
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Environment Modal -->
+<div id="edit-env-modal" class="hidden fixed inset-0 z-50 overflow-y-auto">
+  <div class="flex items-center justify-center min-h-screen px-4">
+    <div class="fixed inset-0 bg-black/50" onclick="document.getElementById('edit-env-modal').classList.add('hidden')"></div>
+    <div class="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full p-6">
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Edit Environment</h3>
+      <form id="edit-env-form">
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Name
+            </label>
+            <input
+              type="text"
+              id="edit-env-name-display"
+              disabled
+              class="w-full px-3 py-2 bg-gray-100 dark:bg-gray-600 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 dark:text-gray-400"
+            />
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              Environment names cannot be changed
+            </p>
+          </div>
+          <div>
+            <label for="env-display-name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Display Name
+            </label>
+            <input
+              type="text"
+              id="env-display-name"
+              name="displayName"
+              required
+              class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+          <div>
+            <label for="env-order" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Order
+            </label>
+            <input
+              type="number"
+              id="env-order"
+              name="order"
+              min="0"
+              class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              Lower numbers appear first in the dashboard
+            </p>
+          </div>
+        </div>
+        <div class="mt-6 flex justify-end space-x-3">
+          <button
+            type="button"
+            onclick="document.getElementById('edit-env-modal').classList.add('hidden')"
+            class="px-4 py-2 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            class="px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Save
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="delete-env-modal" class="hidden fixed inset-0 z-50 overflow-y-auto">
+  <div class="flex items-center justify-center min-h-screen px-4">
+    <div class="fixed inset-0 bg-black/50" onclick="document.getElementById('delete-env-modal').classList.add('hidden')"></div>
+    <div class="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full p-6">
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Delete Environment</h3>
+      <p class="text-gray-600 dark:text-gray-400 mb-6">
+        Are you sure you want to delete <span id="delete-env-name-display" class="font-semibold"></span>? This action cannot be undone.
+      </p>
+      <div class="flex justify-end space-x-3">
+        <button
+          type="button"
+          onclick="document.getElementById('delete-env-modal').classList.add('hidden')"
+          class="px-4 py-2 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          id="confirm-delete-btn"
+          class="px-4 py-2 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition-colors"
+        >
+          Confirm
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const serviceId = '{{service.id}}';
+
+  function openEditModal(envName, displayName, order) {
+    document.getElementById('edit-env-name-display').value = envName;
+    document.getElementById('edit-env-form').querySelector('#env-display-name').value = displayName;
+    document.getElementById('edit-env-form').querySelector('#env-order').value = order;
+
+    const form = document.getElementById('edit-env-form');
+    form.setAttribute('hx-patch', `/services/${serviceId}/environments/${envName}`);
+    form.setAttribute('hx-target', '#environment-list');
+    form.setAttribute('hx-swap', 'innerHTML');
+    htmx.process(form);
+
+    form.onsubmit = function(e) {
+      e.preventDefault();
+      htmx.trigger(form, 'submit');
+      document.getElementById('edit-env-modal').classList.add('hidden');
+    };
+
+    document.getElementById('edit-env-modal').classList.remove('hidden');
+  }
+
+  function openDeleteModal(envName, displayName) {
+    document.getElementById('delete-env-name-display').textContent = displayName;
+
+    const confirmBtn = document.getElementById('confirm-delete-btn');
+    confirmBtn.setAttribute('hx-delete', `/services/${serviceId}/environments/${envName}`);
+    confirmBtn.setAttribute('hx-target', '#environment-list');
+    confirmBtn.setAttribute('hx-swap', 'innerHTML');
+    htmx.process(confirmBtn);
+
+    confirmBtn.onclick = function() {
+      htmx.trigger(confirmBtn, 'click');
+      document.getElementById('delete-env-modal').classList.add('hidden');
+    };
+
+    document.getElementById('delete-env-modal').classList.remove('hidden');
+  }
+</script>

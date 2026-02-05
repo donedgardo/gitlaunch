@@ -247,6 +247,78 @@ export default async function globalSetup() {
 
     // NOTE: No repositories are created for this user
 
+    // Create test user WITH a service (for environment management tests)
+    const testUser7Id = new ObjectId("000000000000000000000007");
+    const testAccount7Id = new ObjectId("000000000000000000000077");
+    const testRepo3Id = new ObjectId("000000000000000000000103");
+    const testService3Id = new ObjectId("000000000000000000000203");
+
+    await db.collection("users").insertOne({
+      _id: testUser7Id,
+      githubId: 99907,
+      githubLogin: "test-user-with-service",
+      email: "test-with-service@example.com",
+      name: "Test User With Service",
+      avatarUrl: null,
+      createdAt: new Date(),
+      lastLoginAt: new Date(),
+    });
+
+    await db.collection("accounts").insertOne({
+      _id: testAccount7Id,
+      name: "Test Account With Service",
+      slug: "test-account-with-service",
+      plan: "free",
+      planLimits: {
+        maxRepositories: 3,
+        maxUsers: 1,
+        publicReposOnly: false,
+      },
+      stripeCustomerId: null,
+      stripeSubscriptionId: null,
+      paymentFailedAt: null,
+      githubInstallationId: 12350,
+      githubInstallationAccessToken: null,
+      githubInstallationTokenExpiresAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    await db.collection("memberships").insertOne({
+      _id: new ObjectId(),
+      userId: testUser7Id,
+      accountId: testAccount7Id,
+      role: "owner",
+      createdAt: new Date(),
+    });
+
+    await db.collection("repositories").insertOne({
+      _id: testRepo3Id,
+      accountId: testAccount7Id,
+      githubRepoId: 200003,
+      githubFullName: "test-org/env-test-repo",
+      githubOwner: "test-org",
+      githubRepoName: "env-test-repo",
+      isPrivate: false,
+      createdAt: new Date(),
+    });
+
+    // Create service with default environments for environment management tests
+    await db.collection("services").insertOne({
+      _id: testService3Id,
+      accountId: testAccount7Id,
+      repositoryId: testRepo3Id,
+      name: "env-test-service",
+      environments: [
+        { name: "staging", displayName: "Staging", order: 0 },
+        { name: "prod", displayName: "Production", order: 1 },
+      ],
+      workflowFile: "deploy.yml",
+      eventType: "deployment",
+      isActive: true,
+      createdAt: new Date(),
+    });
+
     // Create test user WITH multiple services (for navigation tests)
     const testUser6Id = new ObjectId("000000000000000000000006");
     const testAccount6Id = new ObjectId("000000000000000000000066");
