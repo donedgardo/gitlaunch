@@ -141,6 +141,49 @@ test.describe("Environment Management", () => {
       // Then: the new name is displayed
       await expect(page.getByText("Staging US-West")).toBeVisible();
     });
+
+    test("dashboard column header shows environment displayName", async ({
+      page,
+    }) => {
+      // Given: I have an environment with displayName "Staging"
+      await authenticateTestUser(page, TEST_USERS.userWithService);
+
+      // When: I visit the dashboard
+      await page.goto("/dashboard");
+
+      // Then: I should see the displayName "Staging" in the column header, not the internal name "staging"
+      const stagingHeader = page.locator("th").filter({ hasText: "Staging" });
+      await expect(stagingHeader).toBeVisible();
+      // The header should show the capitalized displayName, not lowercase "staging"
+      await expect(stagingHeader).toHaveText("Staging");
+    });
+
+    test("renamed displayName appears in dashboard column header", async ({
+      page,
+    }) => {
+      // Given: I rename the "staging" environment displayName to "Staging US-West"
+      await authenticateTestUser(page, TEST_USERS.userWithService);
+      await page.goto("/services/000000000000000000000203/settings");
+
+      await page
+        .locator('[data-env="staging"]')
+        .getByRole("button", { name: /edit/i })
+        .click();
+      const editModal = page.locator("#edit-env-modal");
+      await editModal.locator("#env-display-name").clear();
+      await editModal.locator("#env-display-name").fill("Staging US-West");
+      await editModal.getByRole("button", { name: /save/i }).click();
+      await expect(editModal).toBeHidden();
+
+      // When: I navigate to the dashboard
+      await page.goto("/dashboard");
+
+      // Then: the column header shows the new displayName "Staging US-West"
+      const stagingHeader = page
+        .locator("th")
+        .filter({ hasText: "Staging US-West" });
+      await expect(stagingHeader).toBeVisible();
+    });
   });
 
   test.describe("Reorder Environments", () => {

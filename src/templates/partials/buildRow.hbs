@@ -12,9 +12,9 @@
   {{#each build.environments as |env|}}
     {{> buildEnvironmentAction
       buildId=../build.id
-      env=env
+      env=env.name
       serviceName=../build.serviceName
-      status=(getStatus ../build env)
+      status=(getStatus ../build env.name)
     }}
   {{/each}}
 </tr>

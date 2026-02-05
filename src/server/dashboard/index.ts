@@ -25,7 +25,7 @@ export default function (deps: DashboardRoutesDeps) {
     // Helper to convert Build to template-friendly format
     const formatBuildsForTemplate = (
       builds: Build[],
-      environments: string[],
+      environments: { name: string; displayName: string }[],
       serviceName: string,
     ) => {
       return builds.map((build) => ({
@@ -34,7 +34,7 @@ export default function (deps: DashboardRoutesDeps) {
         serviceName, // Include serviceName in each build for Handlebars partial scope
         deployments: environments.reduce(
           (acc, env) => {
-            acc[env] = build.deployments[env] || null;
+            acc[env.name] = build.deployments[env.name] || null;
             return acc;
           },
           {} as Record<string, string | null>,
@@ -93,8 +93,11 @@ export default function (deps: DashboardRoutesDeps) {
           return reply.redirect("/dashboard");
         }
 
-        // Get environment names
-        const environments = activeService.environments.map((e) => e.name);
+        // Get environment names and displayNames
+        const environments = activeService.environments.map((e) => ({
+          name: e.name,
+          displayName: e.displayName,
+        }));
 
         // Load repository info for commit links
         const repository = await repositoryRepository.findById(
