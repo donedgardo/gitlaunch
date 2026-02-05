@@ -1,0 +1,74 @@
+name: Test Deploy - Success
+
+on:
+  repository_dispatch:
+    types: [deployment]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment to deploy to"
+        required: true
+        type: choice
+        options:
+          - staging
+          - prod
+      build-id:
+        description: "Build ID (defaults to commit SHA)"
+        required: false
+        type: string
+      service-id:
+        description: "GitLaunch Service ID"
+        required: true
+        type: string
+      delay-seconds:
+        description: "Delay before completing (simulates deploy time)"
+        required: false
+        default: "5"
+        type: string
+
+jobs:
+  deploy-success:
+    name: "Deploy (Success) → ${{ github.event.client_payload.environment || inputs.environment }}"
+    runs-on: ubuntu-latest
+    env:
+      ENVIRONMENT: ${{ github.event.client_payload.environment || inputs.environment }}
+      BUILD_ID: ${{ github.event.client_payload.buildId || inputs.build-id || github.sha }}
+      SERVICE_ID: ${{ github.event.client_payload.serviceId || inputs.service-id }}
+      DELAY: ${{ inputs.delay-seconds || '5' }}
+    steps:
+      - name: Report deploying
+        uses: donedgardo/build-reporter@v1
+        with:
+          api-key: ${{ secrets.GITLAUNCH_API_KEY }}
+          api-url: https://gitlaunch.dev
+          service-id: ${{ env.SERVICE_ID }}
+          action: update-status
+          build-id: ${{ env.BUILD_ID }}
+          environment: ${{ env.ENVIRONMENT }}
+          status: deploying
+
+      - name: Simulate deployment
+        run: |
+          echo "🚀 Deploying build ${{ env.BUILD_ID }} to ${{ env.ENVIRONMENT }}..."
+          sleep ${{ env.DELAY }}
+          echo "✅ Deployment complete!"
+
+      - name: Report deployed
+        uses: donedgardo/build-reporter@v1
+        with:
+          api-key: ${{ secrets.GITLAUNCH_API_KEY }}
+          api-url: https://gitlaunch.dev
+          service-id: ${{ env.SERVICE_ID }}
+          action: update-status
+          build-id: ${{ env.BUILD_ID }}
+          environment: ${{ env.ENVIRONMENT }}
+          status: deployed
+
+      - name: Summary
+        run: |
+          echo "## ✅ Test Deploy Success" >> $GITHUB_STEP_SUMMARY
+          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Environment | ${{ env.ENVIRONMENT }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Build ID | ${{ env.BUILD_ID }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Final Status | deployed |" >> $GITHUB_STEP_SUMMARY
