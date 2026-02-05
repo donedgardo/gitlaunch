@@ -108,13 +108,16 @@ export class BuildService {
       throw new Error("Build not found");
     }
 
-    // Emit event for SSE updates
-    this.eventEmitter.emit("build:update", {
-      buildId: build.buildId,
-      environment: input.environment,
-      status: input.status,
-      serviceId: input.serviceId.toString(),
-    });
+    // Emit event for SSE updates (as array for SSE listener compatibility)
+    this.eventEmitter.emit("build:update", [
+      {
+        buildId: build.buildId,
+        environment: input.environment,
+        status: input.status,
+        serviceId: input.serviceId.toString(),
+        serviceName: service.name,
+      },
+    ]);
 
     return build;
   }

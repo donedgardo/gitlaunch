@@ -490,15 +490,15 @@ describe("BuildService", () => {
         status: DeploymentStatus.DEPLOYED,
       });
 
-      // Then: event is emitted
-      expect(eventReceived).toHaveBeenCalledWith(
+      // Then: event is emitted as array with expected properties
+      expect(eventReceived).toHaveBeenCalledWith([
         expect.objectContaining({
           buildId: "event-build",
           environment: "staging",
           status: DeploymentStatus.DEPLOYED,
           serviceId: svc._id.toString(),
         }),
-      );
+      ]);
     });
 
     it("should emit build:update event as array with serviceName for SSE listener", async () => {
