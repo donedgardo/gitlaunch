@@ -70,7 +70,7 @@ jobs:
         run: npx playwright install chromium
 
       - name: Build
-        run: yarn build
+        run: yarn build && yarn tailwind
 
       - name: Run E2E tests
         run: yarn test:e2e
