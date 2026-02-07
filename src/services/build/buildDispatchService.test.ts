@@ -83,7 +83,7 @@ describe("BuildDispatchService", () => {
         accountId: account._id,
         repositoryId: repository._id,
         name: "backend",
-        eventType: "deploy-backend",
+        workflowFile: "deploy-backend.yml",
       });
 
       // When: I dispatch a deployment
@@ -94,7 +94,7 @@ describe("BuildDispatchService", () => {
         installationId: 12345,
         owner: "org",
         repo: "repo",
-        eventType: "deploy-backend",
+        workflowFile: "deploy-backend.yml",
         buildId: "build-123",
         environment: "staging",
         serviceId: svc._id.toString(),

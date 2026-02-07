@@ -5,7 +5,7 @@ export type DispatchInput = {
   installationId: number;
   owner: string;
   repo: string;
-  eventType: string;
+  workflowFile: string;
   buildId: string;
   environment: string;
   serviceId: string;
@@ -21,7 +21,7 @@ export class MultiTenantGithubDispatchService {
     const { token } = await this.tokenService.getToken(input.installationId);
 
     const response = await this.http.fetch(
-      `https://api.github.com/repos/${input.owner}/${input.repo}/dispatches`,
+      `https://api.github.com/repos/${input.owner}/${input.repo}/actions/workflows/${input.workflowFile}/dispatches`,
       {
         method: "POST",
         headers: {
@@ -30,8 +30,8 @@ export class MultiTenantGithubDispatchService {
           "X-GitHub-Api-Version": "2022-11-28",
         },
         body: JSON.stringify({
-          event_type: input.eventType,
-          client_payload: {
+          ref: "main",
+          inputs: {
             environment: input.environment,
             buildId: input.buildId,
             serviceId: input.serviceId,
@@ -41,7 +41,10 @@ export class MultiTenantGithubDispatchService {
     );
 
     if (!response.ok) {
-      throw new Error(`Failed to dispatch workflow: ${response.status}`);
+      const errorBody = await response.text();
+      throw new Error(
+        `Failed to dispatch workflow: ${response.status} - ${errorBody}`,
+      );
     }
   }
 }

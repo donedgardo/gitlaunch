@@ -46,13 +46,13 @@ describe("MultiTenantGithubDispatchService", () => {
   });
 
   describe("dispatch", () => {
-    it("should trigger workflow dispatch on GitHub using installation token", async () => {
-      // Given: dispatch input with installation ID
+    it("should trigger workflow dispatch using the workflow_dispatch API", async () => {
+      // Given: dispatch input with workflow file
       const input: DispatchInput = {
         installationId: 12345,
         owner: "my-org",
         repo: "my-repo",
-        eventType: "deployment",
+        workflowFile: "deploy.yml",
         buildId: "build-123",
         environment: "staging",
         serviceId: "service-abc",
@@ -61,10 +61,10 @@ describe("MultiTenantGithubDispatchService", () => {
       // When: I dispatch
       await service.dispatch(input);
 
-      // Then: GitHub API was called with correct URL
+      // Then: GitHub workflow_dispatch API was called
       expect(fakeHttp.requests).toHaveLength(1);
       expect(fakeHttp.requests[0].url).toBe(
-        "https://api.github.com/repos/my-org/my-repo/dispatches",
+        "https://api.github.com/repos/my-org/my-repo/actions/workflows/deploy.yml/dispatches",
       );
     });
 
@@ -74,7 +74,7 @@ describe("MultiTenantGithubDispatchService", () => {
         installationId: 12345,
         owner: "my-org",
         repo: "my-repo",
-        eventType: "deployment",
+        workflowFile: "deploy.yml",
         buildId: "build-123",
         environment: "staging",
         serviceId: "service-abc",
@@ -91,13 +91,13 @@ describe("MultiTenantGithubDispatchService", () => {
       expect(headers["Authorization"]).toBe("Bearer ghs_installation_token");
     });
 
-    it("should send event type and client payload with service-id", async () => {
+    it("should send ref and inputs in workflow_dispatch format", async () => {
       // Given: dispatch input
       const input: DispatchInput = {
         installationId: 12345,
         owner: "my-org",
         repo: "my-repo",
-        eventType: "deploy",
+        workflowFile: "deploy.yml",
         buildId: "build-456",
         environment: "prod",
         serviceId: "service-xyz",
@@ -106,10 +106,10 @@ describe("MultiTenantGithubDispatchService", () => {
       // When: I dispatch
       await service.dispatch(input);
 
-      // Then: body contains correct payload with camelCase keys
+      // Then: body contains workflow_dispatch format with ref and inputs
       const body = JSON.parse(fakeHttp.requests[0].options.body as string);
-      expect(body.event_type).toBe("deploy");
-      expect(body.client_payload).toEqual({
+      expect(body.ref).toBe("main");
+      expect(body.inputs).toEqual({
         environment: "prod",
         buildId: "build-456",
         serviceId: "service-xyz",
@@ -123,7 +123,7 @@ describe("MultiTenantGithubDispatchService", () => {
         installationId: 12345,
         owner: "my-org",
         repo: "my-repo",
-        eventType: "deployment",
+        workflowFile: "deploy.yml",
         buildId: "build-123",
         environment: "staging",
         serviceId: "service-abc",

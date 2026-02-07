@@ -55,7 +55,7 @@ export class BuildDispatchService implements BuildDispatchServiceI {
       installationId: account.githubInstallationId,
       owner: repository.githubOwner,
       repo: repository.githubRepoName,
-      eventType: service.eventType,
+      workflowFile: service.workflowFile,
       buildId,
       environment,
       serviceId: serviceId.toString(),
