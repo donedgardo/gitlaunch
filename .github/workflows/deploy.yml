@@ -19,6 +19,27 @@ on:
         description: "GitLaunch Service ID"
         required: false
         type: string
+  workflow_call:
+    inputs:
+      environment:
+        description: "Environment to deploy to"
+        required: true
+        type: string
+      buildId:
+        description: "Build ID (commit SHA)"
+        required: false
+        type: string
+      serviceId:
+        description: "GitLaunch Service ID"
+        required: false
+        type: string
+    secrets:
+      GITLAUNCH_API_KEY:
+        required: false
+      RAILWAY_TOKEN:
+        required: false
+      RAILWAY_SERVICE_ID:
+        required: false
 
 jobs:
   deploy:
