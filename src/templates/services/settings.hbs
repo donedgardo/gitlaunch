@@ -54,6 +54,25 @@
       </div>
     </div>
 
+    <!-- Setup Instructions Section -->
+    <div class="mt-8">
+      <div class="mb-6">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Setup Instructions</h2>
+        <p class="text-sm text-gray-500 dark:text-gray-400">
+          Configure your CI pipeline to report builds and deployments
+        </p>
+      </div>
+
+      <!-- GitHub Secrets Setup -->
+      {{> githubSecretsSetup serviceId=service.id idPrefix="settings-" showCopyButton=true }}
+
+      <!-- Build Reporting Instructions -->
+      {{> buildReportingInstructions idPrefix="settings-" }}
+
+      <!-- Deployment Setup Guide -->
+      {{> deploymentSetupGuide serviceId=service.id }}
+    </div>
+
     <!-- Deployment Workflow Section -->
     <div class="mt-8 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
       <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
