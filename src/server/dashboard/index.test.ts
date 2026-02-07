@@ -83,11 +83,14 @@ describe("Dashboard Routes", () => {
       options: {
         partials: {
           buildEnvironmentAction: "/partials/buildEnvironmentAction.hbs",
+          buildReportingInstructions:
+            "/partials/buildReportingInstructions.hbs",
           navigation: "/partials/navigation.hbs",
           buildRow: "/partials/buildRow.hbs",
           buildTable: "/partials/buildTable.hbs",
           emptyBuilds: "/partials/emptyBuilds.hbs",
           deploymentSetupGuide: "/partials/deploymentSetupGuide.hbs",
+          githubSecretsSetup: "/partials/githubSecretsSetup.hbs",
         },
       },
     });
