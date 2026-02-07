@@ -1,10 +1,6 @@
 name: Deploy
 
 on:
-  repository_dispatch:
-    types: [deployment]
-
-  # Keep workflow_dispatch for manual deployments
   workflow_dispatch:
     inputs:
       environment:
@@ -15,19 +11,24 @@ on:
           - dev
           - staging
           - production
-      build-id:
+      buildId:
         description: "Build ID (commit SHA)"
+        required: false
+        type: string
+      serviceId:
+        description: "GitLaunch Service ID"
         required: false
         type: string
 
 jobs:
   deploy:
-    name: Deploy to ${{ github.event.client_payload.environment || inputs.environment }}
+    name: Deploy to ${{ inputs.environment }}
     runs-on: ubuntu-latest
-    environment: ${{ github.event.client_payload.environment || inputs.environment }}
+    environment: ${{ inputs.environment }}
     env:
-      ENVIRONMENT: ${{ github.event.client_payload.environment || inputs.environment }}
-      BUILD_ID: ${{ github.event.client_payload.buildId || inputs.build-id || github.sha }}
+      ENVIRONMENT: ${{ inputs.environment }}
+      BUILD_ID: ${{ inputs.buildId || github.sha }}
+      SERVICE_ID: ${{ inputs.serviceId }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -39,7 +40,7 @@ jobs:
         uses: donedgardo/build-reporter@v1
         with:
           api-key: ${{ secrets.GITLAUNCH_API_KEY }}
-          service-id: 697434f8f9d1eb666d8571de
+          service-id: ${{ env.SERVICE_ID }}
           action: update-status
           build-id: ${{ env.BUILD_ID }}
           environment: ${{ env.ENVIRONMENT }}
@@ -60,7 +61,7 @@ jobs:
         uses: donedgardo/build-reporter@v1
         with:
           api-key: ${{ secrets.GITLAUNCH_API_KEY }}
-          service-id: 697434f8f9d1eb666d8571de
+          service-id: ${{ env.SERVICE_ID }}
           action: update-status
           build-id: ${{ env.BUILD_ID }}
           environment: ${{ env.ENVIRONMENT }}
@@ -72,7 +73,7 @@ jobs:
         uses: donedgardo/build-reporter@v1
         with:
           api-key: ${{ secrets.GITLAUNCH_API_KEY }}
-          service-id: 697434f8f9d1eb666d8571de
+          service-id: ${{ env.SERVICE_ID }}
           action: update-status
           build-id: ${{ env.BUILD_ID }}
           environment: ${{ env.ENVIRONMENT }}
@@ -84,7 +85,7 @@ jobs:
         uses: donedgardo/build-reporter@v1
         with:
           api-key: ${{ secrets.GITLAUNCH_API_KEY }}
-          service-id: 697434f8f9d1eb666d8571de
+          service-id: ${{ env.SERVICE_ID }}
           action: update-status
           build-id: ${{ env.BUILD_ID }}
           environment: ${{ env.ENVIRONMENT }}

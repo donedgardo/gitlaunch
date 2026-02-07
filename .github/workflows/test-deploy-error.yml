@@ -1,8 +1,6 @@
 name: Test Deploy - Error
 
 on:
-  repository_dispatch:
-    types: [deployment-error]
   workflow_dispatch:
     inputs:
       environment:
@@ -12,11 +10,11 @@ on:
         options:
           - staging
           - prod
-      build-id:
+      buildId:
         description: "Build ID to deploy"
         required: true
         type: string
-      service-id:
+      serviceId:
         description: "GitLaunch Service ID"
         required: true
         type: string
@@ -28,12 +26,12 @@ on:
 
 jobs:
   deploy-error:
-    name: "Deploy (Error) → ${{ github.event.client_payload.environment || inputs.environment }}"
+    name: "Deploy (Error) → ${{ inputs.environment }}"
     runs-on: ubuntu-latest
     env:
-      ENVIRONMENT: ${{ github.event.client_payload.environment || inputs.environment }}
-      BUILD_ID: ${{ github.event.client_payload.buildId || inputs.build-id }}
-      SERVICE_ID: ${{ github.event.client_payload.serviceId || inputs.service-id }}
+      ENVIRONMENT: ${{ inputs.environment }}
+      BUILD_ID: ${{ inputs.buildId }}
+      SERVICE_ID: ${{ inputs.serviceId }}
       DELAY: ${{ inputs.delay-seconds || '5' }}
     steps:
       - name: Report deploying
