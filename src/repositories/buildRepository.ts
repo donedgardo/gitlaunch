@@ -108,6 +108,56 @@ export class BuildRepository {
     return result;
   }
 
+  async clearOtherDeployments(
+    accountId: ObjectId,
+    serviceId: ObjectId,
+    excludeBuildId: string,
+    environment: string,
+  ): Promise<Build[]> {
+    const activeStatuses = [
+      DeploymentStatus.DEPLOYED,
+      DeploymentStatus.DEPLOYING,
+      DeploymentStatus.DISPATCHING,
+    ];
+
+    // Find affected builds before updating
+    const affectedBuilds = await this.collection
+      .find({
+        accountId,
+        serviceId,
+        buildId: { $ne: excludeBuildId },
+        [`deployments.${environment}`]: { $in: activeStatuses },
+      })
+      .toArray();
+
+    if (affectedBuilds.length === 0) {
+      return [];
+    }
+
+    const log: DeploymentLogRecord = {
+      environment,
+      status: DeploymentStatus.NONE,
+    };
+
+    await this.collection.updateMany(
+      {
+        accountId,
+        serviceId,
+        buildId: { $ne: excludeBuildId },
+        [`deployments.${environment}`]: { $in: activeStatuses },
+      },
+      {
+        $set: {
+          [`deployments.${environment}`]: DeploymentStatus.NONE,
+          updatedAt: new Date(),
+        },
+        $push: { deploymentLogs: log },
+      },
+    );
+
+    return affectedBuilds;
+  }
+
   async hasAnyDeployments(
     accountId: ObjectId,
     serviceId: ObjectId,

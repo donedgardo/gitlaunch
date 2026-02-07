@@ -631,6 +631,181 @@ describe("BuildService", () => {
       expect(updatedService?.workflowConfigured).toBe(true);
     });
 
+    it("should clear other builds' deployment status when a build is deployed", async () => {
+      // Given: two builds, build A deployed to staging
+      const account = await accountRepo.create({
+        name: "My Org",
+        slug: "my-org-clear-others",
+      });
+      const repository = await repoRepo.create({
+        accountId: account._id,
+        githubRepoId: 555,
+        githubFullName: "org/clear-repo",
+        githubOwner: "org",
+        githubRepoName: "clear-repo",
+        isPrivate: false,
+      });
+      const svc = await serviceRepo.create({
+        accountId: account._id,
+        repositoryId: repository._id,
+        name: "clear-service",
+      });
+      await service.createBuild({
+        accountId: account._id,
+        serviceId: svc._id,
+        buildId: "build-a",
+      });
+      await service.updateDeploymentStatus({
+        accountId: account._id,
+        serviceId: svc._id,
+        buildId: "build-a",
+        environment: "staging",
+        status: DeploymentStatus.DEPLOYED,
+      });
+      await service.createBuild({
+        accountId: account._id,
+        serviceId: svc._id,
+        buildId: "build-b",
+      });
+
+      // When: build B is deployed to staging
+      await service.updateDeploymentStatus({
+        accountId: account._id,
+        serviceId: svc._id,
+        buildId: "build-b",
+        environment: "staging",
+        status: DeploymentStatus.DEPLOYED,
+      });
+
+      // Then: build A's staging status is cleared to NONE
+      const buildA = await service.getBuild(account._id, svc._id, "build-a");
+      expect(buildA!.deployments["staging"]).toBe(DeploymentStatus.NONE);
+    });
+
+    it("should emit SSE events for cleared builds when a build is deployed", async () => {
+      // Given: build A deployed to staging
+      const account = await accountRepo.create({
+        name: "My Org",
+        slug: "my-org-sse-clear",
+      });
+      const repository = await repoRepo.create({
+        accountId: account._id,
+        githubRepoId: 666,
+        githubFullName: "org/sse-clear-repo",
+        githubOwner: "org",
+        githubRepoName: "sse-clear-repo",
+        isPrivate: false,
+      });
+      const svc = await serviceRepo.create({
+        accountId: account._id,
+        repositoryId: repository._id,
+        name: "sse-clear-service",
+      });
+      await service.createBuild({
+        accountId: account._id,
+        serviceId: svc._id,
+        buildId: "build-a",
+      });
+      await service.updateDeploymentStatus({
+        accountId: account._id,
+        serviceId: svc._id,
+        buildId: "build-a",
+        environment: "staging",
+        status: DeploymentStatus.DEPLOYED,
+      });
+      await service.createBuild({
+        accountId: account._id,
+        serviceId: svc._id,
+        buildId: "build-b",
+      });
+
+      const eventReceived = vi.fn();
+      eventEmitter.on("build:update", eventReceived);
+
+      // When: build B is deployed to staging
+      await service.updateDeploymentStatus({
+        accountId: account._id,
+        serviceId: svc._id,
+        buildId: "build-b",
+        environment: "staging",
+        status: DeploymentStatus.DEPLOYED,
+      });
+
+      // Then: SSE event array includes both the deployed build and the cleared build
+      expect(eventReceived).toHaveBeenCalledTimes(1);
+      const emittedPayload = eventReceived.mock.calls[0][0];
+      expect(Array.isArray(emittedPayload)).toBe(true);
+      expect(emittedPayload).toHaveLength(2);
+
+      // The deployed build event
+      expect(emittedPayload).toContainEqual(
+        expect.objectContaining({
+          buildId: "build-b",
+          environment: "staging",
+          status: DeploymentStatus.DEPLOYED,
+        }),
+      );
+      // The cleared build event
+      expect(emittedPayload).toContainEqual(
+        expect.objectContaining({
+          buildId: "build-a",
+          environment: "staging",
+          status: DeploymentStatus.NONE,
+        }),
+      );
+    });
+
+    it("should not clear other builds for non-DEPLOYED statuses", async () => {
+      // Given: build A deployed to staging
+      const account = await accountRepo.create({
+        name: "My Org",
+        slug: "my-org-no-clear",
+      });
+      const repository = await repoRepo.create({
+        accountId: account._id,
+        githubRepoId: 777,
+        githubFullName: "org/no-clear-repo",
+        githubOwner: "org",
+        githubRepoName: "no-clear-repo",
+        isPrivate: false,
+      });
+      const svc = await serviceRepo.create({
+        accountId: account._id,
+        repositoryId: repository._id,
+        name: "no-clear-service",
+      });
+      await service.createBuild({
+        accountId: account._id,
+        serviceId: svc._id,
+        buildId: "build-a",
+      });
+      await service.updateDeploymentStatus({
+        accountId: account._id,
+        serviceId: svc._id,
+        buildId: "build-a",
+        environment: "staging",
+        status: DeploymentStatus.DEPLOYED,
+      });
+      await service.createBuild({
+        accountId: account._id,
+        serviceId: svc._id,
+        buildId: "build-b",
+      });
+
+      // When: build B is set to DEPLOYING (not DEPLOYED)
+      await service.updateDeploymentStatus({
+        accountId: account._id,
+        serviceId: svc._id,
+        buildId: "build-b",
+        environment: "staging",
+        status: DeploymentStatus.DEPLOYING,
+      });
+
+      // Then: build A's staging status is still DEPLOYED
+      const buildA = await service.getBuild(account._id, svc._id, "build-a");
+      expect(buildA!.deployments["staging"]).toBe(DeploymentStatus.DEPLOYED);
+    });
+
     it("should not update workflowConfigured if already true", async () => {
       // Given: a service with workflowConfigured=true
       const account = await accountRepo.create({

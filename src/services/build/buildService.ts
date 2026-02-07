@@ -121,7 +121,7 @@ export class BuildService {
       await this.serviceRepo.markWorkflowConfigured(input.serviceId);
     }
 
-    // Emit event for SSE updates (as array for SSE listener compatibility)
+    // Build SSE events
     const updateEvent: BuildUpdateEvent = {
       buildId: build.buildId,
       environment: input.environment,
@@ -129,7 +129,30 @@ export class BuildService {
       serviceId: input.serviceId.toString(),
       serviceName: service.name,
     };
-    this.eventEmitter.emit("build:update", [updateEvent]);
+
+    const events: BuildUpdateEvent[] = [updateEvent];
+
+    // Clear other builds' deployment status when a build is deployed
+    if (input.status === DeploymentStatus.DEPLOYED) {
+      const clearedBuilds = await this.buildRepo.clearOtherDeployments(
+        input.accountId,
+        input.serviceId,
+        input.buildId,
+        input.environment,
+      );
+      for (const clearedBuild of clearedBuilds) {
+        events.push({
+          buildId: clearedBuild.buildId,
+          environment: input.environment,
+          status: DeploymentStatus.NONE,
+          serviceId: input.serviceId.toString(),
+          serviceName: service.name,
+        });
+      }
+    }
+
+    // Emit event for SSE updates (as array for SSE listener compatibility)
+    this.eventEmitter.emit("build:update", events);
 
     return build;
   }

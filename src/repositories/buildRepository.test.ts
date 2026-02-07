@@ -423,6 +423,241 @@ describe("BuildRepository", () => {
     });
   });
 
+  describe("clearOtherDeployments", () => {
+    it("should clear deployed status from other builds in the same environment", async () => {
+      // Given: two builds, build A is deployed to staging
+      await repo.create({
+        accountId: testAccountId,
+        serviceId: testServiceId,
+        buildId: "build-a",
+      });
+      await repo.updateDeploymentStatus(
+        testAccountId,
+        testServiceId,
+        "build-a",
+        "staging",
+        DeploymentStatus.DEPLOYED,
+      );
+      await repo.create({
+        accountId: testAccountId,
+        serviceId: testServiceId,
+        buildId: "build-b",
+      });
+
+      // When: build B is deployed, we clear other deployments
+      const cleared = await repo.clearOtherDeployments(
+        testAccountId,
+        testServiceId,
+        "build-b",
+        "staging",
+      );
+
+      // Then: build A's staging status is reset to NONE
+      const buildA = await repo.findByBuildId(
+        testAccountId,
+        testServiceId,
+        "build-a",
+      );
+      expect(buildA!.deployments["staging"]).toBe(DeploymentStatus.NONE);
+      expect(cleared).toHaveLength(1);
+      expect(cleared[0].buildId).toBe("build-a");
+    });
+
+    it("should not clear error or cancelled statuses", async () => {
+      // Given: builds with ERROR and CANCELLED statuses
+      await repo.create({
+        accountId: testAccountId,
+        serviceId: testServiceId,
+        buildId: "error-build",
+      });
+      await repo.updateDeploymentStatus(
+        testAccountId,
+        testServiceId,
+        "error-build",
+        "staging",
+        DeploymentStatus.ERROR,
+      );
+      await repo.create({
+        accountId: testAccountId,
+        serviceId: testServiceId,
+        buildId: "cancelled-build",
+      });
+      await repo.updateDeploymentStatus(
+        testAccountId,
+        testServiceId,
+        "cancelled-build",
+        "staging",
+        DeploymentStatus.CANCELLED,
+      );
+
+      // When: we clear other deployments
+      const cleared = await repo.clearOtherDeployments(
+        testAccountId,
+        testServiceId,
+        "new-build",
+        "staging",
+      );
+
+      // Then: error and cancelled builds are untouched
+      const errorBuild = await repo.findByBuildId(
+        testAccountId,
+        testServiceId,
+        "error-build",
+      );
+      const cancelledBuild = await repo.findByBuildId(
+        testAccountId,
+        testServiceId,
+        "cancelled-build",
+      );
+      expect(errorBuild!.deployments["staging"]).toBe(DeploymentStatus.ERROR);
+      expect(cancelledBuild!.deployments["staging"]).toBe(
+        DeploymentStatus.CANCELLED,
+      );
+      expect(cleared).toHaveLength(0);
+    });
+
+    it("should not clear the deploying build itself", async () => {
+      // Given: build A is deployed to staging
+      await repo.create({
+        accountId: testAccountId,
+        serviceId: testServiceId,
+        buildId: "self-build",
+      });
+      await repo.updateDeploymentStatus(
+        testAccountId,
+        testServiceId,
+        "self-build",
+        "staging",
+        DeploymentStatus.DEPLOYED,
+      );
+
+      // When: we clear other deployments excluding self-build
+      const cleared = await repo.clearOtherDeployments(
+        testAccountId,
+        testServiceId,
+        "self-build",
+        "staging",
+      );
+
+      // Then: self-build is untouched
+      const selfBuild = await repo.findByBuildId(
+        testAccountId,
+        testServiceId,
+        "self-build",
+      );
+      expect(selfBuild!.deployments["staging"]).toBe(DeploymentStatus.DEPLOYED);
+      expect(cleared).toHaveLength(0);
+    });
+
+    it("should only clear builds in the specified environment", async () => {
+      // Given: build A is deployed to prod, build B is deployed to staging
+      await repo.create({
+        accountId: testAccountId,
+        serviceId: testServiceId,
+        buildId: "prod-build",
+      });
+      await repo.updateDeploymentStatus(
+        testAccountId,
+        testServiceId,
+        "prod-build",
+        "prod",
+        DeploymentStatus.DEPLOYED,
+      );
+
+      // When: we clear other deployments for staging
+      const cleared = await repo.clearOtherDeployments(
+        testAccountId,
+        testServiceId,
+        "new-build",
+        "staging",
+      );
+
+      // Then: prod-build's prod status is untouched
+      const prodBuild = await repo.findByBuildId(
+        testAccountId,
+        testServiceId,
+        "prod-build",
+      );
+      expect(prodBuild!.deployments["prod"]).toBe(DeploymentStatus.DEPLOYED);
+      expect(cleared).toHaveLength(0);
+    });
+
+    it("should add a NONE log entry for each cleared build", async () => {
+      // Given: build A is deployed to staging
+      await repo.create({
+        accountId: testAccountId,
+        serviceId: testServiceId,
+        buildId: "log-build",
+      });
+      await repo.updateDeploymentStatus(
+        testAccountId,
+        testServiceId,
+        "log-build",
+        "staging",
+        DeploymentStatus.DEPLOYED,
+      );
+
+      // When: we clear other deployments
+      await repo.clearOtherDeployments(
+        testAccountId,
+        testServiceId,
+        "another-build",
+        "staging",
+      );
+
+      // Then: a NONE log entry is added
+      const logBuild = await repo.findByBuildId(
+        testAccountId,
+        testServiceId,
+        "log-build",
+      );
+      const lastLog =
+        logBuild!.deploymentLogs[logBuild!.deploymentLogs.length - 1];
+      expect(lastLog).toEqual({
+        environment: "staging",
+        status: DeploymentStatus.NONE,
+      });
+    });
+
+    it("should enforce tenant isolation", async () => {
+      // Given: build in account A is deployed to staging
+      const accountA = new ObjectId();
+      const accountB = new ObjectId();
+
+      await repo.create({
+        accountId: accountA,
+        serviceId: testServiceId,
+        buildId: "tenant-build",
+      });
+      await repo.updateDeploymentStatus(
+        accountA,
+        testServiceId,
+        "tenant-build",
+        "staging",
+        DeploymentStatus.DEPLOYED,
+      );
+
+      // When: account B clears other deployments
+      const cleared = await repo.clearOtherDeployments(
+        accountB,
+        testServiceId,
+        "other-build",
+        "staging",
+      );
+
+      // Then: account A's build is untouched
+      const tenantBuild = await repo.findByBuildId(
+        accountA,
+        testServiceId,
+        "tenant-build",
+      );
+      expect(tenantBuild!.deployments["staging"]).toBe(
+        DeploymentStatus.DEPLOYED,
+      );
+      expect(cleared).toHaveLength(0);
+    });
+  });
+
   describe("ensureIndexes", () => {
     it("should create unique compound index that prevents duplicates", async () => {
       // Given: indexes are created
