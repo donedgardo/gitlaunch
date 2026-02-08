@@ -99,7 +99,9 @@ export function registerEnvironmentsRoutes(
         );
 
         return reply.status(201).send({
-          environments: service.environments,
+          environments: [...service.environments].sort(
+            (a, b) => (a.order ?? 0) - (b.order ?? 0),
+          ),
         });
       } catch (error) {
         const message =
@@ -142,7 +144,9 @@ export function registerEnvironmentsRoutes(
         );
 
         return reply.send({
-          environments: service.environments,
+          environments: [...service.environments].sort(
+            (a, b) => (a.order ?? 0) - (b.order ?? 0),
+          ),
         });
       } catch (error) {
         const message =
@@ -185,7 +189,9 @@ export function registerEnvironmentsRoutes(
         );
 
         return reply.send({
-          environments: service.environments,
+          environments: [...service.environments].sort(
+            (a, b) => (a.order ?? 0) - (b.order ?? 0),
+          ),
         });
       } catch (error) {
         const message =

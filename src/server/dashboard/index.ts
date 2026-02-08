@@ -103,10 +103,12 @@ export default function (deps: DashboardRoutesDeps) {
           return reply.redirect("/dashboard");
         }
 
-        // Get environment names
-        const environments = activeService.environments.map((e) => ({
-          name: e.name,
-        }));
+        // Get environment names, sorted by order
+        const environments = [...activeService.environments]
+          .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+          .map((e) => ({
+            name: e.name,
+          }));
 
         // Load repository info for commit links
         const repository = await repositoryRepository.findById(
