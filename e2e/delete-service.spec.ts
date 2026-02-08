@@ -7,8 +7,8 @@ import { authenticateTestUser, TEST_USERS } from "./helpers/auth";
 
 test.describe("Delete Service", () => {
   test("user can delete a service from settings page", async ({ page }) => {
-    // Given: I create a new service
-    await authenticateTestUser(page, TEST_USERS.userWithRepos);
+    // Given: I create a new service (using isolated user to avoid test conflicts)
+    await authenticateTestUser(page, TEST_USERS.userForDeleteService);
 
     const serviceName = `delete-test-${Date.now()}`;
     await page.goto("/services/new");

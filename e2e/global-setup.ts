@@ -451,6 +451,116 @@ export default async function globalSetup() {
       },
     ]);
 
+    // Create isolated test user for build-stream tests
+    const testUser8Id = new ObjectId("000000000000000000000008");
+    const testAccount8Id = new ObjectId("000000000000000000000088");
+    const testRepo4Id = new ObjectId("000000000000000000000104");
+
+    await db.collection("users").insertOne({
+      _id: testUser8Id,
+      githubId: 99908,
+      githubLogin: "test-user-build-stream",
+      email: "test-build-stream@example.com",
+      name: "Test User Build Stream",
+      avatarUrl: null,
+      createdAt: new Date(),
+      lastLoginAt: new Date(),
+    });
+
+    await db.collection("accounts").insertOne({
+      _id: testAccount8Id,
+      name: "Test Account Build Stream",
+      slug: "test-account-build-stream",
+      plan: "free",
+      planLimits: {
+        maxRepositories: 3,
+        maxUsers: 1,
+        publicReposOnly: false,
+      },
+      stripeCustomerId: null,
+      stripeSubscriptionId: null,
+      paymentFailedAt: null,
+      githubInstallationId: 12351,
+      githubInstallationAccessToken: null,
+      githubInstallationTokenExpiresAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    await db.collection("memberships").insertOne({
+      _id: new ObjectId(),
+      userId: testUser8Id,
+      accountId: testAccount8Id,
+      role: "owner",
+      createdAt: new Date(),
+    });
+
+    await db.collection("repositories").insertOne({
+      _id: testRepo4Id,
+      accountId: testAccount8Id,
+      githubRepoId: 200004,
+      githubFullName: "test-org/build-stream-repo",
+      githubOwner: "test-org",
+      githubRepoName: "build-stream-repo",
+      isPrivate: false,
+      createdAt: new Date(),
+    });
+
+    // Create isolated test user for delete-service tests
+    const testUser9Id = new ObjectId("000000000000000000000009");
+    const testAccount9Id = new ObjectId("000000000000000000000099");
+    const testRepo5Id = new ObjectId("000000000000000000000105");
+
+    await db.collection("users").insertOne({
+      _id: testUser9Id,
+      githubId: 99909,
+      githubLogin: "test-user-delete-service",
+      email: "test-delete-service@example.com",
+      name: "Test User Delete Service",
+      avatarUrl: null,
+      createdAt: new Date(),
+      lastLoginAt: new Date(),
+    });
+
+    await db.collection("accounts").insertOne({
+      _id: testAccount9Id,
+      name: "Test Account Delete Service",
+      slug: "test-account-delete-service",
+      plan: "free",
+      planLimits: {
+        maxRepositories: 3,
+        maxUsers: 1,
+        publicReposOnly: false,
+      },
+      stripeCustomerId: null,
+      stripeSubscriptionId: null,
+      paymentFailedAt: null,
+      githubInstallationId: 12352,
+      githubInstallationAccessToken: null,
+      githubInstallationTokenExpiresAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    await db.collection("memberships").insertOne({
+      _id: new ObjectId(),
+      userId: testUser9Id,
+      accountId: testAccount9Id,
+      role: "owner",
+      createdAt: new Date(),
+    });
+
+    await db.collection("repositories").insertOne({
+      _id: testRepo5Id,
+      accountId: testAccount9Id,
+      githubRepoId: 200005,
+      githubFullName: "test-org/delete-service-repo",
+      githubOwner: "test-org",
+      githubRepoName: "delete-service-repo",
+      isPrivate: false,
+      createdAt: new Date(),
+    });
+
     console.log("Test data created successfully");
   } finally {
     await client.close();

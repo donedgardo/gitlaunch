@@ -12,8 +12,8 @@ test.describe("Build Streaming", () => {
     page,
     request,
   }) => {
-    // Given: I create a new service to get an API key
-    await authenticateTestUser(page, TEST_USERS.userWithRepos);
+    // Given: I create a new service to get an API key (using isolated user to avoid test conflicts)
+    await authenticateTestUser(page, TEST_USERS.userForBuildStream);
 
     const serviceName = `stream-test-${Date.now()}`;
     await page.goto("/services/new");

@@ -94,4 +94,16 @@ export const TEST_USERS = {
     accountId: "000000000000000000000077",
     hasGitHubApp: true,
   },
+  // Isolated user for build-stream tests (avoids conflicts with parallel tests)
+  userForBuildStream: {
+    userId: "000000000000000000000008",
+    accountId: "000000000000000000000088",
+    hasGitHubApp: true,
+  },
+  // Isolated user for delete-service tests (avoids conflicts with parallel tests)
+  userForDeleteService: {
+    userId: "000000000000000000000009",
+    accountId: "000000000000000000000099",
+    hasGitHubApp: true,
+  },
 };
