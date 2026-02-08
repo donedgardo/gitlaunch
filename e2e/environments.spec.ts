@@ -81,6 +81,28 @@ test.describe("Environment Management", () => {
   });
 
   test.describe("Add Environment", () => {
+    // Reset environments before each test to ensure isolation
+    test.beforeEach(async () => {
+      const client = new MongoClient(MONGODB_URI);
+      try {
+        await client.connect();
+        const db = client.db("gitlaunch");
+        await db.collection("services").updateOne(
+          { _id: new ObjectId("000000000000000000000203") },
+          {
+            $set: {
+              environments: [
+                { name: "staging", order: 0 },
+                { name: "prod", order: 1 },
+              ],
+            },
+          },
+        );
+      } finally {
+        await client.close();
+      }
+    });
+
     test("user can add a new environment", async ({ page }) => {
       // Given: I am on service settings
       await authenticateTestUser(page, TEST_USERS.userWithService);

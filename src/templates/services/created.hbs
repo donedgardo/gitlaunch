@@ -121,6 +121,10 @@ function copyApiKey() {
   var serviceId = '{{serviceId}}';
   var eventSource = new EventSource('/build-created-stream/' + serviceId);
 
+  eventSource.onopen = function() {
+    document.body.setAttribute('data-sse-connected', 'true');
+  };
+
   eventSource.addEventListener('build:created', function(e) {
     var data = JSON.parse(e.data);
     eventSource.close();

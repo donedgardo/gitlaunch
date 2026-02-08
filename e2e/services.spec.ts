@@ -248,8 +248,10 @@ test.describe("Service Creation", () => {
     expect(apiKey).toMatch(/^pk_/);
     expect(serviceId).toBeTruthy();
 
-    // Wait for SSE connection to establish
-    await page.waitForTimeout(1000);
+    // Wait for SSE connection to establish (signaled by data-sse-connected attribute)
+    await page.waitForSelector("[data-sse-connected='true']", {
+      timeout: 5000,
+    });
 
     // Report a build via the API (use port 3051 which is the E2E test server)
     const buildId = `build-${Date.now()}`;
@@ -264,6 +266,12 @@ test.describe("Service Creation", () => {
       },
     );
 
+    if (response.status() !== 201) {
+      const body = await response.text();
+      console.error(
+        `API call failed: status=${response.status()}, body=${body}`,
+      );
+    }
     expect(response.status()).toBe(201);
 
     // Page should automatically redirect to dashboard when build is created
