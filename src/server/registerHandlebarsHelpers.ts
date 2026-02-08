@@ -18,6 +18,13 @@ export function registerHandlebarsHelpers() {
       return !status || status === DeploymentStatus.NONE;
     },
   );
+  handlebars.registerHelper("canRedeploy", function (status: DeploymentStatus) {
+    return (
+      status === DeploymentStatus.DEPLOYED ||
+      status === DeploymentStatus.ERROR ||
+      status === DeploymentStatus.CANCELLED
+    );
+  });
   handlebars.registerHelper(
     "getBuildCommitLink",
     function (githubFullName: string, buildId: string) {
