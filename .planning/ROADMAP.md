@@ -1,6 +1,6 @@
 # GitLaunch Roadmap
 
-> Last updated: 2026-02-04
+> Last updated: 2026-02-08
 
 ## Current: v1.1 ✅ (Shipped)
 
@@ -18,6 +18,13 @@ Dashboard & Environment Management
 
 **Why:** Teams with 100+ builds can't scroll forever. Performance degrades.
 **Success:** Build list loads fast with 1000+ builds, paginated 20 per page.
+**Plans:** 3 plans
+
+Plans:
+
+- [ ] 01-01-PLAN.md — TDD: BuildRepository.findPaginated method
+- [ ] 01-02-PLAN.md — TDD: Dashboard route ?page=N query param handling
+- [ ] 01-03-PLAN.md — Pagination UI controls (prev/next) with HTMX navigation
 
 | Task | Description                                                        | Tests |
 | ---- | ------------------------------------------------------------------ | ----- |
