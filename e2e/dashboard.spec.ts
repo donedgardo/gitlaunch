@@ -137,7 +137,9 @@ test.describe("Dashboard - Navigation", () => {
 
     // Visit frontend service - should show deploy button for prod (staging is deployed)
     await page.goto("/dashboard/frontend");
-    await expect(page.getByRole("button", { name: "Deploy" })).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Deploy", exact: true }),
+    ).toBeVisible();
 
     // Navigate to backend service via tab
     await page.getByRole("link", { name: "backend" }).click();
