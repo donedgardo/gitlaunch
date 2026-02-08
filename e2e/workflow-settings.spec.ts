@@ -136,7 +136,7 @@ test.describe.serial("Workflow Settings", () => {
     await page.getByRole("button", { name: /save workflow/i }).click();
 
     // Then: I should see a success toast
-    await expect(page.getByText(/saved|success/i)).toBeVisible();
+    await expect(page.getByText("Workflow settings saved")).toBeVisible();
 
     // And: The change persists on reload
     await page.reload();
@@ -167,7 +167,7 @@ test.describe.serial("Workflow Settings", () => {
     await page.getByRole("button", { name: /save workflow/i }).click();
 
     // Then: I should see a success toast
-    await expect(page.getByText(/saved|success/i)).toBeVisible();
+    await expect(page.getByText("Workflow settings saved")).toBeVisible();
 
     // And: The change persists on reload
     await page.reload();
@@ -201,7 +201,7 @@ test.describe.serial("Workflow Settings", () => {
     await page.getByRole("button", { name: /save workflow/i }).click();
 
     // Then: I should see a success toast
-    await expect(page.getByText(/saved|success/i)).toBeVisible();
+    await expect(page.getByText("Workflow settings saved")).toBeVisible();
 
     // And: Both changes persist on reload
     await page.reload();
