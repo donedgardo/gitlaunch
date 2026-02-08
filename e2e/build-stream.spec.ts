@@ -1,0 +1,106 @@
+import { test, expect } from "@playwright/test";
+import { authenticateTestUser, TEST_USERS } from "./helpers/auth";
+
+/**
+ * Build Streaming E2E Tests
+ *
+ * Tests that new builds appear in real-time via SSE
+ */
+
+test.describe("Build Streaming", () => {
+  test("new build appears in dashboard via SSE when reported via API", async ({
+    page,
+    request,
+  }) => {
+    // Given: I create a new service to get an API key
+    await authenticateTestUser(page, TEST_USERS.userWithRepos);
+
+    const serviceName = `stream-test-${Date.now()}`;
+    await page.goto("/services/new");
+    await page.locator("#repositoryId").selectOption({ index: 1 });
+    await page.locator("#name").fill(serviceName);
+    await page.getByRole("button", { name: /create service/i }).click();
+
+    // Should be on the setup page
+    await expect(page).toHaveURL(/\/services\/created/);
+
+    // Extract API key and service ID from the page
+    const apiKey = (await page.locator("#api-key").textContent())?.trim();
+    const serviceId = (
+      await page.locator("#created-service-id").textContent()
+    )?.trim();
+
+    expect(apiKey).toMatch(/^pk_/);
+    expect(serviceId).toBeTruthy();
+
+    // Configure the workflow (so needsDeploymentSetup is false)
+    await page.goto(`/services/${serviceId}/settings`);
+
+    // Wait for workflow dropdown to load and save
+    await page.waitForFunction(() => {
+      const select = document.querySelector(
+        "#workflowFile",
+      ) as HTMLSelectElement;
+      return (
+        select &&
+        select.options.length > 0 &&
+        !select.innerHTML.includes("Loading")
+      );
+    });
+    await page.getByRole("button", { name: /save workflow/i }).click();
+    await expect(page.getByText("Workflow settings saved")).toBeVisible();
+
+    // Report initial build
+    const initialBuildId = `initial-${Date.now()}`;
+    const initialBuildResponse = await request.post(
+      `http://localhost:3051/api/v1/services/${serviceId}/builds`,
+      {
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        data: { buildId: initialBuildId },
+      },
+    );
+    expect(initialBuildResponse.status()).toBe(201);
+
+    // Wait for build to be persisted
+    await page.waitForTimeout(500);
+
+    // Navigate to the dashboard (reload to get the initial build)
+    await page.goto(`/dashboard/${serviceName}`);
+
+    // Wait for the build table body to be visible
+    await expect(page.locator("#build-table-body")).toBeVisible({
+      timeout: 10000,
+    });
+
+    // When: A new build is reported via API
+    const newBuildId = `new-build-${Date.now()}`;
+    const response = await request.post(
+      `http://localhost:3051/api/v1/services/${serviceId}/builds`,
+      {
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        data: { buildId: newBuildId },
+      },
+    );
+
+    expect(response.status()).toBe(201);
+
+    // Then: The new build should appear in the dashboard via SSE
+    await expect(page.locator(`#build-${newBuildId}`)).toBeVisible({
+      timeout: 10000,
+    });
+
+    // And: The build should have deploy buttons (one per environment)
+    await expect(
+      page
+        .locator(`#build-${newBuildId}`)
+        .getByRole("button", { name: "Deploy" })
+        .first(),
+    ).toBeVisible();
+  });
+});
