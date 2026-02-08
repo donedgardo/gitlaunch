@@ -36,6 +36,18 @@ test.describe.serial("Workflow Settings", () => {
     await expect(page.locator("#workflowFile")).toBeVisible();
     await expect(page.locator("#eventType")).toBeVisible();
 
+    // Wait for HTMX to load the options
+    await page.waitForFunction(() => {
+      const select = document.querySelector(
+        "#workflowFile",
+      ) as HTMLSelectElement;
+      return (
+        select &&
+        select.options.length > 0 &&
+        !select.innerHTML.includes("Loading")
+      );
+    });
+
     // Verify default values from test data setup
     await expect(page.locator("#workflowFile")).toHaveValue("deploy.yml");
     await expect(page.locator("#eventType")).toHaveValue("deployment");
