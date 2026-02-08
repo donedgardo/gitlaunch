@@ -172,4 +172,9 @@ export class ServiceRepository {
     );
     return result;
   }
+
+  async delete(id: ObjectId): Promise<boolean> {
+    const result = await this.collection.deleteOne({ _id: id });
+    return result.deletedCount === 1;
+  }
 }

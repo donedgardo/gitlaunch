@@ -317,4 +317,32 @@ export function registerSettingsRoutes(
       }
     },
   );
+
+  // DELETE /services/:serviceId - Delete a service (HTMX)
+  app.delete<{
+    Params: { serviceId: string };
+  }>(
+    "/services/:serviceId",
+    async (
+      request: FastifyRequest<{
+        Params: { serviceId: string };
+      }>,
+      reply: FastifyReply,
+    ) => {
+      const result = await loadServiceWithAuth(request, reply);
+      if (!result) return;
+
+      const { service } = result;
+
+      const deleted = await serviceRepository.delete(service._id);
+
+      if (!deleted) {
+        return reply.status(500).send("Failed to delete service");
+      }
+
+      // Redirect to dashboard after deletion
+      reply.header("HX-Redirect", "/dashboard");
+      return reply.status(200).send();
+    },
+  );
 }

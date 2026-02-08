@@ -509,4 +509,59 @@ describe("ServiceRepository", () => {
       expect(updated?.environments).toEqual([{ name: "dev", order: 0 }]);
     });
   });
+
+  describe("delete", () => {
+    it("should delete a service by id", async () => {
+      // Given: a service exists
+      const accountId = new ObjectId();
+      const repositoryId = new ObjectId();
+      const service = await repo.create({
+        accountId,
+        repositoryId,
+        name: "delete-test",
+      });
+
+      // When: I delete the service
+      const deleted = await repo.delete(service._id);
+
+      // Then: the service is deleted
+      expect(deleted).toBe(true);
+      const found = await repo.findById(service._id);
+      expect(found).toBeNull();
+    });
+
+    it("should return false if service not found", async () => {
+      // Given: a non-existent service ID
+      const fakeId = new ObjectId();
+
+      // When: I try to delete it
+      const deleted = await repo.delete(fakeId);
+
+      // Then: returns false
+      expect(deleted).toBe(false);
+    });
+
+    it("should only delete the specified service", async () => {
+      // Given: multiple services exist
+      const accountId = new ObjectId();
+      const repositoryId = new ObjectId();
+      const service1 = await repo.create({
+        accountId,
+        repositoryId,
+        name: "service-1",
+      });
+      const service2 = await repo.create({
+        accountId,
+        repositoryId,
+        name: "service-2",
+      });
+
+      // When: I delete service1
+      await repo.delete(service1._id);
+
+      // Then: only service1 is deleted
+      expect(await repo.findById(service1._id)).toBeNull();
+      expect(await repo.findById(service2._id)).not.toBeNull();
+    });
+  });
 });

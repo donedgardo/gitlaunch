@@ -248,4 +248,129 @@ describe("Settings Routes - Workflow Configuration", () => {
       expect(response.statusCode).toBe(404);
     });
   });
+
+  describe("DELETE /services/:serviceId", () => {
+    it("should delete a service and redirect to dashboard", async () => {
+      // Given: a service exists
+      const account = await accountRepo.create({
+        name: "Test Org",
+        slug: "test-org",
+      });
+
+      const repository = await repositoryRepo.create({
+        accountId: account._id,
+        githubRepoId: 123,
+        githubFullName: "test-org/repo",
+        githubRepoName: "repo",
+        githubOwner: "test-org",
+        isPrivate: false,
+      });
+
+      const service = await serviceRepo.create({
+        accountId: account._id,
+        repositoryId: repository._id,
+        name: "service-to-delete",
+      });
+
+      const userId = new ObjectId();
+      const sessionToken = sessionService.createSession({
+        userId,
+        accountId: account._id,
+      });
+
+      // When: DELETE the service
+      const response = await app.inject({
+        method: "DELETE",
+        url: `/services/${service._id}`,
+        cookies: {
+          session: sessionToken,
+        },
+      });
+
+      // Then: redirect to dashboard
+      expect(response.statusCode).toBe(200);
+      expect(response.headers["hx-redirect"]).toBe("/dashboard");
+
+      // And: service is deleted
+      const found = await serviceRepo.findById(service._id);
+      expect(found).toBeNull();
+    });
+
+    it("should return 404 for non-existent service", async () => {
+      // Given: authenticated user
+      const account = await accountRepo.create({
+        name: "Test Org",
+        slug: "test-org",
+      });
+
+      const userId = new ObjectId();
+      const sessionToken = sessionService.createSession({
+        userId,
+        accountId: account._id,
+      });
+
+      // When: DELETE non-existent service
+      const response = await app.inject({
+        method: "DELETE",
+        url: `/services/${new ObjectId()}`,
+        cookies: {
+          session: sessionToken,
+        },
+      });
+
+      // Then: 404
+      expect(response.statusCode).toBe(404);
+    });
+
+    it("should return 404 when deleting another account's service", async () => {
+      // Given: a service belonging to another account
+      const otherAccount = await accountRepo.create({
+        name: "Other Org",
+        slug: "other-org",
+      });
+
+      const repository = await repositoryRepo.create({
+        accountId: otherAccount._id,
+        githubRepoId: 999,
+        githubFullName: "other-org/repo",
+        githubRepoName: "repo",
+        githubOwner: "other-org",
+        isPrivate: false,
+      });
+
+      const service = await serviceRepo.create({
+        accountId: otherAccount._id,
+        repositoryId: repository._id,
+        name: "other-service",
+      });
+
+      // Given: different user
+      const myAccount = await accountRepo.create({
+        name: "My Org",
+        slug: "my-org",
+      });
+
+      const userId = new ObjectId();
+      const sessionToken = sessionService.createSession({
+        userId,
+        accountId: myAccount._id,
+      });
+
+      // When: DELETE other account's service
+      const response = await app.inject({
+        method: "DELETE",
+        url: `/services/${service._id}`,
+        cookies: {
+          session: sessionToken,
+        },
+      });
+
+      // Then: 404 (don't reveal service exists)
+      expect(response.statusCode).toBe(404);
+
+      // And: service still exists
+      const found = await serviceRepo.findById(service._id);
+      expect(found).not.toBeNull();
+    });
+  });
 });
