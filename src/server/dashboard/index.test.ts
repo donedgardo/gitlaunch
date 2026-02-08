@@ -204,9 +204,9 @@ describe("Dashboard Routes", () => {
         },
       });
 
-      // Then: response contains "Configure Deployment Workflow"
+      // Then: response contains deployment workflow instructions
       expect(response.statusCode).toBe(200);
-      expect(response.body).toContain("Configure Deployment Workflow");
+      expect(response.body).toContain("Create Your Deploy Workflow");
     });
 
     it("should not show deployment setup guide when workflow is configured", async () => {
