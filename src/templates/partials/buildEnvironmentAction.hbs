@@ -17,6 +17,20 @@
   {{else}}
     <div class="inline-flex items-center gap-1">
       <span class="{{getStatusBadgeClass status}}">{{status}}</span>
+      {{#if (canCancel status)}}
+        <button
+          hx-delete="/services/{{serviceId}}/builds/{{buildId}}/deploy/{{env}}"
+          hx-target="#{{serviceName}}-{{buildId}}-{{env}}"
+          hx-disabled-elt="this"
+          hx-on::before-request="this.closest('div').querySelector('span').textContent='cancelling';"
+          class="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+          title="Cancel deployment"
+        >
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      {{/if}}
       {{#if (canRedeploy status)}}
         <button
           hx-patch="/services/{{serviceId}}/builds/{{buildId}}/deploy/{{env}}"

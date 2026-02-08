@@ -18,6 +18,7 @@ import EventEmitter from "node:events";
 import { ServiceRepository } from "../../repositories/serviceRepository";
 import { BuildRepository } from "../../repositories/buildRepository";
 import { RepositoryRepository } from "../../repositories/repositoryRepository";
+import { DeploymentStatus } from "../../services/service/deploymentStatus";
 import { SessionService } from "../../services/auth/sessionService";
 import { sessionAuthMiddleware } from "../middleware/sessionAuth";
 import { registerHandlebarsHelpers } from "../registerHandlebarsHelpers";
@@ -488,6 +489,121 @@ describe("Dashboard Routes", () => {
 
       // Then: 400 response
       expect(response.statusCode).toBe(400);
+    });
+  });
+
+  describe("DELETE /services/:serviceId/builds/:buildId/deploy/:env - Cancel deployment", () => {
+    it("should cancel a deploying deployment and return updated status", async () => {
+      // Given: authenticated user with a service and a deploying build
+      const accountId = new ObjectId();
+      const userId = new ObjectId();
+
+      const repository = await repositoryRepo.create({
+        accountId,
+        githubRepoId: 12345,
+        githubFullName: "test-org/cancel-repo",
+        githubRepoName: "cancel-repo",
+        githubOwner: "test-org",
+        isPrivate: false,
+      });
+
+      const service = await serviceRepo.create({
+        accountId,
+        repositoryId: repository._id,
+        name: "cancel-service",
+      });
+
+      // Create a build with deploying status
+      await buildRepo.create({
+        accountId,
+        serviceId: service._id,
+        buildId: "cancel-build-123",
+      });
+      await buildRepo.updateDeploymentStatus(
+        accountId,
+        service._id,
+        "cancel-build-123",
+        "staging",
+        DeploymentStatus.DEPLOYING,
+      );
+
+      const sessionToken = sessionService.createSession({
+        userId,
+        accountId,
+      });
+
+      // When: cancelling the deployment
+      const response = await app.inject({
+        method: "DELETE",
+        url: `/services/${service._id}/builds/cancel-build-123/deploy/staging`,
+        cookies: {
+          session: sessionToken,
+        },
+      });
+
+      // Then: success response with cancelled status
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain("cancelled");
+
+      // And: build status is updated to cancelled
+      const build = await buildRepo.findByBuildId(
+        accountId,
+        service._id,
+        "cancel-build-123",
+      );
+      expect(build?.deployments.staging).toBe("cancelled");
+    });
+
+    it("should return 400 when trying to cancel a non-cancellable status", async () => {
+      // Given: authenticated user with a deployed build
+      const accountId = new ObjectId();
+      const userId = new ObjectId();
+
+      const repository = await repositoryRepo.create({
+        accountId,
+        githubRepoId: 12346,
+        githubFullName: "test-org/deployed-repo",
+        githubRepoName: "deployed-repo",
+        githubOwner: "test-org",
+        isPrivate: false,
+      });
+
+      const service = await serviceRepo.create({
+        accountId,
+        repositoryId: repository._id,
+        name: "deployed-service",
+      });
+
+      await buildRepo.create({
+        accountId,
+        serviceId: service._id,
+        buildId: "deployed-build",
+      });
+      await buildRepo.updateDeploymentStatus(
+        accountId,
+        service._id,
+        "deployed-build",
+        "staging",
+        DeploymentStatus.DEPLOYED,
+      );
+
+      const sessionToken = sessionService.createSession({
+        userId,
+        accountId,
+      });
+
+      // When: trying to cancel a deployed build
+      const response = await app.inject({
+        method: "DELETE",
+        url: `/services/${service._id}/builds/deployed-build/deploy/staging`,
+        cookies: {
+          session: sessionToken,
+        },
+      });
+
+      // Then: 400 response
+      expect(response.statusCode).toBe(400);
+      expect(response.body).toContain("Cannot cancel");
     });
   });
 });

@@ -25,6 +25,12 @@ export function registerHandlebarsHelpers() {
       status === DeploymentStatus.CANCELLED
     );
   });
+  handlebars.registerHelper("canCancel", function (status: DeploymentStatus) {
+    return (
+      status === DeploymentStatus.DISPATCHING ||
+      status === DeploymentStatus.DEPLOYING
+    );
+  });
   handlebars.registerHelper(
     "getBuildCommitLink",
     function (githubFullName: string, buildId: string) {

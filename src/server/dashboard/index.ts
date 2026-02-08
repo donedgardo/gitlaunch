@@ -243,6 +243,88 @@ export default function (deps: DashboardRoutesDeps) {
       },
     );
 
+    // DELETE /services/:serviceId/builds/:buildId/deploy/:env - Cancel deployment
+    server.delete<{
+      Params: { serviceId: string; buildId: string; env: string };
+    }>(
+      "/services/:serviceId/builds/:buildId/deploy/:env",
+      async (
+        req: FastifyRequest<{
+          Params: { serviceId: string; buildId: string; env: string };
+        }>,
+        reply: FastifyReply,
+      ) => {
+        const accountId = new ObjectId(req.session!.accountId);
+        const { serviceId, buildId, env } = req.params;
+
+        // Validate serviceId format
+        if (!ObjectId.isValid(serviceId)) {
+          return reply.status(400).send({ error: "Invalid service ID" });
+        }
+
+        // Find the service by ID and verify ownership
+        const service = await serviceRepository.findByAccountAndId(
+          accountId,
+          new ObjectId(serviceId),
+        );
+        if (!service) {
+          return reply.status(404).send({ error: "Service not found" });
+        }
+
+        // Get current build status
+        const build = await buildRepository.findByBuildId(
+          accountId,
+          service._id,
+          buildId,
+        );
+        if (!build) {
+          return reply.status(404).send({ error: "Build not found" });
+        }
+
+        const currentStatus = build.deployments[env];
+
+        // Only allow cancellation of dispatching or deploying statuses
+        if (
+          currentStatus !== DeploymentStatus.DISPATCHING &&
+          currentStatus !== DeploymentStatus.DEPLOYING
+        ) {
+          return reply
+            .status(400)
+            .send({ error: "Cannot cancel: deployment is not in progress" });
+        }
+
+        try {
+          const updatedBuild = await buildService.updateDeploymentStatus({
+            accountId,
+            serviceId: service._id,
+            buildId,
+            environment: env,
+            status: DeploymentStatus.CANCELLED,
+          });
+
+          // Return the partial for HTMX swap
+          return reply.view(
+            "/partials/buildEnvironmentAction.hbs",
+            {
+              buildId,
+              status: updatedBuild.deployments[env],
+              env,
+              serviceName: service.name,
+              serviceId,
+              isOobSwap: true,
+            },
+            { layout: "" },
+          );
+        } catch (error) {
+          const message =
+            error instanceof Error
+              ? error.message
+              : "Failed to cancel deployment";
+          return reply.status(500).send({ error: message });
+        }
+      },
+    );
+
     done();
   };
 }
