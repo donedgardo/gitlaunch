@@ -696,4 +696,214 @@ describe("BuildRepository", () => {
       expect(indexes.length).toBeGreaterThanOrEqual(3); // _id + 2 custom indexes
     });
   });
+
+  describe("findPaginated", () => {
+    it("should return first page of builds sorted newest first", async () => {
+      // Given: 25 builds exist for an account and service
+      for (let i = 1; i <= 25; i++) {
+        await repo.create({
+          accountId: testAccountId,
+          serviceId: testServiceId,
+          buildId: `build-${i}`,
+        });
+        // Small delay to ensure distinct timestamps
+        await new Promise((r) => setTimeout(r, 5));
+      }
+
+      // When: I request page 1 with 10 per page
+      const result = await repo.findPaginated(
+        testAccountId,
+        testServiceId,
+        1,
+        10,
+      );
+
+      // Then: I get the first 10 builds, sorted newest first
+      expect(result.builds).toHaveLength(10);
+      expect(result.builds[0].buildId).toBe("build-25");
+      expect(result.builds[9].buildId).toBe("build-16");
+      expect(result.total).toBe(25);
+      expect(result.hasMore).toBe(true);
+    });
+
+    it("should return second page of builds", async () => {
+      // Given: 25 builds exist
+      for (let i = 1; i <= 25; i++) {
+        await repo.create({
+          accountId: testAccountId,
+          serviceId: testServiceId,
+          buildId: `build-${i}`,
+        });
+        await new Promise((r) => setTimeout(r, 5));
+      }
+
+      // When: I request page 2 with 10 per page
+      const result = await repo.findPaginated(
+        testAccountId,
+        testServiceId,
+        2,
+        10,
+      );
+
+      // Then: I get builds 11-20
+      expect(result.builds).toHaveLength(10);
+      expect(result.builds[0].buildId).toBe("build-15");
+      expect(result.builds[9].buildId).toBe("build-6");
+      expect(result.total).toBe(25);
+      expect(result.hasMore).toBe(true);
+    });
+
+    it("should return last partial page", async () => {
+      // Given: 25 builds exist
+      for (let i = 1; i <= 25; i++) {
+        await repo.create({
+          accountId: testAccountId,
+          serviceId: testServiceId,
+          buildId: `build-${i}`,
+        });
+        await new Promise((r) => setTimeout(r, 5));
+      }
+
+      // When: I request page 3 with 10 per page
+      const result = await repo.findPaginated(
+        testAccountId,
+        testServiceId,
+        3,
+        10,
+      );
+
+      // Then: I get the last 5 builds
+      expect(result.builds).toHaveLength(5);
+      expect(result.builds[0].buildId).toBe("build-5");
+      expect(result.builds[4].buildId).toBe("build-1");
+      expect(result.total).toBe(25);
+      expect(result.hasMore).toBe(false);
+    });
+
+    it("should return empty page when beyond total pages", async () => {
+      // Given: 5 builds exist
+      for (let i = 1; i <= 5; i++) {
+        await repo.create({
+          accountId: testAccountId,
+          serviceId: testServiceId,
+          buildId: `build-${i}`,
+        });
+        await new Promise((r) => setTimeout(r, 5));
+      }
+
+      // When: I request page 10 with 10 per page
+      const result = await repo.findPaginated(
+        testAccountId,
+        testServiceId,
+        10,
+        10,
+      );
+
+      // Then: I get empty results
+      expect(result.builds).toHaveLength(0);
+      expect(result.total).toBe(5);
+      expect(result.hasMore).toBe(false);
+    });
+
+    it("should return empty results when no builds exist", async () => {
+      // Given: no builds exist for this account/service
+      // When: I request page 1
+      const result = await repo.findPaginated(
+        testAccountId,
+        testServiceId,
+        1,
+        10,
+      );
+
+      // Then: I get empty results
+      expect(result.builds).toHaveLength(0);
+      expect(result.total).toBe(0);
+      expect(result.hasMore).toBe(false);
+    });
+
+    it("should enforce tenant isolation - not return other account's builds", async () => {
+      // Given: builds exist for different accounts
+      const accountA = new ObjectId();
+      const accountB = new ObjectId();
+
+      for (let i = 1; i <= 10; i++) {
+        await repo.create({
+          accountId: accountA,
+          serviceId: testServiceId,
+          buildId: `account-a-build-${i}`,
+        });
+        await new Promise((r) => setTimeout(r, 5));
+      }
+
+      for (let i = 1; i <= 10; i++) {
+        await repo.create({
+          accountId: accountB,
+          serviceId: testServiceId,
+          buildId: `account-b-build-${i}`,
+        });
+        await new Promise((r) => setTimeout(r, 5));
+      }
+
+      // When: account A requests paginated builds
+      const result = await repo.findPaginated(accountA, testServiceId, 1, 10);
+
+      // Then: only account A's builds are returned
+      expect(result.builds).toHaveLength(10);
+      expect(result.total).toBe(10);
+      expect(result.builds[0].buildId).toContain("account-a-build");
+      expect(result.hasMore).toBe(false);
+    });
+
+    it("should treat page 0 as page 1", async () => {
+      // Given: 15 builds exist
+      for (let i = 1; i <= 15; i++) {
+        await repo.create({
+          accountId: testAccountId,
+          serviceId: testServiceId,
+          buildId: `build-${i}`,
+        });
+        await new Promise((r) => setTimeout(r, 5));
+      }
+
+      // When: I request page 0
+      const result = await repo.findPaginated(
+        testAccountId,
+        testServiceId,
+        0,
+        10,
+      );
+
+      // Then: I get first page
+      expect(result.builds).toHaveLength(10);
+      expect(result.builds[0].buildId).toBe("build-15");
+      expect(result.total).toBe(15);
+      expect(result.hasMore).toBe(true);
+    });
+
+    it("should treat negative page as page 1", async () => {
+      // Given: 15 builds exist
+      for (let i = 1; i <= 15; i++) {
+        await repo.create({
+          accountId: testAccountId,
+          serviceId: testServiceId,
+          buildId: `build-${i}`,
+        });
+        await new Promise((r) => setTimeout(r, 5));
+      }
+
+      // When: I request page -1
+      const result = await repo.findPaginated(
+        testAccountId,
+        testServiceId,
+        -1,
+        10,
+      );
+
+      // Then: I get first page
+      expect(result.builds).toHaveLength(10);
+      expect(result.builds[0].buildId).toBe("build-15");
+      expect(result.total).toBe(15);
+      expect(result.hasMore).toBe(true);
+    });
+  });
 });
