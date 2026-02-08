@@ -19,9 +19,12 @@ on:
         required: true
         type: choice
         options:
-          - dev
+{{#each environments}}
+          - {{this.name}}
+{{else}}
           - staging
-          - production
+          - prod
+{{/each}}
       buildId:
         description: "Build ID (commit SHA)"
         required: false
@@ -142,7 +145,7 @@ jobs:
     if: github.ref == 'refs/heads/main'
     uses: ./.github/workflows/deploy.yml
     with:
-      environment: dev
+      environment: {{#if environments.[0]}}{{environments.[0].name}}{{else}}staging{{/if}}
       buildId: $&#123;&#123; github.sha &#125;&#125;
       serviceId: $&#123;&#123; vars.GITLAUNCH_SERVICE_ID &#125;&#125;
     secrets: inherit</code></pre>
@@ -202,6 +205,12 @@ jobs:
 
 <script>
 function copyDeployWorkflow() {
+  const environments = [{{#each environments}}"{{this.name}}"{{#unless @last}}, {{/unless}}{{/each}}];
+  const envOptions = environments.length > 0
+    ? environments.map(e => `          - ${e}`).join('\n')
+    : `          - staging
+          - prod`;
+
   const code = `name: Deploy
 
 on:
@@ -212,9 +221,7 @@ on:
         required: true
         type: choice
         options:
-          - dev
-          - staging
-          - production
+${envOptions}
       buildId:
         description: "Build ID (commit SHA)"
         required: false

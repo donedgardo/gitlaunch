@@ -1,6 +1,6 @@
 {{#if needsDeploymentSetup}}
 <div id="build-table">
-  {{> deploymentSetupGuide serviceId=serviceId }}
+  {{> deploymentSetupGuide serviceId=serviceId environments=environments }}
 </div>
 {{else if builds.length}}
 <div id="build-table" class="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
