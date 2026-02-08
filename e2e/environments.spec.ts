@@ -108,40 +108,44 @@ test.describe("Environment Management", () => {
       await authenticateTestUser(page, TEST_USERS.userWithService);
       await page.goto("/services/000000000000000000000203/settings");
 
-      // When: I add a new environment
+      // When: I add a new environment (unique name to avoid parallel test conflicts)
+      const envName = `test-${Date.now()}`;
       await page.getByRole("button", { name: /add environment/i }).click();
       const addModal = page.locator("#add-env-modal");
-      await addModal.locator("#env-name").fill("qa");
+      await addModal.locator("#env-name").fill(envName);
       await addModal.getByRole("button", { name: /save/i }).click();
 
       // Wait for modal to close (HTMX request completed)
       await expect(addModal).toBeHidden();
 
       // Then: the environment appears in the list
-      await expect(page.locator('[data-env="qa"]')).toBeVisible();
+      await expect(page.locator(`[data-env="${envName}"]`)).toBeVisible();
     });
 
     test("new environment appears in dashboard build table", async ({
       page,
     }) => {
-      // Given: I am logged in and add a new environment "qa"
+      // Given: I am logged in and add a new environment (unique name)
+      const envName = `dash-${Date.now()}`;
       await authenticateTestUser(page, TEST_USERS.userWithService);
       await page.goto("/services/000000000000000000000203/settings");
 
-      // Add the "qa" environment
+      // Add the environment
       await page.getByRole("button", { name: /add environment/i }).click();
       const addModal = page.locator("#add-env-modal");
-      await addModal.locator("#env-name").fill("qa");
+      await addModal.locator("#env-name").fill(envName);
       await addModal.getByRole("button", { name: /save/i }).click();
 
       // Verify it was added
-      await expect(page.locator('[data-env="qa"]')).toBeVisible();
+      await expect(page.locator(`[data-env="${envName}"]`)).toBeVisible();
 
       // When: I go to the dashboard
       await page.goto("/dashboard");
 
-      // Then: the build table has a column for "qa"
-      await expect(page.locator("th").filter({ hasText: /qa/i })).toBeVisible();
+      // Then: the build table has a column for the new environment
+      await expect(
+        page.locator("th").filter({ hasText: new RegExp(envName, "i") }),
+      ).toBeVisible();
     });
   });
 

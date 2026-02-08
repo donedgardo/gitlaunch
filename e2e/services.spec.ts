@@ -222,61 +222,66 @@ test.describe("Service Creation", () => {
     await expect(page).toHaveURL(/\/dashboard/);
   });
 
-  test("auto-redirects to dashboard when first build is reported via API", async ({
-    page,
-    request,
-  }) => {
-    // Authenticate as user with repositories
-    await authenticateTestUser(page, TEST_USERS.userWithRepos);
+  // SSE test needs to run alone to avoid race conditions with parallel workers
+  test.describe("SSE Auto-redirect", () => {
+    test.describe.configure({ mode: "serial" });
 
-    // Create a service
-    const serviceName = `auto-redirect-service-${Date.now()}`;
-    await page.goto("/services/new");
-    await page.locator("#repositoryId").selectOption({ index: 1 });
-    await page.locator("#name").fill(serviceName);
-    await page.getByRole("button", { name: /create service/i }).click();
+    test("auto-redirects to dashboard when first build is reported via API", async ({
+      page,
+      request,
+    }) => {
+      // Authenticate as user with repositories
+      await authenticateTestUser(page, TEST_USERS.userWithRepos);
 
-    // Should be on the setup page
-    await expect(page).toHaveURL(/\/services\/created/);
+      // Create a service
+      const serviceName = `auto-redirect-service-${Date.now()}`;
+      await page.goto("/services/new");
+      await page.locator("#repositoryId").selectOption({ index: 1 });
+      await page.locator("#name").fill(serviceName);
+      await page.getByRole("button", { name: /create service/i }).click();
 
-    // Extract API key and service ID from the page
-    const apiKey = (await page.locator("#api-key").textContent())?.trim();
-    const serviceId = (
-      await page.locator("#created-service-id").textContent()
-    )?.trim();
+      // Should be on the setup page
+      await expect(page).toHaveURL(/\/services\/created/);
 
-    expect(apiKey).toMatch(/^pk_/);
-    expect(serviceId).toBeTruthy();
+      // Extract API key and service ID from the page
+      const apiKey = (await page.locator("#api-key").textContent())?.trim();
+      const serviceId = (
+        await page.locator("#created-service-id").textContent()
+      )?.trim();
 
-    // Wait for SSE connection to establish (signaled by data-sse-connected attribute)
-    await page.waitForSelector("[data-sse-connected='true']", {
-      timeout: 5000,
-    });
+      expect(apiKey).toMatch(/^pk_/);
+      expect(serviceId).toBeTruthy();
 
-    // Report a build via the API (use port 3051 which is the E2E test server)
-    const buildId = `build-${Date.now()}`;
-    const response = await request.post(
-      `http://localhost:3051/api/v1/services/${serviceId}/builds`,
-      {
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
+      // Wait for SSE connection to establish (signaled by data-sse-connected attribute)
+      await page.waitForSelector("[data-sse-connected='true']", {
+        timeout: 5000,
+      });
+
+      // Report a build via the API (use port 3051 which is the E2E test server)
+      const buildId = `build-${Date.now()}`;
+      const response = await request.post(
+        `http://localhost:3051/api/v1/services/${serviceId}/builds`,
+        {
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+          },
+          data: { buildId },
         },
-        data: { buildId },
-      },
-    );
-
-    if (response.status() !== 201) {
-      const body = await response.text();
-      console.error(
-        `API call failed: status=${response.status()}, body=${body}`,
       );
-    }
-    expect(response.status()).toBe(201);
 
-    // Page should automatically redirect to dashboard when build is created
-    await expect(page).toHaveURL(new RegExp(`/dashboard/${serviceName}`), {
-      timeout: 10000,
+      if (response.status() !== 201) {
+        const body = await response.text();
+        console.error(
+          `API call failed: status=${response.status()}, body=${body}`,
+        );
+      }
+      expect(response.status()).toBe(201);
+
+      // Page should automatically redirect to dashboard when build is created
+      await expect(page).toHaveURL(new RegExp(`/dashboard/${serviceName}`), {
+        timeout: 10000,
+      });
     });
   });
 });

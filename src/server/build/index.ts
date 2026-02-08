@@ -123,6 +123,12 @@ export default function (deps: BuildRoutesDeps) {
       res.sse(
         (async function* () {
           try {
+            // Signal that the SSE connection is ready to receive events
+            yield {
+              event: "connected",
+              data: JSON.stringify({ status: "ready" }),
+            };
+
             while (true) {
               const event =
                 eventQueue.length > 0
