@@ -19,6 +19,12 @@ export type CreateBuildInput = {
   buildId: string;
 };
 
+export type PaginatedResult = {
+  builds: Build[];
+  total: number;
+  hasMore: boolean;
+};
+
 export class BuildRepository {
   private collection: Collection<Build>;
 
@@ -170,5 +176,35 @@ export class BuildRepository {
     });
 
     return buildWithDeployment !== null;
+  }
+
+  async findPaginated(
+    accountId: ObjectId,
+    serviceId: ObjectId,
+    page: number,
+    limit: number,
+  ): Promise<PaginatedResult> {
+    // Sanitize inputs
+    const sanitizedPage = Math.max(1, Math.floor(page));
+    const sanitizedLimit = Math.max(1, Math.min(100, Math.floor(limit)));
+
+    // Calculate skip
+    const skip = (sanitizedPage - 1) * sanitizedLimit;
+
+    // Run query and count in parallel
+    const [builds, total] = await Promise.all([
+      this.collection
+        .find({ accountId, serviceId })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(sanitizedLimit)
+        .toArray(),
+      this.collection.countDocuments({ accountId, serviceId }),
+    ]);
+
+    // Calculate hasMore
+    const hasMore = skip + builds.length < total;
+
+    return { builds, total, hasMore };
   }
 }
