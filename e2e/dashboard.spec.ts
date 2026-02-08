@@ -150,4 +150,24 @@ test.describe("Dashboard - Navigation", () => {
       page.getByRole("button", { name: "Deploy" }).first(),
     ).toBeVisible();
   });
+
+  test("clicking service name in nav from settings page navigates to dashboard", async ({
+    page,
+  }) => {
+    // Given: I'm on a service settings page
+    await authenticateTestUser(page, TEST_USERS.userWithService);
+    await page.goto("/services/000000000000000000000203/settings");
+
+    // Verify we're on settings page
+    await expect(page.getByText("Danger Zone")).toBeVisible();
+
+    // When: I click the service name in the navigation
+    await page.getByRole("link", { name: "env-test-service" }).click();
+
+    // Then: I should be on the service dashboard
+    await expect(page).toHaveURL("/dashboard/env-test-service");
+
+    // And: I should see the build table
+    await expect(page.locator("#build-table")).toBeVisible();
+  });
 });
