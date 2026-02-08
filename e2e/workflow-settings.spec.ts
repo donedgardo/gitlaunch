@@ -194,9 +194,10 @@ test.describe.serial("Workflow Settings", () => {
     });
 
     // When: I change both settings and save
+    // NOTE: Reset to original values so serial tests can run again
     await page.locator("#workflowFile").selectOption("deploy.yml");
     await page.locator("#eventType").clear();
-    await page.locator("#eventType").fill("trigger-deploy");
+    await page.locator("#eventType").fill("deployment");
     await page.getByRole("button", { name: /save workflow/i }).click();
 
     // Then: I should see a success toast
@@ -218,6 +219,6 @@ test.describe.serial("Workflow Settings", () => {
     });
 
     await expect(page.locator("#workflowFile")).toHaveValue("deploy.yml");
-    await expect(page.locator("#eventType")).toHaveValue("trigger-deploy");
+    await expect(page.locator("#eventType")).toHaveValue("deployment");
   });
 });
