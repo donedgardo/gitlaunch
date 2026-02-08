@@ -3,7 +3,7 @@
   {{> deploymentSetupGuide serviceId=serviceId environments=environments }}
 </div>
 {{else if builds.length}}
-<div id="build-table" class="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+<div id="build-table" class="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700" data-service-name="{{serviceName}}">
   <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
     <thead class="bg-gray-50 dark:bg-gray-800">
     <tr>
@@ -17,13 +17,60 @@
       {{/each}}
     </tr>
     </thead>
-    <tbody class="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+    <tbody id="build-table-body" class="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
     {{#each builds as |build| }}
-      {{> buildRow build=build environments=../environments serviceName=../serviceName githubFullName=../githubFullName }}
+      {{> buildRow build=build environments=../environments serviceName=../serviceName githubFullName=../githubFullName serviceId=../serviceId }}
     {{/each}}
     </tbody>
   </table>
 </div>
+<script>
+(function() {
+  var serviceName = '{{serviceName}}';
+  var eventSource;
+  var reconnectDelay = 1000;
+  var maxReconnectDelay = 30000;
+
+  function connect() {
+    eventSource = new EventSource('/new-build-stream/' + serviceName);
+
+    eventSource.addEventListener('new-build', function(e) {
+      reconnectDelay = 1000; // Reset delay on successful message
+      var data = JSON.parse(e.data);
+      var tbody = document.getElementById('build-table-body');
+      if (tbody && data.html) {
+        var existingRow = document.getElementById('build-' + data.buildId);
+        if (!existingRow) {
+          tbody.insertAdjacentHTML('afterbegin', data.html);
+          if (typeof htmx !== 'undefined') {
+            htmx.process(tbody.firstElementChild);
+          }
+        }
+      }
+    });
+
+    eventSource.addEventListener('connected', function() {
+      reconnectDelay = 1000; // Reset delay on successful connection
+    });
+
+    eventSource.onerror = function() {
+      eventSource.close();
+      setTimeout(function() {
+        reconnectDelay = Math.min(reconnectDelay * 2, maxReconnectDelay);
+        connect();
+      }, reconnectDelay);
+    };
+  }
+
+  connect();
+
+  window.addEventListener('beforeunload', function() {
+    if (eventSource) {
+      eventSource.close();
+    }
+  });
+})();
+</script>
 {{else}}
 <div id="build-table">
   {{> emptyBuilds serviceId=serviceId }}
