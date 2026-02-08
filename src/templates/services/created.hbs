@@ -62,10 +62,10 @@
   </div>
 
   <!-- Step 1: Add Secrets -->
-  {{> githubSecretsSetup serviceId=serviceId idPrefix="created-" stepNumber="1" showRequired=true showApiKeyNote=true showCopyButton=true }}
+  {{> githubSecretsSetup serviceId=serviceId idPrefix="created_" stepNumber="1" showRequired=true showApiKeyNote=true showCopyButton=true }}
 
   <!-- Step 2: Update CI Workflow -->
-  {{> buildReportingInstructions idPrefix="created-" stepNumber="2" }}
+  {{> buildReportingInstructions idPrefix="created_" stepNumber="2" }}
 
   <!-- Step 3: Push a Commit -->
   <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-lg overflow-hidden mb-6">
