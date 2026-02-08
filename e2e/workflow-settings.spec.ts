@@ -30,7 +30,9 @@ test.describe.serial("Workflow Settings", () => {
     await page.goto("/services/000000000000000000000203/settings");
 
     // Then: I should see the workflow configuration section
-    await expect(page.getByText(/deployment workflow/i)).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Deployment Workflow", exact: true }),
+    ).toBeVisible();
     await expect(page.locator("#workflowFile")).toBeVisible();
     await expect(page.locator("#eventType")).toBeVisible();
 
