@@ -27,7 +27,7 @@ test.describe("Build Streaming", () => {
     // Extract API key and service ID from the page
     const apiKey = (await page.locator("#api-key").textContent())?.trim();
     const serviceId = (
-      await page.locator("#created-service-id").textContent()
+      await page.locator("#created_service-id").textContent()
     )?.trim();
 
     expect(apiKey).toMatch(/^pk_/);

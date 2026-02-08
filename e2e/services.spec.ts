@@ -103,7 +103,7 @@ test.describe("Service Creation", () => {
     ).toBeVisible();
 
     // Should see service ID for CI configuration
-    await expect(page.locator("#created-service-id")).toBeVisible();
+    await expect(page.locator("#created_service-id")).toBeVisible();
   });
 
   test("API key is never exposed in URL (security)", async ({ page }) => {
@@ -246,7 +246,7 @@ test.describe("Service Creation", () => {
       // Extract API key and service ID from the page
       const apiKey = (await page.locator("#api-key").textContent())?.trim();
       const serviceId = (
-        await page.locator("#created-service-id").textContent()
+        await page.locator("#created_service-id").textContent()
       )?.trim();
 
       expect(apiKey).toMatch(/^pk_/);
