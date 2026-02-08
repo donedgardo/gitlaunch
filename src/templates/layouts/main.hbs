@@ -58,16 +58,26 @@
         showToast(message, type);
       });
       
-      // Enable HTMX on service nav links only when #build-table exists (dashboard pages)
+      // Enable HTMX on service nav links for dashboard pages
+      // On settings pages, links work as normal hrefs (full page navigation)
       document.addEventListener('DOMContentLoaded', function() {
-        if (document.getElementById('build-table')) {
+        var buildTable = document.getElementById('build-table');
+        if (buildTable) {
+          // Dashboard page: enable partial navigation to swap build table
           document.querySelectorAll('.service-nav-link').forEach(function(link) {
             if (link.dataset.hxGet) {
               link.setAttribute('hx-get', link.dataset.hxGet);
               link.setAttribute('hx-target', link.dataset.hxTarget);
+              link.setAttribute('hx-swap', 'outerHTML');
               link.setAttribute('hx-push-url', link.dataset.hxPushUrl);
               htmx.process(link);
             }
+          });
+        } else if (document.querySelector('[data-page="settings"]')) {
+          // Settings page: use hx-boost for smooth navigation to dashboard
+          document.querySelectorAll('.service-nav-link').forEach(function(link) {
+            link.setAttribute('hx-boost', 'true');
+            htmx.process(link);
           });
         }
       });
