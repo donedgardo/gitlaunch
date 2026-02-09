@@ -35,9 +35,9 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 Plans:
 
-- [ ] 01-01: MembershipService interface and StripeService implementation
-- [ ] 01-02: Webhook endpoint with signature verification and event routing
-- [ ] 01-03: MongoDB subscription state caching with idempotent updates
+- [ ] 01-01-PLAN.md — Extract MembershipService interface from StripeService (dependency inversion)
+- [ ] 01-02-PLAN.md — WebhookEventRepository with MongoDB unique index for idempotency
+- [ ] 01-03-PLAN.md — Wire idempotency + raw body into webhook route and server startup
 
 ### Phase 2: Plan Selection & Checkout
 
@@ -107,7 +107,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 
 | Phase                        | Plans Complete | Status      | Completed |
 | ---------------------------- | -------------- | ----------- | --------- |
-| 1. Billing Foundation        | 0/3            | Not started | -         |
+| 1. Billing Foundation        | 0/3            | Planned     | -         |
 | 2. Plan Selection & Checkout | 0/3            | Not started | -         |
 | 3. Plan Enforcement & Limits | 0/2            | Not started | -         |
 | 4. Trial & Payment Lifecycle | 0/3            | Not started | -         |
