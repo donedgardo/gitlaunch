@@ -1,6 +1,6 @@
 # GitLaunch Roadmap
 
-> Last updated: 2026-02-08
+> Last updated: 2026-02-09
 
 ## Current: v1.1 ✅ (Shipped)
 
@@ -14,24 +14,17 @@ Dashboard & Environment Management
 
 ### Phases
 
-#### Phase 1: Pagination
+#### Phase 1: Pagination ✅ (2026-02-09)
 
 **Why:** Teams with 100+ builds can't scroll forever. Performance degrades.
 **Success:** Build list loads fast with 1000+ builds, paginated 20 per page.
-**Plans:** 3 plans
+**Plans:** 3 plans — all complete
 
 Plans:
 
-- [ ] 01-01-PLAN.md — TDD: BuildRepository.findPaginated method
-- [ ] 01-02-PLAN.md — TDD: Dashboard route ?page=N query param handling
-- [ ] 01-03-PLAN.md — Pagination UI controls (prev/next) with HTMX navigation
-
-| Task | Description                                                        | Tests |
-| ---- | ------------------------------------------------------------------ | ----- |
-| 1.1  | `BuildRepository.findPaginated(accountId, serviceId, page, limit)` | Unit  |
-| 1.2  | Dashboard route accepts `?page=N` query param                      | Unit  |
-| 1.3  | Pagination UI (prev/next, page numbers)                            | E2E   |
-| 1.4  | "Load more" with HTMX infinite scroll (optional)                   | E2E   |
+- [x] 01-01-PLAN.md — TDD: BuildRepository.findPaginated method
+- [x] 01-02-PLAN.md — TDD: Dashboard route ?page=N query param handling
+- [x] 01-03-PLAN.md — Pagination UI controls (prev/next) with HTMX navigation
 
 #### Phase 2: Build Details View
 
