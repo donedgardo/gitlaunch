@@ -12,6 +12,7 @@ import { SessionService } from "./services/auth/sessionService";
 import { AccountRepository } from "./repositories/accountRepository";
 import { BuildRepository } from "./repositories/buildRepository";
 import { ServiceRepository } from "./repositories/serviceRepository";
+import { WebhookEventRepository } from "./repositories/webhookEventRepository";
 import { GitHubAppService } from "./services/github/githubAppService";
 import { GitHubAppClient } from "./services/github/githubAppClient";
 import { InstallationTokenService } from "./services/github/installationTokenService";
@@ -55,6 +56,9 @@ const gitHubAppService = new GitHubAppService(
   gitHubApiClient,
 );
 
+// Create WebhookEventRepository for webhook idempotency
+const webhookEventRepository = new WebhookEventRepository(database);
+
 // Create server
 const server = createAppServer({
   database,
@@ -64,6 +68,7 @@ const server = createAppServer({
   sessionService,
   gitHubAppService,
   installationTokenService,
+  webhookEventRepo: webhookEventRepository,
 });
 
 const PORT = parseInt(process.env.PORT || "3050");
@@ -75,6 +80,7 @@ async function start() {
   const serviceRepository = new ServiceRepository(database);
   await buildRepository.ensureIndexes();
   await serviceRepository.ensureIndexes();
+  await webhookEventRepository.ensureIndexes();
 
   await server.listen({ host: "0.0.0.0", port: PORT });
   console.info(`Server listening on port ${PORT}`);

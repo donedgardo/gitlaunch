@@ -29,11 +29,14 @@ import { MembershipRepository } from "../repositories/membershipRepository";
 import { RepositoryRepository } from "../repositories/repositoryRepository";
 import { ServiceRepository } from "../repositories/serviceRepository";
 import { ApiKeyRepository } from "../repositories/apiKeyRepository";
+import { WebhookEventRepository } from "../repositories/webhookEventRepository";
 import { GitHubAppService } from "../services/github/githubAppService";
 import { InstallationTokenService } from "../services/github/installationTokenService";
 import { ApiKeyService } from "../services/apiKey/apiKeyService";
 import { EnvironmentService } from "../services/environment/environmentService";
 import { PlanEnforcementService } from "../services/billing/planEnforcementService";
+import { StripeWebhookHandler } from "../services/billing/webhookHandler";
+import { registerStripeWebhookRoute } from "./routes/webhooks/stripe";
 import { DbClientI } from "./health/dbClientI";
 
 export type AppServerDeps = {
@@ -44,6 +47,7 @@ export type AppServerDeps = {
   sessionService: SessionService;
   gitHubAppService: GitHubAppService;
   installationTokenService: InstallationTokenService;
+  webhookEventRepo?: WebhookEventRepository;
 };
 
 export function createAppServer(deps: AppServerDeps): FastifyInstance {
@@ -55,6 +59,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     sessionService,
     gitHubAppService,
     installationTokenService,
+    webhookEventRepo,
   } = deps;
 
   const server = Fastify();
@@ -95,6 +100,16 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     buildDispatchService,
   );
   const environmentService = new EnvironmentService(serviceRepository);
+
+  // Webhook handler and route
+  if (webhookEventRepo) {
+    const webhookHandler = new StripeWebhookHandler(accountRepository);
+    registerStripeWebhookRoute(server, {
+      webhookHandler,
+      webhookSecret: process.env.STRIPE_WEBHOOK_SECRET || "",
+      webhookEventRepo,
+    });
+  }
 
   // Session middleware
   registerSessionMiddleware(server, {
