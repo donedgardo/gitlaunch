@@ -4,13 +4,27 @@ import fastifyFormbody from "@fastify/formbody";
 import { FastifySSEPlugin } from "fastify-sse-v2";
 import fastifyView from "@fastify/view";
 import fastifyCookie from "@fastify/cookie";
+import rawBody from "fastify-raw-body";
 import * as handlebars from "handlebars";
 import path from "node:path";
 import { registerHandlebarsHelpers } from "./registerHandlebarsHelpers";
 
+// Type augmentation for fastify-raw-body
+declare module "fastify" {
+  interface FastifyRequest {
+    rawBody?: string | Buffer;
+  }
+}
+
 export function registerPlugins(server: FastifyInstance) {
   registerHandlebarsHelpers();
   server.register(fastifyFormbody);
+  server.register(rawBody, {
+    field: "rawBody",
+    global: false,
+    encoding: "utf8",
+    runFirst: true,
+  });
   server.register(fastifyView, {
     engine: {
       handlebars,
