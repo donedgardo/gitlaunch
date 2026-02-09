@@ -65,4 +65,10 @@ export function registerHandlebarsHelpers() {
       }
     },
   );
+  handlebars.registerHelper("add", function (a: number, b: number) {
+    return a + b;
+  });
+  handlebars.registerHelper("subtract", function (a: number, b: number) {
+    return a - b;
+  });
 }

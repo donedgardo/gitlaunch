@@ -1,0 +1,52 @@
+{{#if pagination}}
+{{#if (eq pagination.totalPages 1)}}
+{{!-- No pagination controls needed for single page --}}
+{{else}}
+<div class="flex justify-between items-center px-4 py-3 border-t border-gray-200 dark:border-gray-700">
+  {{!-- Previous Button --}}
+  <div>
+    {{#if pagination.hasPrev}}
+      <a
+        href="/dashboard/{{serviceName}}?page={{subtract pagination.currentPage 1}}"
+        hx-get="/dashboard/{{serviceName}}?page={{subtract pagination.currentPage 1}}"
+        hx-target="#build-table"
+        hx-swap="outerHTML"
+        hx-push-url="true"
+        class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700"
+      >
+        Previous
+      </a>
+    {{else}}
+      <span class="px-4 py-2 text-sm font-medium text-gray-400 bg-gray-100 border border-gray-200 rounded-md cursor-not-allowed dark:bg-gray-900 dark:text-gray-600 dark:border-gray-700">
+        Previous
+      </span>
+    {{/if}}
+  </div>
+
+  {{!-- Page Indicator --}}
+  <div class="text-sm text-gray-700 dark:text-gray-300">
+    Page {{pagination.currentPage}} of {{pagination.totalPages}}
+  </div>
+
+  {{!-- Next Button --}}
+  <div>
+    {{#if pagination.hasMore}}
+      <a
+        href="/dashboard/{{serviceName}}?page={{add pagination.currentPage 1}}"
+        hx-get="/dashboard/{{serviceName}}?page={{add pagination.currentPage 1}}"
+        hx-target="#build-table"
+        hx-swap="outerHTML"
+        hx-push-url="true"
+        class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700"
+      >
+        Next
+      </a>
+    {{else}}
+      <span class="px-4 py-2 text-sm font-medium text-gray-400 bg-gray-100 border border-gray-200 rounded-md cursor-not-allowed dark:bg-gray-900 dark:text-gray-600 dark:border-gray-700">
+        Next
+      </span>
+    {{/if}}
+  </div>
+</div>
+{{/if}}
+{{/if}}

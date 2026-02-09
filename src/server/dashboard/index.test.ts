@@ -92,6 +92,7 @@ describe("Dashboard Routes", () => {
           emptyBuilds: "/partials/emptyBuilds.hbs",
           deploymentSetupGuide: "/partials/deploymentSetupGuide.hbs",
           githubSecretsSetup: "/partials/githubSecretsSetup.hbs",
+          paginationControls: "/partials/paginationControls.hbs",
         },
       },
     });
@@ -914,7 +915,7 @@ describe("Dashboard Routes", () => {
         createdAt: new Date(),
       });
 
-      const service = await serviceRepo.create({
+      await serviceRepo.create({
         accountId,
         repositoryId,
         name: "empty-service",
@@ -990,6 +991,66 @@ describe("Dashboard Routes", () => {
       // Then: response shows deployment setup guide (based on total, not builds.length)
       expect(response.statusCode).toBe(200);
       expect(response.body).toContain("Create Your Deploy Workflow");
+    });
+
+    it("should display pagination controls when builds span multiple pages", async () => {
+      // Given: authenticated user with 25 builds (requires 2 pages)
+      const accountId = new ObjectId();
+      const userId = new ObjectId();
+      const repositoryId = new ObjectId();
+
+      await db.collection("repositories").insertOne({
+        _id: repositoryId,
+        accountId,
+        githubId: 12345,
+        githubFullName: "my-org/my-repo",
+        name: "my-repo",
+        owner: "my-org",
+        private: false,
+        createdAt: new Date(),
+      });
+
+      const service = await serviceRepo.create({
+        accountId,
+        repositoryId,
+        name: "pagination-ui-service",
+        environments: [{ name: "staging", order: 0 }],
+      });
+
+      // Mark workflow as configured so builds table shows
+      await serviceRepo.updateWorkflowConfiguration(service._id, {
+        workflowFile: "deploy.yml",
+        eventType: "deployment",
+      });
+
+      // Create 25 builds
+      for (let i = 1; i <= 25; i++) {
+        await buildRepo.create({
+          accountId,
+          serviceId: service._id,
+          buildId: `build-${i}`,
+        });
+      }
+
+      const sessionToken = sessionService.createSession({
+        userId,
+        accountId,
+      });
+
+      // When: visiting page 1
+      const response = await app.inject({
+        method: "GET",
+        url: "/dashboard/pagination-ui-service",
+        cookies: {
+          session: sessionToken,
+        },
+      });
+
+      // Then: response contains pagination controls
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain("Page 1 of 2");
+      expect(response.body).toContain("Next");
+      expect(response.body).toContain("cursor-not-allowed"); // Previous button disabled on page 1
     });
   });
 });

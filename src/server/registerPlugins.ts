@@ -28,6 +28,7 @@ export function registerPlugins(server: FastifyInstance) {
         environmentList: "/partials/environmentList.hbs",
         githubSecretsSetup: "/partials/githubSecretsSetup.hbs",
         htmxDashboard: "/partials/htmxDashboard.hbs",
+        paginationControls: "/partials/paginationControls.hbs",
       },
     },
   });
