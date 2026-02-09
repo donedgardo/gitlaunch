@@ -1,7 +1,9 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { StripeWebhookHandler } from "../../../services/billing/webhookHandler";
+import { WebhookEventRepository } from "../../../repositories/webhookEventRepository";
 
 export type StripeEvent = {
+  id: string;
   type: string;
   data: {
     object: Record<string, any>;
@@ -17,6 +19,7 @@ export type StripeWebhookRouteDependencies = {
   webhookSecret: string;
   skipSignatureVerification?: boolean;
   signatureVerifier?: StripeSignatureVerifier;
+  webhookEventRepo?: WebhookEventRepository;
 };
 
 export function registerStripeWebhookRoute(

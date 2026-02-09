@@ -12,6 +12,7 @@ import {
   StripeSignatureVerifier,
   StripeEvent,
 } from "./stripe";
+import { WebhookEventRepository } from "../../../repositories/webhookEventRepository";
 
 describe("Stripe Webhook Route", () => {
   let mongoServer: MongoMemoryServer;
@@ -37,6 +38,7 @@ describe("Stripe Webhook Route", () => {
 
   beforeEach(async () => {
     await db.collection("accounts").deleteMany({});
+    await db.collection("webhookEvents").deleteMany({});
     app = Fastify();
     registerStripeWebhookRoute(app, {
       webhookHandler,
@@ -60,6 +62,7 @@ describe("Stripe Webhook Route", () => {
         method: "POST",
         url: "/webhooks/stripe",
         payload: {
+          id: "evt_checkout_test",
           type: "checkout.session.completed",
           data: {
             object: {
@@ -95,6 +98,7 @@ describe("Stripe Webhook Route", () => {
         method: "POST",
         url: "/webhooks/stripe",
         payload: {
+          id: "evt_cancel_test",
           type: "customer.subscription.deleted",
           data: {
             object: {
@@ -125,6 +129,7 @@ describe("Stripe Webhook Route", () => {
         method: "POST",
         url: "/webhooks/stripe",
         payload: {
+          id: "evt_failed_test",
           type: "invoice.payment_failed",
           data: {
             object: {
@@ -161,6 +166,7 @@ describe("Stripe Webhook Route", () => {
         method: "POST",
         url: "/webhooks/stripe",
         payload: {
+          id: "evt_recover_test",
           type: "invoice.payment_succeeded",
           data: {
             object: {
@@ -184,6 +190,7 @@ describe("Stripe Webhook Route", () => {
         method: "POST",
         url: "/webhooks/stripe",
         payload: {
+          id: "evt_unknown_test",
           type: "some.unknown.event",
           data: {
             object: {},
@@ -217,7 +224,11 @@ describe("Stripe Webhook Route", () => {
       const response = await verifiedApp.inject({
         method: "POST",
         url: "/webhooks/stripe",
-        payload: { type: "test.event", data: { object: {} } },
+        payload: {
+          id: "evt_sig_missing",
+          type: "test.event",
+          data: { object: {} },
+        },
       });
 
       // Then: returns 400 for missing signature
@@ -249,7 +260,11 @@ describe("Stripe Webhook Route", () => {
         headers: {
           "stripe-signature": "invalid_signature",
         },
-        payload: { type: "test.event", data: { object: {} } },
+        payload: {
+          id: "evt_sig_invalid",
+          type: "test.event",
+          data: { object: {} },
+        },
       });
 
       // Then: returns 400 for invalid signature
@@ -266,6 +281,7 @@ describe("Stripe Webhook Route", () => {
 
       const verifiedApp = Fastify();
       const validEvent: StripeEvent = {
+        id: "evt_sig_valid",
         type: "checkout.session.completed",
         data: {
           object: {
@@ -302,6 +318,175 @@ describe("Stripe Webhook Route", () => {
       // And: account is upgraded
       const updated = await accountRepo.findById(account._id);
       expect(updated!.plan).toBe(Plan.Paid);
+    });
+  });
+
+  describe("Idempotent Webhook Processing", () => {
+    let webhookEventRepo: WebhookEventRepository;
+
+    beforeEach(async () => {
+      webhookEventRepo = new WebhookEventRepository(db);
+      await webhookEventRepo.ensureIndexes();
+    });
+
+    it("should process an event only once when sent twice", async () => {
+      // Given: a free account
+      const account = await accountRepo.create({
+        name: "Idempotent Org",
+        slug: "idempotent-org",
+      });
+
+      // And: app with webhookEventRepo
+      const idempotentApp = Fastify();
+      registerStripeWebhookRoute(idempotentApp, {
+        webhookHandler,
+        webhookSecret: "whsec_test_secret",
+        skipSignatureVerification: true,
+        webhookEventRepo,
+      });
+      await idempotentApp.ready();
+
+      const event = {
+        id: "evt_idempotent_123",
+        type: "checkout.session.completed",
+        data: {
+          object: {
+            metadata: {
+              accountId: account._id.toString(),
+            },
+            customer: "cus_idempotent_test",
+            subscription: "sub_idempotent_test",
+          },
+        },
+      };
+
+      // When: the same event is sent twice
+      const response1 = await idempotentApp.inject({
+        method: "POST",
+        url: "/webhooks/stripe",
+        payload: event,
+      });
+
+      const response2 = await idempotentApp.inject({
+        method: "POST",
+        url: "/webhooks/stripe",
+        payload: event,
+      });
+
+      // Then: both requests return 200
+      expect(response1.statusCode).toBe(200);
+      expect(response2.statusCode).toBe(200);
+      expect(JSON.parse(response1.payload).received).toBe(true);
+      expect(JSON.parse(response2.payload).received).toBe(true);
+
+      // And: account is upgraded only once (not double-processed)
+      const updated = await accountRepo.findById(account._id);
+      expect(updated!.plan).toBe(Plan.Paid);
+      expect(updated!.stripeCustomerId).toBe("cus_idempotent_test");
+    });
+
+    it("should record event in webhookEvents collection", async () => {
+      // Given: a free account
+      const account = await accountRepo.create({
+        name: "Record Org",
+        slug: "record-org",
+      });
+
+      // And: app with webhookEventRepo
+      const recordApp = Fastify();
+      registerStripeWebhookRoute(recordApp, {
+        webhookHandler,
+        webhookSecret: "whsec_test_secret",
+        skipSignatureVerification: true,
+        webhookEventRepo,
+      });
+      await recordApp.ready();
+
+      // When: an event is processed
+      const response = await recordApp.inject({
+        method: "POST",
+        url: "/webhooks/stripe",
+        payload: {
+          id: "evt_record_new",
+          type: "checkout.session.completed",
+          data: {
+            object: {
+              metadata: {
+                accountId: account._id.toString(),
+              },
+              customer: "cus_record",
+              subscription: "sub_record",
+            },
+          },
+        },
+      });
+
+      // Then: webhook is processed
+      expect(response.statusCode).toBe(200);
+
+      // And: event is recorded in the webhookEvents collection
+      const recordedEvent = await db
+        .collection("webhookEvents")
+        .findOne({ stripeEventId: "evt_record_new" });
+      expect(recordedEvent).not.toBeNull();
+      expect(recordedEvent!.eventType).toBe("checkout.session.completed");
+    });
+
+    it("should acknowledge duplicate events with 200 status without re-processing", async () => {
+      // Given: a free account
+      const account = await accountRepo.create({
+        name: "Duplicate Org",
+        slug: "duplicate-org",
+      });
+
+      // And: an event that has already been processed
+      await webhookEventRepo.markAsProcessed(
+        "evt_dup_123",
+        "checkout.session.completed",
+        {
+          metadata: { accountId: account._id.toString() },
+          customer: "cus_dup",
+          subscription: "sub_dup",
+        },
+      );
+
+      // And: app with webhookEventRepo
+      const dupApp = Fastify();
+      registerStripeWebhookRoute(dupApp, {
+        webhookHandler,
+        webhookSecret: "whsec_test_secret",
+        skipSignatureVerification: true,
+        webhookEventRepo,
+      });
+      await dupApp.ready();
+
+      // When: the same event arrives again
+      const response = await dupApp.inject({
+        method: "POST",
+        url: "/webhooks/stripe",
+        payload: {
+          id: "evt_dup_123",
+          type: "checkout.session.completed",
+          data: {
+            object: {
+              metadata: {
+                accountId: account._id.toString(),
+              },
+              customer: "cus_dup",
+              subscription: "sub_dup",
+            },
+          },
+        },
+      });
+
+      // Then: response is 200 with { received: true }
+      expect(response.statusCode).toBe(200);
+      expect(JSON.parse(response.payload).received).toBe(true);
+
+      // And: account is NOT upgraded (handler was NOT called)
+      const unchanged = await accountRepo.findById(account._id);
+      expect(unchanged!.plan).toBe(Plan.Free);
+      expect(unchanged!.stripeCustomerId).toBeUndefined();
     });
   });
 });
