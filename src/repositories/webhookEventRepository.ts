@@ -39,5 +39,10 @@ export class WebhookEventRepository {
 
   async ensureIndexes(): Promise<void> {
     await this.collection.createIndex({ stripeEventId: 1 }, { unique: true });
+    // TTL index for automatic cleanup after 90 days (Stripe retries stop after 3 days, but keep for audit)
+    await this.collection.createIndex(
+      { processedAt: 1 },
+      { expireAfterSeconds: 90 * 24 * 60 * 60 },
+    );
   }
 }
