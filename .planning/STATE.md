@@ -1,33 +1,76 @@
 # Project State
 
-**Project:** GitLaunch
-**Current milestone:** v1.2 — Dashboard Polish & Scale
-**Last activity:** 2026-02-09 - Completed 01-pagination plan 03
+## Project Reference
 
-### Current Phase
+See: .planning/PROJECT.md (updated 2026-02-08)
 
-Phase: 01 of 1 (Pagination)
-Plan: 3 of 3
-Status: Complete
-Last activity: 2026-02-09 - Completed 01-03-PLAN.md (human-verified)
-Progress: [██████████] 100% (3/3 plans complete)
+**Core value:** Developers can deploy their software continuously and reliably through GitLaunch, with a subscription model that lets them start with a free trial and upgrade when they see the value.
+**Current focus:** Phase 1 - Billing Foundation
 
-### Recent Quick Tasks
+## Current Position
 
-- **quick-001** (2026-02-08): Fixed copy buttons and SSE reconnection - COMPLETE
+Phase: 1 of 4 (Billing Foundation)
+Plan: 0 of 3 in current phase
+Status: Ready to plan
+Last activity: 2026-02-09 — Roadmap created
+
+Progress: [░░░░░░░░░░] 0%
+
+## Performance Metrics
+
+**Velocity:**
+
+- Total plans completed: 0
+- Average duration: — min
+- Total execution time: 0 hours
+
+**By Phase:**
+
+| Phase                        | Plans | Total | Avg/Plan |
+| ---------------------------- | ----- | ----- | -------- |
+| 1. Billing Foundation        | 0/3   | —     | —        |
+| 2. Plan Selection & Checkout | 0/3   | —     | —        |
+| 3. Plan Enforcement & Limits | 0/2   | —     | —        |
+| 4. Trial & Payment Lifecycle | 0/3   | —     | —        |
+
+**Recent Trend:**
+
+- Last 5 plans: —
+- Trend: No data yet
+
+_Updated after each plan completion_
+
+## Accumulated Context
 
 ### Decisions
 
-| ID   | Title                                | Context                                        | Decision                                        | Date       |
-| ---- | ------------------------------------ | ---------------------------------------------- | ----------------------------------------------- | ---------- |
-| D001 | idPrefix naming                      | Handlebars templates need valid JS identifiers | Use underscored values (not hyphens)            | 2026-02-08 |
-| D002 | SSE reconnection                     | Handle transient network issues                | Exponential backoff (1s to 30s)                 | 2026-02-08 |
-| D003 | Pagination input sanitization        | Repository layer safety                        | Sanitize page >= 1, limit 1-100 at repo layer   | 2026-02-08 |
-| D004 | Parallel pagination queries          | Reduce latency for pagination                  | Use Promise.all for query + count (~50% faster) | 2026-02-08 |
-| D005 | Dashboard page size                  | Consistent page size for dashboard pagination  | Use DEFAULT_PAGE_SIZE = 20 constant             | 2026-02-09 |
-| D006 | needsDeploymentSetup with pagination | builds.length won't work on page 2+            | Use total > 0 instead of builds.length > 0      | 2026-02-09 |
-| D007 | Pagination UI pattern                | Need simple page navigation for build lists    | Previous/Next + Page X of Y, hidden for 1 page  | 2026-02-09 |
+Decisions are logged in PROJECT.md Key Decisions table.
+Recent decisions affecting current work:
+
+- Stripe as payment provider — Industry standard for SaaS, good API, handles subscriptions natively
+- Interface-first membership — Dependency inversion allows swapping providers without changing business logic
+- 14-day trial on any plan — Builds confidence before asking for payment; generous enough to evaluate
+- Read-only on trial expiry — Users keep visibility into their setup, creating urgency without destroying their work
+
+### Pending Todos
+
+None yet.
 
 ### Blockers/Concerns
 
-None.
+**Phase 1 risks (from research):**
+
+- Webhook race conditions can corrupt subscription state if event ordering not handled
+- Missing idempotency checks can process same event multiple times
+- Must implement signature verification to prevent webhook spoofing
+
+**Foundation-first approach:**
+
+- Cannot test subscription flows without webhook infrastructure working
+- All downstream phases depend on Phase 1 being rock-solid
+
+## Session Continuity
+
+Last session: 2026-02-09 (roadmap creation)
+Stopped at: Roadmap and STATE.md created, ready to plan Phase 1
+Resume file: None

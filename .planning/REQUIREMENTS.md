@@ -79,33 +79,33 @@ Deferred to future release. Tracked but not in current roadmap.
 
 Which phases cover which requirements. Updated during roadmap creation.
 
-| Requirement | Phase | Status  |
-| ----------- | ----- | ------- |
-| BILL-01     | —     | Pending |
-| BILL-02     | —     | Pending |
-| BILL-03     | —     | Pending |
-| PLAN-01     | —     | Pending |
-| PLAN-02     | —     | Pending |
-| PLAN-03     | —     | Pending |
-| ENFC-01     | —     | Pending |
-| ENFC-02     | —     | Pending |
-| ENFC-03     | —     | Pending |
-| ENFC-04     | —     | Pending |
-| ENFC-05     | —     | Pending |
-| TRIL-01     | —     | Pending |
-| TRIL-02     | —     | Pending |
-| TRIL-03     | —     | Pending |
-| TRIL-04     | —     | Pending |
-| PYMT-01     | —     | Pending |
-| PYMT-02     | —     | Pending |
+| Requirement | Phase   | Status  |
+| ----------- | ------- | ------- |
+| BILL-01     | Phase 1 | Pending |
+| BILL-02     | Phase 1 | Pending |
+| BILL-03     | Phase 1 | Pending |
+| PLAN-01     | Phase 2 | Pending |
+| PLAN-02     | Phase 2 | Pending |
+| PLAN-03     | Phase 2 | Pending |
+| ENFC-01     | Phase 3 | Pending |
+| ENFC-02     | Phase 3 | Pending |
+| ENFC-03     | Phase 3 | Pending |
+| ENFC-04     | Phase 3 | Pending |
+| ENFC-05     | Phase 3 | Pending |
+| TRIL-01     | Phase 4 | Pending |
+| TRIL-02     | Phase 4 | Pending |
+| TRIL-03     | Phase 4 | Pending |
+| TRIL-04     | Phase 4 | Pending |
+| PYMT-01     | Phase 4 | Pending |
+| PYMT-02     | Phase 4 | Pending |
 
 **Coverage:**
 
 - v1 requirements: 17 total
-- Mapped to phases: 0
-- Unmapped: 17
+- Mapped to phases: 17
+- Unmapped: 0
 
 ---
 
 _Requirements defined: 2026-02-08_
-_Last updated: 2026-02-08 after initial definition_
+_Last updated: 2026-02-09 after roadmap creation_

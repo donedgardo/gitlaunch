@@ -62,15 +62,17 @@ The development approach is strict TDD: acceptance criteria first, then a Playwr
 
 ## Key Decisions
 
-| Decision                   | Rationale                                                                              | Outcome   |
-| -------------------------- | -------------------------------------------------------------------------------------- | --------- |
-| Stripe as payment provider | Industry standard for SaaS, good API, handles subscriptions natively                   | — Pending |
-| Interface-first membership | Dependency inversion allows swapping providers without changing business logic         | — Pending |
-| 14-day trial on any plan   | Builds confidence before asking for payment; generous enough to evaluate               | — Pending |
-| Read-only on trial expiry  | Users keep visibility into their setup, creating urgency without destroying their work | — Pending |
-| Free: 3 repos / 3 services | Enough to try it out, not enough for real production work                              | — Pending |
-| Plan picker after signup   | Explicit plan choice rather than auto-assigning — user commits to trying a tier        | — Pending |
+| Decision                   | Rationale                                                                                                | Outcome   |
+| -------------------------- | -------------------------------------------------------------------------------------------------------- | --------- |
+| Stripe as payment provider | Industry standard for SaaS, good API, handles subscriptions natively                                     | — Pending |
+| Interface-first membership | Dependency inversion allows swapping providers without changing business logic                           | — Pending |
+| 14-day trial on any plan   | Builds confidence before asking for payment; generous enough to evaluate                                 | — Pending |
+| Read-only on trial expiry  | Users keep visibility into their setup, creating urgency without destroying their work                   | — Pending |
+| Free: 3 repos / 3 services | Enough to try it out, not enough for real production work                                                | — Pending |
+| Plan picker after signup   | Explicit plan choice rather than auto-assigning — user commits to trying a tier                          | — Pending |
+| No credit card for trial   | Earn trust first by delivering value; payment only when user decides to subscribe                        | — Pending |
+| One trial per GitHub ID    | Natural abuse prevention — creating new GitHub accounts is high friction; add age checks later if needed | — Pending |
 
 ---
 
-_Last updated: 2026-02-08 after initialization_
+_Last updated: 2026-02-08 after roadmap creation_

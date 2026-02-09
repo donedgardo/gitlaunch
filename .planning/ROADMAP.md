@@ -1,139 +1,113 @@
-# GitLaunch Roadmap
+# Roadmap: GitLaunch Subscription Billing
 
-> Last updated: 2026-02-09
+## Overview
 
-## Current: v1.1 ✅ (Shipped)
+GitLaunch adds a subscription billing system to enable revenue generation through Free/Pro/Team tiers. The journey starts with webhook infrastructure and Stripe integration (Phase 1), enables user upgrades and payment collection (Phase 2), enforces plan limits to create tier value (Phase 3), and completes the lifecycle with trial management and payment failure handling (Phase 4). The end result is a fully operational subscription flow where users can select plans, pay via Stripe, experience enforced limits, try paid tiers risk-free for 14 days, and receive appropriate handling when payments fail.
 
-Dashboard & Environment Management
+## Phases
 
----
+**Phase Numbering:**
 
-## Next: v1.2 — Dashboard Polish & Scale
+- Integer phases (1, 2, 3): Planned milestone work
+- Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
 
-**Goal:** Make the dashboard production-ready for teams with many builds
+Decimal phases appear between their surrounding integers in numeric order.
 
-### Phases
+- [ ] **Phase 1: Billing Foundation** - Webhook infrastructure and Stripe integration
+- [ ] **Phase 2: Plan Selection & Checkout** - User can select and pay for plans
+- [ ] **Phase 3: Plan Enforcement & Limits** - Server-side limit checks enforce tier value
+- [ ] **Phase 4: Trial & Payment Lifecycle** - Trials, auto-downgrade, payment failure handling
 
-#### Phase 1: Pagination ✅ (2026-02-09)
+## Phase Details
 
-**Why:** Teams with 100+ builds can't scroll forever. Performance degrades.
-**Success:** Build list loads fast with 1000+ builds, paginated 20 per page.
-**Plans:** 3 plans — all complete
+### Phase 1: Billing Foundation
+
+**Goal**: Stripe webhook infrastructure processes subscription events reliably and updates MongoDB subscription state
+**Depends on**: Nothing (first phase)
+**Requirements**: BILL-01, BILL-02, BILL-03
+**Success Criteria** (what must be TRUE):
+
+1. Webhook endpoint verifies Stripe signatures and rejects unsigned requests
+2. Subscription state in MongoDB updates only via webhooks (Stripe is source of truth)
+3. Webhook events process idempotently (same event sent twice processes once)
+4. MembershipService interface exists with Stripe as first implementation
+   **Plans**: 3 plans
 
 Plans:
 
-- [x] 01-01-PLAN.md — TDD: BuildRepository.findPaginated method
-- [x] 01-02-PLAN.md — TDD: Dashboard route ?page=N query param handling
-- [x] 01-03-PLAN.md — Pagination UI controls (prev/next) with HTMX navigation
+- [ ] 01-01: MembershipService interface and StripeService implementation
+- [ ] 01-02: Webhook endpoint with signature verification and event routing
+- [ ] 01-03: MongoDB subscription state caching with idempotent updates
 
-#### Phase 2: Build Details View
+### Phase 2: Plan Selection & Checkout
 
-**Why:** Users need to see deployment logs, timing, and history per build.
-**Success:** Clicking a build shows detailed deployment timeline.
+**Goal**: User can select a plan after signup (no credit card required) and subscribe later via Stripe Checkout
+**Depends on**: Phase 1
+**Requirements**: PLAN-01, PLAN-02, PLAN-03
+**Notes**: No credit card required for trial. Plan selection starts trial locally (MongoDB). Stripe Checkout only used when user actively subscribes.
+**Success Criteria** (what must be TRUE):
 
-| Task | Description                                    | Tests |
-| ---- | ---------------------------------------------- | ----- |
-| 2.1  | `/dashboard/:service/builds/:buildId` route    | Unit  |
-| 2.2  | Build detail template with deployment timeline | E2E   |
-| 2.3  | Deployment logs display (if available)         | E2E   |
-| 2.4  | Link from build table to detail view           | E2E   |
+1. User sees plan picker (Free/Pro/Team) after signup before accessing dashboard — no payment required
+2. User can subscribe to paid plan via Stripe Checkout hosted payment page (when ready)
+3. User sees billing settings page showing current plan, usage stats, and Customer Portal link
+4. Webhook processes checkout.session.completed and activates subscription
+   **Plans**: 3 plans
 
-#### Phase 3: Real-time Dashboard
+Plans:
 
-**Why:** Users shouldn't need to refresh to see deployment progress.
-**Success:** Dashboard updates live when deployments change status.
+- [ ] 02-01: Plan picker UI after signup with tier comparison (no payment collection)
+- [ ] 02-02: Stripe Checkout Session creation and subscribe flow (triggered from billing page)
+- [ ] 02-03: Billing settings page with current plan and Customer Portal integration
 
-| Task | Description                                 | Tests |
-| ---- | ------------------------------------------- | ----- |
-| 3.1  | SSE connection auto-reconnect on disconnect | Unit  |
-| 3.2  | Visual indicator when connection lost       | E2E   |
-| 3.3  | Toast notifications for deployment events   | E2E   |
+### Phase 3: Plan Enforcement & Limits
 
----
+**Goal**: Server-side limit checks block resource creation when plan limits are exceeded
+**Depends on**: Phase 2
+**Requirements**: ENFC-01, ENFC-02, ENFC-03, ENFC-04, ENFC-05
+**Success Criteria** (what must be TRUE):
 
-## v1.3 — Notifications
+1. User on Free plan cannot create more than 3 services or 3 public repos
+2. User on Free plan sees error with upgrade CTA when hitting limits
+3. User on Pro plan can create private repos and multiple environments
+4. User on Team plan has no repo/service limits
+5. Service layer checks limits before resource creation (not client-side)
+   **Plans**: 2 plans
 
-**Goal:** Keep users informed without checking the dashboard
+Plans:
 
-### Phases
+- [ ] 03-01: PlanEnforcementService with tier-specific limit checking
+- [ ] 03-02: Middleware integration in resource creation endpoints with upgrade CTAs
 
-#### Phase 1: Email Infrastructure
+### Phase 4: Trial & Payment Lifecycle
 
-**Why:** Users need alerts for failed deployments and team invitations.
-**Success:** Emails sent via SendGrid/Postmark for key events.
+**Goal**: Users get 14-day no-CC trials on paid plans and system handles trial expiry and payment failures gracefully
+**Depends on**: Phase 3
+**Requirements**: TRIL-01, TRIL-02, TRIL-03, TRIL-04, PYMT-01, PYMT-02
+**Notes**: Trials tracked locally in MongoDB (not Stripe trial periods) since no credit card is collected upfront. One trial per GitHub user ID to prevent abuse. Stripe subscription only created when user actively subscribes.
+**Success Criteria** (what must be TRUE):
 
-| Task | Description                                 | Tests       |
-| ---- | ------------------------------------------- | ----------- |
-| 1.1  | Email service abstraction (`EmailServiceI`) | Unit        |
-| 1.2  | SendGrid implementation                     | Integration |
-| 1.3  | Email templates (invitation, deploy failed) | Unit        |
+1. User gets 14-day free trial when selecting paid plan — no credit card required
+2. User sees trial countdown showing remaining days in dashboard
+3. Account auto-downgrades to Free when trial expires without subscribing
+4. Over-limit resources become read-only after downgrade (user can view but not deploy/modify)
+5. System processes payment failure webhooks and applies grace period before restriction
+6. One trial per GitHub user ID — prevents repeat trial abuse
+   **Plans**: 3 plans
 
-#### Phase 2: Notification Preferences
+Plans:
 
-**Why:** Users want control over what emails they receive.
-**Success:** Settings page with notification toggles per event type.
+- [ ] 04-01: Trial management (start trial on plan selection, countdown UI, one-trial-per-GitHub-ID enforcement)
+- [ ] 04-02: Auto-downgrade on trial expiry with read-only enforcement for over-limit resources
+- [ ] 04-03: Payment failure handling with grace periods and user notifications
 
-| Task | Description                              | Tests |
-| ---- | ---------------------------------------- | ----- |
-| 2.1  | User notification preferences in DB      | Unit  |
-| 2.2  | Settings UI for notification preferences | E2E   |
-| 2.3  | Check preferences before sending         | Unit  |
+## Progress
 
-#### Phase 3: Deployment Alerts
+**Execution Order:**
+Phases execute in numeric order: 1 → 2 → 3 → 4
 
-**Why:** Failed deployments need immediate attention.
-**Success:** Email sent within 1 minute of deployment failure.
-
-| Task | Description                              | Tests       |
-| ---- | ---------------------------------------- | ----------- |
-| 3.1  | Hook into deployment status updates      | Unit        |
-| 3.2  | Send email on `error` status             | Integration |
-| 3.3  | Rate limiting (no spam on flaky deploys) | Unit        |
-
----
-
-## v1.4 — Admin & Analytics
-
-**Goal:** Visibility into platform usage and health
-
-### Phases
-
-#### Phase 1: Usage Metrics
-
-**Why:** Need to understand how the platform is being used.
-**Success:** Dashboard showing builds/day, active users, deployment success rate.
-
-#### Phase 2: Admin Dashboard
-
-**Why:** Platform operators need oversight of all accounts.
-**Success:** Admin-only view of all accounts, usage, and billing status.
-
----
-
-## v2.0 — Production & Scale
-
-**Goal:** Ready for real production traffic
-
-### Phases
-
-- Database indexes optimization
-- Redis caching for hot paths
-- Horizontal scaling documentation
-- Monitoring & alerting (Sentry, Datadog)
-- Load testing results
-
----
-
-## Backlog (Unprioritized)
-
-- [ ] Slack/Discord notifications (webhook integrations)
-- [ ] Deployment rollback triggers
-- [ ] Branch filtering (only track main/release branches)
-- [ ] Custom deployment workflow templates
-- [ ] Team activity audit log
-- [ ] Dark mode toggle (currently auto)
-- [ ] Mobile-responsive improvements
-
----
-
-_To start a milestone, tell Bernard which version to work on._
+| Phase                        | Plans Complete | Status      | Completed |
+| ---------------------------- | -------------- | ----------- | --------- |
+| 1. Billing Foundation        | 0/3            | Not started | -         |
+| 2. Plan Selection & Checkout | 0/3            | Not started | -         |
+| 3. Plan Enforcement & Limits | 0/2            | Not started | -         |
+| 4. Trial & Payment Lifecycle | 0/3            | Not started | -         |
