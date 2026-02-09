@@ -10,33 +10,33 @@ See: .planning/PROJECT.md (updated 2026-02-08)
 ## Current Position
 
 Phase: 1 of 4 (Billing Foundation)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: In progress
-Last activity: 2026-02-09 — Completed 01-billing-foundation-01-PLAN.md
+Last activity: 2026-02-09 — Completed 01-billing-foundation-02-PLAN.md
 
-Progress: [█░░░░░░░░░] 9% (1/11 total plans)
+Progress: [██░░░░░░░░] 18% (2/11 total plans)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 1
-- Average duration: 3 min
-- Total execution time: 0.05 hours
+- Total plans completed: 2
+- Average duration: 2.5 min
+- Total execution time: 0.08 hours
 
 **By Phase:**
 
 | Phase                        | Plans | Total | Avg/Plan |
 | ---------------------------- | ----- | ----- | -------- |
-| 1. Billing Foundation        | 1/3   | 3min  | 3min     |
+| 1. Billing Foundation        | 2/3   | 5min  | 2.5min   |
 | 2. Plan Selection & Checkout | 0/3   | —     | —        |
 | 3. Plan Enforcement & Limits | 0/2   | —     | —        |
 | 4. Trial & Payment Lifecycle | 0/3   | —     | —        |
 
 **Recent Trend:**
 
-- Last 5 plans: 3min
-- Trend: First plan complete
+- Last 5 plans: 3min, 2min
+- Trend: Consistent velocity, TDD plan faster than expected
 
 _Updated after each plan completion_
 
@@ -53,6 +53,8 @@ Recent decisions affecting current work:
 - Read-only on trial expiry — Users keep visibility into their setup, creating urgency without destroying their work
 - **MembershipService interface with three core methods** (01-01) — createCheckoutSession, createBillingPortalSession, getSubscriptionStatus cover essential subscription lifecycle
 - **StripeClient stays Stripe-specific** (01-01) — Only MembershipService layer is provider-agnostic; StripeClient is implementation detail
+- **MongoDB unique index for webhook idempotency** (01-02) — Atomic duplicate detection via stripeEventId unique constraint, error code 11000 handled gracefully
+- **TTL index with 90-day retention** (01-02) — Automatic cleanup prevents unbounded growth, provides audit trail beyond Stripe's 3-day retry window
 
 ### Pending Todos
 
@@ -63,7 +65,7 @@ None yet.
 **Phase 1 risks (from research):**
 
 - Webhook race conditions can corrupt subscription state if event ordering not handled
-- Missing idempotency checks can process same event multiple times
+- ✅ **RESOLVED:** Missing idempotency checks — WebhookEventRepository provides atomic duplicate detection
 - Must implement signature verification to prevent webhook spoofing
 
 **Foundation-first approach:**
@@ -74,5 +76,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-09 (plan execution)
-Stopped at: Completed 01-billing-foundation-01-PLAN.md - MembershipService interface extraction
-Resume file: .planning/phases/01-billing-foundation/01-02-PLAN.md (next)
+Stopped at: Completed 01-billing-foundation-02-PLAN.md - WebhookEventRepository with idempotent tracking
+Resume file: .planning/phases/01-billing-foundation/01-03-PLAN.md (next)
