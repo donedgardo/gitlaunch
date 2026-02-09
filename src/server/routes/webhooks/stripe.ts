@@ -31,10 +31,12 @@ export function registerStripeWebhookRoute(
     webhookSecret,
     skipSignatureVerification,
     signatureVerifier,
+    webhookEventRepo,
   } = deps;
 
   app.post(
     "/webhooks/stripe",
+    { config: { rawBody: true } },
     async (request: FastifyRequest, reply: FastifyReply) => {
       let event: StripeEvent;
 
@@ -47,9 +49,10 @@ export function registerStripeWebhookRoute(
 
         try {
           const rawBody =
-            typeof request.body === "string"
+            (request as any).rawBody ||
+            (typeof request.body === "string"
               ? request.body
-              : JSON.stringify(request.body);
+              : JSON.stringify(request.body));
           event = signatureVerifier.verify(rawBody, signature, webhookSecret);
         } catch {
           return reply.status(400).send({ error: "Invalid signature" });
@@ -64,6 +67,19 @@ export function registerStripeWebhookRoute(
       } else {
         // Test mode: skip all verification
         event = request.body as StripeEvent;
+      }
+
+      // Idempotency check — skip if no repo provided (backward compatible for tests)
+      if (webhookEventRepo) {
+        const isNew = await webhookEventRepo.markAsProcessed(
+          event.id,
+          event.type,
+          event.data.object,
+        );
+        if (!isNew) {
+          // Duplicate event — acknowledge but don't process
+          return { received: true };
+        }
       }
 
       try {

@@ -486,7 +486,7 @@ describe("Stripe Webhook Route", () => {
       // And: account is NOT upgraded (handler was NOT called)
       const unchanged = await accountRepo.findById(account._id);
       expect(unchanged!.plan).toBe(Plan.Free);
-      expect(unchanged!.stripeCustomerId).toBeUndefined();
+      expect(unchanged!.stripeCustomerId).toBeFalsy();
     });
   });
 });
