@@ -15,6 +15,7 @@ describe("WebhookEventRepository", () => {
     await client.connect();
     db = client.db("test");
     repo = new WebhookEventRepository(db);
+    await repo.ensureIndexes();
   });
 
   afterAll(async () => {

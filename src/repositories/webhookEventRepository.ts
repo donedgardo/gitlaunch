@@ -20,10 +20,24 @@ export class WebhookEventRepository {
     eventType: string,
     payload: Record<string, unknown>,
   ): Promise<boolean> {
-    throw new Error("not implemented");
+    try {
+      await this.collection.insertOne({
+        stripeEventId,
+        eventType,
+        processedAt: new Date(),
+        payload,
+      } as WebhookEvent);
+      return true;
+    } catch (error: any) {
+      // MongoDB duplicate key error code
+      if (error.code === 11000) {
+        return false;
+      }
+      throw error;
+    }
   }
 
   async ensureIndexes(): Promise<void> {
-    throw new Error("not implemented");
+    await this.collection.createIndex({ stripeEventId: 1 }, { unique: true });
   }
 }
