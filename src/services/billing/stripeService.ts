@@ -1,4 +1,9 @@
 import { Account } from "../../repositories/accountRepository";
+import {
+  MembershipService,
+  CheckoutSessionResult,
+  SubscriptionStatus,
+} from "./membershipService";
 
 export interface StripeClient {
   createCheckoutSession(params: {
@@ -34,17 +39,7 @@ export type StripeServiceConfig = {
   cancelUrl: string;
 };
 
-export type CheckoutSessionResult = {
-  url: string;
-  sessionId: string;
-};
-
-export type SubscriptionStatus = {
-  status: string;
-  currentPeriodEnd: Date;
-};
-
-export class StripeService {
+export class StripeService implements MembershipService {
   constructor(
     private stripeClient: StripeClient,
     private config: StripeServiceConfig,
