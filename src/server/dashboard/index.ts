@@ -6,6 +6,8 @@ import { RepositoryRepository } from "../../repositories/repositoryRepository";
 import { BuildService } from "../../services/build/buildService";
 import { DeploymentStatus } from "../../services/service/deploymentStatus";
 
+const DEFAULT_PAGE_SIZE = 20;
+
 export type DashboardRoutesDeps = {
   serviceRepository: ServiceRepository;
   buildRepository: BuildRepository;
@@ -83,14 +85,31 @@ export default function (deps: DashboardRoutesDeps) {
     server.get("/dashboard/", dashboardHandler);
 
     // GET /dashboard/:serviceName - Show specific service
-    server.get<{ Params: { serviceName: string } }>(
+    server.get<{
+      Params: { serviceName: string };
+      Querystring: { page?: number };
+    }>(
       "/dashboard/:serviceName",
+      {
+        schema: {
+          querystring: {
+            type: "object",
+            properties: {
+              page: { type: "integer", minimum: 1, default: 1 },
+            },
+          },
+        },
+      },
       async (
-        req: FastifyRequest<{ Params: { serviceName: string } }>,
+        req: FastifyRequest<{
+          Params: { serviceName: string };
+          Querystring: { page?: number };
+        }>,
         reply: FastifyReply,
       ) => {
         const accountId = new ObjectId(req.session!.accountId);
         const { serviceName } = req.params;
+        const page = req.query.page ?? 1;
 
         // Load all services for navigation
         const services = await serviceRepository.findByAccountId(accountId);
@@ -116,10 +135,12 @@ export default function (deps: DashboardRoutesDeps) {
         );
         const githubFullName = repository?.githubFullName || "";
 
-        // Load builds for this service
-        const builds = await buildRepository.findByAccountAndService(
+        // Load paginated builds for this service
+        const { builds, total, hasMore } = await buildRepository.findPaginated(
           accountId,
           activeService._id,
+          page,
+          DEFAULT_PAGE_SIZE,
         );
         const formattedBuilds = formatBuildsForTemplate(
           builds,
@@ -128,11 +149,25 @@ export default function (deps: DashboardRoutesDeps) {
           activeService._id.toString(),
         );
 
+        // Compute pagination metadata
+        const currentPage = page;
+        const totalPages = Math.ceil(total / DEFAULT_PAGE_SIZE);
+        const hasPrev = page > 1;
+
+        const pagination = {
+          currentPage,
+          totalPages,
+          hasMore,
+          hasPrev,
+          serviceName,
+        };
+
         // Check if we need to show deployment setup guide
         // Show guide when builds exist but workflow hasn't been configured yet
         // workflowConfigured may be undefined for services created before this feature
+        // Use total instead of builds.length since builds may be empty on later pages
         const needsDeploymentSetup =
-          builds.length > 0 && activeService.workflowConfigured !== true;
+          total > 0 && activeService.workflowConfigured !== true;
 
         // Handle HTMX partial request - no layout wrapper needed
         if (req.headers["hx-request"]) {
@@ -147,6 +182,7 @@ export default function (deps: DashboardRoutesDeps) {
               builds: formattedBuilds,
               githubFullName,
               needsDeploymentSetup,
+              pagination,
             },
             { layout: "" },
           );
@@ -163,6 +199,7 @@ export default function (deps: DashboardRoutesDeps) {
             builds: formattedBuilds,
             githubFullName,
             needsDeploymentSetup,
+            pagination,
           },
           {
             layout: "/layouts/main.hbs",

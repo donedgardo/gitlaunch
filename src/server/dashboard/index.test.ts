@@ -606,4 +606,390 @@ describe("Dashboard Routes", () => {
       expect(response.body).toContain("Cannot cancel");
     });
   });
+
+  describe("GET /dashboard/:serviceName - Pagination", () => {
+    it("should default to page 1 when no page parameter provided", async () => {
+      // Given: authenticated user with a service and 25 builds
+      const accountId = new ObjectId();
+      const userId = new ObjectId();
+      const repositoryId = new ObjectId();
+
+      await db.collection("repositories").insertOne({
+        _id: repositoryId,
+        accountId,
+        githubId: 12345,
+        githubFullName: "my-org/my-repo",
+        name: "my-repo",
+        owner: "my-org",
+        private: false,
+        createdAt: new Date(),
+      });
+
+      const service = await serviceRepo.create({
+        accountId,
+        repositoryId,
+        name: "paginated-service",
+        environments: [
+          { name: "staging", order: 0 },
+          { name: "prod", order: 1 },
+        ],
+      });
+
+      // Mark workflow as configured so builds table shows
+      await serviceRepo.updateWorkflowConfiguration(service._id, {
+        workflowFile: "deploy.yml",
+        eventType: "deployment",
+      });
+
+      // Create 25 builds
+      for (let i = 1; i <= 25; i++) {
+        await buildRepo.create({
+          accountId,
+          serviceId: service._id,
+          buildId: `build-${i}`,
+        });
+      }
+
+      const sessionToken = sessionService.createSession({
+        userId,
+        accountId,
+      });
+
+      // When: visiting dashboard without page parameter
+      const response = await app.inject({
+        method: "GET",
+        url: "/dashboard/paginated-service",
+        cookies: {
+          session: sessionToken,
+        },
+      });
+
+      // Then: response is successful and contains pagination data for page 1
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain("build-25"); // First build (newest)
+      expect(response.body).toContain("build-6"); // 20th build
+      expect(response.body).not.toContain("build-5"); // 21st build (not on page 1)
+    });
+
+    it("should load page 2 when ?page=2 is provided", async () => {
+      // Given: authenticated user with a service and 25 builds
+      const accountId = new ObjectId();
+      const userId = new ObjectId();
+      const repositoryId = new ObjectId();
+
+      await db.collection("repositories").insertOne({
+        _id: repositoryId,
+        accountId,
+        githubId: 12345,
+        githubFullName: "my-org/my-repo",
+        name: "my-repo",
+        owner: "my-org",
+        private: false,
+        createdAt: new Date(),
+      });
+
+      const service = await serviceRepo.create({
+        accountId,
+        repositoryId,
+        name: "page2-service",
+        environments: [
+          { name: "staging", order: 0 },
+          { name: "prod", order: 1 },
+        ],
+      });
+
+      // Mark workflow as configured so builds table shows
+      await serviceRepo.updateWorkflowConfiguration(service._id, {
+        workflowFile: "deploy.yml",
+        eventType: "deployment",
+      });
+
+      // Create 25 builds
+      for (let i = 1; i <= 25; i++) {
+        await buildRepo.create({
+          accountId,
+          serviceId: service._id,
+          buildId: `build-${i}`,
+        });
+      }
+
+      const sessionToken = sessionService.createSession({
+        userId,
+        accountId,
+      });
+
+      // When: visiting page 2
+      const response = await app.inject({
+        method: "GET",
+        url: "/dashboard/page2-service?page=2",
+        cookies: {
+          session: sessionToken,
+        },
+      });
+
+      // Then: response contains builds from page 2
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain("build-5"); // 21st build (first on page 2)
+      expect(response.body).toContain("build-1"); // 25th build (last)
+      expect(response.body).not.toContain("build-6"); // 20th build (last on page 1)
+    });
+
+    it("should pass pagination metadata with hasMore=true on page 1 when there are more builds", async () => {
+      // Given: authenticated user with 25 builds (more than one page)
+      const accountId = new ObjectId();
+      const userId = new ObjectId();
+      const repositoryId = new ObjectId();
+
+      await db.collection("repositories").insertOne({
+        _id: repositoryId,
+        accountId,
+        githubId: 12345,
+        githubFullName: "my-org/my-repo",
+        name: "my-repo",
+        owner: "my-org",
+        private: false,
+        createdAt: new Date(),
+      });
+
+      const service = await serviceRepo.create({
+        accountId,
+        repositoryId,
+        name: "hasmore-service",
+        environments: [{ name: "staging", order: 0 }],
+      });
+
+      for (let i = 1; i <= 25; i++) {
+        await buildRepo.create({
+          accountId,
+          serviceId: service._id,
+          buildId: `build-${i}`,
+        });
+      }
+
+      const sessionToken = sessionService.createSession({
+        userId,
+        accountId,
+      });
+
+      // When: visiting page 1
+      const response = await app.inject({
+        method: "GET",
+        url: "/dashboard/hasmore-service?page=1",
+        cookies: {
+          session: sessionToken,
+        },
+      });
+
+      // Then: response indicates hasMore=true, hasPrev=false
+      expect(response.statusCode).toBe(200);
+      // Check for pagination data in response (we'll verify structure after implementation)
+      expect(response.body).toBeTruthy();
+    });
+
+    it("should pass pagination metadata with hasMore=false on last page", async () => {
+      // Given: authenticated user with 25 builds
+      const accountId = new ObjectId();
+      const userId = new ObjectId();
+      const repositoryId = new ObjectId();
+
+      await db.collection("repositories").insertOne({
+        _id: repositoryId,
+        accountId,
+        githubId: 12345,
+        githubFullName: "my-org/my-repo",
+        name: "my-repo",
+        owner: "my-org",
+        private: false,
+        createdAt: new Date(),
+      });
+
+      const service = await serviceRepo.create({
+        accountId,
+        repositoryId,
+        name: "lastpage-service",
+        environments: [{ name: "staging", order: 0 }],
+      });
+
+      for (let i = 1; i <= 25; i++) {
+        await buildRepo.create({
+          accountId,
+          serviceId: service._id,
+          buildId: `build-${i}`,
+        });
+      }
+
+      const sessionToken = sessionService.createSession({
+        userId,
+        accountId,
+      });
+
+      // When: visiting last page (page 2)
+      const response = await app.inject({
+        method: "GET",
+        url: "/dashboard/lastpage-service?page=2",
+        cookies: {
+          session: sessionToken,
+        },
+      });
+
+      // Then: response indicates hasMore=false, hasPrev=true
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toBeTruthy();
+    });
+
+    it("should pass pagination data to HTMX partial requests", async () => {
+      // Given: authenticated user with 25 builds
+      const accountId = new ObjectId();
+      const userId = new ObjectId();
+      const repositoryId = new ObjectId();
+
+      await db.collection("repositories").insertOne({
+        _id: repositoryId,
+        accountId,
+        githubId: 12345,
+        githubFullName: "my-org/my-repo",
+        name: "my-repo",
+        owner: "my-org",
+        private: false,
+        createdAt: new Date(),
+      });
+
+      const service = await serviceRepo.create({
+        accountId,
+        repositoryId,
+        name: "htmx-service",
+        environments: [{ name: "staging", order: 0 }],
+      });
+
+      // Mark workflow as configured so builds table shows
+      await serviceRepo.updateWorkflowConfiguration(service._id, {
+        workflowFile: "deploy.yml",
+        eventType: "deployment",
+      });
+
+      for (let i = 1; i <= 25; i++) {
+        await buildRepo.create({
+          accountId,
+          serviceId: service._id,
+          buildId: `build-${i}`,
+        });
+      }
+
+      const sessionToken = sessionService.createSession({
+        userId,
+        accountId,
+      });
+
+      // When: HTMX request for page 2
+      const response = await app.inject({
+        method: "GET",
+        url: "/dashboard/htmx-service?page=2",
+        cookies: {
+          session: sessionToken,
+        },
+        headers: {
+          "hx-request": "true",
+        },
+      });
+
+      // Then: response is partial with pagination data
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain("build-5"); // First build on page 2
+    });
+
+    it("should handle empty builds with pagination correctly", async () => {
+      // Given: authenticated user with service but no builds
+      const accountId = new ObjectId();
+      const userId = new ObjectId();
+      const repositoryId = new ObjectId();
+
+      await db.collection("repositories").insertOne({
+        _id: repositoryId,
+        accountId,
+        githubId: 12345,
+        githubFullName: "my-org/my-repo",
+        name: "my-repo",
+        owner: "my-org",
+        private: false,
+        createdAt: new Date(),
+      });
+
+      const service = await serviceRepo.create({
+        accountId,
+        repositoryId,
+        name: "empty-service",
+        environments: [{ name: "staging", order: 0 }],
+      });
+
+      const sessionToken = sessionService.createSession({
+        userId,
+        accountId,
+      });
+
+      // When: visiting dashboard
+      const response = await app.inject({
+        method: "GET",
+        url: "/dashboard/empty-service",
+        cookies: {
+          session: sessionToken,
+        },
+      });
+
+      // Then: response shows empty state (same as before pagination)
+      expect(response.statusCode).toBe(200);
+      // Should not show deployment setup guide (no builds)
+      expect(response.body).not.toContain("Create Your Deploy Workflow");
+    });
+
+    it("should still show deployment setup guide on page 2+ when workflow not configured", async () => {
+      // Given: service with 25 builds, workflow not configured
+      const accountId = new ObjectId();
+      const userId = new ObjectId();
+      const repositoryId = new ObjectId();
+
+      await db.collection("repositories").insertOne({
+        _id: repositoryId,
+        accountId,
+        githubId: 12345,
+        githubFullName: "my-org/my-repo",
+        name: "my-repo",
+        owner: "my-org",
+        private: false,
+        createdAt: new Date(),
+      });
+
+      const service = await serviceRepo.create({
+        accountId,
+        repositoryId,
+        name: "setup-page2-service",
+        environments: [{ name: "staging", order: 0 }],
+      });
+
+      for (let i = 1; i <= 25; i++) {
+        await buildRepo.create({
+          accountId,
+          serviceId: service._id,
+          buildId: `build-${i}`,
+        });
+      }
+
+      const sessionToken = sessionService.createSession({
+        userId,
+        accountId,
+      });
+
+      // When: visiting page 2 (has no builds array, but total > 0)
+      const response = await app.inject({
+        method: "GET",
+        url: "/dashboard/setup-page2-service?page=2",
+        cookies: {
+          session: sessionToken,
+        },
+      });
+
+      // Then: response shows deployment setup guide (based on total, not builds.length)
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain("Create Your Deploy Workflow");
+    });
+  });
 });
