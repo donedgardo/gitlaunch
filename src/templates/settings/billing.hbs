@@ -1,0 +1,87 @@
+{{> navigation }}
+
+<main class="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <!-- Header -->
+    <div class="mb-8">
+      <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Billing</h1>
+      <p class="mt-2 text-gray-600 dark:text-gray-400">
+        Manage your subscription and view usage
+      </p>
+    </div>
+
+    <!-- Current Plan Section -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 mb-6">
+      <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Current Plan</h2>
+      <div class="flex items-center justify-between">
+        <div>
+          <div class="text-3xl font-bold text-gray-900 dark:text-white">{{plan}}</div>
+          <p class="text-gray-600 dark:text-gray-400 mt-1">
+            {{#if isPaid}}
+              Active subscription
+            {{else}}
+              Free tier
+            {{/if}}
+          </p>
+        </div>
+        <div>
+          {{#if hasStripeCustomer}}
+            <form method="POST" action="/api/billing/portal" hx-post="/api/billing/portal" hx-vals='{"returnUrl":"/settings/billing"}'>
+              <button type="submit" class="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors">
+                Manage Billing
+              </button>
+            </form>
+          {{else}}
+            <a href="/onboarding/plan-selection" class="inline-block px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors">
+              Upgrade Plan
+            </a>
+          {{/if}}
+        </div>
+      </div>
+    </div>
+
+    <!-- Usage Section -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+      <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-6">Usage</h2>
+
+      <!-- Repositories -->
+      <div class="mb-6">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Repositories</span>
+          <span class="text-sm text-gray-600 dark:text-gray-400">
+            {{usage.repositories.current}} / {{usage.repositories.limit}}
+          </span>
+        </div>
+        <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
+          <div class="bg-blue-600 h-2.5 rounded-full" style="width: {{usage.repositories.percentage}}%"></div>
+        </div>
+      </div>
+
+      <!-- Services -->
+      <div class="mb-6">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Services</span>
+          <span class="text-sm text-gray-600 dark:text-gray-400">
+            {{usage.services.current}} / {{usage.services.limit}}
+          </span>
+        </div>
+        <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
+          <div class="bg-blue-600 h-2.5 rounded-full" style="width: {{usage.services.percentage}}%"></div>
+        </div>
+      </div>
+
+      <!-- Team Members -->
+      <div>
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Team Members</span>
+          <span class="text-sm text-gray-600 dark:text-gray-400">
+            {{usage.users.current}} / {{usage.users.limit}}
+          </span>
+        </div>
+        <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
+          <div class="bg-blue-600 h-2.5 rounded-full" style="width: {{usage.users.percentage}}%"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>

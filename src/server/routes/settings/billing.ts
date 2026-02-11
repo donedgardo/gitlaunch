@@ -46,6 +46,58 @@ export function registerBillingRoutes(
     },
   );
 
+  // GET billing settings page
+  app.get(
+    "/settings/billing",
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const account = (request as any).account;
+
+      if (!account) {
+        return reply.status(401).send({ error: "Authentication required" });
+      }
+
+      try {
+        const usage = await planEnforcementService.getUsage(account._id);
+
+        const templateData = {
+          plan: account.plan.charAt(0).toUpperCase() + account.plan.slice(1),
+          isPaid: account.plan !== Plan.Free,
+          hasSubscription: !!account.stripeSubscriptionId,
+          hasStripeCustomer: !!account.stripeCustomerId,
+          usage: {
+            repositories: {
+              current: usage.repositories.current,
+              limit: usage.repositories.limit,
+              percentage: Math.round(
+                (usage.repositories.current / usage.repositories.limit) * 100,
+              ),
+            },
+            services: {
+              current: usage.services.current,
+              limit: usage.services.limit,
+              percentage: Math.round(
+                (usage.services.current / usage.services.limit) * 100,
+              ),
+            },
+            users: {
+              current: usage.users.current,
+              limit: usage.users.limit,
+              percentage: Math.round(
+                (usage.users.current / usage.users.limit) * 100,
+              ),
+            },
+          },
+        };
+
+        return reply.view("settings/billing", templateData);
+      } catch (error) {
+        return reply
+          .status(500)
+          .send({ error: "Failed to load billing settings" });
+      }
+    },
+  );
+
   // Create checkout session
   app.post(
     "/api/billing/checkout",
@@ -57,16 +109,36 @@ export function registerBillingRoutes(
         return reply.status(401).send({ error: "Authentication required" });
       }
 
+      const { plan } = request.body as { plan?: string };
+
+      // Validate plan
+      if (!plan || !["pro", "team"].includes(plan.toLowerCase())) {
+        return reply.status(400).send({
+          error: "Invalid plan. Must be 'pro' or 'team'.",
+        });
+      }
+
+      // Map plan string to Plan enum
+      const planEnum = plan.toLowerCase() === "pro" ? Plan.Pro : Plan.Team;
+
       try {
-        // Default to Pro plan for backward compatibility
-        // In Phase 2, this will accept plan from request body
         const result = await stripeService.createCheckoutSession({
           account,
           userEmail,
-          plan: Plan.Pro,
+          plan: planEnum,
         });
 
-        return { checkoutUrl: result.url, sessionId: result.sessionId };
+        // Check if this is an HTMX request
+        const isHtmxRequest = request.headers["hx-request"] === "true";
+
+        if (isHtmxRequest) {
+          // Return HX-Redirect header for HTMX
+          reply.header("HX-Redirect", result.url);
+          return reply.status(200).send();
+        } else {
+          // Return JSON for non-HTMX clients
+          return { checkoutUrl: result.url, sessionId: result.sessionId };
+        }
       } catch (error) {
         return reply
           .status(500)
@@ -98,7 +170,17 @@ export function registerBillingRoutes(
           returnUrl: body?.returnUrl || "/settings",
         });
 
-        return { portalUrl: result.url };
+        // Check if this is an HTMX request
+        const isHtmxRequest = request.headers["hx-request"] === "true";
+
+        if (isHtmxRequest) {
+          // Return HX-Redirect header for HTMX
+          reply.header("HX-Redirect", result.url);
+          return reply.status(200).send();
+        } else {
+          // Return JSON for non-HTMX clients
+          return { portalUrl: result.url };
+        }
       } catch (error) {
         return reply
           .status(500)
