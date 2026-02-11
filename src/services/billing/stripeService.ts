@@ -1,4 +1,4 @@
-import { Account } from "../../repositories/accountRepository";
+import { Account, Plan } from "../../repositories/accountRepository";
 import {
   MembershipService,
   CheckoutSessionResult,
@@ -35,6 +35,7 @@ export interface StripeClient {
 
 export type StripeServiceConfig = {
   proPriceId: string;
+  teamPriceId: string;
   successUrl: string;
   cancelUrl: string;
 };
@@ -45,17 +46,32 @@ export class StripeService implements MembershipService {
     private config: StripeServiceConfig,
   ) {}
 
+  private getPriceIdForPlan(plan: Plan): string {
+    switch (plan) {
+      case Plan.Pro:
+        return this.config.proPriceId;
+      case Plan.Team:
+        return this.config.teamPriceId;
+      case Plan.Free:
+        throw new Error("Cannot create checkout session for Free plan");
+    }
+  }
+
   async createCheckoutSession(params: {
     account: Account;
     userEmail: string | null;
+    plan: Plan;
   }): Promise<CheckoutSessionResult> {
+    const priceId = this.getPriceIdForPlan(params.plan);
+
     const checkoutParams: Parameters<StripeClient["createCheckoutSession"]>[0] =
       {
-        priceId: this.config.proPriceId,
+        priceId,
         successUrl: this.config.successUrl,
         cancelUrl: this.config.cancelUrl,
         metadata: {
           accountId: params.account._id.toString(),
+          plan: params.plan,
         },
       };
 

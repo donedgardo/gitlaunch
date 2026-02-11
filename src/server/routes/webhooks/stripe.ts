@@ -90,6 +90,7 @@ export function registerStripeWebhookRoute(
               accountId: session.metadata.accountId,
               customerId: session.customer,
               subscriptionId: session.subscription,
+              plan: session.metadata.plan || "pro",
             });
             break;
           }

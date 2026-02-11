@@ -4,7 +4,10 @@ import { MongoClient, Db, ObjectId } from "mongodb";
 import Fastify, { FastifyInstance } from "fastify";
 import cookie from "@fastify/cookie";
 import formbody from "@fastify/formbody";
-import { AccountRepository } from "../../../repositories/accountRepository";
+import {
+  AccountRepository,
+  Plan,
+} from "../../../repositories/accountRepository";
 import { RepositoryRepository } from "../../../repositories/repositoryRepository";
 import { ServiceRepository } from "../../../repositories/serviceRepository";
 import { MembershipRepository } from "../../../repositories/membershipRepository";
@@ -114,7 +117,12 @@ describe("Onboarding Routes", () => {
         slug: "my-org",
       });
       await accountRepo.updateInstallation(account._id, 12345);
-      await accountRepo.upgradeToPaid(account._id, "cus_test", "sub_test");
+      await accountRepo.upgradeToPlan(
+        account._id,
+        "cus_test",
+        "sub_test",
+        Plan.Pro,
+      );
 
       const userId = new ObjectId();
       const sessionToken = sessionService.createSession({
@@ -227,7 +235,7 @@ describe("Onboarding Routes", () => {
 
   describe("Plan Enforcement", () => {
     it("should reject selecting more repos than free plan allows", async () => {
-      // Given: an account on free plan (maxRepositories: 1)
+      // Given: an account on free plan (maxRepositories: 3)
       const account = await accountRepo.create({
         name: "Free Org",
         slug: "free-org",
@@ -256,9 +264,23 @@ describe("Onboarding Routes", () => {
           owner: { login: "free-org" },
           name: "repo-two",
         },
+        {
+          id: 1003,
+          full_name: "free-org/repo-three",
+          private: false,
+          owner: { login: "free-org" },
+          name: "repo-three",
+        },
+        {
+          id: 1004,
+          full_name: "free-org/repo-four",
+          private: false,
+          owner: { login: "free-org" },
+          name: "repo-four",
+        },
       ]);
 
-      // When: user tries to select 2 repos (exceeds free plan limit of 1)
+      // When: user tries to select 4 repos (exceeds free plan limit of 3)
       const response = await app.inject({
         method: "POST",
         url: "/onboarding/repositories",
@@ -268,12 +290,15 @@ describe("Onboarding Routes", () => {
         headers: {
           "content-type": "application/x-www-form-urlencoded",
         },
-        payload: "repositories=1001&repositories=1002",
+        payload:
+          "repositories=1001&repositories=1002&repositories=1003&repositories=1004",
       });
 
       // Then: returns 200 with error message in rendered view
       expect(response.statusCode).toBe(200);
-      expect(response.body).toContain("free plan allows up to 1 repository");
+      expect(response.body).toContain(
+        "Your free plan allows up to 3 repository",
+      );
 
       // And: no repositories are saved
       const savedRepos = await repositoryRepo.findByAccountId(account._id);
@@ -336,7 +361,12 @@ describe("Onboarding Routes", () => {
         slug: "paid-org",
       });
       await accountRepo.updateInstallation(account._id, 12345);
-      await accountRepo.upgradeToPaid(account._id, "cus_123", "sub_123");
+      await accountRepo.upgradeToPlan(
+        account._id,
+        "cus_123",
+        "sub_123",
+        Plan.Pro,
+      );
 
       const userId = new ObjectId();
       const sessionToken = sessionService.createSession({

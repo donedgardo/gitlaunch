@@ -2,7 +2,10 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { ObjectId } from "mongodb";
 import { StripeService } from "../../../services/billing/stripeService";
 import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
-import { AccountRepository } from "../../../repositories/accountRepository";
+import {
+  AccountRepository,
+  Plan,
+} from "../../../repositories/accountRepository";
 import { UserRepository } from "../../../repositories/userRepository";
 
 export type BillingRoutesDependencies = {
@@ -55,9 +58,12 @@ export function registerBillingRoutes(
       }
 
       try {
+        // Default to Pro plan for backward compatibility
+        // In Phase 2, this will accept plan from request body
         const result = await stripeService.createCheckoutSession({
           account,
           userEmail,
+          plan: Plan.Pro,
         });
 
         return { checkoutUrl: result.url, sessionId: result.sessionId };

@@ -115,6 +115,7 @@ describe("MembershipService interface", () => {
       const stripeClient = new FakeStripeClient();
       service = new StripeService(stripeClient, {
         proPriceId: "price_pro_monthly",
+        teamPriceId: "price_team_monthly",
         successUrl: "https://app.example.com/billing/success",
         cancelUrl: "https://app.example.com/billing/cancel",
       });
@@ -128,6 +129,7 @@ describe("MembershipService interface", () => {
       const checkoutResult = await membershipService.createCheckoutSession({
         account: mockAccount,
         userEmail: "user@example.com",
+        plan: Plan.Pro,
       });
 
       const portalResult = await membershipService.createBillingPortalSession({
@@ -166,6 +168,7 @@ describe("MembershipService interface", () => {
       const checkoutResult = await membershipService.createCheckoutSession({
         account: mockAccount,
         userEmail: "user@example.com",
+        plan: Plan.Pro,
       });
 
       const portalResult = await membershipService.createBillingPortalSession({

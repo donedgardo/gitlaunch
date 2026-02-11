@@ -1,10 +1,11 @@
 import { ObjectId } from "mongodb";
-import { AccountRepository } from "../../repositories/accountRepository";
+import { AccountRepository, Plan } from "../../repositories/accountRepository";
 
 export type CheckoutCompletedEvent = {
   accountId: string;
   customerId: string;
   subscriptionId: string;
+  plan: Plan;
 };
 
 export type SubscriptionDeletedEvent = {
@@ -25,10 +26,11 @@ export class StripeWebhookHandler {
 
   async handleCheckoutCompleted(event: CheckoutCompletedEvent): Promise<void> {
     const accountId = new ObjectId(event.accountId);
-    await this.accountRepo.upgradeToPaid(
+    await this.accountRepo.upgradeToPlan(
       accountId,
       event.customerId,
       event.subscriptionId,
+      event.plan,
     );
   }
 

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { MongoMemoryServer } from "mongodb-memory-server";
 import { MongoClient, Db, ObjectId } from "mongodb";
-import { AccountRepository } from "../../repositories/accountRepository";
+import { AccountRepository, Plan } from "../../repositories/accountRepository";
 import { RepositoryRepository } from "../../repositories/repositoryRepository";
 import { ServiceRepository } from "../../repositories/serviceRepository";
 import {
@@ -67,22 +67,24 @@ describe("PlanEnforcementService", () => {
       expect(result.allowed).toBe(true);
     });
 
-    it("should reject free account adding second repository", async () => {
-      // Given: a free account with one repository
+    it("should reject free account adding fourth repository", async () => {
+      // Given: a free account with three repositories
       const account = await accountRepo.create({
         name: "Free Org 2",
         slug: "free-org-2",
       });
-      await repoRepo.create({
-        accountId: account._id,
-        githubRepoId: 1234,
-        githubFullName: "org/repo1",
-        githubOwner: "org",
-        githubRepoName: "repo1",
-        isPrivate: false,
-      });
+      for (let i = 0; i < 3; i++) {
+        await repoRepo.create({
+          accountId: account._id,
+          githubRepoId: 1234 + i,
+          githubFullName: `org/repo${i}`,
+          githubOwner: "org",
+          githubRepoName: `repo${i}`,
+          isPrivate: false,
+        });
+      }
 
-      // When: checking if another repo can be added
+      // When: checking if 4th repo can be added
       const result = await service.canAddRepository(account._id);
 
       // Then: it's rejected with upgrade message
@@ -91,15 +93,20 @@ describe("PlanEnforcementService", () => {
       expect(result.upgradeRequired).toBe(true);
     });
 
-    it("should allow paid account to add up to 5 repositories", async () => {
-      // Given: a paid account with 4 repositories
+    it("should allow Pro account to add up to 10 repositories", async () => {
+      // Given: a Pro account with 9 repositories
       const account = await accountRepo.create({
-        name: "Paid Org",
-        slug: "paid-org",
+        name: "Pro Org",
+        slug: "pro-org",
       });
-      await accountRepo.upgradeToPaid(account._id, "cus_test", "sub_test");
+      await accountRepo.upgradeToPlan(
+        account._id,
+        "cus_test",
+        "sub_test",
+        Plan.Pro,
+      );
 
-      for (let i = 0; i < 4; i++) {
+      for (let i = 0; i < 9; i++) {
         await repoRepo.create({
           accountId: account._id,
           githubRepoId: 1000 + i,
@@ -110,22 +117,27 @@ describe("PlanEnforcementService", () => {
         });
       }
 
-      // When: checking if 5th repo can be added
+      // When: checking if 10th repo can be added
       const result = await service.canAddRepository(account._id);
 
       // Then: it's allowed
       expect(result.allowed).toBe(true);
     });
 
-    it("should reject paid account exceeding 5 repositories", async () => {
-      // Given: a paid account with 5 repositories
+    it("should reject Pro account exceeding 10 repositories", async () => {
+      // Given: a Pro account with 10 repositories
       const account = await accountRepo.create({
         name: "Full Org",
         slug: "full-org",
       });
-      await accountRepo.upgradeToPaid(account._id, "cus_full", "sub_full");
+      await accountRepo.upgradeToPlan(
+        account._id,
+        "cus_full",
+        "sub_full",
+        Plan.Pro,
+      );
 
-      for (let i = 0; i < 5; i++) {
+      for (let i = 0; i < 10; i++) {
         await repoRepo.create({
           accountId: account._id,
           githubRepoId: 2000 + i,
@@ -136,7 +148,7 @@ describe("PlanEnforcementService", () => {
         });
       }
 
-      // When: checking if 6th repo can be added
+      // When: checking if 11th repo can be added
       const result = await service.canAddRepository(account._id);
 
       // Then: it's rejected
@@ -168,7 +180,12 @@ describe("PlanEnforcementService", () => {
         name: "Paid Private",
         slug: "paid-private",
       });
-      await accountRepo.upgradeToPaid(account._id, "cus_priv", "sub_priv");
+      await accountRepo.upgradeToPlan(
+        account._id,
+        "cus_priv",
+        "sub_priv",
+        Plan.Pro,
+      );
 
       // When: checking if private repo can be added
       const result = await service.canAddPrivateRepository(account._id);
@@ -220,7 +237,12 @@ describe("PlanEnforcementService", () => {
         name: "Team Org",
         slug: "team-org",
       });
-      await accountRepo.upgradeToPaid(account._id, "cus_team", "sub_team");
+      await accountRepo.upgradeToPlan(
+        account._id,
+        "cus_team",
+        "sub_team",
+        Plan.Pro,
+      );
 
       for (let i = 0; i < 4; i++) {
         await membershipRepo.create({
@@ -253,8 +275,8 @@ describe("PlanEnforcementService", () => {
       expect(result.allowed).toBe(true);
     });
 
-    it("should reject free account adding second service", async () => {
-      // Given: a free account with one service
+    it("should reject free account adding fourth service", async () => {
+      // Given: a free account with three services
       const account = await accountRepo.create({
         name: "Free Service Org 2",
         slug: "free-service-org-2",
@@ -267,13 +289,15 @@ describe("PlanEnforcementService", () => {
         githubRepoName: "service-repo2",
         isPrivate: false,
       });
-      await serviceRepo.create({
-        accountId: account._id,
-        repositoryId: repo._id,
-        name: "existing-service",
-      });
+      for (let i = 0; i < 3; i++) {
+        await serviceRepo.create({
+          accountId: account._id,
+          repositoryId: repo._id,
+          name: `service-${i}`,
+        });
+      }
 
-      // When: checking if another service can be added
+      // When: checking if 4th service can be added
       const result = await service.canAddService(account._id);
 
       // Then: it's rejected with upgrade message
@@ -288,7 +312,12 @@ describe("PlanEnforcementService", () => {
         name: "Paid Service Org",
         slug: "paid-service-org",
       });
-      await accountRepo.upgradeToPaid(account._id, "cus_svc", "sub_svc");
+      await accountRepo.upgradeToPlan(
+        account._id,
+        "cus_svc",
+        "sub_svc",
+        Plan.Pro,
+      );
       const repo = await repoRepo.create({
         accountId: account._id,
         githubRepoId: 7002,
@@ -319,10 +348,11 @@ describe("PlanEnforcementService", () => {
         name: "Full Service Org",
         slug: "full-service-org",
       });
-      await accountRepo.upgradeToPaid(
+      await accountRepo.upgradeToPlan(
         account._id,
         "cus_full_svc",
         "sub_full_svc",
+        Plan.Pro,
       );
       const repo = await repoRepo.create({
         accountId: account._id,
@@ -374,27 +404,34 @@ describe("PlanEnforcementService", () => {
       // When: I get usage
       const usage = await service.getUsage(account._id);
 
-      // Then: I see current usage and limits
+      // Then: I see current usage and Free plan limits
       expect(usage.repositories.current).toBe(1);
-      expect(usage.repositories.limit).toBe(1);
+      expect(usage.repositories.limit).toBe(3);
+      expect(usage.services.limit).toBe(3);
       expect(usage.users.current).toBe(1);
       expect(usage.users.limit).toBe(1);
       expect(usage.privateReposAllowed).toBe(false);
     });
 
-    it("should show paid limits for upgraded account", async () => {
-      // Given: a paid account
+    it("should show Pro limits for upgraded account", async () => {
+      // Given: a Pro account
       const account = await accountRepo.create({
-        name: "Paid Usage",
-        slug: "paid-usage",
+        name: "Pro Usage",
+        slug: "pro-usage",
       });
-      await accountRepo.upgradeToPaid(account._id, "cus_usage", "sub_usage");
+      await accountRepo.upgradeToPlan(
+        account._id,
+        "cus_usage",
+        "sub_usage",
+        Plan.Pro,
+      );
 
       // When: I get usage
       const usage = await service.getUsage(account._id);
 
-      // Then: I see paid limits
-      expect(usage.repositories.limit).toBe(5);
+      // Then: I see Pro limits
+      expect(usage.repositories.limit).toBe(10);
+      expect(usage.services.limit).toBe(10);
       expect(usage.users.limit).toBe(5);
       expect(usage.privateReposAllowed).toBe(true);
     });
@@ -402,19 +439,21 @@ describe("PlanEnforcementService", () => {
 
   describe("enforceRepositoryLimit", () => {
     it("should throw PlanLimitError when limit exceeded", async () => {
-      // Given: a free account at repository limit
+      // Given: a free account at repository limit (3 repos)
       const account = await accountRepo.create({
         name: "Enforce Org",
         slug: "enforce-org",
       });
-      await repoRepo.create({
-        accountId: account._id,
-        githubRepoId: 6000,
-        githubFullName: "org/enforce-repo",
-        githubOwner: "org",
-        githubRepoName: "enforce-repo",
-        isPrivate: false,
-      });
+      for (let i = 0; i < 3; i++) {
+        await repoRepo.create({
+          accountId: account._id,
+          githubRepoId: 6000 + i,
+          githubFullName: `org/enforce-repo${i}`,
+          githubOwner: "org",
+          githubRepoName: `enforce-repo${i}`,
+          isPrivate: false,
+        });
+      }
 
       // When/Then: enforcing throws error
       await expect(service.enforceRepositoryLimit(account._id)).rejects.toThrow(

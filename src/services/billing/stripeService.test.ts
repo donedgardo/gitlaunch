@@ -81,6 +81,7 @@ describe("StripeService", () => {
     stripeClient = new FakeStripeClient();
     service = new StripeService(stripeClient, {
       proPriceId: "price_pro_monthly",
+      teamPriceId: "price_team_monthly",
       successUrl: "https://app.example.com/billing/success",
       cancelUrl: "https://app.example.com/billing/cancel",
     });
@@ -95,6 +96,7 @@ describe("StripeService", () => {
       const result = await service.createCheckoutSession({
         account,
         userEmail: "user@example.com",
+        plan: Plan.Pro,
       });
 
       // Then: I get a checkout URL
@@ -112,6 +114,7 @@ describe("StripeService", () => {
       await service.createCheckoutSession({
         account,
         userEmail: "new@example.com",
+        plan: Plan.Pro,
       });
 
       // Then: checkout is created with customer email
@@ -128,6 +131,7 @@ describe("StripeService", () => {
       await service.createCheckoutSession({
         account,
         userEmail: "user@example.com",
+        plan: Plan.Pro,
       });
 
       // Then: checkout uses existing customer
@@ -145,6 +149,7 @@ describe("StripeService", () => {
       await service.createCheckoutSession({
         account,
         userEmail: "user@example.com",
+        plan: Plan.Pro,
       });
 
       // Then: metadata includes account ID
@@ -157,14 +162,61 @@ describe("StripeService", () => {
       // Given: service configured with pro price
       const account = { ...mockAccount };
 
-      // When: I start checkout
+      // When: I start checkout for Pro plan
       await service.createCheckoutSession({
         account,
         userEmail: "user@example.com",
+        plan: Plan.Pro,
       });
 
       // Then: correct price ID is used
       expect(stripeClient.lastCheckoutParams.priceId).toBe("price_pro_monthly");
+    });
+
+    it("should use teamPriceId when plan is Team", async () => {
+      // Given: a free account
+      const account = { ...mockAccount };
+
+      // When: I start checkout for Team plan
+      await service.createCheckoutSession({
+        account,
+        userEmail: "user@example.com",
+        plan: Plan.Team,
+      });
+
+      // Then: Team price ID is used
+      expect(stripeClient.lastCheckoutParams.priceId).toBe(
+        "price_team_monthly",
+      );
+    });
+
+    it("should throw error when plan is Free", async () => {
+      // Given: a free account
+      const account = { ...mockAccount };
+
+      // When/Then: checkout with Free plan should fail
+      await expect(
+        service.createCheckoutSession({
+          account,
+          userEmail: "user@example.com",
+          plan: Plan.Free,
+        }),
+      ).rejects.toThrow("Cannot create checkout session for Free plan");
+    });
+
+    it("should include plan in metadata", async () => {
+      // Given: a free account
+      const account = { ...mockAccount };
+
+      // When: I start checkout for Pro plan
+      await service.createCheckoutSession({
+        account,
+        userEmail: "user@example.com",
+        plan: Plan.Pro,
+      });
+
+      // Then: metadata includes plan
+      expect(stripeClient.lastCheckoutParams.metadata.plan).toBe("pro");
     });
 
     it("should allow checkout without email when user has no email", async () => {
@@ -175,6 +227,7 @@ describe("StripeService", () => {
       const result = await service.createCheckoutSession({
         account,
         userEmail: null,
+        plan: Plan.Pro,
       });
 
       // Then: checkout is created successfully (Stripe will collect email)

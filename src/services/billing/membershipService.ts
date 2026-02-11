@@ -1,4 +1,4 @@
-import { Account } from "../../repositories/accountRepository";
+import { Account, Plan } from "../../repositories/accountRepository";
 
 export type CheckoutSessionResult = {
   url: string;
@@ -14,6 +14,7 @@ export interface MembershipService {
   createCheckoutSession(params: {
     account: Account;
     userEmail: string | null;
+    plan: Plan;
   }): Promise<CheckoutSessionResult>;
 
   createBillingPortalSession(params: {

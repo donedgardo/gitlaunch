@@ -50,14 +50,14 @@ describe("Stripe Webhook Route", () => {
   });
 
   describe("POST /webhooks/stripe", () => {
-    it("should handle checkout.session.completed event", async () => {
+    it("should handle checkout.session.completed event with Pro plan", async () => {
       // Given: a free account
       const account = await accountRepo.create({
         name: "Checkout Org",
         slug: "checkout-org",
       });
 
-      // When: checkout completed webhook is received
+      // When: checkout completed webhook is received with Pro plan
       const response = await app.inject({
         method: "POST",
         url: "/webhooks/stripe",
@@ -68,6 +68,7 @@ describe("Stripe Webhook Route", () => {
             object: {
               metadata: {
                 accountId: account._id.toString(),
+                plan: "pro",
               },
               customer: "cus_webhook_test",
               subscription: "sub_webhook_test",
@@ -80,18 +81,92 @@ describe("Stripe Webhook Route", () => {
       expect(response.statusCode).toBe(200);
       expect(JSON.parse(response.payload).received).toBe(true);
 
-      // And: account is upgraded
+      // And: account is upgraded to Pro
       const updated = await accountRepo.findById(account._id);
-      expect(updated!.plan).toBe(Plan.Paid);
+      expect(updated!.plan).toBe(Plan.Pro);
+    });
+
+    it("should handle checkout.session.completed event with Team plan", async () => {
+      // Given: a free account
+      const account = await accountRepo.create({
+        name: "Team Checkout",
+        slug: "team-checkout",
+      });
+
+      // When: checkout completed webhook is received with Team plan
+      const response = await app.inject({
+        method: "POST",
+        url: "/webhooks/stripe",
+        payload: {
+          id: "evt_team_checkout",
+          type: "checkout.session.completed",
+          data: {
+            object: {
+              metadata: {
+                accountId: account._id.toString(),
+                plan: "team",
+              },
+              customer: "cus_team_webhook",
+              subscription: "sub_team_webhook",
+            },
+          },
+        },
+      });
+
+      // Then: webhook is processed
+      expect(response.statusCode).toBe(200);
+
+      // And: account is upgraded to Team
+      const updated = await accountRepo.findById(account._id);
+      expect(updated!.plan).toBe(Plan.Team);
+    });
+
+    it("should default to Pro plan when metadata.plan is missing (legacy support)", async () => {
+      // Given: a free account
+      const account = await accountRepo.create({
+        name: "Legacy Checkout",
+        slug: "legacy-checkout",
+      });
+
+      // When: checkout completed webhook without plan in metadata
+      const response = await app.inject({
+        method: "POST",
+        url: "/webhooks/stripe",
+        payload: {
+          id: "evt_legacy_checkout",
+          type: "checkout.session.completed",
+          data: {
+            object: {
+              metadata: {
+                accountId: account._id.toString(),
+              },
+              customer: "cus_legacy",
+              subscription: "sub_legacy",
+            },
+          },
+        },
+      });
+
+      // Then: webhook is processed
+      expect(response.statusCode).toBe(200);
+
+      // And: account defaults to Pro plan
+      const updated = await accountRepo.findById(account._id);
+      expect(updated!.plan).toBe(Plan.Pro);
     });
 
     it("should handle customer.subscription.deleted event", async () => {
-      // Given: a paid account
+      // Given: a Pro account
       const account = await accountRepo.create({
         name: "Cancel Org",
         slug: "cancel-org",
       });
-      await accountRepo.upgradeToPaid(account._id, "cus_cancel", "sub_cancel");
+      await accountRepo.upgradeToPlan(
+        account._id,
+        "cus_cancel",
+        "sub_cancel",
+        Plan.Pro,
+      );
 
       // When: subscription deleted webhook is received
       const response = await app.inject({
@@ -117,12 +192,17 @@ describe("Stripe Webhook Route", () => {
     });
 
     it("should handle invoice.payment_failed event", async () => {
-      // Given: a paid account
+      // Given: a Pro account
       const account = await accountRepo.create({
         name: "Failed Org",
         slug: "failed-org",
       });
-      await accountRepo.upgradeToPaid(account._id, "cus_failed", "sub_failed");
+      await accountRepo.upgradeToPlan(
+        account._id,
+        "cus_failed",
+        "sub_failed",
+        Plan.Pro,
+      );
 
       // When: payment failed webhook is received
       const response = await app.inject({
@@ -154,10 +234,11 @@ describe("Stripe Webhook Route", () => {
         name: "Recover Org",
         slug: "recover-org",
       });
-      await accountRepo.upgradeToPaid(
+      await accountRepo.upgradeToPlan(
         account._id,
         "cus_recover",
         "sub_recover",
+        Plan.Pro,
       );
       await accountRepo.setPaymentFailed(account._id);
 
@@ -285,7 +366,10 @@ describe("Stripe Webhook Route", () => {
         type: "checkout.session.completed",
         data: {
           object: {
-            metadata: { accountId: account._id.toString() },
+            metadata: {
+              accountId: account._id.toString(),
+              plan: "pro",
+            },
             customer: "cus_verified",
             subscription: "sub_verified",
           },
@@ -315,9 +399,9 @@ describe("Stripe Webhook Route", () => {
       // Then: webhook is processed
       expect(response.statusCode).toBe(200);
 
-      // And: account is upgraded
+      // And: account is upgraded to Pro
       const updated = await accountRepo.findById(account._id);
-      expect(updated!.plan).toBe(Plan.Paid);
+      expect(updated!.plan).toBe(Plan.Pro);
     });
   });
 
@@ -353,6 +437,7 @@ describe("Stripe Webhook Route", () => {
           object: {
             metadata: {
               accountId: account._id.toString(),
+              plan: "pro",
             },
             customer: "cus_idempotent_test",
             subscription: "sub_idempotent_test",
@@ -379,9 +464,9 @@ describe("Stripe Webhook Route", () => {
       expect(JSON.parse(response1.payload).received).toBe(true);
       expect(JSON.parse(response2.payload).received).toBe(true);
 
-      // And: account is upgraded only once (not double-processed)
+      // And: account is upgraded only once (not double-processed) to Pro
       const updated = await accountRepo.findById(account._id);
-      expect(updated!.plan).toBe(Plan.Paid);
+      expect(updated!.plan).toBe(Plan.Pro);
       expect(updated!.stripeCustomerId).toBe("cus_idempotent_test");
     });
 
@@ -413,6 +498,7 @@ describe("Stripe Webhook Route", () => {
             object: {
               metadata: {
                 accountId: account._id.toString(),
+                plan: "pro",
               },
               customer: "cus_record",
               subscription: "sub_record",
@@ -444,7 +530,10 @@ describe("Stripe Webhook Route", () => {
         "evt_dup_123",
         "checkout.session.completed",
         {
-          metadata: { accountId: account._id.toString() },
+          metadata: {
+            accountId: account._id.toString(),
+            plan: "pro",
+          },
           customer: "cus_dup",
           subscription: "sub_dup",
         },
@@ -471,6 +560,7 @@ describe("Stripe Webhook Route", () => {
             object: {
               metadata: {
                 accountId: account._id.toString(),
+                plan: "pro",
               },
               customer: "cus_dup",
               subscription: "sub_dup",

@@ -64,6 +64,7 @@ describe("Billing Routes", () => {
     const membershipRepo = new MembershipRepository(db);
     stripeService = new StripeService(new FakeStripeClient(), {
       proPriceId: "price_pro",
+      teamPriceId: "price_team",
       successUrl: "https://app.example.com/success",
       cancelUrl: "https://app.example.com/cancel",
     });
@@ -150,7 +151,12 @@ describe("Billing Routes", () => {
         name: "Paid Org",
         slug: "paid-org",
       });
-      await accountRepo.upgradeToPaid(account._id, "cus_test", "sub_test");
+      await accountRepo.upgradeToPlan(
+        account._id,
+        "cus_test",
+        "sub_test",
+        Plan.Pro,
+      );
       const user = await userRepo.create({
         email: "paid@example.com",
         name: "Paid User",
