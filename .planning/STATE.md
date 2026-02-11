@@ -10,33 +10,33 @@ See: .planning/PROJECT.md (updated 2026-02-08)
 ## Current Position
 
 Phase: 2 of 4 (Plan Selection & Checkout)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: In progress
-Last activity: 2026-02-10 — Completed 02-plan-selection-checkout-01-PLAN.md
+Last activity: 2026-02-10 — Completed 02-plan-selection-checkout-02-PLAN.md
 
-Progress: [████░░░░░░] 36% (4/11 total plans)
+Progress: [█████░░░░░] 45% (5/11 total plans)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 4
-- Average duration: 6.0 min
-- Total execution time: 0.40 hours
+- Total plans completed: 5
+- Average duration: 5.4 min
+- Total execution time: 0.45 hours
 
 **By Phase:**
 
 | Phase                        | Plans | Total | Avg/Plan |
 | ---------------------------- | ----- | ----- | -------- |
 | 1. Billing Foundation        | 3/3   | 10min | 3.3min   |
-| 2. Plan Selection & Checkout | 1/3   | 14min | 14.0min  |
+| 2. Plan Selection & Checkout | 2/3   | 17min | 8.5min   |
 | 3. Plan Enforcement & Limits | 0/2   | —     | —        |
 | 4. Trial & Payment Lifecycle | 0/3   | —     | —        |
 
 **Recent Trend:**
 
-- Last 5 plans: 2min, 5min, 14min
-- Trend: Phase 2-01 took longer (14min) due to extensive test updates across codebase for three-tier plan model
+- Last 5 plans: 2min, 5min, 14min, 3min
+- Trend: Phase 2-02 was quick (3min) - straightforward UI work following existing patterns
 
 _Updated after each plan completion_
 
@@ -64,6 +64,9 @@ Recent decisions affecting current work:
 - **selectPlan vs upgradeToPlan distinction** (02-01) — selectPlan sets plan without Stripe IDs (plan picker), upgradeToPlan sets plan WITH Stripe IDs (subscription)
 - **Plan in checkout metadata** (02-01) — session.metadata.plan propagates through webhook, defaults to "pro" for legacy compatibility
 - **PLAN_LIMITS_MAP pattern** (02-01) — Centralized plan-to-limits lookup via Record<Plan, PlanLimits>
+- **Plan selection before GitHub App install** (02-02) — Intentional commitment moment; users choose tier before connecting repositories
+- **Pro card highlighted for conversion** (02-02) — Blue background and "Most Popular" badge guide users toward paid tier
+- **Returning users skip plan selection** (02-02) — If account already has non-Free plan, redirect straight to GitHub App install
 
 ### Pending Todos
 
@@ -86,12 +89,12 @@ None yet.
 **Phase 2 in progress:**
 
 - ✅ Three-tier plan model implemented (02-01)
-- Plan Picker UI next (02-02)
+- ✅ Plan Picker UI complete (02-02)
 - Checkout Flow next (02-03)
 - No blockers
 
 ## Session Continuity
 
 Last session: 2026-02-10 (plan execution)
-Stopped at: Completed 02-plan-selection-checkout-01-PLAN.md - Three-tier plan model implemented
-Resume file: .planning/phases/02-plan-selection-checkout/02-02-PLAN.md (Plan Picker UI)
+Stopped at: Completed 02-plan-selection-checkout-02-PLAN.md - Plan Picker UI complete
+Resume file: .planning/phases/02-plan-selection-checkout/02-03-PLAN.md (Checkout Flow)
