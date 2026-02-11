@@ -1,6 +1,9 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { ObjectId } from "mongodb";
-import { AccountRepository } from "../../../repositories/accountRepository";
+import {
+  AccountRepository,
+  Plan,
+} from "../../../repositories/accountRepository";
 import { RepositoryRepository } from "../../../repositories/repositoryRepository";
 import { GitHubAppService } from "../../../services/github/githubAppService";
 import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
@@ -22,6 +25,73 @@ export function registerOnboardingRoutes(
     gitHubAppService,
     planEnforcementService,
   } = deps;
+
+  // GET /onboarding/plan-selection - Plan selection page
+  app.get(
+    "/onboarding/plan-selection",
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      // Redirect to login if not authenticated
+      if (!request.session) {
+        return reply.redirect("/auth/github");
+      }
+
+      // Get account from session
+      const account = await accountRepository.findById(
+        new ObjectId(request.session.accountId),
+      );
+      if (!account) {
+        return reply.redirect("/auth/github");
+      }
+
+      // If account already has a non-Free plan set (returning user), skip to GitHub App install
+      if (account.plan !== Plan.Free) {
+        return reply.redirect("/onboarding");
+      }
+
+      // Show plan selection page
+      return reply.view(
+        "onboarding/plan-selection",
+        {
+          title: "Choose Your Plan",
+        },
+        { layout: "/layouts/main.hbs" },
+      );
+    },
+  );
+
+  // POST /onboarding/select-plan - Handle plan selection
+  app.post<{ Body: { plan: string } }>(
+    "/onboarding/select-plan",
+    async (
+      request: FastifyRequest<{ Body: { plan: string } }>,
+      reply: FastifyReply,
+    ) => {
+      // Redirect to login if not authenticated
+      if (!request.session) {
+        return reply.redirect("/auth/github");
+      }
+
+      // Get account from session
+      const account = await accountRepository.findById(
+        new ObjectId(request.session.accountId),
+      );
+      if (!account) {
+        return reply.redirect("/auth/github");
+      }
+
+      // Validate plan
+      const { plan } = request.body;
+      if (!plan || !["free", "pro", "team"].includes(plan)) {
+        return reply.status(400).send({ error: "Invalid plan" });
+      }
+
+      // Set plan on account
+      await accountRepository.selectPlan(account._id, plan as Plan);
+
+      // Redirect to GitHub App install step
+      return reply.redirect("/onboarding");
+    },
+  );
 
   // GET /onboarding - Main onboarding page
   app.get(

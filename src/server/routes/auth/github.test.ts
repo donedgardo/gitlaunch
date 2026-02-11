@@ -147,9 +147,9 @@ describe("GitHub OAuth Routes", () => {
         url: "/auth/github/callback?code=valid-code&state=test-state",
       });
 
-      // Then: I'm redirected to onboarding (new user without GitHub App)
+      // Then: I'm redirected to plan selection (new user)
       expect(response.statusCode).toBe(302);
-      expect(response.headers.location).toBe("/onboarding");
+      expect(response.headers.location).toBe("/onboarding/plan-selection");
 
       // And: a session cookie is set
       const cookies = response.cookies;

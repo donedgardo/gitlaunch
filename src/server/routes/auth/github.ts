@@ -127,9 +127,13 @@ export function registerGitHubAuthRoutes(
           maxAge: 7 * 24 * 60 * 60, // 7 days
         });
 
-        // Redirect new users to onboarding, returning users to dashboard
-        // Users without GitHub App installation also go to onboarding
-        if (isNewUser || !account?.githubInstallationId) {
+        // Redirect new users to plan selection first, then onboarding
+        // Returning users without GitHub App installation go to onboarding
+        if (isNewUser) {
+          return reply.redirect("/onboarding/plan-selection");
+        }
+
+        if (!account?.githubInstallationId) {
           return reply.redirect("/onboarding");
         }
 

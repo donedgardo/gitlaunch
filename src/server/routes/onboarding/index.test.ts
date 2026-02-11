@@ -109,6 +109,232 @@ describe("Onboarding Routes", () => {
     await app.ready();
   });
 
+  describe("GET /onboarding/plan-selection", () => {
+    it("should render plan selection template for authenticated users", async () => {
+      // Given: an authenticated user with a new account
+      const account = await accountRepo.create({
+        name: "My Org",
+        slug: "my-org",
+      });
+
+      const userId = new ObjectId();
+      const sessionToken = sessionService.createSession({
+        userId,
+        accountId: account._id,
+      });
+
+      // When: user visits plan selection page
+      const response = await app.inject({
+        method: "GET",
+        url: "/onboarding/plan-selection",
+        cookies: {
+          session: sessionToken,
+        },
+      });
+
+      // Then: page renders successfully
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain("Choose your plan");
+    });
+
+    it("should redirect to login if not authenticated", async () => {
+      // When: unauthenticated user visits plan selection
+      const response = await app.inject({
+        method: "GET",
+        url: "/onboarding/plan-selection",
+      });
+
+      // Then: redirects to GitHub OAuth login
+      expect(response.statusCode).toBe(302);
+      expect(response.headers.location).toBe("/auth/github");
+    });
+
+    it("should redirect to onboarding if account already has non-Free plan", async () => {
+      // Given: an account with Pro plan already set
+      const account = await accountRepo.create({
+        name: "Pro Org",
+        slug: "pro-org",
+      });
+      await accountRepo.selectPlan(account._id, Plan.Pro);
+
+      const userId = new ObjectId();
+      const sessionToken = sessionService.createSession({
+        userId,
+        accountId: account._id,
+      });
+
+      // When: user visits plan selection page
+      const response = await app.inject({
+        method: "GET",
+        url: "/onboarding/plan-selection",
+        cookies: {
+          session: sessionToken,
+        },
+      });
+
+      // Then: redirects to GitHub App install (skip plan selection)
+      expect(response.statusCode).toBe(302);
+      expect(response.headers.location).toBe("/onboarding");
+    });
+  });
+
+  describe("POST /onboarding/select-plan", () => {
+    it("should set Free plan and redirect to onboarding", async () => {
+      // Given: an authenticated user with a new account
+      const account = await accountRepo.create({
+        name: "Free Org",
+        slug: "free-org",
+      });
+
+      const userId = new ObjectId();
+      const sessionToken = sessionService.createSession({
+        userId,
+        accountId: account._id,
+      });
+
+      // When: user selects Free plan
+      const response = await app.inject({
+        method: "POST",
+        url: "/onboarding/select-plan",
+        cookies: {
+          session: sessionToken,
+        },
+        headers: {
+          "content-type": "application/x-www-form-urlencoded",
+        },
+        payload: "plan=free",
+      });
+
+      // Then: redirects to GitHub App install
+      expect(response.statusCode).toBe(302);
+      expect(response.headers.location).toBe("/onboarding");
+
+      // And: account plan is set to Free
+      const updatedAccount = await accountRepo.findById(account._id);
+      expect(updatedAccount?.plan).toBe(Plan.Free);
+      expect(updatedAccount?.planLimits.maxRepositories).toBe(3);
+    });
+
+    it("should set Pro plan and redirect to onboarding", async () => {
+      // Given: an authenticated user with a new account
+      const account = await accountRepo.create({
+        name: "Pro Org",
+        slug: "pro-org",
+      });
+
+      const userId = new ObjectId();
+      const sessionToken = sessionService.createSession({
+        userId,
+        accountId: account._id,
+      });
+
+      // When: user selects Pro plan
+      const response = await app.inject({
+        method: "POST",
+        url: "/onboarding/select-plan",
+        cookies: {
+          session: sessionToken,
+        },
+        headers: {
+          "content-type": "application/x-www-form-urlencoded",
+        },
+        payload: "plan=pro",
+      });
+
+      // Then: redirects to GitHub App install
+      expect(response.statusCode).toBe(302);
+      expect(response.headers.location).toBe("/onboarding");
+
+      // And: account plan is set to Pro
+      const updatedAccount = await accountRepo.findById(account._id);
+      expect(updatedAccount?.plan).toBe(Plan.Pro);
+      expect(updatedAccount?.planLimits.maxRepositories).toBe(10);
+    });
+
+    it("should set Team plan and redirect to onboarding", async () => {
+      // Given: an authenticated user with a new account
+      const account = await accountRepo.create({
+        name: "Team Org",
+        slug: "team-org",
+      });
+
+      const userId = new ObjectId();
+      const sessionToken = sessionService.createSession({
+        userId,
+        accountId: account._id,
+      });
+
+      // When: user selects Team plan
+      const response = await app.inject({
+        method: "POST",
+        url: "/onboarding/select-plan",
+        cookies: {
+          session: sessionToken,
+        },
+        headers: {
+          "content-type": "application/x-www-form-urlencoded",
+        },
+        payload: "plan=team",
+      });
+
+      // Then: redirects to GitHub App install
+      expect(response.statusCode).toBe(302);
+      expect(response.headers.location).toBe("/onboarding");
+
+      // And: account plan is set to Team
+      const updatedAccount = await accountRepo.findById(account._id);
+      expect(updatedAccount?.plan).toBe(Plan.Team);
+      expect(updatedAccount?.planLimits.maxRepositories).toBe(999);
+    });
+
+    it("should return error for invalid plan", async () => {
+      // Given: an authenticated user with a new account
+      const account = await accountRepo.create({
+        name: "My Org",
+        slug: "my-org-invalid",
+      });
+
+      const userId = new ObjectId();
+      const sessionToken = sessionService.createSession({
+        userId,
+        accountId: account._id,
+      });
+
+      // When: user submits invalid plan
+      const response = await app.inject({
+        method: "POST",
+        url: "/onboarding/select-plan",
+        cookies: {
+          session: sessionToken,
+        },
+        headers: {
+          "content-type": "application/x-www-form-urlencoded",
+        },
+        payload: "plan=invalid",
+      });
+
+      // Then: returns 400 error
+      expect(response.statusCode).toBe(400);
+      expect(response.json()).toEqual({ error: "Invalid plan" });
+    });
+
+    it("should redirect to login if not authenticated", async () => {
+      // When: unauthenticated user submits plan selection
+      const response = await app.inject({
+        method: "POST",
+        url: "/onboarding/select-plan",
+        headers: {
+          "content-type": "application/x-www-form-urlencoded",
+        },
+        payload: "plan=free",
+      });
+
+      // Then: redirects to GitHub OAuth login
+      expect(response.statusCode).toBe(302);
+      expect(response.headers.location).toBe("/auth/github");
+    });
+  });
+
   describe("POST /onboarding/repositories", () => {
     it("should save selected repositories to the account", async () => {
       // Given: an account with GitHub App installed (paid plan to allow multiple repos)
