@@ -5,7 +5,7 @@
 See: .planning/PROJECT.md (updated 2026-02-08)
 
 **Core value:** Developers can deploy their software continuously and reliably through GitLaunch, with a subscription model that lets them start with a free trial and upgrade when they see the value.
-**Current focus:** Phase 2 - Plan Selection & Checkout
+**Current focus:** Phase 3 - Plan Enforcement & Limits
 
 ## Current Position
 

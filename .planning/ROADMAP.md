@@ -14,7 +14,7 @@ GitLaunch adds a subscription billing system to enable revenue generation throug
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Billing Foundation** - Webhook infrastructure and Stripe integration ✓
-- [ ] **Phase 2: Plan Selection & Checkout** - User can select and pay for plans
+- [x] **Phase 2: Plan Selection & Checkout** - User can select and pay for plans ✓
 - [ ] **Phase 3: Plan Enforcement & Limits** - Server-side limit checks enforce tier value
 - [ ] **Phase 4: Trial & Payment Lifecycle** - Trials, auto-downgrade, payment failure handling
 
@@ -55,9 +55,9 @@ Plans:
 
 Plans:
 
-- [ ] 02-01-PLAN.md — Expand Plan model to Free/Pro/Team with plan-aware billing services (TDD)
-- [ ] 02-02-PLAN.md — Plan picker UI in onboarding flow (select plan after signup)
-- [ ] 02-03-PLAN.md — Billing settings page, Stripe Checkout wiring, and server integration
+- [x] 02-01-PLAN.md — Expand Plan model to Free/Pro/Team with plan-aware billing services (TDD)
+- [x] 02-02-PLAN.md — Plan picker UI in onboarding flow (select plan after signup)
+- [x] 02-03-PLAN.md — Billing settings page, Stripe Checkout wiring, and server integration
 
 ### Phase 3: Plan Enforcement & Limits
 
@@ -108,6 +108,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | Phase                        | Plans Complete | Status      | Completed  |
 | ---------------------------- | -------------- | ----------- | ---------- |
 | 1. Billing Foundation        | 3/3            | ✓ Complete  | 2026-02-09 |
-| 2. Plan Selection & Checkout | 0/3            | Planned     | -          |
+| 2. Plan Selection & Checkout | 3/3            | ✓ Complete  | 2026-02-11 |
 | 3. Plan Enforcement & Limits | 0/2            | Not started | -          |
 | 4. Trial & Payment Lifecycle | 0/3            | Not started | -          |
