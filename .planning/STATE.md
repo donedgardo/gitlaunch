@@ -10,33 +10,33 @@ See: .planning/PROJECT.md (updated 2026-02-08)
 ## Current Position
 
 Phase: 2 of 4 (Plan Selection & Checkout)
-Plan: 2 of 3 in current phase
-Status: In progress
-Last activity: 2026-02-10 — Completed 02-plan-selection-checkout-02-PLAN.md
+Plan: 3 of 3 in current phase (Phase 2 COMPLETE)
+Status: Phase complete
+Last activity: 2026-02-11 — Completed 02-plan-selection-checkout-03-PLAN.md
 
-Progress: [█████░░░░░] 45% (5/11 total plans)
+Progress: [██████░░░░] 55% (6/11 total plans)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 5
-- Average duration: 5.4 min
-- Total execution time: 0.45 hours
+- Total plans completed: 6
+- Average duration: 5.2 min
+- Total execution time: 0.52 hours
 
 **By Phase:**
 
 | Phase                        | Plans | Total | Avg/Plan |
 | ---------------------------- | ----- | ----- | -------- |
 | 1. Billing Foundation        | 3/3   | 10min | 3.3min   |
-| 2. Plan Selection & Checkout | 2/3   | 17min | 8.5min   |
+| 2. Plan Selection & Checkout | 3/3   | 23min | 7.7min   |
 | 3. Plan Enforcement & Limits | 0/2   | —     | —        |
 | 4. Trial & Payment Lifecycle | 0/3   | —     | —        |
 
 **Recent Trend:**
 
-- Last 5 plans: 2min, 5min, 14min, 3min
-- Trend: Phase 2-02 was quick (3min) - straightforward UI work following existing patterns
+- Last 5 plans: 5min, 14min, 3min, 6min
+- Trend: Phase 2 complete (23min total) - checkout flow integration was efficient (6min)
 
 _Updated after each plan completion_
 
@@ -67,6 +67,11 @@ Recent decisions affecting current work:
 - **Plan selection before GitHub App install** (02-02) — Intentional commitment moment; users choose tier before connecting repositories
 - **Pro card highlighted for conversion** (02-02) — Blue background and "Most Popular" badge guide users toward paid tier
 - **Returning users skip plan selection** (02-02) — If account already has non-Free plan, redirect straight to GitHub App install
+- **HX-Redirect for HTMX, JSON for non-HTMX** (02-03) — Dual response pattern based on hx-request header enables HTMX full-page navigation to Stripe
+- **Checkout plan validation** (02-03) — Only pro/team allowed in checkout, free/invalid return 400 error
+- **Conditional billing routes** (02-03) — Routes only registered when STRIPE_SECRET_KEY set, safe to run without Stripe
+- **StripeApiClient type handling** (02-03) — Used (sub as any).current_period_end to access Stripe API snake_case properties
+- **Free users see Upgrade, paid see Manage** (02-03) — UI conditionally renders based on stripeCustomerId presence
 
 ### Pending Todos
 
@@ -86,15 +91,23 @@ None yet.
 - ✅ Billing Foundation phase complete (3/3 plans)
 - ✅ Webhook infrastructure ready for subscription flows
 
-**Phase 2 in progress:**
+**Phase 2 COMPLETE:**
 
 - ✅ Three-tier plan model implemented (02-01)
 - ✅ Plan Picker UI complete (02-02)
-- Checkout Flow next (02-03)
+- ✅ Checkout Flow and billing settings complete (02-03)
+- ✅ StripeService wired into server with production StripeApiClient
+- ✅ All 6 plans executed in 52 minutes (avg 8.7 min/plan for Phases 1-2)
+
+**Phase 3 ready to start:**
+
+- Plan enforcement service layer already exists (from Phase 1)
+- Usage visibility implemented in billing settings (Phase 2-03)
+- Clear upgrade paths established
 - No blockers
 
 ## Session Continuity
 
-Last session: 2026-02-10 (plan execution)
-Stopped at: Completed 02-plan-selection-checkout-02-PLAN.md - Plan Picker UI complete
-Resume file: .planning/phases/02-plan-selection-checkout/02-03-PLAN.md (Checkout Flow)
+Last session: 2026-02-11 (plan execution)
+Stopped at: Completed 02-plan-selection-checkout-03-PLAN.md - Phase 2 complete (Billing settings and checkout flow)
+Resume file: .planning/phases/03-plan-enforcement/03-01-PLAN.md (Next phase: Plan Enforcement & Limits)
