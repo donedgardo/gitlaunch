@@ -2,7 +2,8 @@ import { Db, ObjectId, Collection } from "mongodb";
 
 export enum Plan {
   Free = "free",
-  Paid = "paid",
+  Pro = "pro",
+  Team = "team",
 }
 
 export type PlanLimits = {
@@ -34,10 +35,30 @@ export type CreateAccountInput = {
 };
 
 const FREE_PLAN_LIMITS: PlanLimits = {
-  maxRepositories: 1,
-  maxServices: 1,
+  maxRepositories: 3,
+  maxServices: 3,
   maxUsers: 1,
   publicReposOnly: true,
+};
+
+export const PRO_PLAN_LIMITS: PlanLimits = {
+  maxRepositories: 10,
+  maxServices: 10,
+  maxUsers: 5,
+  publicReposOnly: false,
+};
+
+export const TEAM_PLAN_LIMITS: PlanLimits = {
+  maxRepositories: 999,
+  maxServices: 999,
+  maxUsers: 999,
+  publicReposOnly: false,
+};
+
+export const PLAN_LIMITS_MAP: Record<Plan, PlanLimits> = {
+  [Plan.Free]: FREE_PLAN_LIMITS,
+  [Plan.Pro]: PRO_PLAN_LIMITS,
+  [Plan.Team]: TEAM_PLAN_LIMITS,
 };
 
 export class AccountRepository {
@@ -96,27 +117,42 @@ export class AccountRepository {
     );
   }
 
-  async upgradeToPaid(
+  async upgradeToPlan(
     id: ObjectId,
     stripeCustomerId: string,
     stripeSubscriptionId: string,
+    plan: Plan,
   ): Promise<void> {
-    const PAID_PLAN_LIMITS: PlanLimits = {
-      maxRepositories: 5,
-      maxServices: 10,
-      maxUsers: 5,
-      publicReposOnly: false,
-    };
+    if (plan === Plan.Free) {
+      throw new Error("Cannot upgrade to Free plan");
+    }
+
+    const planLimits = PLAN_LIMITS_MAP[plan];
 
     await this.collection.updateOne(
       { _id: id },
       {
         $set: {
-          plan: Plan.Paid,
-          planLimits: PAID_PLAN_LIMITS,
+          plan,
+          planLimits,
           stripeCustomerId,
           stripeSubscriptionId,
           paymentFailedAt: null,
+          updatedAt: new Date(),
+        },
+      },
+    );
+  }
+
+  async selectPlan(id: ObjectId, plan: Plan): Promise<void> {
+    const planLimits = PLAN_LIMITS_MAP[plan];
+
+    await this.collection.updateOne(
+      { _id: id },
+      {
+        $set: {
+          plan,
+          planLimits,
           updatedAt: new Date(),
         },
       },
