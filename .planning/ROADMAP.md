@@ -55,9 +55,9 @@ Plans:
 
 Plans:
 
-- [ ] 02-01: Plan picker UI after signup with tier comparison (no payment collection)
-- [ ] 02-02: Stripe Checkout Session creation and subscribe flow (triggered from billing page)
-- [ ] 02-03: Billing settings page with current plan and Customer Portal integration
+- [ ] 02-01-PLAN.md — Expand Plan model to Free/Pro/Team with plan-aware billing services (TDD)
+- [ ] 02-02-PLAN.md — Plan picker UI in onboarding flow (select plan after signup)
+- [ ] 02-03-PLAN.md — Billing settings page, Stripe Checkout wiring, and server integration
 
 ### Phase 3: Plan Enforcement & Limits
 
@@ -108,6 +108,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | Phase                        | Plans Complete | Status      | Completed  |
 | ---------------------------- | -------------- | ----------- | ---------- |
 | 1. Billing Foundation        | 3/3            | ✓ Complete  | 2026-02-09 |
-| 2. Plan Selection & Checkout | 0/3            | Not started | -          |
+| 2. Plan Selection & Checkout | 0/3            | Planned     | -          |
 | 3. Plan Enforcement & Limits | 0/2            | Not started | -          |
 | 4. Trial & Payment Lifecycle | 0/3            | Not started | -          |
