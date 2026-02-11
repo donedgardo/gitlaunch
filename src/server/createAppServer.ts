@@ -36,7 +36,10 @@ import { ApiKeyService } from "../services/apiKey/apiKeyService";
 import { EnvironmentService } from "../services/environment/environmentService";
 import { PlanEnforcementService } from "../services/billing/planEnforcementService";
 import { StripeWebhookHandler } from "../services/billing/webhookHandler";
+import { StripeService } from "../services/billing/stripeService";
+import { StripeApiClient } from "../services/billing/stripeApiClient";
 import { registerStripeWebhookRoute } from "./routes/webhooks/stripe";
+import { registerBillingRoutes } from "./routes/settings/billing";
 import { DbClientI } from "./health/dbClientI";
 
 export type AppServerDeps = {
@@ -108,6 +111,27 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
       webhookHandler,
       webhookSecret: process.env.STRIPE_WEBHOOK_SECRET || "",
       webhookEventRepo,
+    });
+  }
+
+  // Billing services and routes (only if Stripe is configured)
+  const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+  if (stripeSecretKey) {
+    const stripeApiClient = new StripeApiClient(stripeSecretKey);
+    const stripeService = new StripeService(stripeApiClient, {
+      proPriceId: process.env.STRIPE_PRO_PRICE_ID || "",
+      teamPriceId: process.env.STRIPE_TEAM_PRICE_ID || "",
+      successUrl:
+        process.env.STRIPE_SUCCESS_URL || "/settings/billing?success=true",
+      cancelUrl:
+        process.env.STRIPE_CANCEL_URL || "/settings/billing?cancelled=true",
+    });
+
+    registerBillingRoutes(server, {
+      stripeService,
+      planEnforcementService,
+      accountRepo: accountRepository,
+      userRepo: userRepository,
     });
   }
 
