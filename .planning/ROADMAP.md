@@ -75,8 +75,8 @@ Plans:
 
 Plans:
 
-- [ ] 03-01: PlanEnforcementService with tier-specific limit checking
-- [ ] 03-02: Middleware integration in resource creation endpoints with upgrade CTAs
+- [ ] 03-01-PLAN.md — Add environment limit checking to PlanEnforcementService (TDD)
+- [ ] 03-02-PLAN.md — Wire enforcement into environment creation endpoints with upgrade CTAs
 
 ### Phase 4: Trial & Payment Lifecycle
 
