@@ -9,20 +9,20 @@ See: .planning/PROJECT.md (updated 2026-02-08)
 
 ## Current Position
 
-Phase: 2 of 4 (Plan Selection & Checkout)
-Plan: 3 of 3 in current phase (Phase 2 COMPLETE)
-Status: Phase complete
-Last activity: 2026-02-11 — Completed 02-plan-selection-checkout-03-PLAN.md
+Phase: 3 of 4 (Plan Enforcement & Limits)
+Plan: 1 of 2 in current phase
+Status: In progress
+Last activity: 2026-02-14 — Completed 03-01-PLAN.md
 
-Progress: [██████░░░░] 55% (6/11 total plans)
+Progress: [███████░░░] 64% (7/11 total plans)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 6
-- Average duration: 5.2 min
-- Total execution time: 0.52 hours
+- Total plans completed: 7
+- Average duration: 5.0 min
+- Total execution time: 0.58 hours
 
 **By Phase:**
 
@@ -30,13 +30,13 @@ Progress: [██████░░░░] 55% (6/11 total plans)
 | ---------------------------- | ----- | ----- | -------- |
 | 1. Billing Foundation        | 3/3   | 10min | 3.3min   |
 | 2. Plan Selection & Checkout | 3/3   | 23min | 7.7min   |
-| 3. Plan Enforcement & Limits | 0/2   | —     | —        |
+| 3. Plan Enforcement & Limits | 1/2   | 3min  | 3.0min   |
 | 4. Trial & Payment Lifecycle | 0/3   | —     | —        |
 
 **Recent Trend:**
 
-- Last 5 plans: 5min, 14min, 3min, 6min
-- Trend: Phase 2 complete (23min total) - checkout flow integration was efficient (6min)
+- Last 5 plans: 14min, 3min, 6min, 3min
+- Trend: Phase 3 started fast (3min for environment limit enforcement with TDD)
 
 _Updated after each plan completion_
 
@@ -72,6 +72,9 @@ Recent decisions affecting current work:
 - **Conditional billing routes** (02-03) — Routes only registered when STRIPE_SECRET_KEY set, safe to run without Stripe
 - **StripeApiClient type handling** (02-03) — Used (sub as any).current_period_end to access Stripe API snake_case properties
 - **Free users see Upgrade, paid see Manage** (02-03) — UI conditionally renders based on stripeCustomerId presence
+- **Environment limits are per-service** (03-01) — Unlike other resources (repos/services/users), environments are checked per-service since they belong to services
+- **Free plan gets 2 environments** (03-01) — Matches default service setup (staging + prod), upgrade required for custom environments
+- **Service ownership verification in canAddEnvironment** (03-01) — Verifies service exists AND belongs to account, preventing cross-account limit bypasses
 
 ### Pending Todos
 
@@ -99,15 +102,14 @@ None yet.
 - ✅ StripeService wired into server with production StripeApiClient
 - ✅ All 6 plans executed in 52 minutes (avg 8.7 min/plan for Phases 1-2)
 
-**Phase 3 ready to start:**
+**Phase 3 IN PROGRESS:**
 
-- Plan enforcement service layer already exists (from Phase 1)
-- Usage visibility implemented in billing settings (Phase 2-03)
-- Clear upgrade paths established
-- No blockers
+- ✅ Environment limit enforcement complete (03-01)
+- Plan enforcement now covers all resource types: repos, services, users, environments
+- Next: API key enforcement and usage tracking (03-02)
 
 ## Session Continuity
 
-Last session: 2026-02-11 (plan execution)
-Stopped at: Completed 02-plan-selection-checkout-03-PLAN.md - Phase 2 complete (Billing settings and checkout flow)
-Resume file: .planning/phases/03-plan-enforcement/03-01-PLAN.md (Next phase: Plan Enforcement & Limits)
+Last session: 2026-02-14 (plan execution)
+Stopped at: Completed 03-01-PLAN.md - Environment limit enforcement
+Resume file: .planning/phases/03-plan-enforcement-limits/03-02-PLAN.md
