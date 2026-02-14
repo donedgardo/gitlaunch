@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Billing Foundation** - Webhook infrastructure and Stripe integration ✓
 - [x] **Phase 2: Plan Selection & Checkout** - User can select and pay for plans ✓
-- [ ] **Phase 3: Plan Enforcement & Limits** - Server-side limit checks enforce tier value (1/2 plans)
+- [x] **Phase 3: Plan Enforcement & Limits** - Server-side limit checks enforce tier value ✓
 - [ ] **Phase 4: Trial & Payment Lifecycle** - Trials, auto-downgrade, payment failure handling
 
 ## Phase Details
@@ -76,7 +76,7 @@ Plans:
 Plans:
 
 - [x] 03-01-PLAN.md — Add environment limit checking to PlanEnforcementService (TDD)
-- [ ] 03-02-PLAN.md — Wire enforcement into environment creation endpoints with upgrade CTAs
+- [x] 03-02-PLAN.md — Wire enforcement into environment creation endpoints with upgrade CTAs
 
 ### Phase 4: Trial & Payment Lifecycle
 
@@ -109,5 +109,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | ---------------------------- | -------------- | ----------- | ---------- |
 | 1. Billing Foundation        | 3/3            | ✓ Complete  | 2026-02-09 |
 | 2. Plan Selection & Checkout | 3/3            | ✓ Complete  | 2026-02-11 |
-| 3. Plan Enforcement & Limits | 1/2            | In progress | -          |
+| 3. Plan Enforcement & Limits | 2/2            | ✓ Complete  | 2026-02-14 |
 | 4. Trial & Payment Lifecycle | 0/3            | Not started | -          |

@@ -10,19 +10,19 @@ See: .planning/PROJECT.md (updated 2026-02-08)
 ## Current Position
 
 Phase: 3 of 4 (Plan Enforcement & Limits)
-Plan: 1 of 2 in current phase
-Status: In progress
-Last activity: 2026-02-14 — Completed 03-01-PLAN.md
+Plan: 2 of 2 in current phase
+Status: Phase complete
+Last activity: 2026-02-14 — Completed 03-02-PLAN.md
 
-Progress: [███████░░░] 64% (7/11 total plans)
+Progress: [████████░░] 73% (8/11 total plans)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 7
+- Total plans completed: 8
 - Average duration: 5.0 min
-- Total execution time: 0.58 hours
+- Total execution time: 0.67 hours
 
 **By Phase:**
 
@@ -30,13 +30,13 @@ Progress: [███████░░░] 64% (7/11 total plans)
 | ---------------------------- | ----- | ----- | -------- |
 | 1. Billing Foundation        | 3/3   | 10min | 3.3min   |
 | 2. Plan Selection & Checkout | 3/3   | 23min | 7.7min   |
-| 3. Plan Enforcement & Limits | 1/2   | 3min  | 3.0min   |
+| 3. Plan Enforcement & Limits | 2/2   | 8min  | 4.0min   |
 | 4. Trial & Payment Lifecycle | 0/3   | —     | —        |
 
 **Recent Trend:**
 
-- Last 5 plans: 14min, 3min, 6min, 3min
-- Trend: Phase 3 started fast (3min for environment limit enforcement with TDD)
+- Last 5 plans: 3min, 6min, 3min, 5min
+- Trend: Phase 3 complete with fast execution (avg 4min/plan)
 
 _Updated after each plan completion_
 
@@ -75,6 +75,10 @@ Recent decisions affecting current work:
 - **Environment limits are per-service** (03-01) — Unlike other resources (repos/services/users), environments are checked per-service since they belong to services
 - **Free plan gets 2 environments** (03-01) — Matches default service setup (staging + prod), upgrade required for custom environments
 - **Service ownership verification in canAddEnvironment** (03-01) — Verifies service exists AND belongs to account, preventing cross-account limit bypasses
+- **PlanEnforcementService dependency injection** (03-02) — Route handlers receive planEnforcementService via dependencies object, following existing DI pattern
+- **403 for plan limits, not 400** (03-02) — Plan limits are authorization constraints (forbidden), not input validation errors (bad request)
+- **Dual response patterns for HTMX vs API** (03-02) — HTMX route returns error partial (200 with error in template), API route returns 403 with JSON
+- **upgradeRequired flag in API responses** (03-02) — Enables client-side upgrade flow detection in programmatic API clients
 
 ### Pending Todos
 
@@ -102,14 +106,16 @@ None yet.
 - ✅ StripeService wired into server with production StripeApiClient
 - ✅ All 6 plans executed in 52 minutes (avg 8.7 min/plan for Phases 1-2)
 
-**Phase 3 IN PROGRESS:**
+**Phase 3 COMPLETE:**
 
 - ✅ Environment limit enforcement complete (03-01)
+- ✅ Enforcement wired into all environment creation endpoints (03-02)
 - Plan enforcement now covers all resource types: repos, services, users, environments
-- Next: API key enforcement and usage tracking (03-02)
+- All endpoints return appropriate upgrade CTAs when limits hit
+- Ready for Phase 4: Trial & Payment Lifecycle
 
 ## Session Continuity
 
 Last session: 2026-02-14 (plan execution)
-Stopped at: Completed 03-01-PLAN.md - Environment limit enforcement
-Resume file: .planning/phases/03-plan-enforcement-limits/03-02-PLAN.md
+Stopped at: Completed 03-02-PLAN.md - Phase 3 complete
+Resume file: .planning/phases/04-trial-payment-lifecycle/04-01-PLAN.md
