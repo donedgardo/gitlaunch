@@ -128,6 +128,34 @@ export class PlanEnforcementService {
     return { allowed: true };
   }
 
+  async canAddEnvironment(
+    accountId: ObjectId,
+    serviceId: ObjectId,
+  ): Promise<LimitCheckResult> {
+    const account = await this.accountRepo.findById(accountId);
+    if (!account) {
+      return { allowed: false, reason: "Account not found" };
+    }
+
+    const service = await this.serviceRepo.findById(serviceId);
+    if (!service || !service.accountId.equals(accountId)) {
+      return { allowed: false, reason: "Service not found" };
+    }
+
+    const currentCount = service.environments.length;
+    const limit = account.planLimits.maxEnvironments;
+
+    if (currentCount >= limit) {
+      return {
+        allowed: false,
+        reason: `Environment limit reached (${currentCount}/${limit}). Upgrade to add more environments.`,
+        upgradeRequired: true,
+      };
+    }
+
+    return { allowed: true };
+  }
+
   async getUsage(accountId: ObjectId): Promise<UsageInfo> {
     const account = await this.accountRepo.findById(accountId);
     if (!account) {
@@ -191,6 +219,19 @@ export class PlanEnforcementService {
     if (!result.allowed) {
       throw new PlanLimitError(
         result.reason || "Service limit exceeded",
+        result.upgradeRequired,
+      );
+    }
+  }
+
+  async enforceEnvironmentLimit(
+    accountId: ObjectId,
+    serviceId: ObjectId,
+  ): Promise<void> {
+    const result = await this.canAddEnvironment(accountId, serviceId);
+    if (!result.allowed) {
+      throw new PlanLimitError(
+        result.reason || "Environment limit exceeded",
         result.upgradeRequired,
       );
     }

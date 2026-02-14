@@ -10,6 +10,7 @@ export type PlanLimits = {
   maxRepositories: number;
   maxServices: number;
   maxUsers: number;
+  maxEnvironments: number;
   publicReposOnly: boolean;
 };
 
@@ -38,6 +39,7 @@ const FREE_PLAN_LIMITS: PlanLimits = {
   maxRepositories: 3,
   maxServices: 3,
   maxUsers: 1,
+  maxEnvironments: 2,
   publicReposOnly: true,
 };
 
@@ -45,6 +47,7 @@ export const PRO_PLAN_LIMITS: PlanLimits = {
   maxRepositories: 10,
   maxServices: 10,
   maxUsers: 5,
+  maxEnvironments: 10,
   publicReposOnly: false,
 };
 
@@ -52,6 +55,7 @@ export const TEAM_PLAN_LIMITS: PlanLimits = {
   maxRepositories: 999,
   maxServices: 999,
   maxUsers: 999,
+  maxEnvironments: 999,
   publicReposOnly: false,
 };
 
