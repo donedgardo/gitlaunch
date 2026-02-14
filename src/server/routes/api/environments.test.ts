@@ -6,7 +6,10 @@ import Fastify, {
   FastifyRequest,
   FastifyReply,
 } from "fastify";
-import { AccountRepository } from "../../../repositories/accountRepository";
+import {
+  AccountRepository,
+  Plan,
+} from "../../../repositories/accountRepository";
 import { RepositoryRepository } from "../../../repositories/repositoryRepository";
 import { ServiceRepository } from "../../../repositories/serviceRepository";
 import { MembershipRepository } from "../../../repositories/membershipRepository";
@@ -200,6 +203,9 @@ describe("Environments API Routes", () => {
 
   describe("POST /api/v1/services/:serviceId/environments", () => {
     it("should add a new environment", async () => {
+      // Upgrade to Pro plan to allow adding more than 2 environments
+      await accountRepo.selectPlan(testAccountId, Plan.Pro);
+
       const response = await app.inject({
         method: "POST",
         url: `/api/v1/services/${testServiceId}/environments`,
@@ -219,6 +225,9 @@ describe("Environments API Routes", () => {
     });
 
     it("should return 400 for invalid name format", async () => {
+      // Upgrade to Pro plan to allow adding more than 2 environments
+      await accountRepo.selectPlan(testAccountId, Plan.Pro);
+
       const response = await app.inject({
         method: "POST",
         url: `/api/v1/services/${testServiceId}/environments`,
@@ -234,6 +243,9 @@ describe("Environments API Routes", () => {
     });
 
     it("should return 400 for duplicate name", async () => {
+      // Upgrade to Pro plan to allow adding more than 2 environments
+      await accountRepo.selectPlan(testAccountId, Plan.Pro);
+
       const response = await app.inject({
         method: "POST",
         url: `/api/v1/services/${testServiceId}/environments`,
@@ -280,6 +292,74 @@ describe("Environments API Routes", () => {
       });
 
       expect(response.statusCode).toBe(403);
+    });
+
+    it("should return 403 when environment limit is reached on Free plan", async () => {
+      // Given: Free plan account with a service that has 2 environments (staging + prod, the default)
+      // Free plan limit is 2 environments, so already at limit
+
+      // When: POST to add a third environment
+      const response = await app.inject({
+        method: "POST",
+        url: `/api/v1/services/${testServiceId}/environments`,
+        headers: {
+          authorization: "Bearer test-key",
+          "content-type": "application/json",
+        },
+        payload: { name: "dev" },
+      });
+
+      // Then: Returns 403 with error containing "limit" and upgradeRequired: true
+      expect(response.statusCode).toBe(403);
+      const body = response.json();
+      expect(body.error).toContain("limit");
+      expect(body.upgradeRequired).toBe(true);
+    });
+
+    it("should allow adding environment when Pro plan has capacity", async () => {
+      // Given: A Pro plan account (via selectPlan) with a service with 2 environments
+      await accountRepo.selectPlan(testAccountId, Plan.Pro);
+
+      // When: POST to add a third environment named "dev"
+      const response = await app.inject({
+        method: "POST",
+        url: `/api/v1/services/${testServiceId}/environments`,
+        headers: {
+          authorization: "Bearer test-key",
+          "content-type": "application/json",
+        },
+        payload: { name: "dev" },
+      });
+
+      // Then: Returns 201 with 3 environments
+      expect(response.statusCode).toBe(201);
+      const body = response.json();
+      expect(body.environments).toHaveLength(3);
+      expect(body.environments).toContainEqual(
+        expect.objectContaining({ name: "dev" }),
+      );
+    });
+
+    it("should return 403 with upgrade message when environment limit hit", async () => {
+      // Given: A Free plan account at environment limit
+      // (account defaults to Free plan with 2 environment limit, service has 2 environments)
+
+      // When: POST to add another environment
+      const response = await app.inject({
+        method: "POST",
+        url: `/api/v1/services/${testServiceId}/environments`,
+        headers: {
+          authorization: "Bearer test-key",
+          "content-type": "application/json",
+        },
+        payload: { name: "qa" },
+      });
+
+      // Then: Response body contains upgradeRequired: true and error contains "Upgrade"
+      expect(response.statusCode).toBe(403);
+      const body = response.json();
+      expect(body.upgradeRequired).toBe(true);
+      expect(body.error).toContain("Upgrade");
     });
   });
 
