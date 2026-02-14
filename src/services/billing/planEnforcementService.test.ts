@@ -474,4 +474,277 @@ describe("PlanEnforcementService", () => {
       ).resolves.not.toThrow();
     });
   });
+
+  describe("canAddEnvironment", () => {
+    it("should allow free account with 1 environment to add another", async () => {
+      // Given: a free account with a service containing 1 environment
+      const account = await accountRepo.create({
+        name: "Free Env Org",
+        slug: "free-env-org",
+      });
+      const repo = await repoRepo.create({
+        accountId: account._id,
+        githubRepoId: 9001,
+        githubFullName: "org/env-repo",
+        githubOwner: "org",
+        githubRepoName: "env-repo",
+        isPrivate: false,
+      });
+      const svc = await serviceRepo.create({
+        accountId: account._id,
+        repositoryId: repo._id,
+        name: "env-service",
+        environments: [{ name: "staging", order: 0 }],
+      });
+
+      // When: checking if environment can be added
+      const result = await service.canAddEnvironment(account._id, svc._id);
+
+      // Then: it's allowed (free limit is 2)
+      expect(result.allowed).toBe(true);
+    });
+
+    it("should reject free account with 2 environments from adding more", async () => {
+      // Given: a free account with a service at default 2 environments
+      const account = await accountRepo.create({
+        name: "Free Env Org 2",
+        slug: "free-env-org-2",
+      });
+      const repo = await repoRepo.create({
+        accountId: account._id,
+        githubRepoId: 9002,
+        githubFullName: "org/env-repo-2",
+        githubOwner: "org",
+        githubRepoName: "env-repo-2",
+        isPrivate: false,
+      });
+      const svc = await serviceRepo.create({
+        accountId: account._id,
+        repositoryId: repo._id,
+        name: "env-service-2",
+        environments: [
+          { name: "staging", order: 0 },
+          { name: "prod", order: 1 },
+        ],
+      });
+
+      // When: checking if 3rd environment can be added
+      const result = await service.canAddEnvironment(account._id, svc._id);
+
+      // Then: it's rejected with upgrade message
+      expect(result.allowed).toBe(false);
+      expect(result.reason).toContain("Environment limit reached (2/2)");
+      expect(result.upgradeRequired).toBe(true);
+    });
+
+    it("should allow Pro account with 9 environments to add another", async () => {
+      // Given: a Pro account with 9 environments
+      const account = await accountRepo.create({
+        name: "Pro Env Org",
+        slug: "pro-env-org",
+      });
+      await accountRepo.upgradeToPlan(
+        account._id,
+        "cus_pro_env",
+        "sub_pro_env",
+        Plan.Pro,
+      );
+      const repo = await repoRepo.create({
+        accountId: account._id,
+        githubRepoId: 9003,
+        githubFullName: "org/pro-env-repo",
+        githubOwner: "org",
+        githubRepoName: "pro-env-repo",
+        isPrivate: false,
+      });
+      const environments = Array.from({ length: 9 }, (_, i) => ({
+        name: `env${i}`,
+        order: i,
+      }));
+      const svc = await serviceRepo.create({
+        accountId: account._id,
+        repositoryId: repo._id,
+        name: "pro-env-service",
+        environments,
+      });
+
+      // When: checking if 10th environment can be added
+      const result = await service.canAddEnvironment(account._id, svc._id);
+
+      // Then: it's allowed (Pro limit is 10)
+      expect(result.allowed).toBe(true);
+    });
+
+    it("should reject Pro account with 10 environments from adding more", async () => {
+      // Given: a Pro account with 10 environments
+      const account = await accountRepo.create({
+        name: "Pro Env Full Org",
+        slug: "pro-env-full-org",
+      });
+      await accountRepo.upgradeToPlan(
+        account._id,
+        "cus_pro_env_full",
+        "sub_pro_env_full",
+        Plan.Pro,
+      );
+      const repo = await repoRepo.create({
+        accountId: account._id,
+        githubRepoId: 9004,
+        githubFullName: "org/pro-env-full-repo",
+        githubOwner: "org",
+        githubRepoName: "pro-env-full-repo",
+        isPrivate: false,
+      });
+      const environments = Array.from({ length: 10 }, (_, i) => ({
+        name: `env${i}`,
+        order: i,
+      }));
+      const svc = await serviceRepo.create({
+        accountId: account._id,
+        repositoryId: repo._id,
+        name: "pro-env-full-service",
+        environments,
+      });
+
+      // When: checking if 11th environment can be added
+      const result = await service.canAddEnvironment(account._id, svc._id);
+
+      // Then: it's rejected
+      expect(result.allowed).toBe(false);
+      expect(result.reason).toContain("Environment limit reached (10/10)");
+      expect(result.upgradeRequired).toBe(true);
+    });
+
+    it("should allow Team account with 50 environments to add more", async () => {
+      // Given: a Team account with 50 environments
+      const account = await accountRepo.create({
+        name: "Team Env Org",
+        slug: "team-env-org",
+      });
+      await accountRepo.upgradeToPlan(
+        account._id,
+        "cus_team_env",
+        "sub_team_env",
+        Plan.Team,
+      );
+      const repo = await repoRepo.create({
+        accountId: account._id,
+        githubRepoId: 9005,
+        githubFullName: "org/team-env-repo",
+        githubOwner: "org",
+        githubRepoName: "team-env-repo",
+        isPrivate: false,
+      });
+      const environments = Array.from({ length: 50 }, (_, i) => ({
+        name: `env${i}`,
+        order: i,
+      }));
+      const svc = await serviceRepo.create({
+        accountId: account._id,
+        repositoryId: repo._id,
+        name: "team-env-service",
+        environments,
+      });
+
+      // When: checking if another environment can be added
+      const result = await service.canAddEnvironment(account._id, svc._id);
+
+      // Then: it's allowed (Team limit is 999)
+      expect(result.allowed).toBe(true);
+    });
+
+    it("should return not found when account does not exist", async () => {
+      // Given: a non-existent account ID
+      const fakeAccountId = new ObjectId();
+      const fakeServiceId = new ObjectId();
+
+      // When: checking if environment can be added
+      const result = await service.canAddEnvironment(
+        fakeAccountId,
+        fakeServiceId,
+      );
+
+      // Then: it's rejected with not found message
+      expect(result.allowed).toBe(false);
+      expect(result.reason).toBe("Account not found");
+    });
+
+    it("should return not found when service does not exist", async () => {
+      // Given: an account but non-existent service
+      const account = await accountRepo.create({
+        name: "No Service Org",
+        slug: "no-service-org",
+      });
+      const fakeServiceId = new ObjectId();
+
+      // When: checking if environment can be added
+      const result = await service.canAddEnvironment(
+        account._id,
+        fakeServiceId,
+      );
+
+      // Then: it's rejected with not found message
+      expect(result.allowed).toBe(false);
+      expect(result.reason).toBe("Service not found");
+    });
+  });
+
+  describe("enforceEnvironmentLimit", () => {
+    it("should throw PlanLimitError when environment limit exceeded", async () => {
+      // Given: a free account with service at environment limit (2)
+      const account = await accountRepo.create({
+        name: "Enforce Env Org",
+        slug: "enforce-env-org",
+      });
+      const repo = await repoRepo.create({
+        accountId: account._id,
+        githubRepoId: 9100,
+        githubFullName: "org/enforce-env-repo",
+        githubOwner: "org",
+        githubRepoName: "enforce-env-repo",
+        isPrivate: false,
+      });
+      const svc = await serviceRepo.create({
+        accountId: account._id,
+        repositoryId: repo._id,
+        name: "enforce-env-service",
+        environments: [
+          { name: "staging", order: 0 },
+          { name: "prod", order: 1 },
+        ],
+      });
+
+      // When/Then: enforcing throws error
+      await expect(
+        service.enforceEnvironmentLimit(account._id, svc._id),
+      ).rejects.toThrow(PlanLimitError);
+    });
+
+    it("should not throw when under environment limit", async () => {
+      // Given: a free account with service under limit
+      const account = await accountRepo.create({
+        name: "Under Env Org",
+        slug: "under-env-org",
+      });
+      const repo = await repoRepo.create({
+        accountId: account._id,
+        githubRepoId: 9101,
+        githubFullName: "org/under-env-repo",
+        githubOwner: "org",
+        githubRepoName: "under-env-repo",
+        isPrivate: false,
+      });
+      const svc = await serviceRepo.create({
+        accountId: account._id,
+        repositoryId: repo._id,
+        name: "under-env-service",
+        environments: [{ name: "staging", order: 0 }],
+      });
+
+      // When/Then: enforcing doesn't throw
+      await expect(
+        service.enforceEnvironmentLimit(account._id, svc._id),
+      ).resolves.not.toThrow();
+    });
+  });
 });
