@@ -3,18 +3,25 @@ import { ObjectId } from "mongodb";
 import { ServiceRepository } from "../../../repositories/serviceRepository";
 import { RepositoryRepository } from "../../../repositories/repositoryRepository";
 import { EnvironmentService } from "../../../services/environment/environmentService";
+import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
 
 export type SettingsRoutesDeps = {
   serviceRepository: ServiceRepository;
   repositoryRepository: RepositoryRepository;
   environmentService: EnvironmentService;
+  planEnforcementService: PlanEnforcementService;
 };
 
 export function registerSettingsRoutes(
   app: FastifyInstance,
   deps: SettingsRoutesDeps,
 ): void {
-  const { serviceRepository, repositoryRepository, environmentService } = deps;
+  const {
+    serviceRepository,
+    repositoryRepository,
+    environmentService,
+    planEnforcementService,
+  } = deps;
 
   // Helper to load service with ownership verification
   async function loadServiceWithAuth(
@@ -119,6 +126,23 @@ export function registerSettingsRoutes(
 
       const { service, accountId } = result;
       const { name } = request.body;
+
+      // Check environment limit
+      const canAdd = await planEnforcementService.canAddEnvironment(
+        accountId,
+        service._id,
+      );
+      if (!canAdd.allowed) {
+        const environments = [...service.environments].sort(
+          (a, b) => a.order - b.order,
+        );
+        return reply.view("partials/environmentList", {
+          environments,
+          canDelete: environments.length > 1,
+          serviceId: service._id.toString(),
+          error: canAdd.reason,
+        });
+      }
 
       try {
         const updatedService = await environmentService.addEnvironment(

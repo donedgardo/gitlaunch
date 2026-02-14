@@ -1,10 +1,12 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { ObjectId } from "mongodb";
 import { EnvironmentService } from "../../../services/environment/environmentService";
+import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
 import { requireScope } from "../../middleware/apiKeyAuth";
 
 export type EnvironmentsRoutesDependencies = {
   environmentService: EnvironmentService;
+  planEnforcementService: PlanEnforcementService;
 };
 
 type ServiceIdParams = {
@@ -27,7 +29,7 @@ export function registerEnvironmentsRoutes(
   app: FastifyInstance,
   deps: EnvironmentsRoutesDependencies,
 ) {
-  const { environmentService } = deps;
+  const { environmentService, planEnforcementService } = deps;
 
   // GET /api/v1/services/:serviceId/environments - List environments
   app.get<{ Params: ServiceIdParams }>(
@@ -90,6 +92,18 @@ export function registerEnvironmentsRoutes(
       }
 
       const serviceId = new ObjectId(serviceIdParam);
+
+      // Check environment limit
+      const canAdd = await planEnforcementService.canAddEnvironment(
+        accountId,
+        serviceId,
+      );
+      if (!canAdd.allowed) {
+        return reply.status(403).send({
+          error: canAdd.reason,
+          upgradeRequired: canAdd.upgradeRequired,
+        });
+      }
 
       try {
         const service = await environmentService.addEnvironment(

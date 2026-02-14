@@ -195,6 +195,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     serviceRepository,
     repositoryRepository,
     environmentService,
+    planEnforcementService,
   });
 
   // API v1 routes (API key authenticated)
@@ -213,6 +214,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
       // Register environments API routes
       registerEnvironmentsRoutes(apiServer, {
         environmentService,
+        planEnforcementService,
       });
     },
     { prefix: "" }, // Routes already have /api/v1 prefix

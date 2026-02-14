@@ -99,6 +99,7 @@ describe("MembershipService interface", () => {
       maxRepositories: 1,
       maxServices: 1,
       maxUsers: 1,
+      maxEnvironments: 2,
       publicReposOnly: true,
     },
     githubInstallationId: null,

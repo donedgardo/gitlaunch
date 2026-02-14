@@ -9,7 +9,9 @@ import Fastify, {
 import { AccountRepository } from "../../../repositories/accountRepository";
 import { RepositoryRepository } from "../../../repositories/repositoryRepository";
 import { ServiceRepository } from "../../../repositories/serviceRepository";
+import { MembershipRepository } from "../../../repositories/membershipRepository";
 import { EnvironmentService } from "../../../services/environment/environmentService";
+import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
 import { registerEnvironmentsRoutes } from "./environments";
 import { ApiKeyScope } from "../../../repositories/apiKeyRepository";
 
@@ -48,7 +50,9 @@ describe("Environments API Routes", () => {
   let accountRepo: AccountRepository;
   let repoRepo: RepositoryRepository;
   let serviceRepo: ServiceRepository;
+  let membershipRepo: MembershipRepository;
   let environmentService: EnvironmentService;
+  let planEnforcementService: PlanEnforcementService;
 
   let testAccountId: ObjectId;
   let testServiceId: ObjectId;
@@ -63,7 +67,14 @@ describe("Environments API Routes", () => {
     accountRepo = new AccountRepository(db);
     repoRepo = new RepositoryRepository(db);
     serviceRepo = new ServiceRepository(db);
+    membershipRepo = new MembershipRepository(db);
     environmentService = new EnvironmentService(serviceRepo);
+    planEnforcementService = new PlanEnforcementService(
+      accountRepo,
+      repoRepo,
+      serviceRepo,
+      membershipRepo,
+    );
   });
 
   afterAll(async () => {
@@ -82,7 +93,10 @@ describe("Environments API Routes", () => {
       "preHandler",
       createMockApiKeyAuth(() => currentAuthContext),
     );
-    registerEnvironmentsRoutes(app, { environmentService });
+    registerEnvironmentsRoutes(app, {
+      environmentService,
+      planEnforcementService,
+    });
     await app.ready();
 
     // Create test account and service

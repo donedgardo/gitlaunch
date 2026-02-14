@@ -10,8 +10,10 @@ import path from "node:path";
 import { ServiceRepository } from "../../../repositories/serviceRepository";
 import { RepositoryRepository } from "../../../repositories/repositoryRepository";
 import { AccountRepository } from "../../../repositories/accountRepository";
+import { MembershipRepository } from "../../../repositories/membershipRepository";
 import { SessionService } from "../../../services/auth/sessionService";
 import { EnvironmentService } from "../../../services/environment/environmentService";
+import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
 import { sessionAuthMiddleware } from "../../middleware/sessionAuth";
 import { registerHandlebarsHelpers } from "../../registerHandlebarsHelpers";
 import { registerSettingsRoutes } from "./settings";
@@ -24,8 +26,10 @@ describe("Settings Routes - Workflow Configuration", () => {
   let serviceRepo: ServiceRepository;
   let repositoryRepo: RepositoryRepository;
   let accountRepo: AccountRepository;
+  let membershipRepo: MembershipRepository;
   let sessionService: SessionService;
   let environmentService: EnvironmentService;
+  let planEnforcementService: PlanEnforcementService;
 
   const TEST_SECRET = "test-secret-for-sessions";
   const COOKIE_SECRET = "test-cookie-secret";
@@ -51,8 +55,15 @@ describe("Settings Routes - Workflow Configuration", () => {
     serviceRepo = new ServiceRepository(db);
     repositoryRepo = new RepositoryRepository(db);
     accountRepo = new AccountRepository(db);
+    membershipRepo = new MembershipRepository(db);
     sessionService = new SessionService(TEST_SECRET);
     environmentService = new EnvironmentService(serviceRepo);
+    planEnforcementService = new PlanEnforcementService(
+      accountRepo,
+      repositoryRepo,
+      serviceRepo,
+      membershipRepo,
+    );
 
     app = Fastify();
     await app.register(cookie, { secret: COOKIE_SECRET });
@@ -72,6 +83,7 @@ describe("Settings Routes - Workflow Configuration", () => {
       serviceRepository: serviceRepo,
       repositoryRepository: repositoryRepo,
       environmentService,
+      planEnforcementService,
     });
     await app.ready();
   });
