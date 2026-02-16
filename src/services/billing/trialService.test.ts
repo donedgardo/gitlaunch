@@ -249,4 +249,93 @@ describe("TrialService", () => {
       expect(status.daysRemaining).toBe(13);
     });
   });
+
+  describe("checkAndHandleTrialExpiry", () => {
+    it("should return expired false when account has no trial", async () => {
+      // Given: an account with no trial
+      const account = await accountRepo.create({
+        name: "No Trial",
+        slug: "no-trial",
+      });
+
+      // When: I check and handle trial expiry
+      const result = await trialService.checkAndHandleTrialExpiry(account._id);
+
+      // Then: expired is false
+      expect(result.expired).toBe(false);
+      expect(result.downgraded).toBeUndefined();
+    });
+
+    it("should return expired false when trial is still active", async () => {
+      // Given: an account with active trial (5 days remaining)
+      const account = await accountRepo.create({
+        name: "Active Trial",
+        slug: "active-trial",
+      });
+      const trialEndsAt = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000);
+      await accountRepo.setTrialEndsAt(account._id, trialEndsAt);
+      await accountRepo.selectPlan(account._id, Plan.Pro);
+
+      // When: I check and handle trial expiry
+      const result = await trialService.checkAndHandleTrialExpiry(account._id);
+
+      // Then: expired is false, account unchanged
+      expect(result.expired).toBe(false);
+      const updated = await accountRepo.findById(account._id);
+      expect(updated?.plan).toBe(Plan.Pro);
+      expect(updated?.trialEndsAt?.getTime()).toBe(trialEndsAt.getTime());
+    });
+
+    it("should downgrade to Free when trial expired with no subscription", async () => {
+      // Given: an account with expired trial and no subscription
+      const account = await accountRepo.create({
+        name: "Expired Trial",
+        slug: "expired-trial",
+      });
+      const trialEndsAt = new Date(Date.now() - 24 * 60 * 60 * 1000); // 1 day ago
+      await accountRepo.setTrialEndsAt(account._id, trialEndsAt);
+      await accountRepo.selectPlan(account._id, Plan.Pro);
+
+      // When: I check and handle trial expiry
+      const result = await trialService.checkAndHandleTrialExpiry(account._id);
+
+      // Then: expired is true, downgraded is true
+      expect(result.expired).toBe(true);
+      expect(result.downgraded).toBe(true);
+
+      // And: account is downgraded to Free with trialEndsAt cleared
+      const updated = await accountRepo.findById(account._id);
+      expect(updated?.plan).toBe(Plan.Free);
+      expect(updated?.trialEndsAt).toBeNull();
+    });
+
+    it("should clear stale trialEndsAt when trial expired but subscription exists", async () => {
+      // Given: an account with expired trial BUT has a subscription
+      const account = await accountRepo.create({
+        name: "Subscribed During Trial",
+        slug: "subscribed-during-trial",
+      });
+      const trialEndsAt = new Date(Date.now() - 24 * 60 * 60 * 1000); // 1 day ago
+      await accountRepo.setTrialEndsAt(account._id, trialEndsAt);
+      await accountRepo.upgradeToPlan(
+        account._id,
+        "cus_123",
+        "sub_123",
+        Plan.Pro,
+      );
+
+      // When: I check and handle trial expiry
+      const result = await trialService.checkAndHandleTrialExpiry(account._id);
+
+      // Then: expired is false (user subscribed, so no downgrade)
+      expect(result.expired).toBe(false);
+      expect(result.downgraded).toBeUndefined();
+
+      // And: stale trialEndsAt is cleared
+      const updated = await accountRepo.findById(account._id);
+      expect(updated?.plan).toBe(Plan.Pro);
+      expect(updated?.trialEndsAt).toBeNull();
+      expect(updated?.stripeSubscriptionId).toBe("sub_123");
+    });
+  });
 });

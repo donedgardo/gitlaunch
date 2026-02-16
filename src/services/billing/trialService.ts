@@ -12,6 +12,11 @@ export type TrialStatus =
   | { onTrial: false; expired?: boolean }
   | { onTrial: true; daysRemaining: number; trialEndsAt: Date };
 
+export type TrialExpiryResult = {
+  expired: boolean;
+  downgraded?: boolean;
+};
+
 export class TrialService {
   constructor(
     private accountRepo: AccountRepository,
@@ -72,5 +77,35 @@ export class TrialService {
       daysRemaining,
       trialEndsAt: account.trialEndsAt,
     };
+  }
+
+  async checkAndHandleTrialExpiry(
+    accountId: ObjectId,
+  ): Promise<TrialExpiryResult> {
+    const account = await this.accountRepo.findById(accountId);
+
+    // No trial set - not expired
+    if (!account || !account.trialEndsAt) {
+      return { expired: false };
+    }
+
+    const now = this.clock.now().getTime();
+    const trialEnd = account.trialEndsAt.getTime();
+
+    // Trial still active - not expired
+    if (trialEnd >= now) {
+      return { expired: false };
+    }
+
+    // Trial expired but user subscribed during trial - clear stale trialEndsAt
+    if (account.stripeSubscriptionId) {
+      await this.accountRepo.setTrialEndsAt(accountId, null);
+      return { expired: false };
+    }
+
+    // Trial expired with no subscription - downgrade to Free
+    await this.accountRepo.downgradeToFree(accountId);
+    await this.accountRepo.setTrialEndsAt(accountId, null);
+    return { expired: true, downgraded: true };
   }
 }
