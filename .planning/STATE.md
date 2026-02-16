@@ -5,24 +5,24 @@
 See: .planning/PROJECT.md (updated 2026-02-08)
 
 **Core value:** Developers can deploy their software continuously and reliably through GitLaunch, with a subscription model that lets them start with a free trial and upgrade when they see the value.
-**Current focus:** Phase 3 - Plan Enforcement & Limits
+**Current focus:** Phase 4 - Trial & Payment Lifecycle
 
 ## Current Position
 
-Phase: 3 of 4 (Plan Enforcement & Limits)
-Plan: 3 of 3 in current phase
-Status: Phase complete (including gap closure)
-Last activity: 2026-02-15 — Completed 03-03-PLAN.md
+Phase: 4 of 4 (Trial & Payment Lifecycle)
+Plan: 1 of 3 in current phase
+Status: In progress
+Last activity: 2026-02-16 — Completed 04-01-PLAN.md
 
-Progress: [█████████░] 75% (9/12 total plans)
+Progress: [█████████▓] 83% (10/12 total plans)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 9
-- Average duration: 4.7 min
-- Total execution time: 0.70 hours
+- Total plans completed: 10
+- Average duration: 4.6 min
+- Total execution time: 0.77 hours
 
 **By Phase:**
 
@@ -31,12 +31,12 @@ Progress: [█████████░] 75% (9/12 total plans)
 | 1. Billing Foundation        | 3/3   | 10min | 3.3min   |
 | 2. Plan Selection & Checkout | 3/3   | 23min | 7.7min   |
 | 3. Plan Enforcement & Limits | 3/3   | 10min | 3.3min   |
-| 4. Trial & Payment Lifecycle | 0/3   | —     | —        |
+| 4. Trial & Payment Lifecycle | 1/3   | 4min  | 4.0min   |
 
 **Recent Trend:**
 
-- Last 5 plans: 6min, 3min, 5min, 3min, 2min
-- Trend: Phase 3 complete with fast execution (avg 3.3min/plan)
+- Last 5 plans: 3min, 5min, 3min, 2min, 4min
+- Trend: Consistent fast execution (avg 3.4min over last 5)
 
 _Updated after each plan completion_
 
@@ -81,6 +81,11 @@ Recent decisions affecting current work:
 - **upgradeRequired flag in API responses** (03-02) — Enables client-side upgrade flow detection in programmatic API clients
 - **Batch limit check pattern** (03-03) — Use getUsage() for N-item operations (current + new > limit), not canAddRepository() which checks single-item
 - **canAddPrivateRepository wired into onboarding** (03-03) — Private repo enforcement via service method call, not inline boolean check
+- **One trial per GitHub user ID** (04-01) — Prevents trial abuse across multiple accounts; enforced atomically via MongoDB unique index on githubId
+- **Error code 11000 returns false, not throw** (04-01) — claimTrial returns boolean for duplicate detection (true = success, false = duplicate used)
+- **Injectable clock in services** (04-01) — Constructor accepts optional { now: () => Date } for testable date generation
+- **14-day trial duration hardcoded** (04-01) — TRIAL_DURATION_DAYS = 14 constant; can be made configurable later if needed
+- **Discriminated union result types** (04-01) — { started: true, data } | { started: false, reason } pattern for type-safe success/failure handling
 
 ### Pending Todos
 
@@ -118,10 +123,18 @@ None yet.
 - All endpoints return appropriate upgrade CTAs when limits hit
 - Batch limit checks properly account for existing resources (current + new > limit)
 - All 9 plans executed in 42 minutes (avg 4.7 min/plan for Phases 1-3)
-- Ready for Phase 4: Trial & Payment Lifecycle
+
+**Phase 4 IN PROGRESS:**
+
+- ✅ Trial management core complete (04-01)
+- ✅ TrialRegistryRepository with unique index on githubId
+- ✅ Account.trialEndsAt field for trial expiration tracking
+- ✅ TrialService coordinates trial claims with 14-day duration
+- Ready for 04-02: Trial UI and plan upgrade flows
+- Ready for 04-03: Payment lifecycle webhooks integration
 
 ## Session Continuity
 
-Last session: 2026-02-15 (plan execution)
-Stopped at: Completed 03-03-PLAN.md - Phase 3 fully complete including gap closure
-Resume file: .planning/phases/04-trial-payment-lifecycle/04-01-PLAN.md
+Last session: 2026-02-16 (plan execution)
+Stopped at: Completed 04-01-PLAN.md - Trial management core implemented with TDD
+Resume file: .planning/phases/04-trial-payment-lifecycle/04-02-PLAN.md
