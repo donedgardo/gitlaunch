@@ -10,19 +10,19 @@ See: .planning/PROJECT.md (updated 2026-02-08)
 ## Current Position
 
 Phase: 4 of 4 (Trial & Payment Lifecycle)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: In progress
-Last activity: 2026-02-16 — Completed 04-01-PLAN.md
+Last activity: 2026-02-16 — Completed 04-02-PLAN.md
 
-Progress: [█████████▓] 83% (10/12 total plans)
+Progress: [██████████] 92% (11/12 total plans)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 10
-- Average duration: 4.6 min
-- Total execution time: 0.77 hours
+- Total plans completed: 11
+- Average duration: 4.8 min
+- Total execution time: 0.88 hours
 
 **By Phase:**
 
@@ -31,12 +31,12 @@ Progress: [█████████▓] 83% (10/12 total plans)
 | 1. Billing Foundation        | 3/3   | 10min | 3.3min   |
 | 2. Plan Selection & Checkout | 3/3   | 23min | 7.7min   |
 | 3. Plan Enforcement & Limits | 3/3   | 10min | 3.3min   |
-| 4. Trial & Payment Lifecycle | 1/3   | 4min  | 4.0min   |
+| 4. Trial & Payment Lifecycle | 2/3   | 11min | 5.5min   |
 
 **Recent Trend:**
 
-- Last 5 plans: 3min, 5min, 3min, 2min, 4min
-- Trend: Consistent fast execution (avg 3.4min over last 5)
+- Last 5 plans: 5min, 3min, 2min, 4min, 7min
+- Trend: Consistent fast execution (avg 4.2min over last 5)
 
 _Updated after each plan completion_
 
@@ -86,6 +86,10 @@ Recent decisions affecting current work:
 - **Injectable clock in services** (04-01) — Constructor accepts optional { now: () => Date } for testable date generation
 - **14-day trial duration hardcoded** (04-01) — TRIAL_DURATION_DAYS = 14 constant; can be made configurable later if needed
 - **Discriminated union result types** (04-01) — { started: true, data } | { started: false, reason } pattern for type-safe success/failure handling
+- **Math.ceil for trial days remaining** (04-02) — Shows 1 day remaining on last partial day (user-friendly, creates urgency)
+- **isReadOnly derived from usage vs limits** (04-02) — Always up-to-date, no sync issues (not stored in DB)
+- **checkAndHandleTrialExpiry on dashboard load** (04-02) — Ensures timely trial expiry without cron jobs or background tasks
+- **upgradeToPlan clears trialEndsAt** (04-02) — Subscribed users shouldn't see trial countdown (better UX)
 
 ### Pending Todos
 
@@ -130,11 +134,15 @@ None yet.
 - ✅ TrialRegistryRepository with unique index on githubId
 - ✅ Account.trialEndsAt field for trial expiration tracking
 - ✅ TrialService coordinates trial claims with 14-day duration
-- Ready for 04-02: Trial UI and plan upgrade flows
+- ✅ Trial UI and flow integration complete (04-02)
+- ✅ Trial countdown banner shows days remaining on dashboard
+- ✅ Auto-downgrade to Free when trial expires (no cron needed)
+- ✅ Read-only state for over-limit resources (derived from usage vs limits)
+- ✅ upgradeToPlan clears trial state (subscribed users don't see countdown)
 - Ready for 04-03: Payment lifecycle webhooks integration
 
 ## Session Continuity
 
 Last session: 2026-02-16 (plan execution)
-Stopped at: Completed 04-01-PLAN.md - Trial management core implemented with TDD
-Resume file: .planning/phases/04-trial-payment-lifecycle/04-02-PLAN.md
+Stopped at: Completed 04-02-PLAN.md - Trial wiring and UI integration complete
+Resume file: .planning/phases/04-trial-payment-lifecycle/04-03-PLAN.md
