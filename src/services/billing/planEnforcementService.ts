@@ -1,5 +1,9 @@
 import { ObjectId } from "mongodb";
-import { AccountRepository, Plan } from "../../repositories/accountRepository";
+import {
+  AccountRepository,
+  Plan,
+  Account,
+} from "../../repositories/accountRepository";
 import { RepositoryRepository } from "../../repositories/repositoryRepository";
 import { ServiceRepository } from "../../repositories/serviceRepository";
 import { MembershipRepository } from "../../repositories/membershipRepository";
@@ -42,7 +46,11 @@ export type AccountState = {
   isReadOnly: boolean;
   usage: UsageInfo;
   trialDaysRemaining: number;
+  gracePeriodDaysRemaining: number;
+  paymentFailed: boolean;
 };
+
+export const GRACE_PERIOD_DAYS = 7;
 
 export class PlanEnforcementService {
   constructor(
@@ -244,6 +252,34 @@ export class PlanEnforcementService {
     }
   }
 
+  isInGracePeriod(account: Account | null): boolean {
+    if (!account || !account.paymentFailedAt) {
+      return false;
+    }
+
+    const gracePeriodEnd =
+      account.paymentFailedAt.getTime() +
+      GRACE_PERIOD_DAYS * 24 * 60 * 60 * 1000;
+    return gracePeriodEnd > Date.now();
+  }
+
+  getGracePeriodDaysRemaining(account: Account | null): number {
+    if (!account || !account.paymentFailedAt) {
+      return 0;
+    }
+
+    const gracePeriodEnd =
+      account.paymentFailedAt.getTime() +
+      GRACE_PERIOD_DAYS * 24 * 60 * 60 * 1000;
+    const msRemaining = gracePeriodEnd - Date.now();
+
+    if (msRemaining <= 0) {
+      return 0;
+    }
+
+    return Math.ceil(msRemaining / (24 * 60 * 60 * 1000));
+  }
+
   async getAccountState(accountId: ObjectId): Promise<AccountState> {
     const account = await this.accountRepo.findById(accountId);
     if (!account) {
@@ -252,10 +288,18 @@ export class PlanEnforcementService {
 
     const usage = await this.getUsage(accountId);
 
-    // Compute isReadOnly: true when exceeding repo or service limits
+    // Check payment failure and grace period
+    const paymentFailed = !!account.paymentFailedAt;
+    const inGracePeriod = this.isInGracePeriod(account);
+    const gracePeriodDaysRemaining = this.getGracePeriodDaysRemaining(account);
+
+    // Compute isReadOnly: true when:
+    // 1. Exceeding repo or service limits, OR
+    // 2. Payment failed AND grace period has expired (not in grace period)
     const isReadOnly =
       usage.repositories.current > usage.repositories.limit ||
-      usage.services.current > usage.services.limit;
+      usage.services.current > usage.services.limit ||
+      (paymentFailed && !inGracePeriod);
 
     // Compute trial days remaining
     let trialDaysRemaining = 0;
@@ -274,6 +318,8 @@ export class PlanEnforcementService {
       isReadOnly,
       usage,
       trialDaysRemaining,
+      gracePeriodDaysRemaining,
+      paymentFailed,
     };
   }
 }

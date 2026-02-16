@@ -748,6 +748,150 @@ describe("PlanEnforcementService", () => {
     });
   });
 
+  describe("isInGracePeriod", () => {
+    it("should return false when paymentFailedAt is null", async () => {
+      // Given: an account with no payment failure
+      const account = await accountRepo.create({
+        name: "No Payment Failure",
+        slug: "no-payment-failure",
+      });
+
+      // When: I check if in grace period
+      const inGracePeriod = service.isInGracePeriod(
+        await accountRepo.findById(account._id),
+      );
+
+      // Then: it's not in grace period
+      expect(inGracePeriod).toBe(false);
+    });
+
+    it("should return true when paymentFailedAt is within 7 days", async () => {
+      // Given: an account with payment failure 3 days ago
+      const account = await accountRepo.create({
+        name: "Recent Failure",
+        slug: "recent-failure",
+      });
+      const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+      await accountRepo.setPaymentFailed(account._id);
+      // Manually update to specific date for testing
+      await accountRepo["collection"].updateOne(
+        { _id: account._id },
+        { $set: { paymentFailedAt: threeDaysAgo } },
+      );
+
+      // When: I check if in grace period
+      const accountWithFailure = await accountRepo.findById(account._id);
+      const inGracePeriod = service.isInGracePeriod(accountWithFailure);
+
+      // Then: it's in grace period
+      expect(inGracePeriod).toBe(true);
+    });
+
+    it("should return false when paymentFailedAt is exactly 7 days ago", async () => {
+      // Given: an account with payment failure exactly 7 days ago
+      const account = await accountRepo.create({
+        name: "Seven Days Ago",
+        slug: "seven-days-ago",
+      });
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      await accountRepo.setPaymentFailed(account._id);
+      await accountRepo["collection"].updateOne(
+        { _id: account._id },
+        { $set: { paymentFailedAt: sevenDaysAgo } },
+      );
+
+      // When: I check if in grace period
+      const accountWithFailure = await accountRepo.findById(account._id);
+      const inGracePeriod = service.isInGracePeriod(accountWithFailure);
+
+      // Then: it's not in grace period (grace has expired)
+      expect(inGracePeriod).toBe(false);
+    });
+
+    it("should return false when paymentFailedAt is 10 days ago", async () => {
+      // Given: an account with payment failure 10 days ago
+      const account = await accountRepo.create({
+        name: "Ten Days Ago",
+        slug: "ten-days-ago",
+      });
+      const tenDaysAgo = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000);
+      await accountRepo.setPaymentFailed(account._id);
+      await accountRepo["collection"].updateOne(
+        { _id: account._id },
+        { $set: { paymentFailedAt: tenDaysAgo } },
+      );
+
+      // When: I check if in grace period
+      const accountWithFailure = await accountRepo.findById(account._id);
+      const inGracePeriod = service.isInGracePeriod(accountWithFailure);
+
+      // Then: it's not in grace period
+      expect(inGracePeriod).toBe(false);
+    });
+  });
+
+  describe("getGracePeriodDaysRemaining", () => {
+    it("should return 0 when paymentFailedAt is null", async () => {
+      // Given: an account with no payment failure
+      const account = await accountRepo.create({
+        name: "No Failure Days",
+        slug: "no-failure-days",
+      });
+
+      // When: I get grace period days remaining
+      const daysRemaining = service.getGracePeriodDaysRemaining(
+        await accountRepo.findById(account._id),
+      );
+
+      // Then: it's 0 days
+      expect(daysRemaining).toBe(0);
+    });
+
+    it("should return 4 days when paymentFailedAt is 3 days ago", async () => {
+      // Given: an account with payment failure 3 days ago
+      const account = await accountRepo.create({
+        name: "Three Days Grace",
+        slug: "three-days-grace",
+      });
+      const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+      await accountRepo.setPaymentFailed(account._id);
+      await accountRepo["collection"].updateOne(
+        { _id: account._id },
+        { $set: { paymentFailedAt: threeDaysAgo } },
+      );
+
+      // When: I get grace period days remaining
+      const accountWithFailure = await accountRepo.findById(account._id);
+      const daysRemaining =
+        service.getGracePeriodDaysRemaining(accountWithFailure);
+
+      // Then: it's 4 days (7 - 3)
+      expect(daysRemaining).toBe(4);
+    });
+
+    it("should return 0 when grace period has expired", async () => {
+      // Given: an account with payment failure 10 days ago
+      const account = await accountRepo.create({
+        name: "Expired Grace",
+        slug: "expired-grace",
+      });
+      const tenDaysAgo = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000);
+      await accountRepo.setPaymentFailed(account._id);
+      await accountRepo["collection"].updateOne(
+        { _id: account._id },
+        { $set: { paymentFailedAt: tenDaysAgo } },
+      );
+
+      // When: I get grace period days remaining
+      const accountWithFailure = await accountRepo.findById(account._id);
+      const daysRemaining =
+        service.getGracePeriodDaysRemaining(accountWithFailure);
+
+      // Then: it's 0 days
+      expect(daysRemaining).toBe(0);
+    });
+  });
+
   describe("getAccountState", () => {
     it("should return isReadOnly false when Free account is within limits", async () => {
       // Given: a Free account with 2/3 repos, 1/3 services
@@ -910,6 +1054,126 @@ describe("PlanEnforcementService", () => {
 
       // Then: trialDaysRemaining is 0
       expect(state.trialDaysRemaining).toBe(0);
+    });
+
+    it("should return paymentFailed false when no payment failure", async () => {
+      // Given: an account with no payment failure
+      const account = await accountRepo.create({
+        name: "No Payment Issue",
+        slug: "no-payment-issue",
+      });
+
+      // When: I get account state
+      const state = await service.getAccountState(account._id);
+
+      // Then: paymentFailed is false
+      expect(state.paymentFailed).toBe(false);
+      expect(state.gracePeriodDaysRemaining).toBe(0);
+    });
+
+    it("should return paymentFailed true and gracePeriodDaysRemaining when in grace period", async () => {
+      // Given: an account with payment failure 2 days ago
+      const account = await accountRepo.create({
+        name: "Grace Payment",
+        slug: "grace-payment",
+      });
+      await accountRepo.upgradeToPlan(
+        account._id,
+        "cus_grace",
+        "sub_grace",
+        Plan.Pro,
+      );
+      const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+      await accountRepo.setPaymentFailed(account._id);
+      await accountRepo["collection"].updateOne(
+        { _id: account._id },
+        { $set: { paymentFailedAt: twoDaysAgo } },
+      );
+
+      // When: I get account state
+      const state = await service.getAccountState(account._id);
+
+      // Then: paymentFailed is true and grace period days are computed
+      expect(state.paymentFailed).toBe(true);
+      expect(state.gracePeriodDaysRemaining).toBe(5);
+    });
+
+    it("should return isReadOnly false when payment failed but in grace period", async () => {
+      // Given: a Pro account with payment failure 2 days ago (in grace)
+      const account = await accountRepo.create({
+        name: "Pro Grace",
+        slug: "pro-grace",
+      });
+      await accountRepo.upgradeToPlan(
+        account._id,
+        "cus_pro_grace",
+        "sub_pro_grace",
+        Plan.Pro,
+      );
+      const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+      await accountRepo.setPaymentFailed(account._id);
+      await accountRepo["collection"].updateOne(
+        { _id: account._id },
+        { $set: { paymentFailedAt: twoDaysAgo } },
+      );
+      // Create 8 repos (within Pro limit of 10)
+      for (let i = 0; i < 8; i++) {
+        await repoRepo.create({
+          accountId: account._id,
+          githubRepoId: 8000 + i,
+          githubFullName: `org/grace-repo${i}`,
+          githubOwner: "org",
+          githubRepoName: `grace-repo${i}`,
+          isPrivate: false,
+        });
+      }
+
+      // When: I get account state
+      const state = await service.getAccountState(account._id);
+
+      // Then: isReadOnly is false (payment failed but in grace period)
+      expect(state.isReadOnly).toBe(false);
+      expect(state.paymentFailed).toBe(true);
+      expect(state.gracePeriodDaysRemaining).toBe(5);
+    });
+
+    it("should return isReadOnly true when payment failed and grace period expired", async () => {
+      // Given: a Pro account with payment failure 8 days ago (grace expired)
+      const account = await accountRepo.create({
+        name: "Expired Grace Pro",
+        slug: "expired-grace-pro",
+      });
+      await accountRepo.upgradeToPlan(
+        account._id,
+        "cus_expired",
+        "sub_expired",
+        Plan.Pro,
+      );
+      const eightDaysAgo = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000);
+      await accountRepo.setPaymentFailed(account._id);
+      await accountRepo["collection"].updateOne(
+        { _id: account._id },
+        { $set: { paymentFailedAt: eightDaysAgo } },
+      );
+      // Create 8 repos (within Pro limit of 10, but payment failed)
+      for (let i = 0; i < 8; i++) {
+        await repoRepo.create({
+          accountId: account._id,
+          githubRepoId: 9000 + i,
+          githubFullName: `org/expired-repo${i}`,
+          githubOwner: "org",
+          githubRepoName: `expired-repo${i}`,
+          isPrivate: false,
+        });
+      }
+
+      // When: I get account state
+      const state = await service.getAccountState(account._id);
+
+      // Then: isReadOnly is true (payment failed and grace expired)
+      expect(state.isReadOnly).toBe(true);
+      expect(state.paymentFailed).toBe(true);
+      expect(state.gracePeriodDaysRemaining).toBe(0);
     });
   });
 });
