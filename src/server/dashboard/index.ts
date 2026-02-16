@@ -5,6 +5,8 @@ import { BuildRepository, Build } from "../../repositories/buildRepository";
 import { RepositoryRepository } from "../../repositories/repositoryRepository";
 import { BuildService } from "../../services/build/buildService";
 import { DeploymentStatus } from "../../services/service/deploymentStatus";
+import { TrialService } from "../../services/billing/trialService";
+import { PlanEnforcementService } from "../../services/billing/planEnforcementService";
 
 const DEFAULT_PAGE_SIZE = 20;
 
@@ -13,6 +15,8 @@ export type DashboardRoutesDeps = {
   buildRepository: BuildRepository;
   repositoryRepository: RepositoryRepository;
   buildService: BuildService;
+  trialService: TrialService;
+  planEnforcementService: PlanEnforcementService;
 };
 
 export default function (deps: DashboardRoutesDeps) {
@@ -21,6 +25,8 @@ export default function (deps: DashboardRoutesDeps) {
     buildRepository,
     repositoryRepository,
     buildService,
+    trialService,
+    planEnforcementService,
   } = deps;
 
   return function (server: FastifyInstance, opts: any, done: any) {
@@ -58,6 +64,13 @@ export default function (deps: DashboardRoutesDeps) {
     const dashboardHandler = async (req: FastifyRequest, res: FastifyReply) => {
       const accountId = new ObjectId(req.session!.accountId);
 
+      // Check and handle trial expiry (auto-downgrade if needed)
+      await trialService.checkAndHandleTrialExpiry(accountId);
+
+      // Get account state for trial/read-only banners
+      const accountState =
+        await planEnforcementService.getAccountState(accountId);
+
       // Load services from database
       const services = await serviceRepository.findByAccountId(accountId);
 
@@ -70,6 +83,8 @@ export default function (deps: DashboardRoutesDeps) {
             activeService: null,
             environments: [],
             builds: [],
+            trialDaysRemaining: accountState.trialDaysRemaining,
+            isReadOnly: accountState.isReadOnly,
           },
           {
             layout: "/layouts/main.hbs",
@@ -110,6 +125,13 @@ export default function (deps: DashboardRoutesDeps) {
         const accountId = new ObjectId(req.session!.accountId);
         const { serviceName } = req.params;
         const page = req.query.page ?? 1;
+
+        // Check and handle trial expiry (auto-downgrade if needed)
+        await trialService.checkAndHandleTrialExpiry(accountId);
+
+        // Get account state for trial/read-only banners
+        const accountState =
+          await planEnforcementService.getAccountState(accountId);
 
         // Load all services for navigation
         const services = await serviceRepository.findByAccountId(accountId);
@@ -183,6 +205,8 @@ export default function (deps: DashboardRoutesDeps) {
               githubFullName,
               needsDeploymentSetup,
               pagination,
+              trialDaysRemaining: accountState.trialDaysRemaining,
+              isReadOnly: accountState.isReadOnly,
             },
             { layout: "" },
           );
@@ -200,6 +224,8 @@ export default function (deps: DashboardRoutesDeps) {
             githubFullName,
             needsDeploymentSetup,
             pagination,
+            trialDaysRemaining: accountState.trialDaysRemaining,
+            isReadOnly: accountState.isReadOnly,
           },
           {
             layout: "/layouts/main.hbs",

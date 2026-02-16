@@ -5,14 +5,18 @@ import {
   Plan,
 } from "../../../repositories/accountRepository";
 import { RepositoryRepository } from "../../../repositories/repositoryRepository";
+import { UserRepository } from "../../../repositories/userRepository";
 import { GitHubAppService } from "../../../services/github/githubAppService";
 import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
+import { TrialService } from "../../../services/billing/trialService";
 
 export type OnboardingRoutesDeps = {
   accountRepository: AccountRepository;
   repositoryRepository: RepositoryRepository;
+  userRepository: UserRepository;
   gitHubAppService: GitHubAppService;
   planEnforcementService: PlanEnforcementService;
+  trialService: TrialService;
 };
 
 export function registerOnboardingRoutes(
@@ -22,8 +26,10 @@ export function registerOnboardingRoutes(
   const {
     accountRepository,
     repositoryRepository,
+    userRepository,
     gitHubAppService,
     planEnforcementService,
+    trialService,
   } = deps;
 
   // GET /onboarding/plan-selection - Plan selection page
@@ -85,8 +91,33 @@ export function registerOnboardingRoutes(
         return reply.status(400).send({ error: "Invalid plan" });
       }
 
-      // Set plan on account
-      await accountRepository.selectPlan(account._id, plan as Plan);
+      const selectedPlan = plan as Plan;
+
+      // If paid plan (Pro or Team), attempt to start trial
+      if (selectedPlan === Plan.Pro || selectedPlan === Plan.Team) {
+        // Get user's GitHub ID from session
+        const user = await userRepository.findById(
+          new ObjectId(request.session.userId),
+        );
+        if (user) {
+          const trialResult = await trialService.startTrial(
+            account._id,
+            user.githubId,
+            selectedPlan,
+          );
+
+          // If trial didn't start (already used), still select the plan
+          // User chose this plan, so respect their choice
+          if (!trialResult.started) {
+            console.log(
+              `Trial not started for account ${account._id}: ${trialResult.reason}`,
+            );
+          }
+        }
+      }
+
+      // Set plan on account (always, even if trial didn't start)
+      await accountRepository.selectPlan(account._id, selectedPlan);
 
       // Redirect to GitHub App install step
       return reply.redirect("/onboarding");

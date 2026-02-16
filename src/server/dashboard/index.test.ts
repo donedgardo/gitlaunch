@@ -18,12 +18,17 @@ import EventEmitter from "node:events";
 import { ServiceRepository } from "../../repositories/serviceRepository";
 import { BuildRepository } from "../../repositories/buildRepository";
 import { RepositoryRepository } from "../../repositories/repositoryRepository";
+import { AccountRepository } from "../../repositories/accountRepository";
+import { MembershipRepository } from "../../repositories/membershipRepository";
+import { TrialRegistryRepository } from "../../repositories/trialRegistryRepository";
 import { DeploymentStatus } from "../../services/service/deploymentStatus";
 import { SessionService } from "../../services/auth/sessionService";
 import { sessionAuthMiddleware } from "../middleware/sessionAuth";
 import { registerHandlebarsHelpers } from "../registerHandlebarsHelpers";
 import { BuildService } from "../../services/build/buildService";
 import { BuildDispatchServiceI } from "../../services/build/buildDispatchService";
+import { PlanEnforcementService } from "../../services/billing/planEnforcementService";
+import { TrialService } from "../../services/billing/trialService";
 import dashboardRoutes from "./index";
 
 describe("Dashboard Routes", () => {
@@ -34,8 +39,13 @@ describe("Dashboard Routes", () => {
   let serviceRepo: ServiceRepository;
   let buildRepo: BuildRepository;
   let repositoryRepo: RepositoryRepository;
+  let accountRepo: AccountRepository;
+  let membershipRepo: MembershipRepository;
+  let trialRegistryRepo: TrialRegistryRepository;
   let sessionService: SessionService;
   let buildService: BuildService;
+  let planEnforcementService: PlanEnforcementService;
+  let trialService: TrialService;
   let mockDispatcher: BuildDispatchServiceI;
   let eventEmitter: EventEmitter;
 
@@ -59,11 +69,27 @@ describe("Dashboard Routes", () => {
     await db.collection("services").deleteMany({});
     await db.collection("builds").deleteMany({});
     await db.collection("repositories").deleteMany({});
+    await db.collection("accounts").deleteMany({});
+    await db.collection("memberships").deleteMany({});
+    await db.collection("trialRegistry").deleteMany({});
     vi.clearAllMocks();
 
     serviceRepo = new ServiceRepository(db);
     buildRepo = new BuildRepository(db);
     repositoryRepo = new RepositoryRepository(db);
+    accountRepo = new AccountRepository(db);
+    membershipRepo = new MembershipRepository(db);
+    trialRegistryRepo = new TrialRegistryRepository(db);
+    await trialRegistryRepo.ensureIndexes();
+
+    planEnforcementService = new PlanEnforcementService(
+      accountRepo,
+      repositoryRepo,
+      serviceRepo,
+      membershipRepo,
+    );
+    trialService = new TrialService(accountRepo, trialRegistryRepo);
+
     sessionService = new SessionService(TEST_SECRET);
     eventEmitter = new EventEmitter();
     mockDispatcher = {
@@ -103,6 +129,8 @@ describe("Dashboard Routes", () => {
         buildRepository: buildRepo,
         repositoryRepository: repositoryRepo,
         buildService,
+        trialService,
+        planEnforcementService,
       }),
     );
     await app.ready();
@@ -111,7 +139,11 @@ describe("Dashboard Routes", () => {
   describe("GET /dashboard/:serviceName", () => {
     it("should show a 'New Service' link in navigation when services exist", async () => {
       // Given: an authenticated user with a service
-      const accountId = new ObjectId();
+      const account = await accountRepo.create({
+        name: "Test Org",
+        slug: "test-org",
+      });
+      const accountId = account._id;
       const userId = new ObjectId();
       const repositoryId = new ObjectId();
 
@@ -159,7 +191,11 @@ describe("Dashboard Routes", () => {
 
     it("should show deployment setup guide when builds exist but workflow not configured", async () => {
       // Given: service with builds, workflow not configured
-      const accountId = new ObjectId();
+      const account = await accountRepo.create({
+        name: "Test Org",
+        slug: `test-org-${Date.now()}-${Math.random()}`,
+      });
+      const accountId = account._id;
       const userId = new ObjectId();
       const repositoryId = new ObjectId();
 
@@ -213,7 +249,11 @@ describe("Dashboard Routes", () => {
 
     it("should not show deployment setup guide when workflow is configured", async () => {
       // Given: service with builds and workflow configured
-      const accountId = new ObjectId();
+      const account = await accountRepo.create({
+        name: "Test Org",
+        slug: `test-org-${Date.now()}-${Math.random()}`,
+      });
+      const accountId = account._id;
       const userId = new ObjectId();
       const repositoryId = new ObjectId();
 
@@ -276,7 +316,11 @@ describe("Dashboard Routes", () => {
   describe("PATCH /services/:serviceId/builds/:buildId/deploy/:env", () => {
     it("should trigger deployment and return HTML partial for HTMX swap", async () => {
       // Given: an authenticated user with a service and build
-      const accountId = new ObjectId();
+      const account = await accountRepo.create({
+        name: "Test Org",
+        slug: `test-org-${Date.now()}-${Math.random()}`,
+      });
+      const accountId = account._id;
       const userId = new ObjectId();
       const repositoryId = new ObjectId();
 
@@ -335,7 +379,11 @@ describe("Dashboard Routes", () => {
 
     it("should return 404 when service not found", async () => {
       // Given: authenticated user but service doesn't exist
-      const accountId = new ObjectId();
+      const account = await accountRepo.create({
+        name: "Test Org",
+        slug: `test-org-${Date.now()}-${Math.random()}`,
+      });
+      const accountId = account._id;
       const userId = new ObjectId();
       const nonExistentServiceId = new ObjectId();
 
@@ -410,7 +458,11 @@ describe("Dashboard Routes", () => {
 
     it("should return 400 for invalid environment", async () => {
       // Given: a service with specific environments
-      const accountId = new ObjectId();
+      const account = await accountRepo.create({
+        name: "Test Org",
+        slug: `test-org-${Date.now()}-${Math.random()}`,
+      });
+      const accountId = account._id;
       const userId = new ObjectId();
       const repositoryId = new ObjectId();
 
@@ -471,7 +523,11 @@ describe("Dashboard Routes", () => {
 
     it("should return 400 for invalid service ID format", async () => {
       // Given: authenticated user
-      const accountId = new ObjectId();
+      const account = await accountRepo.create({
+        name: "Test Org",
+        slug: `test-org-${Date.now()}-${Math.random()}`,
+      });
+      const accountId = account._id;
       const userId = new ObjectId();
 
       const sessionToken = sessionService.createSession({
@@ -496,7 +552,11 @@ describe("Dashboard Routes", () => {
   describe("DELETE /services/:serviceId/builds/:buildId/deploy/:env - Cancel deployment", () => {
     it("should cancel a deploying deployment and return updated status", async () => {
       // Given: authenticated user with a service and a deploying build
-      const accountId = new ObjectId();
+      const account = await accountRepo.create({
+        name: "Test Org",
+        slug: `test-org-${Date.now()}-${Math.random()}`,
+      });
+      const accountId = account._id;
       const userId = new ObjectId();
 
       const repository = await repositoryRepo.create({
@@ -557,7 +617,11 @@ describe("Dashboard Routes", () => {
 
     it("should return 400 when trying to cancel a non-cancellable status", async () => {
       // Given: authenticated user with a deployed build
-      const accountId = new ObjectId();
+      const account = await accountRepo.create({
+        name: "Test Org",
+        slug: `test-org-${Date.now()}-${Math.random()}`,
+      });
+      const accountId = account._id;
       const userId = new ObjectId();
 
       const repository = await repositoryRepo.create({
@@ -611,7 +675,11 @@ describe("Dashboard Routes", () => {
   describe("GET /dashboard/:serviceName - Pagination", () => {
     it("should default to page 1 when no page parameter provided", async () => {
       // Given: authenticated user with a service and 25 builds
-      const accountId = new ObjectId();
+      const account = await accountRepo.create({
+        name: "Test Org",
+        slug: `test-org-${Date.now()}-${Math.random()}`,
+      });
+      const accountId = account._id;
       const userId = new ObjectId();
       const repositoryId = new ObjectId();
 
@@ -674,7 +742,11 @@ describe("Dashboard Routes", () => {
 
     it("should load page 2 when ?page=2 is provided", async () => {
       // Given: authenticated user with a service and 25 builds
-      const accountId = new ObjectId();
+      const account = await accountRepo.create({
+        name: "Test Org",
+        slug: `test-org-${Date.now()}-${Math.random()}`,
+      });
+      const accountId = account._id;
       const userId = new ObjectId();
       const repositoryId = new ObjectId();
 
@@ -737,7 +809,11 @@ describe("Dashboard Routes", () => {
 
     it("should pass pagination metadata with hasMore=true on page 1 when there are more builds", async () => {
       // Given: authenticated user with 25 builds (more than one page)
-      const accountId = new ObjectId();
+      const account = await accountRepo.create({
+        name: "Test Org",
+        slug: `test-org-${Date.now()}-${Math.random()}`,
+      });
+      const accountId = account._id;
       const userId = new ObjectId();
       const repositoryId = new ObjectId();
 
@@ -789,7 +865,11 @@ describe("Dashboard Routes", () => {
 
     it("should pass pagination metadata with hasMore=false on last page", async () => {
       // Given: authenticated user with 25 builds
-      const accountId = new ObjectId();
+      const account = await accountRepo.create({
+        name: "Test Org",
+        slug: `test-org-${Date.now()}-${Math.random()}`,
+      });
+      const accountId = account._id;
       const userId = new ObjectId();
       const repositoryId = new ObjectId();
 
@@ -840,7 +920,11 @@ describe("Dashboard Routes", () => {
 
     it("should pass pagination data to HTMX partial requests", async () => {
       // Given: authenticated user with 25 builds
-      const accountId = new ObjectId();
+      const account = await accountRepo.create({
+        name: "Test Org",
+        slug: `test-org-${Date.now()}-${Math.random()}`,
+      });
+      const accountId = account._id;
       const userId = new ObjectId();
       const repositoryId = new ObjectId();
 
@@ -900,7 +984,11 @@ describe("Dashboard Routes", () => {
 
     it("should handle empty builds with pagination correctly", async () => {
       // Given: authenticated user with service but no builds
-      const accountId = new ObjectId();
+      const account = await accountRepo.create({
+        name: "Test Org",
+        slug: `test-org-${Date.now()}-${Math.random()}`,
+      });
+      const accountId = account._id;
       const userId = new ObjectId();
       const repositoryId = new ObjectId();
 
@@ -944,7 +1032,11 @@ describe("Dashboard Routes", () => {
 
     it("should still show deployment setup guide on page 2+ when workflow not configured", async () => {
       // Given: service with 25 builds, workflow not configured
-      const accountId = new ObjectId();
+      const account = await accountRepo.create({
+        name: "Test Org",
+        slug: `test-org-${Date.now()}-${Math.random()}`,
+      });
+      const accountId = account._id;
       const userId = new ObjectId();
       const repositoryId = new ObjectId();
 
@@ -995,7 +1087,11 @@ describe("Dashboard Routes", () => {
 
     it("should display pagination controls when builds span multiple pages", async () => {
       // Given: authenticated user with 25 builds (requires 2 pages)
-      const accountId = new ObjectId();
+      const account = await accountRepo.create({
+        name: "Test Org",
+        slug: `test-org-${Date.now()}-${Math.random()}`,
+      });
+      const accountId = account._id;
       const userId = new ObjectId();
       const repositoryId = new ObjectId();
 

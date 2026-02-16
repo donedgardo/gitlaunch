@@ -30,11 +30,13 @@ import { RepositoryRepository } from "../repositories/repositoryRepository";
 import { ServiceRepository } from "../repositories/serviceRepository";
 import { ApiKeyRepository } from "../repositories/apiKeyRepository";
 import { WebhookEventRepository } from "../repositories/webhookEventRepository";
+import { TrialRegistryRepository } from "../repositories/trialRegistryRepository";
 import { GitHubAppService } from "../services/github/githubAppService";
 import { InstallationTokenService } from "../services/github/installationTokenService";
 import { ApiKeyService } from "../services/apiKey/apiKeyService";
 import { EnvironmentService } from "../services/environment/environmentService";
 import { PlanEnforcementService } from "../services/billing/planEnforcementService";
+import { TrialService } from "../services/billing/trialService";
 import { StripeWebhookHandler } from "../services/billing/webhookHandler";
 import { StripeService } from "../services/billing/stripeService";
 import { StripeApiClient } from "../services/billing/stripeApiClient";
@@ -76,6 +78,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
   const serviceRepository = new ServiceRepository(database);
   const apiKeyRepository = new ApiKeyRepository(database);
   const buildRepository = new BuildRepository(database);
+  const trialRegistryRepository = new TrialRegistryRepository(database);
 
   // Services
   const apiKeyService = new ApiKeyService(apiKeyRepository, accountRepository);
@@ -84,6 +87,10 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     repositoryRepository,
     serviceRepository,
     membershipRepository,
+  );
+  const trialService = new TrialService(
+    accountRepository,
+    trialRegistryRepository,
   );
 
   // GitHub dispatch service for triggering workflows
@@ -149,6 +156,8 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
       buildRepository,
       repositoryRepository,
       buildService,
+      trialService,
+      planEnforcementService,
     }),
   );
   server.register(
@@ -176,8 +185,10 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
   registerOnboardingRoutes(server, {
     accountRepository,
     repositoryRepository,
+    userRepository,
     gitHubAppService,
     planEnforcementService,
+    trialService,
   });
 
   // Service management routes

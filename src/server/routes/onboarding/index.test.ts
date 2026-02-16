@@ -11,8 +11,11 @@ import {
 import { RepositoryRepository } from "../../../repositories/repositoryRepository";
 import { ServiceRepository } from "../../../repositories/serviceRepository";
 import { MembershipRepository } from "../../../repositories/membershipRepository";
+import { UserRepository } from "../../../repositories/userRepository";
+import { TrialRegistryRepository } from "../../../repositories/trialRegistryRepository";
 import { GitHubAppService } from "../../../services/github/githubAppService";
 import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
+import { TrialService } from "../../../services/billing/trialService";
 import { SessionService } from "../../../services/auth/sessionService";
 import { sessionAuthMiddleware } from "../../middleware/sessionAuth";
 import { mockViewPlugin } from "../../testing/mockViewPlugin";
@@ -57,7 +60,10 @@ describe("Onboarding Routes", () => {
   let accountRepo: AccountRepository;
   let repositoryRepo: RepositoryRepository;
   let membershipRepo: MembershipRepository;
+  let userRepo: UserRepository;
+  let trialRegistryRepo: TrialRegistryRepository;
   let planEnforcementService: PlanEnforcementService;
+  let trialService: TrialService;
   let fakeGitHubAppService: FakeGitHubAppService;
   let sessionService: SessionService;
 
@@ -81,17 +87,24 @@ describe("Onboarding Routes", () => {
     await db.collection("repositories").deleteMany({});
     await db.collection("services").deleteMany({});
     await db.collection("memberships").deleteMany({});
+    await db.collection("users").deleteMany({});
+    await db.collection("trialRegistry").deleteMany({});
 
     accountRepo = new AccountRepository(db);
     repositoryRepo = new RepositoryRepository(db);
     const serviceRepo = new ServiceRepository(db);
     membershipRepo = new MembershipRepository(db);
+    userRepo = new UserRepository(db);
+    trialRegistryRepo = new TrialRegistryRepository(db);
+    await trialRegistryRepo.ensureIndexes();
+
     planEnforcementService = new PlanEnforcementService(
       accountRepo,
       repositoryRepo,
       serviceRepo,
       membershipRepo,
     );
+    trialService = new TrialService(accountRepo, trialRegistryRepo);
     fakeGitHubAppService = new FakeGitHubAppService();
     sessionService = new SessionService(TEST_SECRET);
 
@@ -102,9 +115,11 @@ describe("Onboarding Routes", () => {
     sessionAuthMiddleware(app, sessionService);
     registerOnboardingRoutes(app, {
       accountRepository: accountRepo,
-      gitHubAppService: fakeGitHubAppService as unknown as GitHubAppService,
       repositoryRepository: repositoryRepo,
+      userRepository: userRepo,
+      gitHubAppService: fakeGitHubAppService as unknown as GitHubAppService,
       planEnforcementService,
+      trialService,
     });
     await app.ready();
   });
@@ -222,9 +237,16 @@ describe("Onboarding Routes", () => {
         slug: "pro-org",
       });
 
-      const userId = new ObjectId();
+      const user = await userRepo.create({
+        githubId: 12345,
+        githubLogin: "testuser",
+        email: "test@example.com",
+        name: "Test User",
+        avatarUrl: null,
+      });
+
       const sessionToken = sessionService.createSession({
-        userId,
+        userId: user._id,
         accountId: account._id,
       });
 
@@ -258,9 +280,16 @@ describe("Onboarding Routes", () => {
         slug: "team-org",
       });
 
-      const userId = new ObjectId();
+      const user = await userRepo.create({
+        githubId: 67890,
+        githubLogin: "teamuser",
+        email: "team@example.com",
+        name: "Team User",
+        avatarUrl: null,
+      });
+
       const sessionToken = sessionService.createSession({
-        userId,
+        userId: user._id,
         accountId: account._id,
       });
 
