@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { MongoMemoryServer } from "mongodb-memory-server";
-import { MongoClient, Db, ObjectId } from "mongodb";
+import { MongoClient, Db } from "mongodb";
 import { TrialService } from "./trialService";
 import { AccountRepository, Plan } from "../../repositories/accountRepository";
 import { TrialRegistryRepository } from "../../repositories/trialRegistryRepository";
@@ -53,7 +53,9 @@ describe("TrialService", () => {
 
       // Then: the trial is rejected
       expect(result.started).toBe(false);
-      expect(result.reason).toBe("Cannot start trial on Free plan");
+      if (!result.started) {
+        expect(result.reason).toBe("Cannot start trial on Free plan");
+      }
     });
 
     it("should start trial for Pro plan with first-time GitHub user", async () => {
@@ -73,15 +75,17 @@ describe("TrialService", () => {
 
       // Then: the trial starts successfully
       expect(result.started).toBe(true);
-      expect(result.trialEndsAt).toBeDefined();
+      if (result.started) {
+        expect(result.trialEndsAt).toBeDefined();
 
-      // And: the account is updated with Pro plan and trial end date
-      const updated = await accountRepo.findById(account._id);
-      expect(updated?.plan).toBe(Plan.Pro);
-      expect(updated?.trialEndsAt).not.toBeNull();
-      expect(updated?.trialEndsAt?.getTime()).toBe(
-        result.trialEndsAt?.getTime(),
-      );
+        // And: the account is updated with Pro plan and trial end date
+        const updated = await accountRepo.findById(account._id);
+        expect(updated?.plan).toBe(Plan.Pro);
+        expect(updated?.trialEndsAt).not.toBeNull();
+        expect(updated?.trialEndsAt?.getTime()).toBe(
+          result.trialEndsAt.getTime(),
+        );
+      }
     });
 
     it("should start trial for Team plan with first-time GitHub user", async () => {
@@ -101,12 +105,14 @@ describe("TrialService", () => {
 
       // Then: the trial starts successfully
       expect(result.started).toBe(true);
-      expect(result.trialEndsAt).toBeDefined();
+      if (result.started) {
+        expect(result.trialEndsAt).toBeDefined();
 
-      // And: the account is updated with Team plan and trial end date
-      const updated = await accountRepo.findById(account._id);
-      expect(updated?.plan).toBe(Plan.Team);
-      expect(updated?.trialEndsAt).not.toBeNull();
+        // And: the account is updated with Team plan and trial end date
+        const updated = await accountRepo.findById(account._id);
+        expect(updated?.plan).toBe(Plan.Team);
+        expect(updated?.trialEndsAt).not.toBeNull();
+      }
     });
 
     it("should set trial end date to 14 days from now", async () => {
@@ -127,11 +133,16 @@ describe("TrialService", () => {
       const afterStart = Date.now();
 
       // Then: trial ends 14 days from now (with small tolerance for test execution time)
-      const fourteenDaysMs = 14 * 24 * 60 * 60 * 1000;
-      const expectedMin = beforeStart + fourteenDaysMs;
-      const expectedMax = afterStart + fourteenDaysMs;
-      expect(result.trialEndsAt!.getTime()).toBeGreaterThanOrEqual(expectedMin);
-      expect(result.trialEndsAt!.getTime()).toBeLessThanOrEqual(expectedMax);
+      expect(result.started).toBe(true);
+      if (result.started) {
+        const fourteenDaysMs = 14 * 24 * 60 * 60 * 1000;
+        const expectedMin = beforeStart + fourteenDaysMs;
+        const expectedMax = afterStart + fourteenDaysMs;
+        expect(result.trialEndsAt.getTime()).toBeGreaterThanOrEqual(
+          expectedMin,
+        );
+        expect(result.trialEndsAt.getTime()).toBeLessThanOrEqual(expectedMax);
+      }
     });
 
     it("should reject trial start when GitHub user already claimed trial on same account", async () => {
@@ -152,7 +163,9 @@ describe("TrialService", () => {
 
       // Then: the trial is rejected
       expect(result.started).toBe(false);
-      expect(result.reason).toBe("Trial already used");
+      if (!result.started) {
+        expect(result.reason).toBe("Trial already used");
+      }
     });
 
     it("should reject trial start when GitHub user already claimed trial on different account", async () => {
@@ -177,7 +190,9 @@ describe("TrialService", () => {
 
       // Then: the trial is rejected (one trial per GitHub user)
       expect(result.started).toBe(false);
-      expect(result.reason).toBe("Trial already used");
+      if (!result.started) {
+        expect(result.reason).toBe("Trial already used");
+      }
     });
   });
 
@@ -194,7 +209,9 @@ describe("TrialService", () => {
 
       // Then: onTrial is false
       expect(status.onTrial).toBe(false);
-      expect(status.expired).toBeUndefined();
+      if (!status.onTrial) {
+        expect(status.expired).toBeUndefined();
+      }
     });
 
     it("should return onTrial true with days remaining when trial is active", async () => {
@@ -211,9 +228,11 @@ describe("TrialService", () => {
 
       // Then: onTrial is true with days remaining
       expect(status.onTrial).toBe(true);
-      expect(status.daysRemaining).toBeGreaterThanOrEqual(13);
-      expect(status.daysRemaining).toBeLessThanOrEqual(14);
-      expect(status.trialEndsAt?.getTime()).toBe(trialEndsAt.getTime());
+      if (status.onTrial) {
+        expect(status.daysRemaining).toBeGreaterThanOrEqual(13);
+        expect(status.daysRemaining).toBeLessThanOrEqual(14);
+        expect(status.trialEndsAt.getTime()).toBe(trialEndsAt.getTime());
+      }
     });
 
     it("should return onTrial false with expired true when trial ended", async () => {
@@ -230,7 +249,9 @@ describe("TrialService", () => {
 
       // Then: onTrial is false and expired is true
       expect(status.onTrial).toBe(false);
-      expect(status.expired).toBe(true);
+      if (!status.onTrial) {
+        expect(status.expired).toBe(true);
+      }
     });
 
     it("should calculate days remaining correctly for partial days", async () => {
@@ -246,7 +267,10 @@ describe("TrialService", () => {
       const status = await trialService.getTrialStatus(account._id);
 
       // Then: daysRemaining is 13 (rounded down)
-      expect(status.daysRemaining).toBe(13);
+      expect(status.onTrial).toBe(true);
+      if (status.onTrial) {
+        expect(status.daysRemaining).toBe(13);
+      }
     });
   });
 
