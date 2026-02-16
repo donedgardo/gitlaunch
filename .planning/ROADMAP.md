@@ -97,9 +97,9 @@ Plans:
 
 Plans:
 
-- [ ] 04-01: Trial management (start trial on plan selection, countdown UI, one-trial-per-GitHub-ID enforcement)
-- [ ] 04-02: Auto-downgrade on trial expiry with read-only enforcement for over-limit resources
-- [ ] 04-03: Payment failure handling with grace periods and user notifications
+- [ ] 04-01-PLAN.md — Trial management core: TrialRegistryRepository, Account schema extension, TrialService (TDD)
+- [ ] 04-02-PLAN.md — Wire trial into onboarding + dashboard, auto-downgrade on expiry, read-only state, countdown UI (TDD)
+- [ ] 04-03-PLAN.md — Payment failure grace periods with UI warnings on dashboard and billing settings (TDD)
 
 ## Progress
 
