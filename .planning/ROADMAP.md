@@ -77,7 +77,7 @@ Plans:
 
 - [x] 03-01-PLAN.md — Add environment limit checking to PlanEnforcementService (TDD)
 - [x] 03-02-PLAN.md — Wire enforcement into environment creation endpoints with upgrade CTAs
-- [ ] 03-03-PLAN.md — Gap closure: Wire canAddPrivateRepository into repository creation and fix batch limit check (TDD)
+- [x] 03-03-PLAN.md — Gap closure: Wire canAddPrivateRepository into repository creation and fix batch limit check (TDD)
 
 ### Phase 4: Trial & Payment Lifecycle
 
@@ -110,5 +110,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | ---------------------------- | -------------- | ----------- | ---------- |
 | 1. Billing Foundation        | 3/3            | ✓ Complete  | 2026-02-09 |
 | 2. Plan Selection & Checkout | 3/3            | ✓ Complete  | 2026-02-11 |
-| 3. Plan Enforcement & Limits | 2/3            | Gap closure | 2026-02-14 |
+| 3. Plan Enforcement & Limits | 3/3            | ✓ Complete  | 2026-02-15 |
 | 4. Trial & Payment Lifecycle | 0/3            | Not started | -          |

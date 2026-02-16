@@ -10,19 +10,19 @@ See: .planning/PROJECT.md (updated 2026-02-08)
 ## Current Position
 
 Phase: 3 of 4 (Plan Enforcement & Limits)
-Plan: 2 of 2 in current phase
-Status: Phase complete
-Last activity: 2026-02-14 — Completed 03-02-PLAN.md
+Plan: 3 of 3 in current phase
+Status: Phase complete (including gap closure)
+Last activity: 2026-02-15 — Completed 03-03-PLAN.md
 
-Progress: [████████░░] 73% (8/11 total plans)
+Progress: [█████████░] 75% (9/12 total plans)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 8
-- Average duration: 5.0 min
-- Total execution time: 0.67 hours
+- Total plans completed: 9
+- Average duration: 4.7 min
+- Total execution time: 0.70 hours
 
 **By Phase:**
 
@@ -30,13 +30,13 @@ Progress: [████████░░] 73% (8/11 total plans)
 | ---------------------------- | ----- | ----- | -------- |
 | 1. Billing Foundation        | 3/3   | 10min | 3.3min   |
 | 2. Plan Selection & Checkout | 3/3   | 23min | 7.7min   |
-| 3. Plan Enforcement & Limits | 2/2   | 8min  | 4.0min   |
+| 3. Plan Enforcement & Limits | 3/3   | 10min | 3.3min   |
 | 4. Trial & Payment Lifecycle | 0/3   | —     | —        |
 
 **Recent Trend:**
 
-- Last 5 plans: 3min, 6min, 3min, 5min
-- Trend: Phase 3 complete with fast execution (avg 4min/plan)
+- Last 5 plans: 6min, 3min, 5min, 3min, 2min
+- Trend: Phase 3 complete with fast execution (avg 3.3min/plan)
 
 _Updated after each plan completion_
 
@@ -79,6 +79,8 @@ Recent decisions affecting current work:
 - **403 for plan limits, not 400** (03-02) — Plan limits are authorization constraints (forbidden), not input validation errors (bad request)
 - **Dual response patterns for HTMX vs API** (03-02) — HTMX route returns error partial (200 with error in template), API route returns 403 with JSON
 - **upgradeRequired flag in API responses** (03-02) — Enables client-side upgrade flow detection in programmatic API clients
+- **Batch limit check pattern** (03-03) — Use getUsage() for N-item operations (current + new > limit), not canAddRepository() which checks single-item
+- **canAddPrivateRepository wired into onboarding** (03-03) — Private repo enforcement via service method call, not inline boolean check
 
 ### Pending Todos
 
@@ -110,12 +112,16 @@ None yet.
 
 - ✅ Environment limit enforcement complete (03-01)
 - ✅ Enforcement wired into all environment creation endpoints (03-02)
+- ✅ Repository batch limit gap closed (03-03)
+- ✅ canAddPrivateRepository wired into repository onboarding
 - Plan enforcement now covers all resource types: repos, services, users, environments
 - All endpoints return appropriate upgrade CTAs when limits hit
+- Batch limit checks properly account for existing resources (current + new > limit)
+- All 9 plans executed in 42 minutes (avg 4.7 min/plan for Phases 1-3)
 - Ready for Phase 4: Trial & Payment Lifecycle
 
 ## Session Continuity
 
-Last session: 2026-02-14 (plan execution)
-Stopped at: Completed 03-02-PLAN.md - Phase 3 complete
+Last session: 2026-02-15 (plan execution)
+Stopped at: Completed 03-03-PLAN.md - Phase 3 fully complete including gap closure
 Resume file: .planning/phases/04-trial-payment-lifecycle/04-01-PLAN.md
