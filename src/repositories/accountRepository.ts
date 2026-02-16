@@ -23,6 +23,7 @@ export type Account = {
   stripeCustomerId: string | null;
   stripeSubscriptionId: string | null;
   paymentFailedAt: Date | null;
+  trialEndsAt: Date | null;
   githubInstallationId: number | null;
   githubInstallationAccessToken: string | null;
   githubInstallationTokenExpiresAt: Date | null;
@@ -87,6 +88,7 @@ export class AccountRepository {
       stripeCustomerId: null,
       stripeSubscriptionId: null,
       paymentFailedAt: null,
+      trialEndsAt: null,
       githubInstallationId: null,
       githubInstallationAccessToken: null,
       githubInstallationTokenExpiresAt: null,
@@ -200,6 +202,18 @@ export class AccountRepository {
       {
         $set: {
           paymentFailedAt: null,
+          updatedAt: new Date(),
+        },
+      },
+    );
+  }
+
+  async setTrialEndsAt(id: ObjectId, trialEndsAt: Date | null): Promise<void> {
+    await this.collection.updateOne(
+      { _id: id },
+      {
+        $set: {
+          trialEndsAt,
           updatedAt: new Date(),
         },
       },
