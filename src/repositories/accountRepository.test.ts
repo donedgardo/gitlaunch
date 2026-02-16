@@ -305,4 +305,54 @@ describe("AccountRepository", () => {
       expect(updated?.stripeSubscriptionId).toBe("sub_existing");
     });
   });
+
+  describe("create with trialEndsAt", () => {
+    it("should create account with trialEndsAt set to null by default", async () => {
+      // Given: account details
+      const input = { name: "Trial Test", slug: "trial-test" };
+
+      // When: I create the account
+      const account = await repo.create(input);
+
+      // Then: trialEndsAt is null
+      expect(account.trialEndsAt).toBeNull();
+    });
+  });
+
+  describe("setTrialEndsAt", () => {
+    it("should set trialEndsAt to a future date", async () => {
+      // Given: an account exists
+      const created = await repo.create({
+        name: "Trial Account",
+        slug: "trial-account",
+      });
+      expect(created.trialEndsAt).toBeNull();
+
+      // When: I set the trial end date
+      const trialEndsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+      await repo.setTrialEndsAt(created._id, trialEndsAt);
+
+      // Then: the account has the trial end date
+      const updated = await repo.findById(created._id);
+      expect(updated?.trialEndsAt).not.toBeNull();
+      expect(updated?.trialEndsAt?.getTime()).toBe(trialEndsAt.getTime());
+    });
+
+    it("should set trialEndsAt to null to clear trial", async () => {
+      // Given: an account with an active trial
+      const created = await repo.create({
+        name: "Clear Trial",
+        slug: "clear-trial",
+      });
+      const trialEndsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+      await repo.setTrialEndsAt(created._id, trialEndsAt);
+
+      // When: I clear the trial end date
+      await repo.setTrialEndsAt(created._id, null);
+
+      // Then: trialEndsAt is null
+      const updated = await repo.findById(created._id);
+      expect(updated?.trialEndsAt).toBeNull();
+    });
+  });
 });
