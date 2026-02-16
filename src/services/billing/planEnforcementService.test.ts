@@ -747,4 +747,169 @@ describe("PlanEnforcementService", () => {
       ).resolves.not.toThrow();
     });
   });
+
+  describe("getAccountState", () => {
+    it("should return isReadOnly false when Free account is within limits", async () => {
+      // Given: a Free account with 2/3 repos, 1/3 services
+      const account = await accountRepo.create({
+        name: "Within Limits",
+        slug: "within-limits",
+      });
+      await repoRepo.create({
+        accountId: account._id,
+        githubRepoId: 1001,
+        githubFullName: "org/repo1",
+        githubOwner: "org",
+        githubRepoName: "repo1",
+        isPrivate: false,
+      });
+      await repoRepo.create({
+        accountId: account._id,
+        githubRepoId: 1002,
+        githubFullName: "org/repo2",
+        githubOwner: "org",
+        githubRepoName: "repo2",
+        isPrivate: false,
+      });
+
+      // When: I get account state
+      const state = await service.getAccountState(account._id);
+
+      // Then: isReadOnly is false (within limits)
+      expect(state.isReadOnly).toBe(false);
+      expect(state.plan).toBe(Plan.Free);
+      expect(state.usage.repositories.current).toBe(2);
+      expect(state.usage.repositories.limit).toBe(3);
+      expect(state.trialDaysRemaining).toBe(0);
+    });
+
+    it("should return isReadOnly true when Free account exceeds repo limit", async () => {
+      // Given: a Free account with 5/3 repos (downgraded from Pro with resources)
+      const account = await accountRepo.create({
+        name: "Over Repo Limit",
+        slug: "over-repo-limit",
+      });
+      // Create 5 repos
+      for (let i = 1; i <= 5; i++) {
+        await repoRepo.create({
+          accountId: account._id,
+          githubRepoId: 2000 + i,
+          githubFullName: `org/repo${i}`,
+          githubOwner: "org",
+          githubRepoName: `repo${i}`,
+          isPrivate: false,
+        });
+      }
+
+      // When: I get account state
+      const state = await service.getAccountState(account._id);
+
+      // Then: isReadOnly is true (exceeded repo limit)
+      expect(state.isReadOnly).toBe(true);
+      expect(state.plan).toBe(Plan.Free);
+      expect(state.usage.repositories.current).toBe(5);
+      expect(state.usage.repositories.limit).toBe(3);
+    });
+
+    it("should return isReadOnly true when Free account exceeds service limit", async () => {
+      // Given: a Free account with 5/3 services
+      const account = await accountRepo.create({
+        name: "Over Service Limit",
+        slug: "over-service-limit",
+      });
+      const repo = await repoRepo.create({
+        accountId: account._id,
+        githubRepoId: 3000,
+        githubFullName: "org/services-repo",
+        githubOwner: "org",
+        githubRepoName: "services-repo",
+        isPrivate: false,
+      });
+      // Create 5 services
+      for (let i = 1; i <= 5; i++) {
+        await serviceRepo.create({
+          accountId: account._id,
+          repositoryId: repo._id,
+          name: `service-${i}`,
+          environments: [{ name: "prod", order: 0 }],
+        });
+      }
+
+      // When: I get account state
+      const state = await service.getAccountState(account._id);
+
+      // Then: isReadOnly is true (exceeded service limit)
+      expect(state.isReadOnly).toBe(true);
+      expect(state.plan).toBe(Plan.Free);
+      expect(state.usage.services.current).toBe(5);
+      expect(state.usage.services.limit).toBe(3);
+    });
+
+    it("should return isReadOnly false when Pro account is within limits", async () => {
+      // Given: a Pro account with 8/10 repos
+      const account = await accountRepo.create({
+        name: "Pro Within Limits",
+        slug: "pro-within-limits",
+      });
+      await accountRepo.upgradeToPlan(
+        account._id,
+        "cus_pro",
+        "sub_pro",
+        Plan.Pro,
+      );
+      // Create 8 repos
+      for (let i = 1; i <= 8; i++) {
+        await repoRepo.create({
+          accountId: account._id,
+          githubRepoId: 4000 + i,
+          githubFullName: `org/pro-repo${i}`,
+          githubOwner: "org",
+          githubRepoName: `pro-repo${i}`,
+          isPrivate: false,
+        });
+      }
+
+      // When: I get account state
+      const state = await service.getAccountState(account._id);
+
+      // Then: isReadOnly is false (within Pro limits)
+      expect(state.isReadOnly).toBe(false);
+      expect(state.plan).toBe(Plan.Pro);
+      expect(state.usage.repositories.current).toBe(8);
+      expect(state.usage.repositories.limit).toBe(10);
+    });
+
+    it("should return trialDaysRemaining when account is on trial", async () => {
+      // Given: an account with trial (7 days remaining)
+      const account = await accountRepo.create({
+        name: "Trial Account",
+        slug: "trial-account",
+      });
+      const trialEndsAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      await accountRepo.setTrialEndsAt(account._id, trialEndsAt);
+      await accountRepo.selectPlan(account._id, Plan.Pro);
+
+      // When: I get account state
+      const state = await service.getAccountState(account._id);
+
+      // Then: trialDaysRemaining is computed
+      expect(state.trialDaysRemaining).toBeGreaterThanOrEqual(6);
+      expect(state.trialDaysRemaining).toBeLessThanOrEqual(7);
+      expect(state.plan).toBe(Plan.Pro);
+    });
+
+    it("should return trialDaysRemaining 0 when no trial", async () => {
+      // Given: an account with no trial
+      const account = await accountRepo.create({
+        name: "No Trial",
+        slug: "no-trial-state",
+      });
+
+      // When: I get account state
+      const state = await service.getAccountState(account._id);
+
+      // Then: trialDaysRemaining is 0
+      expect(state.trialDaysRemaining).toBe(0);
+    });
+  });
 });

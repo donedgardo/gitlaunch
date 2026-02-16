@@ -37,6 +37,13 @@ export type UsageInfo = {
   plan: Plan;
 };
 
+export type AccountState = {
+  plan: Plan;
+  isReadOnly: boolean;
+  usage: UsageInfo;
+  trialDaysRemaining: number;
+};
+
 export class PlanEnforcementService {
   constructor(
     private accountRepo: AccountRepository,
@@ -235,5 +242,38 @@ export class PlanEnforcementService {
         result.upgradeRequired,
       );
     }
+  }
+
+  async getAccountState(accountId: ObjectId): Promise<AccountState> {
+    const account = await this.accountRepo.findById(accountId);
+    if (!account) {
+      throw new Error("Account not found");
+    }
+
+    const usage = await this.getUsage(accountId);
+
+    // Compute isReadOnly: true when exceeding repo or service limits
+    const isReadOnly =
+      usage.repositories.current > usage.repositories.limit ||
+      usage.services.current > usage.services.limit;
+
+    // Compute trial days remaining
+    let trialDaysRemaining = 0;
+    if (account.trialEndsAt) {
+      const now = Date.now();
+      const trialEnd = account.trialEndsAt.getTime();
+      if (trialEnd > now) {
+        trialDaysRemaining = Math.ceil(
+          (trialEnd - now) / (24 * 60 * 60 * 1000),
+        );
+      }
+    }
+
+    return {
+      plan: account.plan,
+      isReadOnly,
+      usage,
+      trialDaysRemaining,
+    };
   }
 }
