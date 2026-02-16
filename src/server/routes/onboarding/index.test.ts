@@ -522,9 +522,8 @@ describe("Onboarding Routes", () => {
 
       // Then: returns 200 with error message in rendered view
       expect(response.statusCode).toBe(200);
-      expect(response.body).toContain(
-        "Your free plan allows up to 3 repository",
-      );
+      expect(response.body).toContain("Repository limit reached");
+      expect(response.body).toContain("0/3");
 
       // And: no repositories are saved
       const savedRepos = await repositoryRepo.findByAccountId(account._id);

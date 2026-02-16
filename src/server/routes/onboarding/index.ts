@@ -236,12 +236,13 @@ export function registerOnboardingRoutes(
             selectedRepoIds.includes(repo.id),
           );
 
-          // Get plan usage to check limits
+          // Check repository limits BEFORE creating any repos
+          // First: check if adding selected repos would exceed limit (accounting for existing repos)
           const usage = await planEnforcementService.getUsage(account._id);
-
-          // Check if selected count exceeds plan limit
-          if (selectedRepos.length > usage.repositories.limit) {
-            const errorMessage = `Your ${usage.plan} plan allows up to ${usage.repositories.limit} repository. Please select fewer repositories or upgrade your plan.`;
+          const totalAfterAdding =
+            usage.repositories.current + selectedRepos.length;
+          if (totalAfterAdding > usage.repositories.limit) {
+            const errorMessage = `Repository limit reached (${usage.repositories.current}/${usage.repositories.limit}). Upgrade to add more repositories.`;
             return reply.view(
               "onboarding/select-repos",
               {
@@ -256,23 +257,25 @@ export function registerOnboardingRoutes(
             );
           }
 
-          // Check if any private repos are selected when plan doesn't allow
+          // Second: check if any private repos are selected when not allowed
           const hasPrivateRepo = selectedRepos.some((repo) => repo.private);
-          if (hasPrivateRepo && !usage.privateReposAllowed) {
-            const errorMessage =
-              "Private repositories require a paid plan. Please select only public repositories or upgrade your plan.";
-            return reply.view(
-              "onboarding/select-repos",
-              {
-                title: "Select Repositories",
-                repositories: availableRepos,
-                maxRepositories: usage.repositories.limit,
-                privateReposAllowed: usage.privateReposAllowed,
-                plan: usage.plan,
-                error: errorMessage,
-              },
-              { layout: "/layouts/main.hbs" },
-            );
+          if (hasPrivateRepo) {
+            const canAddPrivate =
+              await planEnforcementService.canAddPrivateRepository(account._id);
+            if (!canAddPrivate.allowed) {
+              return reply.view(
+                "onboarding/select-repos",
+                {
+                  title: "Select Repositories",
+                  repositories: availableRepos,
+                  maxRepositories: usage.repositories.limit,
+                  privateReposAllowed: usage.privateReposAllowed,
+                  plan: usage.plan,
+                  error: canAddPrivate.reason,
+                },
+                { layout: "/layouts/main.hbs" },
+              );
+            }
           }
 
           // Save each selected repo
