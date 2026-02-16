@@ -58,12 +58,17 @@ export function registerBillingRoutes(
 
       try {
         const usage = await planEnforcementService.getUsage(account._id);
+        const accountState = await planEnforcementService.getAccountState(
+          account._id,
+        );
 
         const templateData = {
           plan: account.plan.charAt(0).toUpperCase() + account.plan.slice(1),
           isPaid: account.plan !== Plan.Free,
           hasSubscription: !!account.stripeSubscriptionId,
           hasStripeCustomer: !!account.stripeCustomerId,
+          paymentFailed: accountState.paymentFailed,
+          gracePeriodDaysRemaining: accountState.gracePeriodDaysRemaining,
           usage: {
             repositories: {
               current: usage.repositories.current,

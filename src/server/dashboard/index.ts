@@ -85,6 +85,8 @@ export default function (deps: DashboardRoutesDeps) {
             builds: [],
             trialDaysRemaining: accountState.trialDaysRemaining,
             isReadOnly: accountState.isReadOnly,
+            gracePeriodDaysRemaining: accountState.gracePeriodDaysRemaining,
+            paymentFailed: accountState.paymentFailed,
           },
           {
             layout: "/layouts/main.hbs",
@@ -207,6 +209,8 @@ export default function (deps: DashboardRoutesDeps) {
               pagination,
               trialDaysRemaining: accountState.trialDaysRemaining,
               isReadOnly: accountState.isReadOnly,
+              gracePeriodDaysRemaining: accountState.gracePeriodDaysRemaining,
+              paymentFailed: accountState.paymentFailed,
             },
             { layout: "" },
           );
@@ -226,6 +230,8 @@ export default function (deps: DashboardRoutesDeps) {
             pagination,
             trialDaysRemaining: accountState.trialDaysRemaining,
             isReadOnly: accountState.isReadOnly,
+            gracePeriodDaysRemaining: accountState.gracePeriodDaysRemaining,
+            paymentFailed: accountState.paymentFailed,
           },
           {
             layout: "/layouts/main.hbs",
