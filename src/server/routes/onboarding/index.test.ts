@@ -693,5 +693,78 @@ describe("Onboarding Routes", () => {
       const savedRepos = await repositoryRepo.findByAccountId(account._id);
       expect(savedRepos).toHaveLength(1);
     });
+
+    it("should reject repos when existing + new would exceed free plan limit", async () => {
+      // Given: an account on free plan with GitHub App installed
+      const account = await accountRepo.create({
+        name: "Free Org",
+        slug: "free-org-existing",
+      });
+      await accountRepo.updateInstallation(account._id, 12345);
+
+      const userId = new ObjectId();
+      const sessionToken = sessionService.createSession({
+        userId,
+        accountId: account._id,
+      });
+
+      // And: account already has 2 repositories saved in the database
+      await repositoryRepo.create({
+        accountId: account._id,
+        githubRepoId: 2001,
+        githubFullName: "free-org/existing-repo-one",
+        githubOwner: "free-org",
+        githubRepoName: "existing-repo-one",
+        isPrivate: false,
+      });
+      await repositoryRepo.create({
+        accountId: account._id,
+        githubRepoId: 2002,
+        githubFullName: "free-org/existing-repo-two",
+        githubOwner: "free-org",
+        githubRepoName: "existing-repo-two",
+        isPrivate: false,
+      });
+
+      // And: GitHub App returns 2 more repos available
+      fakeGitHubAppService.setRepos([
+        {
+          id: 1001,
+          full_name: "free-org/new-repo-one",
+          private: false,
+          owner: { login: "free-org" },
+          name: "new-repo-one",
+        },
+        {
+          id: 1002,
+          full_name: "free-org/new-repo-two",
+          private: false,
+          owner: { login: "free-org" },
+          name: "new-repo-two",
+        },
+      ]);
+
+      // When: user selects 2 new repos (batch of 2, which is under the limit of 3)
+      const response = await app.inject({
+        method: "POST",
+        url: "/onboarding/repositories",
+        cookies: {
+          session: sessionToken,
+        },
+        headers: {
+          "content-type": "application/x-www-form-urlencoded",
+        },
+        payload: "repositories=1001&repositories=1002",
+      });
+
+      // Then: should return 200 with error message about repository limit
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain("Repository limit reached");
+      expect(response.body).toContain("2/3");
+
+      // And: no new repositories should be saved (still 2)
+      const savedRepos = await repositoryRepo.findByAccountId(account._id);
+      expect(savedRepos).toHaveLength(2);
+    });
   });
 });
