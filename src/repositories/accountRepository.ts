@@ -144,6 +144,7 @@ export class AccountRepository {
           stripeCustomerId,
           stripeSubscriptionId,
           paymentFailedAt: null,
+          trialEndsAt: null,
           updatedAt: new Date(),
         },
       },

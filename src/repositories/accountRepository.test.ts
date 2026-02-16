@@ -214,6 +214,30 @@ describe("AccountRepository", () => {
         repo.upgradeToPlan(created._id, "cus_123", "sub_456", Plan.Free),
       ).rejects.toThrow("Cannot upgrade to Free plan");
     });
+
+    it("should clear trialEndsAt when upgrading to paid plan", async () => {
+      // Given: an account on trial (has trialEndsAt set)
+      const created = await repo.create({
+        name: "Trial Subscriber",
+        slug: "trial-subscriber",
+      });
+      const trialEndsAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      await repo.setTrialEndsAt(created._id, trialEndsAt);
+      await repo.selectPlan(created._id, Plan.Pro);
+
+      // Verify trial is set
+      const withTrial = await repo.findById(created._id);
+      expect(withTrial?.trialEndsAt).not.toBeNull();
+
+      // When: I upgrade to Pro (user subscribes during trial)
+      await repo.upgradeToPlan(created._id, "cus_123", "sub_456", Plan.Pro);
+
+      // Then: trialEndsAt is cleared (no longer on trial, they're subscribed)
+      const upgraded = await repo.findById(created._id);
+      expect(upgraded?.plan).toBe(Plan.Pro);
+      expect(upgraded?.stripeSubscriptionId).toBe("sub_456");
+      expect(upgraded?.trialEndsAt).toBeNull();
+    });
   });
 
   describe("selectPlan", () => {
