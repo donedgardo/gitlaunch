@@ -95,11 +95,14 @@ Plans:
 6. One trial per GitHub user ID — prevents repeat trial abuse
    **Plans**: 3 plans
 
+**Plans**: 4 plans
+
 Plans:
 
-- [ ] 04-01-PLAN.md — Trial management core: TrialRegistryRepository, Account schema extension, TrialService (TDD)
-- [ ] 04-02-PLAN.md — Wire trial into onboarding + dashboard, auto-downgrade on expiry, read-only state, countdown UI (TDD)
-- [ ] 04-03-PLAN.md — Payment failure grace periods with UI warnings on dashboard and billing settings (TDD)
+- [x] 04-01-PLAN.md — Trial management core: TrialRegistryRepository, Account schema extension, TrialService (TDD)
+- [x] 04-02-PLAN.md — Wire trial into onboarding + dashboard, auto-downgrade on expiry, read-only state, countdown UI (TDD)
+- [x] 04-03-PLAN.md — Payment failure grace periods with UI warnings on dashboard and billing settings (TDD)
+- [ ] 04-04-PLAN.md — Gap closure: Add TrialRegistryRepository.ensureIndexes() to server startup
 
 ## Progress
 
