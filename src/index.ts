@@ -13,6 +13,7 @@ import { AccountRepository } from "./repositories/accountRepository";
 import { BuildRepository } from "./repositories/buildRepository";
 import { ServiceRepository } from "./repositories/serviceRepository";
 import { WebhookEventRepository } from "./repositories/webhookEventRepository";
+import { TrialRegistryRepository } from "./repositories/trialRegistryRepository";
 import { GitHubAppService } from "./services/github/githubAppService";
 import { GitHubAppClient } from "./services/github/githubAppClient";
 import { InstallationTokenService } from "./services/github/installationTokenService";
@@ -78,9 +79,11 @@ async function start() {
   // Ensure database indexes
   const buildRepository = new BuildRepository(database);
   const serviceRepository = new ServiceRepository(database);
+  const trialRegistryRepository = new TrialRegistryRepository(database);
   await buildRepository.ensureIndexes();
   await serviceRepository.ensureIndexes();
   await webhookEventRepository.ensureIndexes();
+  await trialRegistryRepository.ensureIndexes();
 
   await server.listen({ host: "0.0.0.0", port: PORT });
   console.info(`Server listening on port ${PORT}`);
