@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Billing Foundation** - Webhook infrastructure and Stripe integration ✓
 - [x] **Phase 2: Plan Selection & Checkout** - User can select and pay for plans ✓
 - [x] **Phase 3: Plan Enforcement & Limits** - Server-side limit checks enforce tier value ✓
-- [ ] **Phase 4: Trial & Payment Lifecycle** - Trials, auto-downgrade, payment failure handling
+- [x] **Phase 4: Trial & Payment Lifecycle** - Trials, auto-downgrade, payment failure handling ✓
 
 ## Phase Details
 
@@ -102,16 +102,16 @@ Plans:
 - [x] 04-01-PLAN.md — Trial management core: TrialRegistryRepository, Account schema extension, TrialService (TDD)
 - [x] 04-02-PLAN.md — Wire trial into onboarding + dashboard, auto-downgrade on expiry, read-only state, countdown UI (TDD)
 - [x] 04-03-PLAN.md — Payment failure grace periods with UI warnings on dashboard and billing settings (TDD)
-- [ ] 04-04-PLAN.md — Gap closure: Add TrialRegistryRepository.ensureIndexes() to server startup
+- [x] 04-04-PLAN.md — Gap closure: Add TrialRegistryRepository.ensureIndexes() to server startup
 
 ## Progress
 
 **Execution Order:**
 Phases execute in numeric order: 1 → 2 → 3 → 4
 
-| Phase                        | Plans Complete | Status      | Completed  |
-| ---------------------------- | -------------- | ----------- | ---------- |
-| 1. Billing Foundation        | 3/3            | ✓ Complete  | 2026-02-09 |
-| 2. Plan Selection & Checkout | 3/3            | ✓ Complete  | 2026-02-11 |
-| 3. Plan Enforcement & Limits | 3/3            | ✓ Complete  | 2026-02-15 |
-| 4. Trial & Payment Lifecycle | 0/3            | Not started | -          |
+| Phase                        | Plans Complete | Status     | Completed  |
+| ---------------------------- | -------------- | ---------- | ---------- |
+| 1. Billing Foundation        | 3/3            | ✓ Complete | 2026-02-09 |
+| 2. Plan Selection & Checkout | 3/3            | ✓ Complete | 2026-02-11 |
+| 3. Plan Enforcement & Limits | 3/3            | ✓ Complete | 2026-02-15 |
+| 4. Trial & Payment Lifecycle | 4/4            | ✓ Complete | 2026-02-16 |
