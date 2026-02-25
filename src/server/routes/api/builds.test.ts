@@ -21,10 +21,13 @@ import { RepositoryRepository } from "../../../repositories/repositoryRepository
 import { ServiceRepository } from "../../../repositories/serviceRepository";
 import { BuildRepository } from "../../../repositories/buildRepository";
 import { BuildService } from "../../../services/build/buildService";
+import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
 import { registerBuildsRoutes } from "./builds";
 import { BuildDispatchServiceI } from "../../../services/build/buildDispatchService";
 import { DeploymentStatus } from "../../../services/service/deploymentStatus";
 import { ApiKeyScope } from "../../../repositories/apiKeyRepository";
+import { Plan } from "../../../repositories/accountRepository";
+import { MembershipRepository } from "../../../repositories/membershipRepository";
 
 // Simple mock auth middleware for testing - simulates API key validation
 function createMockApiKeyAuth(
@@ -63,6 +66,8 @@ describe("Builds API Routes", () => {
   let serviceRepo: ServiceRepository;
   let buildRepo: BuildRepository;
   let buildService: BuildService;
+  let planEnforcementService: PlanEnforcementService;
+  let membershipRepo: MembershipRepository;
   let mockDispatcher: BuildDispatchServiceI;
   let eventEmitter: EventEmitter;
 
@@ -85,11 +90,18 @@ describe("Builds API Routes", () => {
       dispatch: vi.fn().mockResolvedValue(undefined),
     };
 
+    membershipRepo = new MembershipRepository(db);
     buildService = new BuildService(
       buildRepo,
       serviceRepo,
       eventEmitter,
       mockDispatcher,
+    );
+    planEnforcementService = new PlanEnforcementService(
+      accountRepo,
+      repoRepo,
+      serviceRepo,
+      membershipRepo,
     );
   });
 
@@ -148,7 +160,11 @@ describe("Builds API Routes", () => {
     app.addHook("preHandler", mockAuth);
 
     // Register routes
-    registerBuildsRoutes(app, { buildService, serviceRepo });
+    registerBuildsRoutes(app, {
+      buildService,
+      serviceRepo,
+      planEnforcementService,
+    });
 
     await app.ready();
   });
@@ -452,6 +468,120 @@ describe("Builds API Routes", () => {
       });
 
       expect(response.statusCode).toBe(400);
+    });
+  });
+
+  describe("Read-only account blocking", () => {
+    const makeAccountReadOnly = async () => {
+      // Set paymentFailedAt to 8 days ago (past 7-day grace period)
+      const eightDaysAgo = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000);
+      await db
+        .collection("accounts")
+        .updateOne(
+          { _id: testAccountId },
+          { $set: { paymentFailedAt: eightDaysAgo, plan: Plan.Pro } },
+        );
+    };
+
+    it("should block creating builds when account is read-only", async () => {
+      await makeAccountReadOnly();
+
+      const response = await app.inject({
+        method: "POST",
+        url: `/api/v1/services/${testServiceId}/builds`,
+        headers: {
+          authorization: "Bearer test-key",
+          "content-type": "application/json",
+        },
+        payload: {
+          buildId: "blocked-build",
+        },
+      });
+
+      expect(response.statusCode).toBe(403);
+      const body = JSON.parse(response.body);
+      expect(body.error).toContain("read-only");
+    });
+
+    it("should block triggering deployments when account is read-only", async () => {
+      // Create a build first (before making read-only)
+      await buildService.createBuild({
+        accountId: testAccountId,
+        serviceId: testServiceId,
+        buildId: "deploy-blocked",
+      });
+
+      await makeAccountReadOnly();
+
+      const response = await app.inject({
+        method: "POST",
+        url: `/api/v1/services/${testServiceId}/builds/deploy-blocked/deploy/staging`,
+        headers: {
+          authorization: "Bearer test-key",
+        },
+      });
+
+      expect(response.statusCode).toBe(403);
+      const body = JSON.parse(response.body);
+      expect(body.error).toContain("read-only");
+    });
+
+    it("should block updating deployment status when account is read-only", async () => {
+      // Create a build first (before making read-only)
+      await buildService.createBuild({
+        accountId: testAccountId,
+        serviceId: testServiceId,
+        buildId: "status-blocked",
+      });
+
+      await makeAccountReadOnly();
+
+      const response = await app.inject({
+        method: "PATCH",
+        url: `/api/v1/services/${testServiceId}/builds/status-blocked/deploy/staging`,
+        headers: {
+          authorization: "Bearer test-key",
+          "content-type": "application/json",
+        },
+        payload: {
+          status: "deployed",
+        },
+      });
+
+      expect(response.statusCode).toBe(403);
+      const body = JSON.parse(response.body);
+      expect(body.error).toContain("read-only");
+    });
+
+    it("should allow read operations when account is read-only", async () => {
+      // Create a build first (before making read-only)
+      await buildService.createBuild({
+        accountId: testAccountId,
+        serviceId: testServiceId,
+        buildId: "readable",
+      });
+
+      await makeAccountReadOnly();
+
+      // GET list builds should still work
+      const listResponse = await app.inject({
+        method: "GET",
+        url: `/api/v1/services/${testServiceId}/builds`,
+        headers: {
+          authorization: "Bearer test-key",
+        },
+      });
+      expect(listResponse.statusCode).toBe(200);
+
+      // GET build details should still work
+      const detailResponse = await app.inject({
+        method: "GET",
+        url: `/api/v1/services/${testServiceId}/builds/readable`,
+        headers: {
+          authorization: "Bearer test-key",
+        },
+      });
+      expect(detailResponse.statusCode).toBe(200);
     });
   });
 });

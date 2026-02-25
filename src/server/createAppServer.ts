@@ -223,6 +223,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
       registerBuildsRoutes(apiServer, {
         buildService,
         serviceRepo: serviceRepository,
+        planEnforcementService,
       });
 
       // Register environments API routes

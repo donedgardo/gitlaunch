@@ -2,12 +2,14 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { ObjectId } from "mongodb";
 import { BuildService } from "../../../services/build/buildService";
 import { ServiceRepository } from "../../../repositories/serviceRepository";
+import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
 import { requireScope } from "../../middleware/apiKeyAuth";
 import { DeploymentStatus } from "../../../services/service/deploymentStatus";
 
 export type BuildsRoutesDependencies = {
   buildService: BuildService;
   serviceRepo: ServiceRepository;
+  planEnforcementService: PlanEnforcementService;
 };
 
 type CreateBuildBody = {
@@ -34,7 +36,7 @@ export function registerBuildsRoutes(
   app: FastifyInstance,
   deps: BuildsRoutesDependencies,
 ) {
-  const { buildService, serviceRepo } = deps;
+  const { buildService, serviceRepo, planEnforcementService } = deps;
 
   // POST /api/v1/services/:serviceId/builds - Create a new build
   app.post<{ Params: ServiceIdParams; Body: CreateBuildBody }>(
@@ -66,6 +68,20 @@ export function registerBuildsRoutes(
         return reply
           .status(403)
           .send({ error: "Service does not belong to this account" });
+      }
+
+      // Check read-only state
+      try {
+        const accountState =
+          await planEnforcementService.getAccountState(accountId);
+        if (accountState.isReadOnly) {
+          return reply.status(403).send({
+            error:
+              "Account is read-only. Please update your plan or payment method.",
+          });
+        }
+      } catch {
+        // Account not found — will be caught downstream
       }
 
       try {
@@ -198,6 +214,20 @@ export function registerBuildsRoutes(
 
       const serviceId = new ObjectId(serviceIdParam);
 
+      // Check read-only state
+      try {
+        const accountState =
+          await planEnforcementService.getAccountState(accountId);
+        if (accountState.isReadOnly) {
+          return reply.status(403).send({
+            error:
+              "Account is read-only. Please update your plan or payment method.",
+          });
+        }
+      } catch {
+        // Account not found — will be caught downstream
+      }
+
       try {
         const build = await buildService.updateDeploymentStatus({
           accountId,
@@ -255,6 +285,20 @@ export function registerBuildsRoutes(
         !Object.values(DeploymentStatus).includes(status as DeploymentStatus)
       ) {
         return reply.status(400).send({ error: "Invalid deployment status" });
+      }
+
+      // Check read-only state
+      try {
+        const accountState =
+          await planEnforcementService.getAccountState(accountId);
+        if (accountState.isReadOnly) {
+          return reply.status(403).send({
+            error:
+              "Account is read-only. Please update your plan or payment method.",
+          });
+        }
+      } catch {
+        // Account not found — will be caught downstream
       }
 
       try {
