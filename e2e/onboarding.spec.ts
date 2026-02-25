@@ -223,7 +223,7 @@ test.describe("Onboarding - Plan Enforcement", () => {
     // Should see error message
     await expect(page.locator("#plan-error")).toBeVisible();
     await expect(page.locator("#plan-error")).toContainText(
-      "free plan allows up to 1 repository",
+      "Repository limit reached",
     );
 
     // Should still be on the repo selection page
