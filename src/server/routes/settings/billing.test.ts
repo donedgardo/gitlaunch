@@ -110,6 +110,7 @@ describe("Billing Routes", () => {
       planEnforcementService: planService,
       accountRepo,
       userRepo,
+      serviceRepo: new ServiceRepository(db),
     });
     await app.ready();
   });

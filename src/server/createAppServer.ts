@@ -146,6 +146,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
       planEnforcementService,
       accountRepo: accountRepository,
       userRepo: userRepository,
+      serviceRepo: serviceRepository,
     });
   }
 

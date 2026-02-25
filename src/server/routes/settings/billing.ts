@@ -7,19 +7,27 @@ import {
   Plan,
 } from "../../../repositories/accountRepository";
 import { UserRepository } from "../../../repositories/userRepository";
+import { ServiceRepository } from "../../../repositories/serviceRepository";
 
 export type BillingRoutesDependencies = {
   stripeService: StripeService;
   planEnforcementService: PlanEnforcementService;
   accountRepo: AccountRepository;
   userRepo: UserRepository;
+  serviceRepo: ServiceRepository;
 };
 
 export function registerBillingRoutes(
   app: FastifyInstance,
   deps: BillingRoutesDependencies,
 ) {
-  const { stripeService, planEnforcementService, accountRepo, userRepo } = deps;
+  const {
+    stripeService,
+    planEnforcementService,
+    accountRepo,
+    userRepo,
+    serviceRepo,
+  } = deps;
 
   // Middleware to resolve account and user from session
   app.addHook(
@@ -57,10 +65,12 @@ export function registerBillingRoutes(
       }
 
       try {
-        const usage = await planEnforcementService.getUsage(account._id);
-        const accountState = await planEnforcementService.getAccountState(
-          account._id,
-        );
+        const [usage, accountState, services] = await Promise.all([
+          planEnforcementService.getUsage(account._id),
+          planEnforcementService.getAccountState(account._id),
+          serviceRepo.findByAccountId(account._id),
+        ]);
+        const serviceNames = services.map((s) => s.name);
 
         const isOnTrial =
           account.plan !== Plan.Free &&
@@ -68,6 +78,7 @@ export function registerBillingRoutes(
           accountState.trialDaysRemaining > 0;
 
         const templateData = {
+          services: serviceNames,
           plan: account.plan.charAt(0).toUpperCase() + account.plan.slice(1),
           planLower: account.plan,
           isPaid: account.plan !== Plan.Free,
