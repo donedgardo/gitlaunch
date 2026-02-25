@@ -260,4 +260,223 @@ describe("StripeWebhookHandler", () => {
       expect(updated!.paymentFailedAt).toBeNull();
     });
   });
+
+  describe("Lifecycle Scenarios", () => {
+    it("should handle full subscription lifecycle: checkout → payment fail → payment recover → cancellation", async () => {
+      // Given: a free account
+      const account = await accountRepo.create({
+        name: "Lifecycle Org",
+        slug: "lifecycle-org",
+      });
+
+      // Step 1: Checkout completes → Pro
+      await handler.handleCheckoutCompleted({
+        accountId: account._id.toString(),
+        customerId: "cus_lifecycle",
+        subscriptionId: "sub_lifecycle",
+        plan: Plan.Pro,
+      });
+      let updated = await accountRepo.findById(account._id);
+      expect(updated!.plan).toBe(Plan.Pro);
+      expect(updated!.stripeCustomerId).toBe("cus_lifecycle");
+      expect(updated!.stripeSubscriptionId).toBe("sub_lifecycle");
+      expect(updated!.paymentFailedAt).toBeNull();
+
+      // Step 2: Payment fails → grace period
+      await handler.handlePaymentFailed({
+        subscriptionId: "sub_lifecycle",
+        attemptCount: 1,
+      });
+      updated = await accountRepo.findById(account._id);
+      expect(updated!.plan).toBe(Plan.Pro);
+      expect(updated!.paymentFailedAt).toBeInstanceOf(Date);
+
+      // Step 3: Payment succeeds → recovery
+      await handler.handlePaymentSucceeded({
+        subscriptionId: "sub_lifecycle",
+      });
+      updated = await accountRepo.findById(account._id);
+      expect(updated!.plan).toBe(Plan.Pro);
+      expect(updated!.paymentFailedAt).toBeNull();
+
+      // Step 4: Subscription deleted → downgrade
+      await handler.handleSubscriptionDeleted({
+        subscriptionId: "sub_lifecycle",
+      });
+      updated = await accountRepo.findById(account._id);
+      expect(updated!.plan).toBe(Plan.Free);
+      expect(updated!.stripeSubscriptionId).toBeNull();
+      expect(updated!.paymentFailedAt).toBeNull();
+    });
+
+    it("should clear trial when checking out from trial to paid", async () => {
+      // Given: an account on trial
+      const account = await accountRepo.create({
+        name: "Trial Org",
+        slug: "trial-org",
+      });
+      const trialEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      await db
+        .collection("accounts")
+        .updateOne({ _id: account._id }, { $set: { trialEndsAt: trialEnd } });
+      const trialAccount = await accountRepo.findById(account._id);
+      expect(trialAccount!.trialEndsAt).toEqual(trialEnd);
+
+      // When: checkout completes for Pro
+      await handler.handleCheckoutCompleted({
+        accountId: account._id.toString(),
+        customerId: "cus_trial",
+        subscriptionId: "sub_trial",
+        plan: Plan.Pro,
+      });
+
+      // Then: plan is Pro and trial is cleared
+      const updated = await accountRepo.findById(account._id);
+      expect(updated!.plan).toBe(Plan.Pro);
+      expect(updated!.trialEndsAt).toBeNull();
+      expect(updated!.stripeCustomerId).toBe("cus_trial");
+      expect(updated!.stripeSubscriptionId).toBe("sub_trial");
+    });
+
+    it("should recover from payment failure: fail → succeed clears failure and keeps plan", async () => {
+      // Given: a Pro account
+      const account = await accountRepo.create({
+        name: "Recover Org",
+        slug: "recover-org",
+      });
+      await handler.handleCheckoutCompleted({
+        accountId: account._id.toString(),
+        customerId: "cus_recover",
+        subscriptionId: "sub_recover",
+        plan: Plan.Pro,
+      });
+
+      // When: payment fails then succeeds
+      await handler.handlePaymentFailed({
+        subscriptionId: "sub_recover",
+        attemptCount: 1,
+      });
+      let updated = await accountRepo.findById(account._id);
+      expect(updated!.paymentFailedAt).toBeInstanceOf(Date);
+      expect(updated!.plan).toBe(Plan.Pro);
+
+      await handler.handlePaymentSucceeded({
+        subscriptionId: "sub_recover",
+      });
+
+      // Then: failure cleared, plan unchanged
+      updated = await accountRepo.findById(account._id);
+      expect(updated!.paymentFailedAt).toBeNull();
+      expect(updated!.plan).toBe(Plan.Pro);
+    });
+
+    it("should handle multiple payment failures without error", async () => {
+      // Given: a Pro account
+      const account = await accountRepo.create({
+        name: "Multi Fail Org",
+        slug: "multi-fail-org",
+      });
+      await handler.handleCheckoutCompleted({
+        accountId: account._id.toString(),
+        customerId: "cus_multi",
+        subscriptionId: "sub_multi",
+        plan: Plan.Pro,
+      });
+
+      // When: payment fails multiple times
+      await handler.handlePaymentFailed({
+        subscriptionId: "sub_multi",
+        attemptCount: 1,
+      });
+      const afterFirst = await accountRepo.findById(account._id);
+      const firstFailedAt = afterFirst!.paymentFailedAt;
+      expect(firstFailedAt).toBeInstanceOf(Date);
+
+      await handler.handlePaymentFailed({
+        subscriptionId: "sub_multi",
+        attemptCount: 2,
+      });
+      const afterSecond = await accountRepo.findById(account._id);
+      expect(afterSecond!.paymentFailedAt).toBeInstanceOf(Date);
+
+      // Then: plan remains Pro, no crash
+      expect(afterSecond!.plan).toBe(Plan.Pro);
+    });
+
+    it("should downgrade and clear failure when subscription canceled during grace period", async () => {
+      // Given: a Pro account in grace period (payment failed)
+      const account = await accountRepo.create({
+        name: "Grace Cancel Org",
+        slug: "grace-cancel-org",
+      });
+      await handler.handleCheckoutCompleted({
+        accountId: account._id.toString(),
+        customerId: "cus_grace_cancel",
+        subscriptionId: "sub_grace_cancel",
+        plan: Plan.Pro,
+      });
+      await handler.handlePaymentFailed({
+        subscriptionId: "sub_grace_cancel",
+        attemptCount: 1,
+      });
+      let updated = await accountRepo.findById(account._id);
+      expect(updated!.paymentFailedAt).toBeInstanceOf(Date);
+
+      // When: subscription is deleted during grace period
+      await handler.handleSubscriptionDeleted({
+        subscriptionId: "sub_grace_cancel",
+      });
+
+      // Then: downgraded to Free, failure cleared, subscription cleared
+      updated = await accountRepo.findById(account._id);
+      expect(updated!.plan).toBe(Plan.Free);
+      expect(updated!.paymentFailedAt).toBeNull();
+      expect(updated!.stripeSubscriptionId).toBeNull();
+    });
+
+    it("should not crash when payment succeeds on account without prior failure", async () => {
+      // Given: a Pro account with no payment failure
+      const account = await accountRepo.create({
+        name: "No Fail Org",
+        slug: "no-fail-org",
+      });
+      await handler.handleCheckoutCompleted({
+        accountId: account._id.toString(),
+        customerId: "cus_nofail",
+        subscriptionId: "sub_nofail",
+        plan: Plan.Pro,
+      });
+      const before = await accountRepo.findById(account._id);
+      expect(before!.paymentFailedAt).toBeNull();
+
+      // When: payment succeeded fires (no prior failure)
+      await handler.handlePaymentSucceeded({
+        subscriptionId: "sub_nofail",
+      });
+
+      // Then: no crash, state unchanged
+      const updated = await accountRepo.findById(account._id);
+      expect(updated!.paymentFailedAt).toBeNull();
+      expect(updated!.plan).toBe(Plan.Pro);
+    });
+
+    it("should not throw when subscription deleted for unknown subscription", async () => {
+      // When/Then: no error for unknown subscription
+      await expect(
+        handler.handleSubscriptionDeleted({
+          subscriptionId: "sub_nonexistent",
+        }),
+      ).resolves.toBeUndefined();
+    });
+
+    it("should not throw when payment fails for unknown subscription", async () => {
+      // When/Then: no error for unknown subscription
+      await expect(
+        handler.handlePaymentFailed({
+          subscriptionId: "sub_nonexistent",
+          attemptCount: 1,
+        }),
+      ).resolves.toBeUndefined();
+    });
+  });
 });
