@@ -1,5 +1,6 @@
 import "dotenv/config";
 import { MongoClient, ObjectId } from "mongodb";
+import bcrypt from "bcrypt";
 
 const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017";
 
@@ -17,6 +18,7 @@ export default async function globalSetup() {
     await db.collection("repositories").deleteMany({});
     await db.collection("services").deleteMany({});
     await db.collection("builds").deleteMany({});
+    await db.collection("apiKeys").deleteMany({});
 
     // Create test user without GitHub App
     const testUser1Id = new ObjectId("000000000000000000000001");
@@ -558,6 +560,197 @@ export default async function globalSetup() {
       githubOwner: "test-org",
       githubRepoName: "delete-service-repo",
       isPrivate: false,
+      createdAt: new Date(),
+    });
+
+    // Create test user on TRIAL (for billing lifecycle tests)
+    const testUser10Id = new ObjectId("00000000000000000000000a");
+    const testAccount10Id = new ObjectId("00000000000000000000001a");
+    const testRepo10Id = new ObjectId("000000000000000000000110");
+    const testService10Id = new ObjectId("000000000000000000000210");
+
+    await db.collection("users").insertOne({
+      _id: testUser10Id,
+      githubId: 99910,
+      githubLogin: "test-user-billing-trial",
+      email: "test-billing-trial@example.com",
+      name: "Test User Billing Trial",
+      avatarUrl: null,
+      createdAt: new Date(),
+      lastLoginAt: new Date(),
+    });
+
+    await db.collection("accounts").insertOne({
+      _id: testAccount10Id,
+      name: "Test Account Billing Trial",
+      slug: "test-account-billing-trial",
+      plan: "pro",
+      planLimits: {
+        maxRepositories: 10,
+        maxServices: 10,
+        maxUsers: 5,
+        maxEnvironments: 10,
+        publicReposOnly: false,
+      },
+      stripeCustomerId: null,
+      stripeSubscriptionId: null,
+      paymentFailedAt: null,
+      trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+      githubInstallationId: 12360,
+      githubInstallationAccessToken: null,
+      githubInstallationTokenExpiresAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    await db.collection("memberships").insertOne({
+      _id: new ObjectId(),
+      userId: testUser10Id,
+      accountId: testAccount10Id,
+      role: "owner",
+      createdAt: new Date(),
+    });
+
+    await db.collection("repositories").insertOne({
+      _id: testRepo10Id,
+      accountId: testAccount10Id,
+      githubRepoId: 200010,
+      githubFullName: "test-org/billing-trial-repo",
+      githubOwner: "test-org",
+      githubRepoName: "billing-trial-repo",
+      isPrivate: false,
+      createdAt: new Date(),
+    });
+
+    await db.collection("services").insertOne({
+      _id: testService10Id,
+      accountId: testAccount10Id,
+      repositoryId: testRepo10Id,
+      name: "billing-trial-service",
+      environments: [
+        { name: "staging", order: 0 },
+        { name: "prod", order: 1 },
+      ],
+      workflowFile: "deploy.yml",
+      eventType: "deployment",
+      workflowConfigured: true,
+      isActive: true,
+      createdAt: new Date(),
+    });
+
+    await db.collection("builds").insertOne({
+      _id: new ObjectId("000000000000000000000501"),
+      accountId: testAccount10Id,
+      serviceId: testService10Id,
+      buildId: "billing-trial-build-1",
+      deployments: { staging: "deployed", prod: null },
+      createdAt: new Date(),
+    });
+
+    // Create test user WITH SUBSCRIPTION (for payment failure lifecycle tests)
+    const testUser11Id = new ObjectId("00000000000000000000000b");
+    const testAccount11Id = new ObjectId("00000000000000000000001b");
+    const testRepo11Id = new ObjectId("000000000000000000000111");
+    const testService11Id = new ObjectId("000000000000000000000211");
+
+    await db.collection("users").insertOne({
+      _id: testUser11Id,
+      githubId: 99911,
+      githubLogin: "test-user-billing-payment",
+      email: "test-billing-payment@example.com",
+      name: "Test User Billing Payment",
+      avatarUrl: null,
+      createdAt: new Date(),
+      lastLoginAt: new Date(),
+    });
+
+    await db.collection("accounts").insertOne({
+      _id: testAccount11Id,
+      name: "Test Account Billing Payment",
+      slug: "test-account-billing-payment",
+      plan: "pro",
+      planLimits: {
+        maxRepositories: 10,
+        maxServices: 10,
+        maxUsers: 5,
+        maxEnvironments: 10,
+        publicReposOnly: false,
+      },
+      stripeCustomerId: "cus_test_billing",
+      stripeSubscriptionId: "sub_test_billing",
+      paymentFailedAt: null,
+      trialEndsAt: null,
+      githubInstallationId: 12361,
+      githubInstallationAccessToken: null,
+      githubInstallationTokenExpiresAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    await db.collection("memberships").insertOne({
+      _id: new ObjectId(),
+      userId: testUser11Id,
+      accountId: testAccount11Id,
+      role: "owner",
+      createdAt: new Date(),
+    });
+
+    await db.collection("repositories").insertOne({
+      _id: testRepo11Id,
+      accountId: testAccount11Id,
+      githubRepoId: 200011,
+      githubFullName: "test-org/billing-payment-repo",
+      githubOwner: "test-org",
+      githubRepoName: "billing-payment-repo",
+      isPrivate: false,
+      createdAt: new Date(),
+    });
+
+    await db.collection("services").insertOne({
+      _id: testService11Id,
+      accountId: testAccount11Id,
+      repositoryId: testRepo11Id,
+      name: "billing-payment-service",
+      environments: [
+        { name: "staging", order: 0 },
+        { name: "prod", order: 1 },
+      ],
+      workflowFile: "deploy.yml",
+      eventType: "deployment",
+      workflowConfigured: true,
+      isActive: true,
+      createdAt: new Date(),
+    });
+
+    await db.collection("builds").insertOne({
+      _id: new ObjectId("000000000000000000000502"),
+      accountId: testAccount11Id,
+      serviceId: testService11Id,
+      buildId: "billing-payment-build-1",
+      deployments: { staging: "deployed", prod: null },
+      createdAt: new Date(),
+    });
+
+    // Seed an API key for the billing-payment user (for API read-only test)
+    const testApiKeyRaw = "pk_test-account-billing-payment_testkey123";
+    const testApiKeyHash = await bcrypt.hash(testApiKeyRaw, 10);
+    await db.collection("apiKeys").insertOne({
+      _id: new ObjectId("000000000000000000000601"),
+      accountId: testAccount11Id,
+      createdByUserId: testUser11Id,
+      name: "billing-test-key",
+      keyPrefix: "pk_test-account-billing-payment_testkey1",
+      keyHash: testApiKeyHash,
+      scopes: [
+        "builds:read",
+        "builds:write",
+        "deployments:write",
+        "services:read",
+        "services:write",
+      ],
+      lastUsedAt: null,
+      expiresAt: null,
+      isRevoked: false,
       createdAt: new Date(),
     });
 

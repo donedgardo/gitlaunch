@@ -22,7 +22,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: `PORT=${E2E_PORT} npx tsx e2e/server.ts`,
+    command: `PORT=${E2E_PORT} STRIPE_SECRET_KEY=sk_test_e2e_dummy npx tsx e2e/server.ts`,
     url: `http://localhost:${E2E_PORT}`,
     reuseExistingServer: !process.env.CI, // Always start fresh in CI
     timeout: 30 * 1000,

@@ -106,4 +106,16 @@ export const TEST_USERS = {
     accountId: "000000000000000000000099",
     hasGitHubApp: true,
   },
+  // Pro plan user on trial (for billing lifecycle tests)
+  userOnTrial: {
+    userId: "00000000000000000000000a",
+    accountId: "00000000000000000000001a",
+    hasGitHubApp: true,
+  },
+  // Pro plan user with subscription (for payment failure lifecycle tests)
+  userWithSubscription: {
+    userId: "00000000000000000000000b",
+    accountId: "00000000000000000000001b",
+    hasGitHubApp: true,
+  },
 };
