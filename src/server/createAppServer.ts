@@ -134,9 +134,11 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
       proPriceId: process.env.STRIPE_PRO_PRICE_ID || "",
       teamPriceId: process.env.STRIPE_TEAM_PRICE_ID || "",
       successUrl:
-        process.env.STRIPE_SUCCESS_URL || "/settings/billing?success=true",
+        process.env.STRIPE_SUCCESS_URL ||
+        `${process.env.PUBLIC_URL}/settings/billing?success=true`,
       cancelUrl:
-        process.env.STRIPE_CANCEL_URL || "/settings/billing?cancelled=true",
+        process.env.STRIPE_CANCEL_URL ||
+        `${process.env.PUBLIC_URL}/settings/billing?cancelled=true`,
     });
 
     registerBillingRoutes(server, {

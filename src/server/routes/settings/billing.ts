@@ -185,7 +185,8 @@ export function registerBillingRoutes(
       try {
         const result = await stripeService.createBillingPortalSession({
           account,
-          returnUrl: body?.returnUrl || "/settings",
+          returnUrl:
+            body?.returnUrl || `${process.env.PUBLIC_URL}/settings/billing`,
         });
 
         // Check if this is an HTMX request
