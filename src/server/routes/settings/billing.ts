@@ -157,7 +157,8 @@ export function registerBillingRoutes(
           // Regular form POST — redirect to Stripe Checkout
           return reply.redirect(result.url);
         }
-      } catch (error) {
+      } catch (error: any) {
+        console.error("Checkout session error:", error?.message || error);
         return reply
           .status(500)
           .send({ error: "Failed to create checkout session" });
