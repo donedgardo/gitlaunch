@@ -94,7 +94,9 @@ export function registerBillingRoutes(
           },
         };
 
-        return reply.view("settings/billing", templateData);
+        return reply.view("settings/billing", templateData, {
+          layout: "/layouts/main.hbs",
+        });
       } catch (error) {
         return reply
           .status(500)
