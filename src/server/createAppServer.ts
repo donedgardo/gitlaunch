@@ -121,6 +121,11 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     });
   }
 
+  // Session middleware (must be before routes that need request.session)
+  registerSessionMiddleware(server, {
+    sessionService,
+  });
+
   // Billing services and routes (only if Stripe is configured)
   const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
   if (stripeSecretKey) {
@@ -141,11 +146,6 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
       userRepo: userRepository,
     });
   }
-
-  // Session middleware
-  registerSessionMiddleware(server, {
-    sessionService,
-  });
 
   // Routes
   server.register(healthRoute(mongoClient));
