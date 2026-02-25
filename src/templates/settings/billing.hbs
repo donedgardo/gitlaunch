@@ -63,7 +63,8 @@
               </button>
             </form>
           {{else if isOnTrial}}
-            <form method="POST" action="/api/billing/checkout" hx-post="/api/billing/checkout" hx-vals='{"plan":"{{planLower}}"}'>
+            <form method="POST" action="/api/billing/checkout">
+              <input type="hidden" name="plan" value="{{planLower}}">
               <button type="submit" class="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors">
                 Subscribe Now
               </button>

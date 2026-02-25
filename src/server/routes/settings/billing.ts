@@ -150,9 +150,12 @@ export function registerBillingRoutes(
           // Return HX-Redirect header for HTMX
           reply.header("HX-Redirect", result.url);
           return reply.status(200).send();
-        } else {
-          // Return JSON for non-HTMX clients
+        } else if (request.headers["content-type"]?.includes("json")) {
+          // Return JSON for API clients
           return { checkoutUrl: result.url, sessionId: result.sessionId };
+        } else {
+          // Regular form POST — redirect to Stripe Checkout
+          return reply.redirect(result.url);
         }
       } catch (error) {
         return reply
