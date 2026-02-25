@@ -259,6 +259,20 @@ export default function (deps: DashboardRoutesDeps) {
           return reply.status(400).send({ error: "Invalid service ID" });
         }
 
+        // Check read-only state
+        try {
+          const accountState =
+            await planEnforcementService.getAccountState(accountId);
+          if (accountState.isReadOnly) {
+            return reply.status(403).send({
+              error:
+                "Account is read-only. Please update your plan or payment method to deploy.",
+            });
+          }
+        } catch {
+          // Account not found — will be caught by ownership check below
+        }
+
         // Find the service by ID and verify ownership
         const service = await serviceRepository.findByAccountAndId(
           accountId,
