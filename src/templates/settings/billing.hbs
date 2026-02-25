@@ -12,14 +12,14 @@
 
     <!-- Payment Failure Warning -->
     {{#if paymentFailed}}
-    <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6 mb-6">
+    <div class="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg p-6 mb-6">
       <div class="flex items-start">
         <svg class="w-6 h-6 text-red-600 dark:text-red-400 mt-0.5 mr-3" fill="currentColor" viewBox="0 0 20 20">
           <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
         </svg>
         <div class="flex-1">
-          <h3 class="text-lg font-semibold text-red-900 dark:text-red-200 mb-1">Payment Failed</h3>
-          <p class="text-red-800 dark:text-red-300 mb-3">
+          <h3 class="text-lg font-semibold text-red-900 dark:text-white mb-1">Payment Failed</h3>
+          <p class="text-red-800 dark:text-gray-200 mb-3">
             Your last payment failed. Please update your payment method to continue service.
             {{#if gracePeriodDaysRemaining}}
               You have <strong>{{gracePeriodDaysRemaining}} days remaining</strong> before access is restricted.
@@ -27,7 +27,8 @@
               Your access is currently restricted.
             {{/if}}
           </p>
-          <form method="POST" action="/api/billing/portal" hx-post="/api/billing/portal" hx-vals='{"returnUrl":"/settings/billing"}'>
+          <form method="POST" action="/api/billing/portal">
+            <input type="hidden" name="returnUrl" value="/settings/billing">
             <button type="submit" class="px-5 py-2.5 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition-colors">
               Update Payment Method
             </button>
@@ -57,7 +58,8 @@
         </div>
         <div>
           {{#if hasStripeCustomer}}
-            <form method="POST" action="/api/billing/portal" hx-post="/api/billing/portal" hx-vals='{"returnUrl":"/settings/billing"}'>
+            <form method="POST" action="/api/billing/portal">
+              <input type="hidden" name="returnUrl" value="/settings/billing">
               <button type="submit" class="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors">
                 Manage Billing
               </button>

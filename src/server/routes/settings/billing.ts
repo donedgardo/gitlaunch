@@ -195,10 +195,14 @@ export function registerBillingRoutes(
       }
 
       try {
+        // Ensure returnUrl is absolute
+        const returnUrl = body?.returnUrl?.startsWith("http")
+          ? body.returnUrl
+          : `${process.env.PUBLIC_URL}${body?.returnUrl || "/settings/billing"}`;
+
         const result = await stripeService.createBillingPortalSession({
           account,
-          returnUrl:
-            body?.returnUrl || `${process.env.PUBLIC_URL}/settings/billing`,
+          returnUrl,
         });
 
         // Check if this is an HTMX request
@@ -208,11 +212,15 @@ export function registerBillingRoutes(
           // Return HX-Redirect header for HTMX
           reply.header("HX-Redirect", result.url);
           return reply.status(200).send();
-        } else {
-          // Return JSON for non-HTMX clients
+        } else if (request.headers["content-type"]?.includes("json")) {
+          // Return JSON for API clients
           return { portalUrl: result.url };
+        } else {
+          // Regular form POST — redirect to Stripe portal
+          return reply.redirect(result.url);
         }
-      } catch (error) {
+      } catch (error: any) {
+        console.error("Billing portal error:", error?.message || error);
         return reply
           .status(500)
           .send({ error: "Failed to create billing portal session" });
