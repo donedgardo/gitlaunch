@@ -62,11 +62,19 @@ export function registerBillingRoutes(
           account._id,
         );
 
+        const isOnTrial =
+          account.plan !== Plan.Free &&
+          !account.stripeSubscriptionId &&
+          accountState.trialDaysRemaining > 0;
+
         const templateData = {
           plan: account.plan.charAt(0).toUpperCase() + account.plan.slice(1),
+          planLower: account.plan,
           isPaid: account.plan !== Plan.Free,
           hasSubscription: !!account.stripeSubscriptionId,
           hasStripeCustomer: !!account.stripeCustomerId,
+          isOnTrial,
+          trialDaysRemaining: accountState.trialDaysRemaining,
           paymentFailed: accountState.paymentFailed,
           gracePeriodDaysRemaining: accountState.gracePeriodDaysRemaining,
           usage: {

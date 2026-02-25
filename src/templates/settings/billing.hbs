@@ -44,7 +44,11 @@
         <div>
           <div class="text-3xl font-bold text-gray-900 dark:text-white">{{plan}}</div>
           <p class="text-gray-600 dark:text-gray-400 mt-1">
-            {{#if isPaid}}
+            {{#if isOnTrial}}
+              Trial — {{trialDaysRemaining}} days remaining
+            {{else if hasSubscription}}
+              Active subscription
+            {{else if isPaid}}
               Active subscription
             {{else}}
               Free tier
@@ -56,6 +60,12 @@
             <form method="POST" action="/api/billing/portal" hx-post="/api/billing/portal" hx-vals='{"returnUrl":"/settings/billing"}'>
               <button type="submit" class="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors">
                 Manage Billing
+              </button>
+            </form>
+          {{else if isOnTrial}}
+            <form method="POST" action="/api/billing/checkout" hx-post="/api/billing/checkout" hx-vals='{"plan":"{{planLower}}"}'>
+              <button type="submit" class="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors">
+                Subscribe Now
               </button>
             </form>
           {{else}}
