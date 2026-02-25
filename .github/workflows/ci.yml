@@ -94,7 +94,7 @@ jobs:
         uses: donedgardo/build-reporter@v1
         with:
           api-key: ${{ secrets.GITLAUNCH_API_KEY }}
-          service-id: 697434f8f9d1eb666d8571de
+          service-id: 699e4f4a7018cde00616b417
           action: report-build
           build-id: ${{ github.sha }}
 
