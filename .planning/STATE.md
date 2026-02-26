@@ -96,6 +96,10 @@ Recent decisions affecting current work:
 - **Banner priority: payment failure > trial > read-only** (04-03) — Users see most critical message first
 - **TrialRegistryRepository.ensureIndexes() called during startup** (04-04) — All repositories with indexes must call ensureIndexes() in start() function before server.listen()
 
+### Roadmap Evolution
+
+- Phase 5 added: Simplify CI/CD Pipeline Setup with GitHub Action
+
 ### Pending Todos
 
 None yet.
