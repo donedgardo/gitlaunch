@@ -17,6 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Plan Selection & Checkout** - User can select and pay for plans ✓
 - [x] **Phase 3: Plan Enforcement & Limits** - Server-side limit checks enforce tier value ✓
 - [x] **Phase 4: Trial & Payment Lifecycle** - Trials, auto-downgrade, payment failure handling ✓
+- [ ] **Phase 5: Simplify CI/CD Pipeline Setup with GitHub Action** - Reusable GitHub Action to replace copy-paste workflow setup
 
 ## Phase Details
 
@@ -107,11 +108,25 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
-| Phase                        | Plans Complete | Status     | Completed  |
-| ---------------------------- | -------------- | ---------- | ---------- |
-| 1. Billing Foundation        | 3/3            | ✓ Complete | 2026-02-09 |
-| 2. Plan Selection & Checkout | 3/3            | ✓ Complete | 2026-02-11 |
-| 3. Plan Enforcement & Limits | 3/3            | ✓ Complete | 2026-02-15 |
-| 4. Trial & Payment Lifecycle | 4/4            | ✓ Complete | 2026-02-16 |
+| Phase                                               | Plans Complete | Status      | Completed  |
+| --------------------------------------------------- | -------------- | ----------- | ---------- |
+| 1. Billing Foundation                               | 3/3            | ✓ Complete  | 2026-02-09 |
+| 2. Plan Selection & Checkout                        | 3/3            | ✓ Complete  | 2026-02-11 |
+| 3. Plan Enforcement & Limits                        | 3/3            | ✓ Complete  | 2026-02-15 |
+| 4. Trial & Payment Lifecycle                        | 4/4            | ✓ Complete  | 2026-02-16 |
+| 5. Simplify CI/CD Pipeline Setup with GitHub Action | 0/2            | Not started | -          |
+
+### Phase 5: Simplify CI/CD Pipeline Setup with GitHub Action
+
+**Goal:** Minimize friction when setting up a CI/CD pipeline by abstracting the current copy-paste workflow YAML into a reusable GitHub Action published on the marketplace
+**Depends on:** Phase 4
+**Notes:** Existing action lives at donedgardo/build-reporter. Should be added as a submodule of this repo called `github-action`. Users should be able to set up CI/CD with minimal configuration instead of copying a massive workflow file.
+**Requirements:** CICD-01, CICD-02, CICD-03
+**Plans:** 2 plans
+
+Plans:
+
+- [ ] 05-01-PLAN.md — Consolidated GitHub Action with post-step auto-outcome detection (TDD)
+- [ ] 05-02-PLAN.md — Dashboard templates and workflow migration to consolidated action
