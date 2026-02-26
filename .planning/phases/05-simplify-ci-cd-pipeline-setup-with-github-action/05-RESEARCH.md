@@ -26,7 +26,7 @@
 
 **Action Inputs**
 
-- Required inputs: `GITLAUNCH_API_KEY`, `service-name`, `environment` (staging/prod)
+- Required inputs: `GITLAUNCH_API_KEY`, `service-id`, `environment` (staging/prod)
 - Action infers the rest from GitHub context (repo, commit SHA, branch, etc.)
 
 ### Claude's Discretion
@@ -53,7 +53,7 @@ The submodule already exists at `github-action/` (pinned to commit `ed1b8882`). 
 
 The dashboard work is straightforward Handlebars partial replacement — the existing `deploymentSetupGuide.hbs` partial (rendered in `services/settings.hbs`) must be replaced or extended to emit the new short snippet. The settings route already receives `service.id`, `environments`, and can be extended to receive the account's API key. The `created.hbs` page (one-time display) and its `buildReportingInstructions.hbs` partial also need updating to show the consolidated workflow.
 
-**Primary recommendation:** Implement the new action as a `post:`-powered JavaScript action in the submodule, update `action.yml` to add `service-name` + `environment` inputs (dropping the old `action` and `status` inputs), add a `post: dist/post.js` entry, then update the dashboard templates to emit the minimal pre-filled snippet. Publish a new v1.x.x release and move the floating `v1` tag.
+**Primary recommendation:** Implement the new action as a `post:`-powered JavaScript action in the submodule, update `action.yml` to add `service-id` + `environment` inputs (dropping the old `action` and `status` inputs), add a `post: dist/post.js` entry, then update the dashboard templates to emit the minimal pre-filled snippet. Publish a new v1.x.x release and move the floating `v1` tag.
 
 ---
 

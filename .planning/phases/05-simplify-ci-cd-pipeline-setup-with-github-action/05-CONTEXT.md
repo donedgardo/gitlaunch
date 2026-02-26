@@ -29,7 +29,7 @@ Replace the current copy-paste workflow YAML (which requires duplicating status 
 
 ### Action Inputs
 
-- Required inputs: `GITLAUNCH_API_KEY`, `service-name`, `environment` (staging/prod)
+- Required inputs: `GITLAUNCH_API_KEY`, `service-id`, `environment` (staging/prod)
 - Action infers the rest from GitHub context (repo, commit SHA, branch, etc.)
 
 ### Claude's Discretion
