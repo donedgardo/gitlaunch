@@ -31,6 +31,9 @@ export function registerPlugins(server: FastifyInstance) {
     },
     root: path.join(__dirname, "../templates"),
     options: {
+      compileOptions: {
+        preventIndent: true,
+      },
       partials: {
         buildEnvironmentAction: "/partials/buildEnvironmentAction.hbs",
         buildReportingInstructions: "/partials/buildReportingInstructions.hbs",

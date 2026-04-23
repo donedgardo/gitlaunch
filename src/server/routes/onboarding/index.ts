@@ -147,8 +147,10 @@ export function registerOnboardingRoutes(
       }
 
       // Show GitHub App installation page
-      const githubAppName = process.env.GH_APP_NAME || "gitlaunchapp";
-      const installUrl = `https://github.com/apps/${githubAppName}/installations/new`;
+      const useFakeGitHub = process.env.USE_FAKE_GITHUB === "true";
+      const installUrl = useFakeGitHub
+        ? "/github/installation/callback?installation_id=12345"
+        : `https://github.com/apps/${process.env.GH_APP_NAME || "gitlaunchapp"}/installations/new`;
 
       return reply.view(
         "onboarding/install-github",

@@ -64,15 +64,18 @@
   <!-- Step 1: Add Secrets -->
   {{> githubSecretsSetup serviceId=serviceId idPrefix="created_" stepNumber="1" showRequired=true showApiKeyNote=true showCopyButton=true }}
 
-  <!-- Step 2: Create Deploy Workflow -->
+  <!-- Step 2: Set Up CI Workflow -->
+  {{> buildReportingInstructions idPrefix="created_" stepNumber="2" }}
+
+  <!-- Step 3: Create Deploy Workflow -->
   {{> deploymentSetupGuide environments=environments }}
 
-  <!-- Step 3: Push a Commit -->
+  <!-- Step 4: Push a Commit -->
   <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-lg overflow-hidden mb-6">
     <div class="p-6 sm:p-8">
       <div style="display: flex; align-items: flex-start;">
         <div style="width: 32px; height: 32px; min-width: 32px; display: flex; align-items: center; justify-content: center;" class="bg-blue-600 text-white rounded-full font-semibold mr-4">
-          3
+          4
         </div>
         <div style="flex: 1;">
           <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">
