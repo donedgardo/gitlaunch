@@ -48,7 +48,7 @@ jobs:
 
       - name: GitLaunch Deploy
         if: env.ENVIRONMENT != 'dev'
-        uses: donedgardo/build-reporter@v1
+        uses: donedgardo/build-reporter@v2
         with:
           api-key: ${{ secrets.GITLAUNCH_API_KEY }}
           service-id: ${{ vars.GITLAUNCH_SERVICE_ID }}

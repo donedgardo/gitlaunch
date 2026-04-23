@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Report build to GitLaunch
-        uses: donedgardo/build-reporter@v1
+        uses: donedgardo/build-reporter@v2
         with:
           api-key: ${{ secrets.GITLAUNCH_API_KEY }}
           api-url: https://gitlaunch.dev
@@ -31,7 +31,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Report build to GitLaunch
-        uses: donedgardo/build-reporter@v1
+        uses: donedgardo/build-reporter@v2
         with:
           api-key: ${{ secrets.GITLAUNCH_API_KEY }}
           api-url: https://gitlaunch.dev

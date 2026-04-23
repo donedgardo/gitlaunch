@@ -91,7 +91,7 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
       - name: Report build to GitLaunch
-        uses: donedgardo/build-reporter@v1
+        uses: donedgardo/build-reporter@v2
         with:
           api-key: ${{ secrets.GITLAUNCH_API_KEY }}
           service-id: 699e4f4a7018cde00616b417

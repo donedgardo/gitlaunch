@@ -14,14 +14,10 @@ on:
         description: "Build ID to deploy"
         required: true
         type: string
-      serviceId:
-        description: "GitLaunch Service ID"
-        required: true
-        type: string
       delay-seconds:
         description: "Delay before cancelling (simulates partial deploy)"
         required: false
-        default: "5"
+        default: "30"
         type: string
 
 jobs:
@@ -31,42 +27,29 @@ jobs:
     env:
       ENVIRONMENT: ${{ inputs.environment }}
       BUILD_ID: ${{ inputs.buildId }}
-      SERVICE_ID: ${{ inputs.serviceId }}
-      DELAY: ${{ inputs.delay-seconds || '5' }}
+      DELAY: ${{ inputs.delay-seconds || '30' }}
     steps:
-      - name: Report deploying
-        uses: donedgardo/build-reporter@v1
+      - name: GitLaunch Deploy
+        uses: donedgardo/build-reporter@v2
         with:
           api-key: ${{ secrets.GITLAUNCH_API_KEY }}
           api-url: https://gitlaunch.dev
-          service-id: ${{ env.SERVICE_ID }}
-          action: update-status
-          build-id: ${{ env.BUILD_ID }}
+          service-id: ${{ vars.GITLAUNCH_SERVICE_ID }}
           environment: ${{ env.ENVIRONMENT }}
-          status: deploying
+          build-id: ${{ env.BUILD_ID }}
+          action: deploy
 
-      - name: Simulate deployment (will be cancelled)
+      - name: Simulate deployment (cancel the workflow to test)
         run: |
-          echo "🚀 Deploying build ${{ env.BUILD_ID }} to ${{ env.ENVIRONMENT }}..."
+          echo "Deploying build ${{ env.BUILD_ID }} to ${{ env.ENVIRONMENT }}..."
+          echo "Cancel this workflow run to test cancelled status reporting."
           sleep ${{ env.DELAY }}
-          echo "⚠️ Simulated cancellation!"
-
-      - name: Report cancelled
-        uses: donedgardo/build-reporter@v1
-        with:
-          api-key: ${{ secrets.GITLAUNCH_API_KEY }}
-          api-url: https://gitlaunch.dev
-          service-id: ${{ env.SERVICE_ID }}
-          action: update-status
-          build-id: ${{ env.BUILD_ID }}
-          environment: ${{ env.ENVIRONMENT }}
-          status: cancelled
 
       - name: Summary
         run: |
-          echo "## ⚠️ Test Deploy Cancelled" >> $GITHUB_STEP_SUMMARY
+          echo "## Test Deploy Cancelled" >> $GITHUB_STEP_SUMMARY
           echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
           echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
           echo "| Environment | ${{ env.ENVIRONMENT }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Build ID | ${{ env.BUILD_ID }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Final Status | cancelled |" >> $GITHUB_STEP_SUMMARY
+          echo "| Final Status | auto-detected by post step |" >> $GITHUB_STEP_SUMMARY
