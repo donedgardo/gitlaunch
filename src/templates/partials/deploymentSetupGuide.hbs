@@ -29,10 +29,6 @@ on:
         description: "Build ID (commit SHA)"
         required: false
         type: string
-      serviceId:
-        description: "GitLaunch Service ID"
-        required: false
-        type: string
   workflow_call:
     inputs:
       environment:
@@ -41,78 +37,28 @@ on:
       buildId:
         required: false
         type: string
-      serviceId:
-        required: false
-        type: string
-    secrets:
-      GITLAUNCH_API_KEY:
-        required: false
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    env:
-      ENVIRONMENT: $&#123;&#123; inputs.environment &#125;&#125;
-      BUILD_ID: $&#123;&#123; inputs.buildId || github.sha &#125;&#125;
-      SERVICE_ID: $&#123;&#123; inputs.serviceId &#125;&#125;
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: $&#123;&#123; env.BUILD_ID &#125;&#125;
+          ref: $&#123;&#123; inputs.buildId || github.sha &#125;&#125;
 
-      # Report: Deployment started
-      - name: Report deploying
-        if: env.SERVICE_ID != ''
-        uses: donedgardo/build-reporter@v1
+      - uses: donedgardo/build-reporter@v1
         with:
           api-key: $&#123;&#123; secrets.GITLAUNCH_API_KEY &#125;&#125;
-          service-id: $&#123;&#123; env.SERVICE_ID &#125;&#125;
-          action: update-status
-          build-id: $&#123;&#123; env.BUILD_ID &#125;&#125;
-          environment: $&#123;&#123; env.ENVIRONMENT &#125;&#125;
-          status: deploying
+          service-id: $&#123;&#123; vars.GITLAUNCH_SERVICE_ID &#125;&#125;
+          environment: $&#123;&#123; inputs.environment &#125;&#125;
+          build-id: $&#123;&#123; inputs.buildId || github.sha &#125;&#125;
+          action: deploy
 
       ####################################
       # Add your deployment steps here   #
       ####################################
       - name: Deploy
-        run: echo "Deploy to $&#123;&#123; env.ENVIRONMENT &#125;&#125;"
-
-      # Report: Deployment succeeded
-      - name: Report deployed
-        if: success() &amp;&amp; env.SERVICE_ID != ''
-        uses: donedgardo/build-reporter@v1
-        with:
-          api-key: $&#123;&#123; secrets.GITLAUNCH_API_KEY &#125;&#125;
-          service-id: $&#123;&#123; env.SERVICE_ID &#125;&#125;
-          action: update-status
-          build-id: $&#123;&#123; env.BUILD_ID &#125;&#125;
-          environment: $&#123;&#123; env.ENVIRONMENT &#125;&#125;
-          status: deployed
-
-      # Report: Deployment failed
-      - name: Report error
-        if: failure() &amp;&amp; env.SERVICE_ID != ''
-        uses: donedgardo/build-reporter@v1
-        with:
-          api-key: $&#123;&#123; secrets.GITLAUNCH_API_KEY &#125;&#125;
-          service-id: $&#123;&#123; env.SERVICE_ID &#125;&#125;
-          action: update-status
-          build-id: $&#123;&#123; env.BUILD_ID &#125;&#125;
-          environment: $&#123;&#123; env.ENVIRONMENT &#125;&#125;
-          status: error
-
-      # Report: Deployment cancelled
-      - name: Report cancelled
-        if: cancelled() &amp;&amp; env.SERVICE_ID != ''
-        uses: donedgardo/build-reporter@v1
-        with:
-          api-key: $&#123;&#123; secrets.GITLAUNCH_API_KEY &#125;&#125;
-          service-id: $&#123;&#123; env.SERVICE_ID &#125;&#125;
-          action: update-status
-          build-id: $&#123;&#123; env.BUILD_ID &#125;&#125;
-          environment: $&#123;&#123; env.ENVIRONMENT &#125;&#125;
-          status: cancelled</code></pre>
+        run: echo "Deploy to $&#123;&#123; inputs.environment &#125;&#125;"</code></pre>
             </div>
             <button
               onclick="copyDeployWorkflow()"
@@ -146,9 +92,7 @@ jobs:
     uses: ./.github/workflows/deploy.yml
     with:
       environment: {{#if environments.[0]}}{{environments.[0].name}}{{else}}staging{{/if}}
-      buildId: $&#123;&#123; github.sha &#125;&#125;
-      serviceId: $&#123;&#123; vars.GITLAUNCH_SERVICE_ID &#125;&#125;
-    secrets: inherit</code></pre>
+      buildId: $&#123;&#123; github.sha &#125;&#125;</code></pre>
                 </div>
               </div>
             </div>
@@ -226,10 +170,6 @@ ${envOptions}
         description: "Build ID (commit SHA)"
         required: false
         type: string
-      serviceId:
-        description: "GitLaunch Service ID"
-        required: false
-        type: string
   workflow_call:
     inputs:
       environment:
@@ -238,78 +178,28 @@ ${envOptions}
       buildId:
         required: false
         type: string
-      serviceId:
-        required: false
-        type: string
-    secrets:
-      GITLAUNCH_API_KEY:
-        required: false
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    env:
-      ENVIRONMENT: \$\{{ inputs.environment }}
-      BUILD_ID: \$\{{ inputs.buildId || github.sha }}
-      SERVICE_ID: \$\{{ inputs.serviceId }}
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: \$\{{ env.BUILD_ID }}
+          ref: \$\{{ inputs.buildId || github.sha }}
 
-      # Report: Deployment started
-      - name: Report deploying
-        if: env.SERVICE_ID != ''
-        uses: donedgardo/build-reporter@v1
+      - uses: donedgardo/build-reporter@v1
         with:
           api-key: \$\{{ secrets.GITLAUNCH_API_KEY }}
-          service-id: \$\{{ env.SERVICE_ID }}
-          action: update-status
-          build-id: \$\{{ env.BUILD_ID }}
-          environment: \$\{{ env.ENVIRONMENT }}
-          status: deploying
+          service-id: \$\{{ vars.GITLAUNCH_SERVICE_ID }}
+          environment: \$\{{ inputs.environment }}
+          build-id: \$\{{ inputs.buildId || github.sha }}
+          action: deploy
 
       ####################################
       # Add your deployment steps here   #
       ####################################
       - name: Deploy
-        run: echo "Deploy to \$\{{ env.ENVIRONMENT }}"
-
-      # Report: Deployment succeeded
-      - name: Report deployed
-        if: success() && env.SERVICE_ID != ''
-        uses: donedgardo/build-reporter@v1
-        with:
-          api-key: \$\{{ secrets.GITLAUNCH_API_KEY }}
-          service-id: \$\{{ env.SERVICE_ID }}
-          action: update-status
-          build-id: \$\{{ env.BUILD_ID }}
-          environment: \$\{{ env.ENVIRONMENT }}
-          status: deployed
-
-      # Report: Deployment failed
-      - name: Report error
-        if: failure() && env.SERVICE_ID != ''
-        uses: donedgardo/build-reporter@v1
-        with:
-          api-key: \$\{{ secrets.GITLAUNCH_API_KEY }}
-          service-id: \$\{{ env.SERVICE_ID }}
-          action: update-status
-          build-id: \$\{{ env.BUILD_ID }}
-          environment: \$\{{ env.ENVIRONMENT }}
-          status: error
-
-      # Report: Deployment cancelled
-      - name: Report cancelled
-        if: cancelled() && env.SERVICE_ID != ''
-        uses: donedgardo/build-reporter@v1
-        with:
-          api-key: \$\{{ secrets.GITLAUNCH_API_KEY }}
-          service-id: \$\{{ env.SERVICE_ID }}
-          action: update-status
-          build-id: \$\{{ env.BUILD_ID }}
-          environment: \$\{{ env.ENVIRONMENT }}
-          status: cancelled`;
+        run: echo "Deploy to \$\{{ inputs.environment }}"`;
   navigator.clipboard.writeText(code).then(() => {
     const copyIcon = document.getElementById('deploy-copy-icon');
     const checkIcon = document.getElementById('deploy-check-icon');
