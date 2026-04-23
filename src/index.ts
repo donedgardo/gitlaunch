@@ -4,20 +4,13 @@ import EventEmitter from "node:events";
 
 import { createAppServer } from "./server/createAppServer";
 import { MongoDbClient } from "./services/auth/mongoDbClient";
-import {
-  GitHubOAuthService,
-  GitHubHttpClient,
-} from "./services/auth/githubOAuthService";
 import { SessionService } from "./services/auth/sessionService";
 import { AccountRepository } from "./repositories/accountRepository";
 import { BuildRepository } from "./repositories/buildRepository";
 import { ServiceRepository } from "./repositories/serviceRepository";
 import { WebhookEventRepository } from "./repositories/webhookEventRepository";
 import { TrialRegistryRepository } from "./repositories/trialRegistryRepository";
-import { GitHubAppService } from "./services/github/githubAppService";
-import { GitHubAppClient } from "./services/github/githubAppClient";
-import { InstallationTokenService } from "./services/github/installationTokenService";
-import { GitHubApiClient } from "./services/github/githubApiClient";
+import { createGitHubServices } from "./services/github/createGitHubServices";
 
 // MongoDB connection
 const mongodb_uri = process.env.MONGODB_URI as string;
@@ -27,35 +20,22 @@ const database = client.db("gitlaunch");
 // Event emitter for SSE
 const eventEmitter = new EventEmitter();
 
-// GitHub OAuth service
-const githubHttpClient = new GitHubHttpClient(
-  process.env.GH_APP_CLIENT_ID as string,
-  process.env.GH_APP_CLIENT_SECRET as string,
-);
-const githubOAuthService = new GitHubOAuthService(githubHttpClient, {
-  clientId: process.env.GH_APP_CLIENT_ID,
-  clientSecret: process.env.GH_APP_CLIENT_SECRET,
-  redirectUri: `${process.env.PUBLIC_URL}/auth/github/callback`,
-});
-
 // Session service
 const sessionService = new SessionService(
   process.env.COOKIE_SECRET_SIGNATURE as string,
 );
 
-// GitHub App service
+// GitHub services
 const accountRepository = new AccountRepository(database);
-const gitHubAppClient = new GitHubAppClient({
-  appId: process.env.GH_APP_ID as string,
-  privateKey: process.env.GH_APP_PRIVATE_KEY as string,
-});
-const installationTokenService = new InstallationTokenService(gitHubAppClient);
-const gitHubApiClient = new GitHubApiClient();
-const gitHubAppService = new GitHubAppService(
-  accountRepository,
-  installationTokenService,
-  gitHubApiClient,
-);
+const { githubOAuthService, gitHubAppService, installationTokenService } =
+  createGitHubServices(accountRepository, {
+    useFakes: process.env.USE_FAKE_GITHUB === "true",
+    clientId: process.env.GH_APP_CLIENT_ID,
+    clientSecret: process.env.GH_APP_CLIENT_SECRET,
+    appId: process.env.GH_APP_ID,
+    privateKey: process.env.GH_APP_PRIVATE_KEY,
+    publicUrl: process.env.PUBLIC_URL,
+  });
 
 // Create WebhookEventRepository for webhook idempotency
 const webhookEventRepository = new WebhookEventRepository(database);

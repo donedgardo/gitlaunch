@@ -10,33 +10,131 @@
       {{/if}}
       <div style="flex: 1;">
         <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-          Update Your CI Workflow
+          Set Up Your CI Workflow
         </h2>
         <p class="text-gray-600 dark:text-gray-400 mb-4">
-          Add this step to your GitHub Actions workflow:
+          Report builds to GitLaunch from your GitHub Actions CI pipeline:
         </p>
-        <div class="relative">
-          <div class="bg-gray-900 dark:bg-gray-950 rounded-xl p-4 font-mono text-sm text-green-400 overflow-x-auto">
-            <pre><code>- name: Report build
+
+        <!-- Tab Toggle -->
+        <div class="flex mb-4 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+          <button
+            id="{{idPrefix}}tab_existing"
+            onclick="switch{{idPrefix}}Tab('existing')"
+            class="flex-1 px-3 py-2 text-sm font-medium rounded-md bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
+          >
+            Add to existing CI
+          </button>
+          <button
+            id="{{idPrefix}}tab_sample"
+            onclick="switch{{idPrefix}}Tab('sample')"
+            class="flex-1 px-3 py-2 text-sm font-medium rounded-md text-gray-500 dark:text-gray-400"
+          >
+            Full sample CI
+          </button>
+        </div>
+
+        <!-- Existing CI Tab -->
+        <div id="{{idPrefix}}panel_existing">
+          <p class="text-sm text-gray-500 dark:text-gray-400 mb-3">
+            Add this step at the end of your existing workflow:
+          </p>
+          <div class="relative">
+            <div class="bg-gray-900 dark:bg-gray-950 rounded-xl p-4 font-mono text-xs text-green-400 overflow-x-auto">
+              <pre class="whitespace-pre"><code>- name: Report build
   uses: donedgardo/build-reporter@v2
   with:
     api-key: $&#123;&#123; secrets.GITLAUNCH_API_KEY &#125;&#125;
     service-id: $&#123;&#123; vars.GITLAUNCH_SERVICE_ID &#125;&#125;
     action: report-build
     build-id: $&#123;&#123; github.sha &#125;&#125;</code></pre>
+            </div>
+            <button
+              onclick="copy{{idPrefix}}WorkflowCode('existing')"
+              class="absolute top-3 right-3 p-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
+              title="Copy to clipboard"
+            >
+              <svg id="{{idPrefix}}existing_copy_icon" style="width: 20px; height: 20px;" class="text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+              </svg>
+              <svg id="{{idPrefix}}existing_check_icon" style="width: 20px; height: 20px; display: none;" class="text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+              </svg>
+            </button>
           </div>
-          <button
-            onclick="copy{{idPrefix}}WorkflowCode()"
-            class="absolute top-3 right-3 p-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
-            title="Copy to clipboard"
-          >
-            <svg id="{{idPrefix}}workflow-copy-icon" style="width: 20px; height: 20px;" class="text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
-            </svg>
-            <svg id="{{idPrefix}}workflow-check-icon" style="width: 20px; height: 20px; display: none;" class="text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-            </svg>
-          </button>
+        </div>
+
+        <!-- Sample CI Tab (hidden by default) -->
+        <div id="{{idPrefix}}panel_sample" style="display: none;">
+          <p class="text-sm text-gray-500 dark:text-gray-400 mb-3">
+            Don't have a CI workflow yet? Save this as <code class="text-xs bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">.github/workflows/ci.yml</code>:
+          </p>
+          <div class="relative">
+            <div class="bg-gray-900 dark:bg-gray-950 rounded-xl p-4 font-mono text-xs text-green-400 overflow-x-auto">
+              <pre class="whitespace-pre"><code>name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Quality checks
+        run: npm run lint
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build
+          path: dist/
+
+      - name: Report build to GitLaunch
+        if: github.ref == 'refs/heads/main'
+        uses: donedgardo/build-reporter@v2
+        with:
+          api-key: $&#123;&#123; secrets.GITLAUNCH_API_KEY &#125;&#125;
+          service-id: $&#123;&#123; vars.GITLAUNCH_SERVICE_ID &#125;&#125;
+          action: report-build
+          build-id: $&#123;&#123; github.sha &#125;&#125;</code></pre>
+            </div>
+            <button
+              onclick="copy{{idPrefix}}WorkflowCode('sample')"
+              class="absolute top-3 right-3 p-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
+              title="Copy to clipboard"
+            >
+              <svg id="{{idPrefix}}sample_copy_icon" style="width: 20px; height: 20px;" class="text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+              </svg>
+              <svg id="{{idPrefix}}sample_check_icon" style="width: 20px; height: 20px; display: none;" class="text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+              </svg>
+            </button>
+          </div>
+          <div class="mt-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+            <p class="text-xs text-blue-700 dark:text-blue-300">
+              Adapt the build and test commands to match your project. The report-build step only runs on pushes to main.
+            </p>
+          </div>
         </div>
       </div>
     </div>
@@ -44,20 +142,38 @@
 </div>
 
 <script>
-function copy{{idPrefix}}WorkflowCode() {
-  const code = `- name: Report build
-  uses: donedgardo/build-reporter@v2
-  with:
-    api-key: \${{ secrets.GITLAUNCH_API_KEY }}
-    service-id: \${{ vars.GITLAUNCH_SERVICE_ID }}
-    action: report-build
-    build-id: \${{ github.sha }}`;
-  navigator.clipboard.writeText(code).then(() => {
-    const copyIcon = document.getElementById('{{idPrefix}}workflow-copy-icon');
-    const checkIcon = document.getElementById('{{idPrefix}}workflow-check-icon');
+function switch{{idPrefix}}Tab(tab) {
+  var existingPanel = document.getElementById('{{idPrefix}}panel_existing');
+  var samplePanel = document.getElementById('{{idPrefix}}panel_sample');
+  var existingTab = document.getElementById('{{idPrefix}}tab_existing');
+  var sampleTab = document.getElementById('{{idPrefix}}tab_sample');
+
+  if (tab === 'existing') {
+    existingPanel.style.display = '';
+    samplePanel.style.display = 'none';
+    existingTab.className = 'flex-1 px-3 py-2 text-sm font-medium rounded-md bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm';
+    sampleTab.className = 'flex-1 px-3 py-2 text-sm font-medium rounded-md text-gray-500 dark:text-gray-400';
+  } else {
+    existingPanel.style.display = 'none';
+    samplePanel.style.display = '';
+    sampleTab.className = 'flex-1 px-3 py-2 text-sm font-medium rounded-md bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm';
+    existingTab.className = 'flex-1 px-3 py-2 text-sm font-medium rounded-md text-gray-500 dark:text-gray-400';
+  }
+}
+
+function copy{{idPrefix}}WorkflowCode(tab) {
+  var code;
+  if (tab === 'existing') {
+    code = '- name: Report build\n  uses: donedgardo/build-reporter@v2\n  with:\n    api-key: $\{{ secrets.GITLAUNCH_API_KEY }}\n    service-id: $\{{ vars.GITLAUNCH_SERVICE_ID }}\n    action: report-build\n    build-id: $\{{ github.sha }}';
+  } else {
+    code = 'name: CI\n\non:\n  push:\n    branches: [main]\n  pull_request:\n    branches: [main]\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n\n      - uses: actions/setup-node@v4\n        with:\n          node-version: 20\n          cache: npm\n\n      - name: Install dependencies\n        run: npm ci\n\n      - name: Quality checks\n        run: npm run lint\n\n      - name: Run tests\n        run: npm test\n\n      - name: Build\n        run: npm run build\n\n      - name: Upload build artifact\n        uses: actions/upload-artifact@v4\n        with:\n          name: build\n          path: dist/\n\n      - name: Report build to GitLaunch\n        if: github.ref == \'refs/heads/main\'\n        uses: donedgardo/build-reporter@v2\n        with:\n          api-key: $\{{ secrets.GITLAUNCH_API_KEY }}\n          service-id: $\{{ vars.GITLAUNCH_SERVICE_ID }}\n          action: report-build\n          build-id: $\{{ github.sha }}';
+  }
+  var copyIcon = document.getElementById('{{idPrefix}}' + tab + '_copy_icon');
+  var checkIcon = document.getElementById('{{idPrefix}}' + tab + '_check_icon');
+  navigator.clipboard.writeText(code).then(function() {
     copyIcon.style.display = 'none';
     checkIcon.style.display = 'block';
-    setTimeout(() => {
+    setTimeout(function() {
       copyIcon.style.display = 'block';
       checkIcon.style.display = 'none';
     }, 2000);
