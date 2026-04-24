@@ -45,18 +45,25 @@ export class FakeGitHubApiClient implements IGitHubApiClient {
   async listInstallationRepos(_token: string): Promise<GitHubRepo[]> {
     return [
       {
-        id: 1,
-        name: "my-app",
-        full_name: "dev-user/my-app",
+        id: 100001,
+        name: "public-repo-1",
+        full_name: "test-org/public-repo-1",
         private: false,
-        owner: { login: "dev-user" },
+        owner: { login: "test-org" },
       },
       {
-        id: 2,
-        name: "my-api",
-        full_name: "dev-user/my-api",
+        id: 100002,
+        name: "public-repo-2",
+        full_name: "test-org/public-repo-2",
+        private: false,
+        owner: { login: "test-org" },
+      },
+      {
+        id: 100003,
+        name: "private-repo",
+        full_name: "test-org/private-repo",
         private: true,
-        owner: { login: "dev-user" },
+        owner: { login: "test-org" },
       },
     ];
   }
