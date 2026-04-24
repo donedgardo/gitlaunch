@@ -1,0 +1,100 @@
+<div class="max-w-3xl mx-auto px-4 py-10">
+  <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">API Keys</h1>
+
+  {{#if newKey}}
+  <!-- New key banner - shown once -->
+  <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl p-6 mb-6">
+    <div style="display: flex; align-items: flex-start;">
+      <svg style="width: 24px; height: 24px; min-width: 24px;" class="text-amber-600 dark:text-amber-400 mr-3 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+      </svg>
+      <div style="flex: 1;">
+        <h3 class="font-semibold text-amber-800 dark:text-amber-200 mb-1">Save Your API Key — {{newKeyName}}</h3>
+        <p class="text-sm text-amber-700 dark:text-amber-300 mb-3">
+          This key will only be shown once. Copy it and store it securely.
+        </p>
+        <div class="relative">
+          <div id="new-api-key" class="bg-gray-900 rounded-xl p-4 font-mono text-sm text-green-400 break-all pr-12">{{newKey}}</div>
+          <button onclick="copyNewKey()" class="absolute top-3 right-3 p-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors" title="Copy API key">
+            <svg id="new-key-copy-icon" style="width: 20px; height: 20px;" class="text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+            </svg>
+            <svg id="new-key-check-icon" style="width: 20px; height: 20px; display: none;" class="text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  {{/if}}
+
+  <!-- Create new key -->
+  <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-lg overflow-hidden mb-6">
+    <div class="p-6">
+      <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Create New Key</h2>
+      <form method="POST" action="/settings/api-keys" style="display: flex; gap: 12px; align-items: flex-end;">
+        <div style="flex: 1;">
+          <label for="key-name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Key Name</label>
+          <input type="text" id="key-name" name="name" placeholder="e.g. CI Pipeline" required
+            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+        </div>
+        <button type="submit"
+          class="px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors text-sm whitespace-nowrap">
+          Generate Key
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Key list -->
+  <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-lg overflow-hidden">
+    <div class="p-6">
+      <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Your Keys</h2>
+      {{#if keys.length}}
+      <div class="divide-y divide-gray-200 dark:divide-gray-700">
+        {{#each keys}}
+        <div class="py-4 {{#if isRevoked}}opacity-50{{/if}}" style="display: flex; align-items: center; justify-content: space-between;">
+          <div>
+            <div class="font-medium text-gray-900 dark:text-white">{{name}}</div>
+            <div class="text-sm text-gray-500 dark:text-gray-400 font-mono">{{prefix}}...</div>
+            <div class="text-xs text-gray-400 dark:text-gray-500 mt-1">
+              Created {{createdAt}} · Last used: {{lastUsedAt}}
+            </div>
+          </div>
+          <div>
+            {{#if isRevoked}}
+            <span class="px-3 py-1 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 text-xs font-medium rounded-full">Revoked</span>
+            {{else}}
+            <form method="POST" action="/settings/api-keys/{{id}}/revoke" onsubmit="return confirm('Revoke this key? This cannot be undone.')">
+              <button type="submit" class="px-3 py-1 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
+                Revoke
+              </button>
+            </form>
+            {{/if}}
+          </div>
+        </div>
+        {{/each}}
+      </div>
+      {{else}}
+      <p class="text-gray-500 dark:text-gray-400 text-sm">No API keys yet. Create one above.</p>
+      {{/if}}
+    </div>
+  </div>
+</div>
+
+{{#if newKey}}
+<script>
+function copyNewKey() {
+  var key = document.getElementById('new-api-key').textContent.trim();
+  navigator.clipboard.writeText(key).then(function() {
+    document.getElementById('new-key-copy-icon').style.display = 'none';
+    document.getElementById('new-key-check-icon').style.display = 'block';
+    setTimeout(function() {
+      document.getElementById('new-key-copy-icon').style.display = 'block';
+      document.getElementById('new-key-check-icon').style.display = 'none';
+    }, 2000);
+  });
+}
+</script>
+{{/if}}

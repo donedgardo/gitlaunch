@@ -124,9 +124,76 @@ jobs:
               Adapt the build and test commands to match your project. The report-build step only runs on pushes to main.
             </p>
           </div>
+
         </div>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- Terminal command option (shown only when sample tab is active) -->
+<div id="{{idPrefix}}terminal_block" style="display: none;" class="mb-6">
+  <div style="display: flex; align-items: center;" class="mb-3">
+    <div class="flex-1 border-t border-gray-200 dark:border-gray-700"></div>
+    <span class="px-3 text-xs text-gray-400 dark:text-gray-500">or copy this command in your terminal to create a PR</span>
+    <div class="flex-1 border-t border-gray-200 dark:border-gray-700"></div>
+  </div>
+  <div class="relative">
+    <div class="bg-gray-900 dark:bg-gray-950 rounded-xl p-4 font-mono text-xs text-green-400 overflow-x-auto">
+      <pre class="whitespace-pre"><code>mkdir -p .github/workflows && cat &gt; .github/workflows/ci.yml &lt;&lt; 'EOF'
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: echo "Install your dependencies here"
+
+      - name: Quality checks
+        run: echo "Run your linter here"
+
+      - name: Run tests
+        run: echo "Run your tests here"
+
+      - name: Build
+        run: echo "Build your project here"
+
+      - name: Report build to GitLaunch
+        if: github.ref == 'refs/heads/main'
+        uses: donedgardo/build-reporter@v2
+        with:
+          api-key: $&#123;&#123; secrets.GITLAUNCH_API_KEY &#125;&#125;
+          service-id: $&#123;&#123; vars.GITLAUNCH_SERVICE_ID &#125;&#125;
+          action: report-build
+          build-id: $&#123;&#123; github.sha &#125;&#125;
+EOF
+git checkout -b add-ci-workflow &amp;&amp; \
+git add .github/workflows/ci.yml &amp;&amp; \
+git commit -m "ci: add CI workflow with GitLaunch build reporting" &amp;&amp; \
+git push -u origin add-ci-workflow &amp;&amp; \
+gh pr create --title "Add CI workflow" --body "Adds CI pipeline with GitLaunch build reporting"</code></pre>
+    </div>
+    <button
+      onclick="copy{{idPrefix}}WorkflowCode('terminal')"
+      class="absolute top-3 right-3 p-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
+      title="Copy to clipboard"
+    >
+      <svg id="{{idPrefix}}terminal_copy_icon" style="width: 20px; height: 20px;" class="text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+      </svg>
+      <svg id="{{idPrefix}}terminal_check_icon" style="width: 20px; height: 20px; display: none;" class="text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+      </svg>
+    </button>
   </div>
 </div>
 
@@ -134,17 +201,20 @@ jobs:
 function switch{{idPrefix}}Tab(tab) {
   var existingPanel = document.getElementById('{{idPrefix}}panel_existing');
   var samplePanel = document.getElementById('{{idPrefix}}panel_sample');
+  var terminalBlock = document.getElementById('{{idPrefix}}terminal_block');
   var existingTab = document.getElementById('{{idPrefix}}tab_existing');
   var sampleTab = document.getElementById('{{idPrefix}}tab_sample');
 
   if (tab === 'existing') {
     existingPanel.style.display = '';
     samplePanel.style.display = 'none';
+    if (terminalBlock) terminalBlock.style.display = 'none';
     existingTab.className = 'flex-1 px-3 py-2 text-sm font-medium rounded-md bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm';
     sampleTab.className = 'flex-1 px-3 py-2 text-sm font-medium rounded-md text-gray-500 dark:text-gray-400';
   } else {
     existingPanel.style.display = 'none';
     samplePanel.style.display = '';
+    if (terminalBlock) terminalBlock.style.display = '';
     sampleTab.className = 'flex-1 px-3 py-2 text-sm font-medium rounded-md bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm';
     existingTab.className = 'flex-1 px-3 py-2 text-sm font-medium rounded-md text-gray-500 dark:text-gray-400';
   }
@@ -152,10 +222,13 @@ function switch{{idPrefix}}Tab(tab) {
 
 function copy{{idPrefix}}WorkflowCode(tab) {
   var code;
+  var ciYaml = 'name: CI\n\non:\n  push:\n    branches: [main]\n  pull_request:\n    branches: [main]\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Install dependencies\n        run: echo \"Install your dependencies here\"\n\n      - name: Quality checks\n        run: echo \"Run your linter here\"\n\n      - name: Run tests\n        run: echo \"Run your tests here\"\n\n      - name: Build\n        run: echo \"Build your project here\"\n\n      - name: Report build to GitLaunch\n        if: github.ref == \'refs/heads/main\'\n        uses: donedgardo/build-reporter@v2\n        with:\n          api-key: $\{{ secrets.GITLAUNCH_API_KEY }}\n          service-id: $\{{ vars.GITLAUNCH_SERVICE_ID }}\n          action: report-build\n          build-id: $\{{ github.sha }}';
   if (tab === 'existing') {
     code = '- name: Report build\n  uses: donedgardo/build-reporter@v2\n  with:\n    api-key: $\{{ secrets.GITLAUNCH_API_KEY }}\n    service-id: $\{{ vars.GITLAUNCH_SERVICE_ID }}\n    action: report-build\n    build-id: $\{{ github.sha }}';
+  } else if (tab === 'terminal') {
+    code = 'mkdir -p .github/workflows && cat > .github/workflows/ci.yml << \'EOF\'\n' + ciYaml + '\nEOF\ngit checkout -b add-ci-workflow && \\\ngit add .github/workflows/ci.yml && \\\ngit commit -m "ci: add CI workflow with GitLaunch build reporting" && \\\ngit push -u origin add-ci-workflow && \\\ngh pr create --title "Add CI workflow" --body "Adds CI pipeline with GitLaunch build reporting"';
   } else {
-    code = 'name: CI\n\non:\n  push:\n    branches: [main]\n  pull_request:\n    branches: [main]\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n\n      - name: Install dependencies\n        run: echo \"Install your dependencies here\"\n\n      - name: Quality checks\n        run: echo \"Run your linter here\"\n\n      - name: Run tests\n        run: echo \"Run your tests here\"\n\n      - name: Build\n        run: echo \"Build your project here\"\n\n      - name: Report build to GitLaunch\n        if: github.ref == \'refs/heads/main\'\n        uses: donedgardo/build-reporter@v2\n        with:\n          api-key: $\{{ secrets.GITLAUNCH_API_KEY }}\n          service-id: $\{{ vars.GITLAUNCH_SERVICE_ID }}\n          action: report-build\n          build-id: $\{{ github.sha }}';
+    code = ciYaml;
   }
   var copyIcon = document.getElementById('{{idPrefix}}' + tab + '_copy_icon');
   var checkIcon = document.getElementById('{{idPrefix}}' + tab + '_check_icon');

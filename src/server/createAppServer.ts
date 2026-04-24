@@ -42,6 +42,7 @@ import { StripeService } from "../services/billing/stripeService";
 import { StripeApiClient } from "../services/billing/stripeApiClient";
 import { registerStripeWebhookRoute } from "./routes/webhooks/stripe";
 import { registerBillingRoutes } from "./routes/settings/billing";
+import { registerApiKeyRoutes } from "./routes/settings/apiKeys";
 import { DbClientI } from "./health/dbClientI";
 
 export type AppServerDeps = {
@@ -149,6 +150,9 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
       serviceRepo: serviceRepository,
     });
   }
+
+  // API key management routes
+  registerApiKeyRoutes(server, { apiKeyService });
 
   // Routes
   server.register(healthRoute(mongoClient));
