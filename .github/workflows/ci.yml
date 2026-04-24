@@ -106,5 +106,4 @@ jobs:
     with:
       environment: dev
       buildId: ${{ github.sha }}
-      serviceId: 697434f8f9d1eb666d8571de
     secrets: inherit
