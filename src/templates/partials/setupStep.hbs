@@ -98,6 +98,10 @@
   </script>
   {{/if}}
 
+  {{#if (eq step 4)}}
+{{> deploymentSetupGuide serviceId=serviceId environments=environments }}
+  {{/if}}
+
   <!-- Navigation buttons -->
   <div style="display: flex; justify-content: space-between;" class="mt-6">
     {{#if (gt step 1)}}
@@ -112,7 +116,7 @@
     <div></div>
     {{/if}}
 
-    {{#if (lt step totalSteps)}}
+    {{#if (lt step 3)}}
     <button
       hx-get="/dashboard/{{serviceName}}/setup/{{add step 1}}"
       hx-target="#setup-wizard"

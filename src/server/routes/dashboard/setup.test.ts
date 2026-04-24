@@ -60,6 +60,8 @@ describe("Setup Wizard Routes", () => {
           githubSecretsSetup: "/partials/githubSecretsSetup.hbs",
           buildReportingInstructions:
             "/partials/buildReportingInstructions.hbs",
+          setupStep: "/partials/setupStep.hbs",
+          deploymentSetupGuide: "/partials/deploymentSetupGuide.hbs",
         },
       },
     });
@@ -89,7 +91,7 @@ describe("Setup Wizard Routes", () => {
 
       expect(res.statusCode).toBe(200);
       expect(res.body).toContain("GITLAUNCH_API_KEY");
-      expect(res.body).toContain("Step 1 of 3");
+      expect(res.body).toContain("Step 1 of 4");
     });
 
     it("should return step 2 content with CI workflow", async () => {
@@ -112,7 +114,7 @@ describe("Setup Wizard Routes", () => {
 
       expect(res.statusCode).toBe(200);
       expect(res.body).toContain("CI Workflow");
-      expect(res.body).toContain("Step 2 of 3");
+      expect(res.body).toContain("Step 2 of 4");
     });
 
     it("should return step 3 content with push instructions", async () => {
@@ -135,7 +137,30 @@ describe("Setup Wizard Routes", () => {
 
       expect(res.statusCode).toBe(200);
       expect(res.body).toContain("Push a Commit");
-      expect(res.body).toContain("Step 3 of 3");
+      expect(res.body).toContain("Step 3 of 4");
+    });
+
+    it("should return step 4 content with deploy workflow", async () => {
+      const account = await accountRepo.create({ name: "Org", slug: "org" });
+      await serviceRepo.create({
+        accountId: account._id,
+        repositoryId: new ObjectId(),
+        name: "my-svc",
+      });
+      const session = sessionService.createSession({
+        userId: new ObjectId(),
+        accountId: account._id,
+      });
+
+      const res = await app.inject({
+        method: "GET",
+        url: "/dashboard/my-svc/setup/4",
+        cookies: { session },
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body).toContain("Deploy Workflow");
+      expect(res.body).toContain("Step 4 of 4");
     });
 
     it("should redirect unauthenticated users", async () => {

@@ -6,7 +6,7 @@ export type SetupRoutesDeps = {
   serviceRepo: ServiceRepository;
 };
 
-const TOTAL_STEPS = 3;
+const TOTAL_STEPS = 4;
 
 export function registerSetupRoutes(
   app: FastifyInstance,
@@ -41,6 +41,10 @@ export function registerSetupRoutes(
         return reply.status(404).send("Service not found");
       }
 
+      const environments = [...service.environments].sort(
+        (a, b) => a.order - b.order,
+      );
+
       return reply.view(
         "partials/setupStep",
         {
@@ -48,6 +52,7 @@ export function registerSetupRoutes(
           totalSteps: TOTAL_STEPS,
           serviceId: service._id.toString(),
           serviceName: service.name,
+          environments,
           showSimulateBuild: process.env.USE_FAKE_GITHUB === "true",
         },
         { layout: "" },
