@@ -1,0 +1,125 @@
+<div id="setup-wizard">
+  <!-- Progress indicator -->
+  <div class="text-center mb-8">
+    <p class="text-sm text-gray-500 dark:text-gray-400 mb-3">Step {{step}} of {{totalSteps}}</p>
+    <div class="flex justify-center gap-2">
+      {{#times totalSteps}}
+        <div class="flex items-center gap-1">
+          {{#if (lt this ../step)}}
+          <div style="width: 24px; height: 24px;" class="flex items-center justify-center rounded-full bg-green-600 text-white text-xs font-bold">
+            <svg style="width:14px;height:14px" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+          </div>
+          {{else if (eq this ../step)}}
+          <div style="width: 24px; height: 24px;" class="flex items-center justify-center rounded-full bg-blue-600 text-white text-xs font-bold">{{this}}</div>
+          {{else}}
+          <div style="width: 24px; height: 24px;" class="flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 text-xs font-bold">{{this}}</div>
+          {{/if}}
+        </div>
+        {{#unless (eq this ../totalSteps)}}
+        <div class="w-6 border-t {{#if (lt this ../step)}}border-green-400{{else}}border-gray-300 dark:border-gray-600{{/if}} self-center"></div>
+        {{/unless}}
+      {{/times}}
+    </div>
+  </div>
+
+  <!-- Step content -->
+  {{#if (eq step 1)}}
+{{> githubSecretsSetup serviceId=serviceId idPrefix="setup_" stepNumber="1" showCopyButton=true }}
+  {{/if}}
+
+  {{#if (eq step 2)}}
+{{> buildReportingInstructions idPrefix="setup_" stepNumber="2" }}
+  {{/if}}
+
+  {{#if (eq step 3)}}
+  <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-lg overflow-hidden mb-6">
+    <div class="p-6 sm:p-8">
+      <div style="display: flex; align-items: flex-start;">
+        <div style="width: 32px; height: 32px; min-width: 32px; display: flex; align-items: center; justify-content: center;" class="bg-blue-600 text-white rounded-full font-semibold mr-4">3</div>
+        <div style="flex: 1;">
+          <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">Push a Commit</h2>
+          <p class="text-gray-600 dark:text-gray-400">Your builds will appear here automatically once your CI workflow runs.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {{#if showSimulateBuild}}
+  <div class="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-2xl p-6 mb-6">
+    <div style="display: flex; align-items: flex-start;">
+      <svg style="width: 24px; height: 24px; min-width: 24px;" class="text-purple-600 dark:text-purple-400 mr-3 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+      </svg>
+      <div style="flex: 1;">
+        <h3 class="font-semibold text-purple-800 dark:text-purple-200 mb-1">Dev Mode</h3>
+        <p class="text-sm text-purple-700 dark:text-purple-300 mb-3">Simulate a build to see how the dashboard works without a real CI pipeline.</p>
+        <div style="display: flex; gap: 8px; align-items: flex-end;">
+          <div style="flex: 1;">
+            <label for="simulate-api-key" class="block text-xs font-medium text-purple-700 dark:text-purple-300 mb-1">API Key</label>
+            <input type="text" id="simulate-api-key" placeholder="pk_..."
+              class="w-full px-3 py-2 border border-purple-300 dark:border-purple-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm font-mono focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
+          </div>
+          <button id="simulate-build-btn" onclick="simulateBuild()"
+            class="px-4 py-2 bg-purple-600 text-white font-medium rounded-lg hover:bg-purple-700 transition-colors text-sm whitespace-nowrap">
+            Simulate Build
+          </button>
+        </div>
+        <span id="simulate-build-status" class="mt-2 block text-sm text-purple-600 dark:text-purple-400" style="display: none;"></span>
+      </div>
+    </div>
+  </div>
+  <script>
+  function simulateBuild() {
+    var btn = document.getElementById('simulate-build-btn');
+    var status = document.getElementById('simulate-build-status');
+    var apiKey = document.getElementById('simulate-api-key').value.trim();
+    if (!apiKey) { status.textContent = 'Enter an API key first'; status.style.display = 'block'; return; }
+    var buildId = 'sim-' + Date.now();
+    btn.disabled = true; btn.textContent = 'Reporting...'; status.style.display = 'none';
+    fetch('/api/v1/services/{{serviceId}}/builds', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ buildId: buildId })
+    })
+    .then(function(res) { if (!res.ok) throw new Error(res.status); return res.json(); })
+    .then(function(data) { btn.textContent = 'Simulate Build'; btn.disabled = false; status.textContent = 'Build ' + (data.buildId || buildId) + ' reported!'; status.style.display = 'block'; })
+    .catch(function() { btn.textContent = 'Simulate Build'; btn.disabled = false; status.textContent = 'Failed — check your API key'; status.style.display = 'block'; });
+  }
+  </script>
+  {{/if}}
+
+  <!-- SSE listener for build detection -->
+  <script>
+  (function() {
+    var es = new EventSource('/build-created-stream/{{serviceId}}');
+    es.addEventListener('build:created', function() { es.close(); window.location.reload(); });
+    es.onerror = function() { es.close(); };
+  })();
+  </script>
+  {{/if}}
+
+  <!-- Navigation buttons -->
+  <div style="display: flex; justify-content: space-between;" class="mt-6">
+    {{#if (gt step 1)}}
+    <button
+      hx-get="/dashboard/{{serviceName}}/setup/{{subtract step 1}}"
+      hx-target="#setup-wizard"
+      hx-swap="outerHTML"
+      class="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg transition-colors">
+      Back
+    </button>
+    {{else}}
+    <div></div>
+    {{/if}}
+
+    {{#if (lt step totalSteps)}}
+    <button
+      hx-get="/dashboard/{{serviceName}}/setup/{{add step 1}}"
+      hx-target="#setup-wizard"
+      hx-swap="outerHTML"
+      class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors">
+      Next Step
+    </button>
+    {{/if}}
+  </div>
+</div>

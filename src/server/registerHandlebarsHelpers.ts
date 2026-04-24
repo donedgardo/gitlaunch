@@ -71,4 +71,17 @@ export function registerHandlebarsHelpers() {
   handlebars.registerHelper("subtract", function (a: number, b: number) {
     return a - b;
   });
+  handlebars.registerHelper("lt", function (a: number, b: number) {
+    return a < b;
+  });
+  handlebars.registerHelper("gt", function (a: number, b: number) {
+    return a > b;
+  });
+  handlebars.registerHelper("times", function (n: number, options: any) {
+    let result = "";
+    for (let i = 1; i <= n; i++) {
+      result += options.fn(i);
+    }
+    return result;
+  });
 }

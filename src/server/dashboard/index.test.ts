@@ -119,6 +119,7 @@ describe("Dashboard Routes", () => {
           deploymentSetupGuide: "/partials/deploymentSetupGuide.hbs",
           githubSecretsSetup: "/partials/githubSecretsSetup.hbs",
           paginationControls: "/partials/paginationControls.hbs",
+          setupStep: "/partials/setupStep.hbs",
         },
       },
     });

@@ -1,0 +1,217 @@
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
+import { MongoMemoryServer } from "mongodb-memory-server";
+import { MongoClient, Db, ObjectId } from "mongodb";
+import Fastify, { FastifyInstance } from "fastify";
+import cookie from "@fastify/cookie";
+import formbody from "@fastify/formbody";
+import view from "@fastify/view";
+import * as handlebars from "handlebars";
+import path from "node:path";
+import { AccountRepository } from "../../../repositories/accountRepository";
+import { ServiceRepository } from "../../../repositories/serviceRepository";
+import { SessionService } from "../../../services/auth/sessionService";
+import { sessionAuthMiddleware } from "../../middleware/sessionAuth";
+import { registerHandlebarsHelpers } from "../../registerHandlebarsHelpers";
+import { registerSetupRoutes } from "./setup";
+
+describe("Setup Wizard Routes", () => {
+  let mongoServer: MongoMemoryServer;
+  let client: MongoClient;
+  let db: Db;
+  let app: FastifyInstance;
+  let accountRepo: AccountRepository;
+  let serviceRepo: ServiceRepository;
+  let sessionService: SessionService;
+
+  const TEST_SECRET = "test-secret";
+  const COOKIE_SECRET = "test-cookie";
+
+  beforeAll(async () => {
+    mongoServer = await MongoMemoryServer.create();
+    client = new MongoClient(mongoServer.getUri());
+    await client.connect();
+    db = client.db("test");
+    registerHandlebarsHelpers();
+  });
+
+  afterAll(async () => {
+    await client.close();
+    await mongoServer.stop();
+  });
+
+  beforeEach(async () => {
+    await db.collection("accounts").deleteMany({});
+    await db.collection("services").deleteMany({});
+
+    accountRepo = new AccountRepository(db);
+    serviceRepo = new ServiceRepository(db);
+    sessionService = new SessionService(TEST_SECRET);
+
+    app = Fastify();
+    await app.register(cookie, { secret: COOKIE_SECRET });
+    await app.register(formbody);
+    await app.register(view, {
+      engine: { handlebars },
+      root: path.join(__dirname, "../../../templates"),
+      options: {
+        compileOptions: { preventIndent: true },
+        partials: {
+          navigation: "/partials/navigation.hbs",
+          githubSecretsSetup: "/partials/githubSecretsSetup.hbs",
+          buildReportingInstructions:
+            "/partials/buildReportingInstructions.hbs",
+        },
+      },
+    });
+    sessionAuthMiddleware(app, sessionService);
+    registerSetupRoutes(app, { serviceRepo });
+    await app.ready();
+  });
+
+  describe("GET /dashboard/:serviceName/setup/:step", () => {
+    it("should return step 1 content with secrets setup", async () => {
+      const account = await accountRepo.create({ name: "Org", slug: "org" });
+      await serviceRepo.create({
+        accountId: account._id,
+        repositoryId: new ObjectId(),
+        name: "my-svc",
+      });
+      const session = sessionService.createSession({
+        userId: new ObjectId(),
+        accountId: account._id,
+      });
+
+      const res = await app.inject({
+        method: "GET",
+        url: "/dashboard/my-svc/setup/1",
+        cookies: { session },
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body).toContain("GITLAUNCH_API_KEY");
+      expect(res.body).toContain("Step 1 of 3");
+    });
+
+    it("should return step 2 content with CI workflow", async () => {
+      const account = await accountRepo.create({ name: "Org", slug: "org" });
+      await serviceRepo.create({
+        accountId: account._id,
+        repositoryId: new ObjectId(),
+        name: "my-svc",
+      });
+      const session = sessionService.createSession({
+        userId: new ObjectId(),
+        accountId: account._id,
+      });
+
+      const res = await app.inject({
+        method: "GET",
+        url: "/dashboard/my-svc/setup/2",
+        cookies: { session },
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body).toContain("CI Workflow");
+      expect(res.body).toContain("Step 2 of 3");
+    });
+
+    it("should return step 3 content with push instructions", async () => {
+      const account = await accountRepo.create({ name: "Org", slug: "org" });
+      await serviceRepo.create({
+        accountId: account._id,
+        repositoryId: new ObjectId(),
+        name: "my-svc",
+      });
+      const session = sessionService.createSession({
+        userId: new ObjectId(),
+        accountId: account._id,
+      });
+
+      const res = await app.inject({
+        method: "GET",
+        url: "/dashboard/my-svc/setup/3",
+        cookies: { session },
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body).toContain("Push a Commit");
+      expect(res.body).toContain("Step 3 of 3");
+    });
+
+    it("should redirect unauthenticated users", async () => {
+      const res = await app.inject({
+        method: "GET",
+        url: "/dashboard/my-svc/setup/1",
+      });
+
+      expect(res.statusCode).toBe(302);
+      expect(res.headers.location).toBe("/auth/github");
+    });
+
+    it("should return 404 for invalid step number", async () => {
+      const account = await accountRepo.create({ name: "Org", slug: "org" });
+      await serviceRepo.create({
+        accountId: account._id,
+        repositoryId: new ObjectId(),
+        name: "my-svc",
+      });
+      const session = sessionService.createSession({
+        userId: new ObjectId(),
+        accountId: account._id,
+      });
+
+      const res = await app.inject({
+        method: "GET",
+        url: "/dashboard/my-svc/setup/5",
+        cookies: { session },
+      });
+
+      expect(res.statusCode).toBe(404);
+    });
+
+    it("should return 404 when accessing another account's service", async () => {
+      const otherAccount = await accountRepo.create({
+        name: "Other",
+        slug: "other",
+      });
+      await serviceRepo.create({
+        accountId: otherAccount._id,
+        repositoryId: new ObjectId(),
+        name: "their-svc",
+      });
+
+      const myAccount = await accountRepo.create({
+        name: "Mine",
+        slug: "mine",
+      });
+      const session = sessionService.createSession({
+        userId: new ObjectId(),
+        accountId: myAccount._id,
+      });
+
+      const res = await app.inject({
+        method: "GET",
+        url: "/dashboard/their-svc/setup/1",
+        cookies: { session },
+      });
+
+      expect(res.statusCode).toBe(404);
+    });
+
+    it("should return 404 for non-existent service", async () => {
+      const account = await accountRepo.create({ name: "Org", slug: "org" });
+      const session = sessionService.createSession({
+        userId: new ObjectId(),
+        accountId: account._id,
+      });
+
+      const res = await app.inject({
+        method: "GET",
+        url: "/dashboard/no-such-svc/setup/1",
+        cookies: { session },
+      });
+
+      expect(res.statusCode).toBe(404);
+    });
+  });
+});

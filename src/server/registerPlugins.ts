@@ -46,6 +46,7 @@ export function registerPlugins(server: FastifyInstance) {
         githubSecretsSetup: "/partials/githubSecretsSetup.hbs",
         htmxDashboard: "/partials/htmxDashboard.hbs",
         paginationControls: "/partials/paginationControls.hbs",
+        setupStep: "/partials/setupStep.hbs",
       },
     },
   });

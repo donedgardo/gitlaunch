@@ -1,6 +1,53 @@
 {{#if needsDeploymentSetup}}
 <div id="build-table">
-  {{> deploymentSetupGuide serviceId=serviceId environments=environments }}
+  <div class="max-w-2xl mx-auto px-4 py-10">
+    <!-- Build detected banner -->
+    <div class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-2xl p-6 mb-6">
+      <div style="display: flex; align-items: flex-start;">
+        <svg style="width: 24px; height: 24px; min-width: 24px;" class="text-green-600 dark:text-green-400 mr-3 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+        </svg>
+        <div>
+          <h3 class="font-semibold text-green-800 dark:text-green-200 mb-1">Build Detected!</h3>
+          <p class="text-sm text-green-700 dark:text-green-300">
+            Your CI pipeline is reporting builds. Now set up your deploy workflow to start deploying.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Set Up Deployments</h1>
+    <!-- Step progress -->
+    <div class="flex gap-2 mb-6">
+      <div class="flex items-center gap-1">
+        <div style="width: 24px; height: 24px;" class="flex items-center justify-center rounded-full bg-green-600 text-white text-xs font-bold">
+          <svg style="width: 14px; height: 14px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+        </div>
+        <span class="text-xs text-gray-400 dark:text-gray-500 hidden sm:inline">Secrets</span>
+      </div>
+      <div class="w-6 border-t border-green-400 self-center"></div>
+      <div class="flex items-center gap-1">
+        <div style="width: 24px; height: 24px;" class="flex items-center justify-center rounded-full bg-green-600 text-white text-xs font-bold">
+          <svg style="width: 14px; height: 14px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+        </div>
+        <span class="text-xs text-gray-400 dark:text-gray-500 hidden sm:inline">CI Workflow</span>
+      </div>
+      <div class="w-6 border-t border-green-400 self-center"></div>
+      <div class="flex items-center gap-1">
+        <div style="width: 24px; height: 24px;" class="flex items-center justify-center rounded-full bg-green-600 text-white text-xs font-bold">
+          <svg style="width: 14px; height: 14px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+        </div>
+        <span class="text-xs text-gray-400 dark:text-gray-500 hidden sm:inline">Push</span>
+      </div>
+      <div class="w-6 border-t border-gray-300 dark:border-gray-600 self-center"></div>
+      <div class="flex items-center gap-1">
+        <div style="width: 24px; height: 24px;" class="flex items-center justify-center rounded-full bg-blue-600 text-white text-xs font-bold">4</div>
+        <span class="text-xs text-gray-600 dark:text-gray-400 hidden sm:inline">Deploy</span>
+      </div>
+    </div>
+
+    {{> deploymentSetupGuide serviceId=serviceId environments=environments }}
+  </div>
 </div>
 {{else if builds.length}}
 <div id="build-table" class="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700" data-service-name="{{serviceName}}">
@@ -74,6 +121,6 @@
 </script>
 {{else}}
 <div id="build-table">
-  {{> emptyBuilds serviceId=serviceId newApiKey=newApiKey showSimulateBuild=showSimulateBuild }}
+  {{> emptyBuilds serviceId=serviceId serviceName=serviceName newApiKey=newApiKey showSimulateBuild=showSimulateBuild }}
 </div>
 {{/if}}
