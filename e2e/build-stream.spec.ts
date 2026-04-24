@@ -21,16 +21,18 @@ test.describe("Build Streaming", () => {
     await page.locator("#name").fill(serviceName);
     await page.getByRole("button", { name: /create service/i }).click();
 
-    // Should be on the setup page
-    await expect(page).toHaveURL(/\/services\/created/);
+    // Should be on the dashboard
+    await expect(page).toHaveURL(/\/dashboard/);
 
-    // Extract API key and service ID from the page
-    const apiKey = (await page.locator("#api-key").textContent())?.trim();
-    const serviceId = (
-      await page.locator("#created_service-id").textContent()
-    )?.trim();
-
+    // Extract API key from the dashboard banner
+    const apiKey = (await page.locator("#new-api-key").textContent())?.trim();
     expect(apiKey).toMatch(/^pk_/);
+
+    // Get service ID from settings link
+    const settingsLink = page.locator(`a[href*="/settings"][title="Settings"]`);
+    await expect(settingsLink).toBeVisible();
+    const settingsHref = (await settingsLink.getAttribute("href"))!;
+    const serviceId = settingsHref.split("/services/")[1].split("/settings")[0];
     expect(serviceId).toBeTruthy();
 
     // Configure the workflow (so needsDeploymentSetup is false)

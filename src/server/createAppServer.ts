@@ -152,7 +152,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
   }
 
   // API key management routes
-  registerApiKeyRoutes(server, { apiKeyService });
+  registerApiKeyRoutes(server, { apiKeyService, serviceRepository });
 
   // Routes
   server.register(healthRoute(mongoClient));

@@ -150,7 +150,7 @@ export function registerServiceRoutes(
 
       // Create the service
       try {
-        const service = await serviceRepository.create({
+        await serviceRepository.create({
           accountId: account._id,
           repositoryId: new ObjectId(repositoryId),
           name: name.trim(),
@@ -164,35 +164,18 @@ export function registerServiceRoutes(
           scopes: ["builds:read", "builds:write", "deployments:write"],
         });
 
-        // Store API key in a signed, short-lived cookie (not in URL for security)
-        reply.setCookie("service_api_key", key, {
+        // Store API key in a signed, short-lived cookie for dashboard to display
+        reply.setCookie("new_api_key", key, {
           signed: true,
           httpOnly: true,
           secure: process.env.NODE_ENV === "production",
           sameSite: "strict",
-          path: "/services/created",
+          path: "/",
           maxAge: 300, // 5 minutes - just enough time to view and copy
         });
 
-        // Store service info in cookie for the created page
-        reply.setCookie(
-          "created_service",
-          JSON.stringify({
-            id: service._id.toString(),
-            name: service.name,
-          }),
-          {
-            signed: true,
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: "strict",
-            path: "/services/created",
-            maxAge: 300,
-          },
-        );
-
-        // Redirect to service created page
-        return reply.redirect("/services/created");
+        // Redirect straight to dashboard
+        return reply.redirect(`/dashboard/${name.trim()}`);
       } catch (error: any) {
         // Handle duplicate service name error
         if (error.code === 11000) {

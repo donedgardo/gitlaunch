@@ -1,16 +1,18 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { ObjectId } from "mongodb";
 import { ApiKeyService } from "../../../services/apiKey/apiKeyService";
+import { ServiceRepository } from "../../../repositories/serviceRepository";
 
 export type ApiKeyRoutesDeps = {
   apiKeyService: ApiKeyService;
+  serviceRepository?: ServiceRepository;
 };
 
 export function registerApiKeyRoutes(
   app: FastifyInstance,
   deps: ApiKeyRoutesDeps,
 ): void {
-  const { apiKeyService } = deps;
+  const { apiKeyService, serviceRepository } = deps;
 
   // GET /settings/api-keys - List API keys
   app.get(
@@ -21,12 +23,16 @@ export function registerApiKeyRoutes(
       }
 
       const accountId = new ObjectId(request.session.accountId);
-      const keys = await apiKeyService.listByAccount(accountId);
+      const [keys, services] = await Promise.all([
+        apiKeyService.listByAccount(accountId),
+        serviceRepository?.findByAccountId(accountId) ?? Promise.resolve([]),
+      ]);
 
       return reply.view(
         "settings/api-keys",
         {
           title: "API Keys",
+          services: services.map((s) => s.name),
           keys: keys.map((k) => ({
             id: k._id.toString(),
             name: k.name,
@@ -72,13 +78,17 @@ export function registerApiKeyRoutes(
         ],
       });
 
-      // List all keys to show alongside the new one
-      const keys = await apiKeyService.listByAccount(accountId);
+      // List all keys and services to show alongside the new one
+      const [keys, services] = await Promise.all([
+        apiKeyService.listByAccount(accountId),
+        serviceRepository?.findByAccountId(accountId) ?? Promise.resolve([]),
+      ]);
 
       return reply.view(
         "settings/api-keys",
         {
           title: "API Keys",
+          services: services.map((s) => s.name),
           newKey: key,
           newKeyName: apiKey.name,
           keys: keys.map((k) => ({

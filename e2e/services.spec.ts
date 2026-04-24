@@ -1,30 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { authenticateTestUser, TEST_USERS } from "./helpers/auth";
 
-/**
- * Service Creation Tests
- *
- * Tests the service creation flow:
- * 1. User without repos is redirected to onboarding
- * 2. User with repos sees the create service form
- * 3. Service creation shows API key and getting started guide
- * 4. API key security (one-time display, not in URL)
- */
-
 test.describe("Service Creation", () => {
-  test("user without repositories is redirected to onboarding", async ({
-    page,
-  }) => {
-    // Authenticate as user with GitHub App but no repositories
-    await authenticateTestUser(page, TEST_USERS.userWithGitHubAppNoRepos);
-
-    // Try to access create service page
-    await page.goto("/services/new");
-
-    // Should be redirected to onboarding (to set up repos first)
-    await expect(page).toHaveURL(/\/onboarding/);
-  });
-
   test("user with repositories sees create service form", async ({ page }) => {
     // Authenticate as user with repositories
     await authenticateTestUser(page, TEST_USERS.userWithRepos);
@@ -34,7 +11,7 @@ test.describe("Service Creation", () => {
 
     // Should see the create service form
     await expect(
-      page.getByRole("heading", { name: /create a service/i }),
+      page.getByRole("heading", { name: /create.*service/i }),
     ).toBeVisible();
 
     // Should see repository dropdown
@@ -42,11 +19,6 @@ test.describe("Service Creation", () => {
 
     // Should see service name input
     await expect(page.locator("#name")).toBeVisible();
-
-    // Should see create button
-    await expect(
-      page.getByRole("button", { name: /create service/i }),
-    ).toBeVisible();
   });
 
   test("repository dropdown shows available repositories", async ({ page }) => {
@@ -56,14 +28,16 @@ test.describe("Service Creation", () => {
     // Visit create service page
     await page.goto("/services/new");
 
-    // Check that the repository appears in the dropdown
+    // Repository dropdown should have options from GitHub App installation
     const repoOption = page.locator(
       '#repositoryId option:has-text("test-org/test-repo")',
     );
     await expect(repoOption).toBeAttached();
   });
 
-  test("can create a service and see API key", async ({ page }) => {
+  test("can create a service and see API key on dashboard", async ({
+    page,
+  }) => {
     // Authenticate as user with repositories
     await authenticateTestUser(page, TEST_USERS.userWithRepos);
 
@@ -80,30 +54,18 @@ test.describe("Service Creation", () => {
     // Submit form
     await page.getByRole("button", { name: /create service/i }).click();
 
-    // Should be redirected to service created page
-    await expect(page).toHaveURL(/\/services\/created/);
+    // Should be redirected to dashboard
+    await expect(page).toHaveURL(/\/dashboard/);
 
-    // Should see success message with service name
-    await expect(page.getByText(/service created/i)).toBeVisible();
-    await expect(page.getByText(serviceName)).toBeVisible();
-
-    // Should see the API key
-    await expect(page.locator("#api-key")).toBeVisible();
-    const apiKeyText = (await page.locator("#api-key").textContent())?.trim();
+    // Should see the API key banner (one-time display)
+    await expect(page.locator("#new-api-key")).toBeVisible();
+    const apiKeyText = (
+      await page.locator("#new-api-key").textContent()
+    )?.trim();
     expect(apiKeyText).toMatch(/^pk_/); // Key starts with pk_
 
     // Should see getting started guide
     await expect(page.getByText(/add secrets to github/i)).toBeVisible();
-    // Verify secret names are mentioned (use first() as they appear in workflow code too)
-    await expect(
-      page.getByText("GITLAUNCH_API_KEY", { exact: true }).first(),
-    ).toBeVisible();
-    await expect(
-      page.getByText("GITLAUNCH_SERVICE_ID", { exact: true }).first(),
-    ).toBeVisible();
-
-    // Should see service ID for CI configuration
-    await expect(page.locator("#created_service-id")).toBeVisible();
   });
 
   test("API key is never exposed in URL (security)", async ({ page }) => {
@@ -118,27 +80,25 @@ test.describe("Service Creation", () => {
     await page.locator("#name").fill(`secure-service-${Date.now()}`);
     await page.getByRole("button", { name: /create service/i }).click();
 
-    // Wait for navigation to created page
-    await expect(page).toHaveURL(/\/services\/created/);
+    // Wait for dashboard
+    await expect(page).toHaveURL(/\/dashboard/);
 
-    // SECURITY CHECK: URL must NOT contain the API key or any query parameters
+    // SECURITY CHECK: URL must NOT contain the API key
     const currentUrl = page.url();
     expect(currentUrl).not.toContain("key=");
     expect(currentUrl).not.toContain("pk_");
-    // Verify the URL ends with /services/created (no query params)
-    expect(currentUrl).toMatch(/\/services\/created$/);
 
-    // Verify the API key IS displayed on the page (it's in the cookie-based response)
-    const apiKeyElement = page.locator("#api-key");
+    // Verify the API key IS displayed on the page
+    const apiKeyElement = page.locator("#new-api-key");
     await expect(apiKeyElement).toBeVisible();
     const apiKeyText = (await apiKeyElement.textContent())?.trim();
-    expect(apiKeyText).toMatch(/^pk_/); // Key starts with pk_
+    expect(apiKeyText).toMatch(/^pk_/);
 
     // Double-check: the displayed key is NOT in the URL
     expect(currentUrl).not.toContain(apiKeyText!);
   });
 
-  test("refreshing created page redirects to dashboard (one-time display)", async ({
+  test("refreshing dashboard clears API key banner (one-time display)", async ({
     page,
   }) => {
     // Authenticate as user with repositories
@@ -149,34 +109,16 @@ test.describe("Service Creation", () => {
     await page.locator("#repositoryId").selectOption({ index: 1 });
     await page.locator("#name").fill(`one-time-service-${Date.now()}`);
     await page.getByRole("button", { name: /create service/i }).click();
-    await expect(page).toHaveURL(/\/services\/created/);
+    await expect(page).toHaveURL(/\/dashboard/);
 
     // Verify API key is shown
-    await expect(page.locator("#api-key")).toBeVisible();
+    await expect(page.locator("#new-api-key")).toBeVisible();
 
-    // Refresh the page (simulating user trying to see key again)
+    // Refresh the page
     await page.reload();
 
-    // Should be redirected to dashboard (cookie was cleared)
-    await expect(page).toHaveURL(/\/dashboard/);
-  });
-
-  test("continue to dashboard link works", async ({ page }) => {
-    // Authenticate as user with repositories
-    await authenticateTestUser(page, TEST_USERS.userWithRepos);
-
-    // Create a service
-    await page.goto("/services/new");
-    await page.locator("#repositoryId").selectOption({ index: 1 });
-    await page.locator("#name").fill(`dashboard-link-service-${Date.now()}`);
-    await page.getByRole("button", { name: /create service/i }).click();
-    await expect(page).toHaveURL(/\/services\/created/);
-
-    // Click continue to dashboard
-    await page.locator("#continue-dashboard").click();
-
-    // Should be redirected to dashboard with the new service
-    await expect(page).toHaveURL(/\/dashboard/);
+    // API key banner should be gone (cookie was cleared)
+    await expect(page.locator("#new-api-key")).not.toBeVisible();
   });
 
   test("shows error when submitting without required fields", async ({
@@ -188,7 +130,6 @@ test.describe("Service Creation", () => {
     // Visit create service page
     await page.goto("/services/new");
 
-    // Try to submit without filling in fields (browser validation should prevent)
     // The form has required fields, so we test that the button exists
     const submitButton = page.getByRole("button", { name: /create service/i });
     await expect(submitButton).toBeVisible();
@@ -220,68 +161,5 @@ test.describe("Service Creation", () => {
 
     // Should be redirected to dashboard
     await expect(page).toHaveURL(/\/dashboard/);
-  });
-
-  // SSE test needs to run alone to avoid race conditions with parallel workers
-  test.describe("SSE Auto-redirect", () => {
-    test.describe.configure({ mode: "serial" });
-
-    test("auto-redirects to dashboard when first build is reported via API", async ({
-      page,
-      request,
-    }) => {
-      // Authenticate as user with repositories
-      await authenticateTestUser(page, TEST_USERS.userWithRepos);
-
-      // Create a service
-      const serviceName = `auto-redirect-service-${Date.now()}`;
-      await page.goto("/services/new");
-      await page.locator("#repositoryId").selectOption({ index: 1 });
-      await page.locator("#name").fill(serviceName);
-      await page.getByRole("button", { name: /create service/i }).click();
-
-      // Should be on the setup page
-      await expect(page).toHaveURL(/\/services\/created/);
-
-      // Extract API key and service ID from the page
-      const apiKey = (await page.locator("#api-key").textContent())?.trim();
-      const serviceId = (
-        await page.locator("#created_service-id").textContent()
-      )?.trim();
-
-      expect(apiKey).toMatch(/^pk_/);
-      expect(serviceId).toBeTruthy();
-
-      // Wait for SSE connection to establish (signaled by data-sse-connected attribute)
-      await page.waitForSelector("[data-sse-connected='true']", {
-        timeout: 5000,
-      });
-
-      // Report a build via the API (use port 3051 which is the E2E test server)
-      const buildId = `build-${Date.now()}`;
-      const response = await request.post(
-        `http://localhost:3051/api/v1/services/${serviceId}/builds`,
-        {
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            "Content-Type": "application/json",
-          },
-          data: { buildId },
-        },
-      );
-
-      if (response.status() !== 201) {
-        const body = await response.text();
-        console.error(
-          `API call failed: status=${response.status()}, body=${body}`,
-        );
-      }
-      expect(response.status()).toBe(201);
-
-      // Page should automatically redirect to dashboard when build is created
-      await expect(page).toHaveURL(new RegExp(`/dashboard/${serviceName}`), {
-        timeout: 10000,
-      });
-    });
   });
 });

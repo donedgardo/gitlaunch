@@ -16,17 +16,15 @@ test.describe("Delete Service", () => {
     await page.locator("#name").fill(serviceName);
     await page.getByRole("button", { name: /create service/i }).click();
 
-    // Should be on the setup page
-    await expect(page).toHaveURL(/\/services\/created/);
+    // Should be on the dashboard
+    await expect(page).toHaveURL(/\/dashboard/);
 
-    // Extract service ID
-    const serviceId = (
-      await page.locator("#created_service-id").textContent()
-    )?.trim();
-    expect(serviceId).toBeTruthy();
+    // Navigate to settings via the settings gear icon
+    const settingsLink = page.locator(`a[href*="/settings"][title="Settings"]`);
+    await expect(settingsLink).toBeVisible();
+    const settingsHref = await settingsLink.getAttribute("href");
+    await page.goto(settingsHref!);
 
-    // Navigate to settings
-    await page.goto(`/services/${serviceId}/settings`);
     await expect(page.getByText("Danger Zone")).toBeVisible();
 
     // When: I click delete and confirm
