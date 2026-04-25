@@ -317,6 +317,15 @@ export function registerSettingsRoutes(
           eventType: eventType || "deployment",
         });
 
+        // If from setup wizard, redirect to dashboard
+        const currentUrl = request.headers["hx-current-url"] as string;
+        if (currentUrl && currentUrl.includes("/dashboard/")) {
+          const match = currentUrl.match(/\/dashboard\/([^/]+)/);
+          const svcName = match ? match[1] : "";
+          reply.header("HX-Redirect", `/dashboard/${svcName}`);
+          return reply.status(200).send();
+        }
+
         // Return success response with HX-Trigger for toast notification
         reply.header(
           "HX-Trigger",
