@@ -177,6 +177,17 @@
       Next Step
     </button>
     {{/if}}
+    {{#if (eq step 3)}}
+    {{#if hasBuilds}}
+    <button
+      hx-get="/dashboard/{{serviceName}}/setup/4"
+      hx-target="#setup-wizard"
+      hx-swap="outerHTML"
+      class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors">
+      Next Step
+    </button>
+    {{/if}}
+    {{/if}}
     {{#if (eq step 4)}}
     <button
       hx-get="/dashboard/{{serviceName}}/setup/5"

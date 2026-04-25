@@ -1,9 +1,11 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { ObjectId } from "mongodb";
 import { ServiceRepository } from "../../../repositories/serviceRepository";
+import { BuildRepository } from "../../../repositories/buildRepository";
 
 export type SetupRoutesDeps = {
   serviceRepo: ServiceRepository;
+  buildRepo: BuildRepository;
 };
 
 const TOTAL_STEPS = 5;
@@ -12,7 +14,7 @@ export function registerSetupRoutes(
   app: FastifyInstance,
   deps: SetupRoutesDeps,
 ): void {
-  const { serviceRepo } = deps;
+  const { serviceRepo, buildRepo } = deps;
 
   app.get<{ Params: { serviceName: string; step: string } }>(
     "/dashboard/:serviceName/setup/:step",
@@ -45,6 +47,14 @@ export function registerSetupRoutes(
         (a, b) => a.order - b.order,
       );
 
+      const { total } = await buildRepo.findPaginated(
+        accountId,
+        service._id,
+        1,
+        1,
+      );
+      const hasBuilds = total > 0;
+
       return reply.view(
         "partials/setupStep",
         {
@@ -53,6 +63,7 @@ export function registerSetupRoutes(
           serviceId: service._id.toString(),
           serviceName: service.name,
           environments,
+          hasBuilds,
           showSimulateBuild: process.env.USE_FAKE_GITHUB === "true",
         },
         { layout: "" },

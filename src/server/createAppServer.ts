@@ -156,7 +156,10 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
   registerApiKeyRoutes(server, { apiKeyService, serviceRepository });
 
   // Setup wizard routes
-  registerSetupRoutes(server, { serviceRepo: serviceRepository });
+  registerSetupRoutes(server, {
+    serviceRepo: serviceRepository,
+    buildRepo: buildRepository,
+  });
 
   // Routes
   server.register(healthRoute(mongoClient));

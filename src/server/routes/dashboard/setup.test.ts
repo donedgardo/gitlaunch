@@ -9,6 +9,7 @@ import * as handlebars from "handlebars";
 import path from "node:path";
 import { AccountRepository } from "../../../repositories/accountRepository";
 import { ServiceRepository } from "../../../repositories/serviceRepository";
+import { BuildRepository } from "../../../repositories/buildRepository";
 import { SessionService } from "../../../services/auth/sessionService";
 import { sessionAuthMiddleware } from "../../middleware/sessionAuth";
 import { registerHandlebarsHelpers } from "../../registerHandlebarsHelpers";
@@ -21,6 +22,7 @@ describe("Setup Wizard Routes", () => {
   let app: FastifyInstance;
   let accountRepo: AccountRepository;
   let serviceRepo: ServiceRepository;
+  let buildRepo: BuildRepository;
   let sessionService: SessionService;
 
   const TEST_SECRET = "test-secret";
@@ -42,9 +44,11 @@ describe("Setup Wizard Routes", () => {
   beforeEach(async () => {
     await db.collection("accounts").deleteMany({});
     await db.collection("services").deleteMany({});
+    await db.collection("builds").deleteMany({});
 
     accountRepo = new AccountRepository(db);
     serviceRepo = new ServiceRepository(db);
+    buildRepo = new BuildRepository(db);
     sessionService = new SessionService(TEST_SECRET);
 
     app = Fastify();
@@ -66,7 +70,7 @@ describe("Setup Wizard Routes", () => {
       },
     });
     sessionAuthMiddleware(app, sessionService);
-    registerSetupRoutes(app, { serviceRepo });
+    registerSetupRoutes(app, { serviceRepo, buildRepo });
     await app.ready();
   });
 
