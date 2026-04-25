@@ -91,7 +91,7 @@ describe("Setup Wizard Routes", () => {
 
       expect(res.statusCode).toBe(200);
       expect(res.body).toContain("GITLAUNCH_API_KEY");
-      expect(res.body).toContain("Step 1 of 4");
+      expect(res.body).toContain("Step 1 of 5");
     });
 
     it("should return step 2 content with CI workflow", async () => {
@@ -114,7 +114,7 @@ describe("Setup Wizard Routes", () => {
 
       expect(res.statusCode).toBe(200);
       expect(res.body).toContain("CI Workflow");
-      expect(res.body).toContain("Step 2 of 4");
+      expect(res.body).toContain("Step 2 of 5");
     });
 
     it("should return step 3 content with push instructions", async () => {
@@ -137,7 +137,7 @@ describe("Setup Wizard Routes", () => {
 
       expect(res.statusCode).toBe(200);
       expect(res.body).toContain("Push a Commit");
-      expect(res.body).toContain("Step 3 of 4");
+      expect(res.body).toContain("Step 3 of 5");
     });
 
     it("should return step 4 content with deploy workflow", async () => {
@@ -160,7 +160,30 @@ describe("Setup Wizard Routes", () => {
 
       expect(res.statusCode).toBe(200);
       expect(res.body).toContain("Deploy Workflow");
-      expect(res.body).toContain("Step 4 of 4");
+      expect(res.body).toContain("Step 4 of 5");
+    });
+
+    it("should return step 5 content with workflow selection", async () => {
+      const account = await accountRepo.create({ name: "Org", slug: "org" });
+      await serviceRepo.create({
+        accountId: account._id,
+        repositoryId: new ObjectId(),
+        name: "my-svc",
+      });
+      const session = sessionService.createSession({
+        userId: new ObjectId(),
+        accountId: account._id,
+      });
+
+      const res = await app.inject({
+        method: "GET",
+        url: "/dashboard/my-svc/setup/5",
+        cookies: { session },
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body).toContain("Select Deploy Workflow");
+      expect(res.body).toContain("Step 5 of 5");
     });
 
     it("should redirect unauthenticated users", async () => {
@@ -187,7 +210,7 @@ describe("Setup Wizard Routes", () => {
 
       const res = await app.inject({
         method: "GET",
-        url: "/dashboard/my-svc/setup/5",
+        url: "/dashboard/my-svc/setup/99",
         cookies: { session },
       });
 
