@@ -45,6 +45,10 @@ import { registerBillingRoutes } from "./routes/settings/billing";
 import { registerApiKeyRoutes } from "./routes/settings/apiKeys";
 import { registerSetupRoutes } from "./routes/dashboard/setup";
 import { DbClientI } from "./health/dbClientI";
+import {
+  AnalyticsService,
+  NoOpAnalytics,
+} from "../services/analytics/analytics";
 
 export type AppServerDeps = {
   database: Db;
@@ -55,6 +59,7 @@ export type AppServerDeps = {
   gitHubAppService: GitHubAppService;
   installationTokenService: InstallationTokenService;
   webhookEventRepo?: WebhookEventRepository;
+  analytics?: AnalyticsService;
 };
 
 export function createAppServer(deps: AppServerDeps): FastifyInstance {
@@ -67,6 +72,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     gitHubAppService,
     installationTokenService,
     webhookEventRepo,
+    analytics = new NoOpAnalytics(),
   } = deps;
 
   const server = Fastify();
@@ -188,11 +194,13 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     userRepository,
     accountRepository,
     membershipRepository,
+    analytics,
   });
 
   // GitHub App installation routes
   registerInstallationRoutes(server, {
     gitHubAppService,
+    analytics,
   });
 
   // Onboarding routes
@@ -203,6 +211,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     gitHubAppService,
     planEnforcementService,
     trialService,
+    analytics,
   });
 
   // Service management routes
@@ -213,6 +222,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     apiKeyService,
     githubAppService: gitHubAppService,
     planEnforcementService,
+    analytics,
   });
 
   // Service settings routes (environments management)
@@ -235,6 +245,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
         buildService,
         serviceRepo: serviceRepository,
         planEnforcementService,
+        analytics,
       });
 
       // Register environments API routes

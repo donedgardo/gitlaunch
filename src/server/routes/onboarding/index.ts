@@ -9,6 +9,7 @@ import { UserRepository } from "../../../repositories/userRepository";
 import { GitHubAppService } from "../../../services/github/githubAppService";
 import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
 import { TrialService } from "../../../services/billing/trialService";
+import { AnalyticsService } from "../../../services/analytics/analytics";
 
 export type OnboardingRoutesDeps = {
   accountRepository: AccountRepository;
@@ -17,6 +18,7 @@ export type OnboardingRoutesDeps = {
   gitHubAppService: GitHubAppService;
   planEnforcementService: PlanEnforcementService;
   trialService: TrialService;
+  analytics?: AnalyticsService;
 };
 
 export function registerOnboardingRoutes(
@@ -30,6 +32,7 @@ export function registerOnboardingRoutes(
     gitHubAppService,
     planEnforcementService,
     trialService,
+    analytics,
   } = deps;
 
   // GET /onboarding/plan-selection - Plan selection page
@@ -55,6 +58,7 @@ export function registerOnboardingRoutes(
       }
 
       // Show plan selection page
+      analytics?.navigation("plan_selection");
       return reply.view(
         "onboarding/plan-selection",
         {
@@ -118,6 +122,10 @@ export function registerOnboardingRoutes(
 
       // Set plan on account (always, even if trial didn't start)
       await accountRepository.selectPlan(account._id, selectedPlan);
+      analytics?.track("plan_selected", {
+        plan: selectedPlan,
+        accountId: account._id.toString(),
+      });
 
       // Redirect to GitHub App install step
       return reply.redirect("/onboarding");
@@ -147,6 +155,7 @@ export function registerOnboardingRoutes(
       }
 
       // Show GitHub App installation page
+      analytics?.navigation("github_app_install");
       const useFakeGitHub = process.env.USE_FAKE_GITHUB === "true";
       const installUrl = useFakeGitHub
         ? "/github/installation/callback?installation_id=12345"
@@ -208,6 +217,10 @@ export function registerOnboardingRoutes(
 
       // Get returnTo for redirecting after completion
       const returnTo = request.query.returnTo;
+
+      analytics?.navigation("repository_selection", {
+        repoCount: repositories.length,
+      });
 
       return reply.view(
         "onboarding/select-repos",
@@ -326,6 +339,11 @@ export function registerOnboardingRoutes(
           console.error("Failed to save repositories:", error);
         }
       }
+
+      analytics?.track("repositories_selected", {
+        count: selectedRepoIds.length,
+        accountId: account._id.toString(),
+      });
 
       // Redirect to returnTo if provided, otherwise to dashboard
       const redirectTo = request.body.returnTo || "/dashboard";

@@ -11,6 +11,7 @@ import { ServiceRepository } from "./repositories/serviceRepository";
 import { WebhookEventRepository } from "./repositories/webhookEventRepository";
 import { TrialRegistryRepository } from "./repositories/trialRegistryRepository";
 import { createGitHubServices } from "./services/github/createGitHubServices";
+import { ConsoleAnalytics } from "./services/analytics/analytics";
 
 // MongoDB connection
 const mongodb_uri = process.env.MONGODB_URI as string;
@@ -40,6 +41,9 @@ const { githubOAuthService, gitHubAppService, installationTokenService } =
 // Create WebhookEventRepository for webhook idempotency
 const webhookEventRepository = new WebhookEventRepository(database);
 
+// Analytics
+const analytics = new ConsoleAnalytics();
+
 // Create server
 const server = createAppServer({
   database,
@@ -50,6 +54,7 @@ const server = createAppServer({
   gitHubAppService,
   installationTokenService,
   webhookEventRepo: webhookEventRepository,
+  analytics,
 });
 
 const PORT = parseInt(process.env.PORT || "3050");

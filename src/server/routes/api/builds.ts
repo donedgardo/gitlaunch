@@ -5,11 +5,13 @@ import { ServiceRepository } from "../../../repositories/serviceRepository";
 import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
 import { requireScope } from "../../middleware/apiKeyAuth";
 import { DeploymentStatus } from "../../../services/service/deploymentStatus";
+import { AnalyticsService } from "../../../services/analytics/analytics";
 
 export type BuildsRoutesDependencies = {
   buildService: BuildService;
   serviceRepo: ServiceRepository;
   planEnforcementService: PlanEnforcementService;
+  analytics?: AnalyticsService;
 };
 
 type CreateBuildBody = {
@@ -36,7 +38,7 @@ export function registerBuildsRoutes(
   app: FastifyInstance,
   deps: BuildsRoutesDependencies,
 ) {
-  const { buildService, serviceRepo, planEnforcementService } = deps;
+  const { buildService, serviceRepo, planEnforcementService, analytics } = deps;
 
   // POST /api/v1/services/:serviceId/builds - Create a new build
   app.post<{ Params: ServiceIdParams; Body: CreateBuildBody }>(
@@ -90,6 +92,7 @@ export function registerBuildsRoutes(
           serviceId,
           buildId,
         });
+        analytics?.track("build_reported", { serviceId, buildId });
 
         return reply.status(201).send({
           _id: build._id.toString(),
@@ -308,6 +311,12 @@ export function registerBuildsRoutes(
           buildId,
           environment: env,
           status: status as DeploymentStatus,
+        });
+        analytics?.track("deployment_status_updated", {
+          serviceId,
+          buildId,
+          environment: env,
+          status,
         });
 
         return reply.send({

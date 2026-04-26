@@ -6,6 +6,7 @@ import { ServiceRepository } from "../../../repositories/serviceRepository";
 import { ApiKeyService } from "../../../services/apiKey/apiKeyService";
 import { GitHubAppService } from "../../../services/github/githubAppService";
 import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
+import { AnalyticsService } from "../../../services/analytics/analytics";
 
 export type ServiceRoutesDeps = {
   accountRepository: AccountRepository;
@@ -14,6 +15,7 @@ export type ServiceRoutesDeps = {
   apiKeyService: ApiKeyService;
   githubAppService?: GitHubAppService;
   planEnforcementService: PlanEnforcementService;
+  analytics?: AnalyticsService;
 };
 
 export function registerServiceRoutes(
@@ -27,6 +29,7 @@ export function registerServiceRoutes(
     apiKeyService,
     githubAppService,
     planEnforcementService,
+    analytics,
   } = deps;
 
   // GET /services/new - Show create service form
@@ -154,6 +157,11 @@ export function registerServiceRoutes(
           accountId: account._id,
           repositoryId: new ObjectId(repositoryId),
           name: name.trim(),
+        });
+
+        analytics?.track("service_created", {
+          serviceName: name.trim(),
+          accountId: account._id.toString(),
         });
 
         // Generate API key for this service

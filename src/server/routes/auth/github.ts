@@ -8,6 +8,7 @@ import {
   MembershipRepository,
   MembershipRole,
 } from "../../../repositories/membershipRepository";
+import { AnalyticsService } from "../../../services/analytics/analytics";
 
 export type GitHubAuthRoutesConfig = {
   oauthService: GitHubOAuthService;
@@ -15,6 +16,7 @@ export type GitHubAuthRoutesConfig = {
   userRepository: UserRepository;
   accountRepository: AccountRepository;
   membershipRepository: MembershipRepository;
+  analytics?: AnalyticsService;
 };
 
 export function registerGitHubAuthRoutes(
@@ -27,6 +29,7 @@ export function registerGitHubAuthRoutes(
     userRepository,
     accountRepository,
     membershipRepository,
+    analytics,
   } = config;
 
   // GET /auth/github - Redirect to GitHub OAuth
@@ -127,6 +130,15 @@ export function registerGitHubAuthRoutes(
           maxAge: 7 * 24 * 60 * 60, // 7 days
         });
 
+        analytics?.identify(user._id.toString(), {
+          login: user.githubLogin,
+          email: user.email,
+        });
+        analytics?.track("user_logged_in", {
+          userId: user._id.toString(),
+          isNewUser,
+        });
+
         // Redirect new users to plan selection first, then onboarding
         // Returning users without GitHub App installation go to onboarding
         if (isNewUser) {
@@ -149,6 +161,7 @@ export function registerGitHubAuthRoutes(
   app.get(
     "/auth/logout",
     async (request: FastifyRequest, reply: FastifyReply) => {
+      analytics?.track("user_logged_out");
       reply.clearCookie("session", { path: "/" });
       return reply.redirect("/");
     },
