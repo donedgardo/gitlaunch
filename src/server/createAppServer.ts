@@ -126,6 +126,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
       webhookHandler,
       webhookSecret: process.env.STRIPE_WEBHOOK_SECRET || "",
       webhookEventRepo,
+      analytics,
     });
   }
 
@@ -155,6 +156,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
       accountRepo: accountRepository,
       userRepo: userRepository,
       serviceRepo: serviceRepository,
+      analytics,
     });
   }
 
@@ -165,6 +167,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
   registerSetupRoutes(server, {
     serviceRepo: serviceRepository,
     buildRepo: buildRepository,
+    analytics,
   });
 
   // Routes
@@ -178,6 +181,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
       buildService,
       trialService,
       planEnforcementService,
+      analytics,
     }),
   );
   server.register(
@@ -231,6 +235,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     repositoryRepository,
     environmentService,
     planEnforcementService,
+    analytics,
   });
 
   // API v1 routes (API key authenticated)

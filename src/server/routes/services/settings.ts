@@ -4,12 +4,14 @@ import { ServiceRepository } from "../../../repositories/serviceRepository";
 import { RepositoryRepository } from "../../../repositories/repositoryRepository";
 import { EnvironmentService } from "../../../services/environment/environmentService";
 import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
+import { AnalyticsService } from "../../../services/analytics/analytics";
 
 export type SettingsRoutesDeps = {
   serviceRepository: ServiceRepository;
   repositoryRepository: RepositoryRepository;
   environmentService: EnvironmentService;
   planEnforcementService: PlanEnforcementService;
+  analytics?: AnalyticsService;
 };
 
 export function registerSettingsRoutes(
@@ -21,6 +23,7 @@ export function registerSettingsRoutes(
     repositoryRepository,
     environmentService,
     planEnforcementService,
+    analytics,
   } = deps;
 
   // Helper to load service with ownership verification
@@ -315,6 +318,10 @@ export function registerSettingsRoutes(
         await serviceRepository.updateWorkflowConfiguration(service._id, {
           workflowFile: workflowFile || "deploy.yml",
           eventType: eventType || "deployment",
+        });
+        analytics?.track("workflow_configured", {
+          serviceId: service._id.toString(),
+          workflowFile: workflowFile || "deploy.yml",
         });
 
         // If from setup wizard, redirect to dashboard

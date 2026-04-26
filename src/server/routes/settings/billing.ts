@@ -8,6 +8,7 @@ import {
 } from "../../../repositories/accountRepository";
 import { UserRepository } from "../../../repositories/userRepository";
 import { ServiceRepository } from "../../../repositories/serviceRepository";
+import { AnalyticsService } from "../../../services/analytics/analytics";
 
 export type BillingRoutesDependencies = {
   stripeService: StripeService;
@@ -15,6 +16,7 @@ export type BillingRoutesDependencies = {
   accountRepo: AccountRepository;
   userRepo: UserRepository;
   serviceRepo: ServiceRepository;
+  analytics?: AnalyticsService;
 };
 
 export function registerBillingRoutes(
@@ -27,6 +29,7 @@ export function registerBillingRoutes(
     accountRepo,
     userRepo,
     serviceRepo,
+    analytics,
   } = deps;
 
   // Middleware to resolve account and user from session
@@ -148,6 +151,10 @@ export function registerBillingRoutes(
       const planEnum = plan.toLowerCase() === "pro" ? Plan.Pro : Plan.Team;
 
       try {
+        analytics?.track("checkout_started", {
+          plan: planEnum,
+          accountId: account._id.toString(),
+        });
         const result = await stripeService.createCheckoutSession({
           account,
           userEmail,

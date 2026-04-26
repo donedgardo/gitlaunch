@@ -112,7 +112,12 @@ export function registerOnboardingRoutes(
 
           // If trial didn't start (already used), still select the plan
           // User chose this plan, so respect their choice
-          if (!trialResult.started) {
+          if (trialResult.started) {
+            analytics?.track("trial_started", {
+              plan: selectedPlan,
+              accountId: account._id.toString(),
+            });
+          } else {
             console.log(
               `Trial not started for account ${account._id}: ${trialResult.reason}`,
             );

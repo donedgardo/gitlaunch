@@ -2,10 +2,12 @@ import { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { ObjectId } from "mongodb";
 import { ServiceRepository } from "../../../repositories/serviceRepository";
 import { BuildRepository } from "../../../repositories/buildRepository";
+import { AnalyticsService } from "../../../services/analytics/analytics";
 
 export type SetupRoutesDeps = {
   serviceRepo: ServiceRepository;
   buildRepo: BuildRepository;
+  analytics?: AnalyticsService;
 };
 
 const TOTAL_STEPS = 5;
@@ -14,7 +16,7 @@ export function registerSetupRoutes(
   app: FastifyInstance,
   deps: SetupRoutesDeps,
 ): void {
-  const { serviceRepo, buildRepo } = deps;
+  const { serviceRepo, buildRepo, analytics } = deps;
 
   app.get<{ Params: { serviceName: string; step: string } }>(
     "/dashboard/:serviceName/setup/:step",
@@ -54,6 +56,11 @@ export function registerSetupRoutes(
         1,
       );
       const hasBuilds = total > 0;
+
+      analytics?.track("onboarding_step_completed", {
+        step,
+        serviceName: service.name,
+      });
 
       return reply.view(
         "partials/setupStep",

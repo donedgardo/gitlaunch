@@ -1,6 +1,7 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { StripeWebhookHandler } from "../../../services/billing/webhookHandler";
 import { WebhookEventRepository } from "../../../repositories/webhookEventRepository";
+import { AnalyticsService } from "../../../services/analytics/analytics";
 
 export type StripeEvent = {
   id: string;
@@ -20,6 +21,7 @@ export type StripeWebhookRouteDependencies = {
   skipSignatureVerification?: boolean;
   signatureVerifier?: StripeSignatureVerifier;
   webhookEventRepo?: WebhookEventRepository;
+  analytics?: AnalyticsService;
 };
 
 export function registerStripeWebhookRoute(
@@ -92,6 +94,10 @@ export function registerStripeWebhookRoute(
               subscriptionId: session.subscription,
               plan: session.metadata.plan || "pro",
             });
+            deps.analytics?.track("subscription_activated", {
+              accountId: session.metadata.accountId,
+              plan: session.metadata.plan || "pro",
+            });
             break;
           }
 
@@ -100,12 +106,19 @@ export function registerStripeWebhookRoute(
             await webhookHandler.handleSubscriptionDeleted({
               subscriptionId: subscription.id,
             });
+            deps.analytics?.track("subscription_cancelled", {
+              subscriptionId: subscription.id,
+            });
             break;
           }
 
           case "invoice.payment_failed": {
             const invoice = event.data.object;
             await webhookHandler.handlePaymentFailed({
+              subscriptionId: invoice.subscription,
+              attemptCount: invoice.attempt_count || 1,
+            });
+            deps.analytics?.track("payment_failed", {
               subscriptionId: invoice.subscription,
               attemptCount: invoice.attempt_count || 1,
             });

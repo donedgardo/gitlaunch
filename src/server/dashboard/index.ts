@@ -7,6 +7,7 @@ import { BuildService } from "../../services/build/buildService";
 import { DeploymentStatus } from "../../services/service/deploymentStatus";
 import { TrialService } from "../../services/billing/trialService";
 import { PlanEnforcementService } from "../../services/billing/planEnforcementService";
+import { AnalyticsService } from "../../services/analytics/analytics";
 
 const DEFAULT_PAGE_SIZE = 20;
 
@@ -17,6 +18,7 @@ export type DashboardRoutesDeps = {
   buildService: BuildService;
   trialService: TrialService;
   planEnforcementService: PlanEnforcementService;
+  analytics?: AnalyticsService;
 };
 
 export default function (deps: DashboardRoutesDeps) {
@@ -27,6 +29,7 @@ export default function (deps: DashboardRoutesDeps) {
     buildService,
     trialService,
     planEnforcementService,
+    analytics,
   } = deps;
 
   return function (server: FastifyInstance, opts: any, done: any) {
@@ -65,7 +68,11 @@ export default function (deps: DashboardRoutesDeps) {
       const accountId = new ObjectId(req.session!.accountId);
 
       // Check and handle trial expiry (auto-downgrade if needed)
-      await trialService.checkAndHandleTrialExpiry(accountId);
+      const trialResult =
+        await trialService.checkAndHandleTrialExpiry(accountId);
+      if (trialResult.expired && trialResult.downgraded) {
+        analytics?.track("trial_expired", { accountId: accountId.toString() });
+      }
 
       // Get account state for trial/read-only banners
       const accountState =
@@ -129,7 +136,13 @@ export default function (deps: DashboardRoutesDeps) {
         const page = req.query.page ?? 1;
 
         // Check and handle trial expiry (auto-downgrade if needed)
-        await trialService.checkAndHandleTrialExpiry(accountId);
+        const trialResult2 =
+          await trialService.checkAndHandleTrialExpiry(accountId);
+        if (trialResult2.expired && trialResult2.downgraded) {
+          analytics?.track("trial_expired", {
+            accountId: accountId.toString(),
+          });
+        }
 
         // Get account state for trial/read-only banners
         const accountState =
@@ -300,6 +313,11 @@ export default function (deps: DashboardRoutesDeps) {
             buildId,
             environment: env,
             status: DeploymentStatus.DISPATCHING,
+          });
+          analytics?.track("deployment_triggered", {
+            serviceName: service.name,
+            buildId,
+            environment: env,
           });
 
           // Return the partial for HTMX swap
