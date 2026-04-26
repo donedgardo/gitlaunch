@@ -245,7 +245,7 @@ describe("Dashboard Routes", () => {
 
       // Then: response contains deployment workflow instructions
       expect(response.statusCode).toBe(200);
-      expect(response.body).toContain("Create Your Deploy Workflow");
+      expect(response.body).toContain("Set Up Your Deploy Workflow");
     });
 
     it("should not show deployment setup guide when workflow is configured", async () => {
@@ -1028,7 +1028,7 @@ describe("Dashboard Routes", () => {
       // Then: response shows empty state (same as before pagination)
       expect(response.statusCode).toBe(200);
       // Should not show deployment setup guide (no builds)
-      expect(response.body).not.toContain("Create Your Deploy Workflow");
+      expect(response.body).not.toContain("Set Up Your Deploy Workflow");
     });
 
     it("should still show deployment setup guide on page 2+ when workflow not configured", async () => {
@@ -1083,7 +1083,7 @@ describe("Dashboard Routes", () => {
 
       // Then: response shows deployment setup guide (based on total, not builds.length)
       expect(response.statusCode).toBe(200);
-      expect(response.body).toContain("Create Your Deploy Workflow");
+      expect(response.body).toContain("Set Up Your Deploy Workflow");
     });
 
     it("should display pagination controls when builds span multiple pages", async () => {
