@@ -75,6 +75,10 @@ describe("Settings Routes - Workflow Configuration", () => {
         partials: {
           navigation: "/partials/navigation.hbs",
           environmentList: "/partials/environmentList.hbs",
+          githubSecretsSetup: "/partials/githubSecretsSetup.hbs",
+          buildReportingInstructions:
+            "/partials/buildReportingInstructions.hbs",
+          deploymentSetupGuide: "/partials/deploymentSetupGuide.hbs",
         },
       },
     });
@@ -86,6 +90,54 @@ describe("Settings Routes - Workflow Configuration", () => {
       planEnforcementService,
     });
     await app.ready();
+  });
+
+  describe("GET /services/:serviceId/settings", () => {
+    it("should render the consolidated single-step deploy workflow snippet", async () => {
+      // Given: a service belonging to the authenticated user
+      const account = await accountRepo.create({
+        name: "Test Org",
+        slug: "test-org",
+      });
+
+      const repository = await repositoryRepo.create({
+        accountId: account._id,
+        githubRepoId: 999,
+        githubFullName: "test-org/my-repo",
+        githubRepoName: "my-repo",
+        githubOwner: "test-org",
+        isPrivate: false,
+      });
+
+      const service = await serviceRepo.create({
+        accountId: account._id,
+        repositoryId: repository._id,
+        name: "my-service",
+      });
+
+      const userId = new ObjectId();
+      const sessionToken = sessionService.createSession({
+        userId,
+        accountId: account._id,
+      });
+
+      // When: the settings page is loaded
+      const response = await app.inject({
+        method: "GET",
+        url: `/services/${service._id}/settings`,
+        cookies: {
+          session: sessionToken,
+        },
+      });
+
+      // Then: it renders the consolidated action reference...
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain("donedgardo/build-reporter");
+
+      // ...and no longer shows the old verbose 4-step status pattern
+      expect(response.body).not.toContain("action: update-status");
+      expect(response.body).not.toContain("status: deployed");
+    });
   });
 
   describe("PATCH /services/:serviceId/workflow", () => {
