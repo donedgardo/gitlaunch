@@ -22,6 +22,7 @@ Developers can deploy their software continuously and reliably through GitLaunch
 - ✓ Account-based multi-tenant isolation — existing
 - ✓ API key authentication for programmatic access — existing
 - ✓ GitHub App integration for webhook-driven builds — existing
+- ✓ Reusable GitHub Action (single-step deploy + post-step auto-outcome detection) replaces copy-paste workflow setup — Validated in Phase 5 (CICD-01/02/03)
 
 ### Active
 
@@ -75,4 +76,4 @@ The development approach is strict TDD: acceptance criteria first, then a Playwr
 
 ---
 
-_Last updated: 2026-02-08 after roadmap creation_
+_Last updated: 2026-07-11 — Phase 5 complete (CI/CD GitHub Action); v1.0 milestone fully executed_
