@@ -17,7 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Plan Selection & Checkout** - User can select and pay for plans ✓
 - [x] **Phase 3: Plan Enforcement & Limits** - Server-side limit checks enforce tier value ✓
 - [x] **Phase 4: Trial & Payment Lifecycle** - Trials, auto-downgrade, payment failure handling ✓
-- [ ] **Phase 5: Simplify CI/CD Pipeline Setup with GitHub Action** - Reusable GitHub Action to replace copy-paste workflow setup
+- [x] **Phase 5: Simplify CI/CD Pipeline Setup with GitHub Action** - Reusable GitHub Action to replace copy-paste workflow setup ✓
 
 ## Phase Details
 
@@ -110,13 +110,13 @@ Plans:
 **Execution Order:**
 Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
-| Phase                                               | Plans Complete | Status      | Completed  |
-| --------------------------------------------------- | -------------- | ----------- | ---------- |
-| 1. Billing Foundation                               | 3/3            | ✓ Complete  | 2026-02-09 |
-| 2. Plan Selection & Checkout                        | 3/3            | ✓ Complete  | 2026-02-11 |
-| 3. Plan Enforcement & Limits                        | 3/3            | ✓ Complete  | 2026-02-15 |
-| 4. Trial & Payment Lifecycle                        | 4/4            | ✓ Complete  | 2026-02-16 |
-| 5. Simplify CI/CD Pipeline Setup with GitHub Action | 0/2            | Not started | -          |
+| Phase                                               | Plans Complete | Status     | Completed  |
+| --------------------------------------------------- | -------------- | ---------- | ---------- |
+| 1. Billing Foundation                               | 3/3            | ✓ Complete | 2026-02-09 |
+| 2. Plan Selection & Checkout                        | 3/3            | ✓ Complete | 2026-02-11 |
+| 3. Plan Enforcement & Limits                        | 3/3            | ✓ Complete | 2026-02-15 |
+| 4. Trial & Payment Lifecycle                        | 4/4            | ✓ Complete | 2026-02-16 |
+| 5. Simplify CI/CD Pipeline Setup with GitHub Action | 2/2            | ✓ Complete | 2026-07-11 |
 
 ### Phase 5: Simplify CI/CD Pipeline Setup with GitHub Action
 
