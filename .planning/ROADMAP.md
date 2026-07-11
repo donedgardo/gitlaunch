@@ -128,5 +128,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 Plans:
 
-- [ ] 05-01-PLAN.md — Consolidated GitHub Action with post-step auto-outcome detection (TDD)
-- [ ] 05-02-PLAN.md — Dashboard templates and workflow migration to consolidated action
+- [x] 05-01-PLAN.md — Consolidated GitHub Action with post-step auto-outcome detection (TDD)
+- [x] 05-02-PLAN.md — Dashboard templates and workflow migration to consolidated action
