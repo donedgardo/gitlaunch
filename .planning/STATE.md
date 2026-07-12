@@ -1,36 +1,36 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-status: milestone_complete
-stopped_at: Phase 5 research and planning complete, paused before execution
-last_updated: "2026-07-11T04:22:48.396Z"
-last_activity: 2026-07-11 -- Phase --phase execution started
+milestone: v1.2
+milestone_name: Jenkins CI/CD Provider Support
+status: planning
+stopped_at: ""
+last_updated: "2026-07-12T00:00:00.000Z"
+last_activity: 2026-07-12 -- Milestone v1.2 started (defining roadmap)
 progress:
-  total_phases: 6
-  completed_phases: 6
-  total_plans: 18
-  completed_plans: 16
-  percent: 100
+  total_phases: 5
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-08)
+See: .planning/PROJECT.md (updated 2026-07-12)
 
 **Core value:** Developers can deploy their software continuously and reliably through GitLaunch, with a subscription model that lets them start with a free trial and upgrade when they see the value.
-**Current focus:** Phase --phase — 05
+**Current focus:** Milestone v1.2 — Jenkins CI/CD Provider Support (defining roadmap)
 
 ## Current Position
 
-Phase: 05
-Plan: Not started
-Status: Executing Phase --phase
-Last activity: 2026-07-11
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining roadmap
+Last activity: 2026-07-12 — Milestone v1.2 started
 
-Progress: [██████████░░] 13/15 total plans (87%)
+Progress: [░░░░░░░░░░░░] 0/0 plans (milestone v1.2)
 
 ## Performance Metrics
 
@@ -116,6 +116,8 @@ Recent decisions affecting current work:
 ### Roadmap Evolution
 
 - Phase 5 added: Simplify CI/CD Pipeline Setup with GitHub Action
+- Milestone v1.2 started (2026-07-12): Jenkins CI/CD Provider Support — phases 6–10, requirements PROV-01/02/03 + JENK-01..05
+- Design decisions carried in: functional-core/imperative-shell for CI providers; per-account Jenkins creds (token encrypted at rest); reporter stays TS (Rust deferred); server↔reporter share a golden-vector contract; extract shared core before adding Jenkins
 
 ### Pending Todos
 
@@ -176,17 +178,14 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-27 (phase 5 paused before execution)
-Stopped at: Phase 5 research and planning complete, paused before execution
-Resume file: Execute Phase 5 plans (05-01-PLAN.md, 05-02-PLAN.md)
+Last session: 2026-07-12 (milestone v1.2 started)
+Stopped at: Roadmap being defined for Jenkins CI/CD Provider Support
+Resume file: —
 
-## Phase 5 Status
+## Milestone v1.0 (Billing + CI/CD) — Complete
 
-**Status:** Milestone complete
+All phases 01–05 complete (verified). Phase directories retained in `.planning/phases/` (not yet archived via /gsd-complete-milestone). CICD-01/02/03 validated in Phase 5.
 
-Phase 5 plans are ready in `.planning/phases/05-simplify-ci-cd-pipeline-setup-with-github-action/`:
+## Milestone v1.2 (Jenkins CI/CD Provider Support) — In Planning
 
-- 05-01-PLAN.md — Consolidated GitHub Action with post-step auto-outcome detection (TDD)
-- 05-02-PLAN.md — Dashboard templates and workflow migration to consolidated action
-
-Phases 1–4 complete (13/13 plans including gap closures).
+Phases 6–10 (see ROADMAP.md once generated). Requirements: PROV-01/02/03, JENK-01..05.

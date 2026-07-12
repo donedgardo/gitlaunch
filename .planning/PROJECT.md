@@ -8,6 +8,18 @@ GitLaunch is a SaaS deployment management tool that helps developers and technol
 
 Developers can deploy their software continuously and reliably through GitLaunch, with a subscription model that lets them start with a free trial and upgrade when they see the value.
 
+## Current Milestone: v1.2 Jenkins CI/CD Provider Support
+
+**Goal:** Support Jenkins as an alternative CI/CD provider alongside GitHub Actions, using a functional-core / imperative-shell architecture so provider-agnostic logic is shared and only the IO differs per provider.
+
+**Target features:**
+
+- Extract a provider-agnostic functional core (deployment status state machine + dispatch-plan derivation) and refactor the GitHub path onto it
+- Unify the reporter into one provider-neutral binary (GitHub Action becomes a thin wrapper); server↔reporter status contract pinned by shared golden vectors
+- Per-account Jenkins credentials (base URL, username, API token) with the token encrypted at rest
+- `JenkinsDispatchService` behind the existing `BuildDispatchServiceI` seam; provider selection via `Service.ciProvider` + job name
+- Jenkins status reporting via the shared reporter + onboarding UI (provider picker + pre-filled Jenkinsfile snippet)
+
 ## Requirements
 
 ### Validated
@@ -25,6 +37,16 @@ Developers can deploy their software continuously and reliably through GitLaunch
 - ✓ Reusable GitHub Action (single-step deploy + post-step auto-outcome detection) replaces copy-paste workflow setup — Validated in Phase 5 (CICD-01/02/03)
 
 ### Active
+
+<!-- v1.2 Jenkins CI/CD Provider Support -->
+
+- [ ] Provider-agnostic functional core for deployment status + dispatch planning (PROV-01, PROV-02)
+- [ ] Provider-neutral reporter with shared golden-vector contract; GitHub Action as a thin wrapper (PROV-03)
+- [ ] Per-account Jenkins credentials with token encrypted at rest (JENK-01)
+- [ ] Per-service provider selection (GitHub Actions vs Jenkins) + Jenkins job name (JENK-02)
+- [ ] Dispatch deployments to Jenkins via buildWithParameters (JENK-03)
+- [ ] Jenkins pipeline reports status back through the shared reporter (JENK-04)
+- [ ] Jenkins onboarding UI: provider picker + pre-filled Jenkinsfile snippet (JENK-05)
 
 - [ ] Subscription system with Free / Pro / Team tiers
 - [ ] 14-day free trial on any plan (starts after plan selection)
@@ -63,17 +85,22 @@ The development approach is strict TDD: acceptance criteria first, then a Playwr
 
 ## Key Decisions
 
-| Decision                   | Rationale                                                                                                | Outcome   |
-| -------------------------- | -------------------------------------------------------------------------------------------------------- | --------- |
-| Stripe as payment provider | Industry standard for SaaS, good API, handles subscriptions natively                                     | — Pending |
-| Interface-first membership | Dependency inversion allows swapping providers without changing business logic                           | — Pending |
-| 14-day trial on any plan   | Builds confidence before asking for payment; generous enough to evaluate                                 | — Pending |
-| Read-only on trial expiry  | Users keep visibility into their setup, creating urgency without destroying their work                   | — Pending |
-| Free: 3 repos / 3 services | Enough to try it out, not enough for real production work                                                | — Pending |
-| Plan picker after signup   | Explicit plan choice rather than auto-assigning — user commits to trying a tier                          | — Pending |
-| No credit card for trial   | Earn trust first by delivering value; payment only when user decides to subscribe                        | — Pending |
-| One trial per GitHub ID    | Natural abuse prevention — creating new GitHub accounts is high friction; add age checks later if needed | — Pending |
+| Decision                                            | Rationale                                                                                                          | Outcome   |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ | --------- |
+| Stripe as payment provider                          | Industry standard for SaaS, good API, handles subscriptions natively                                               | — Pending |
+| Interface-first membership                          | Dependency inversion allows swapping providers without changing business logic                                     | — Pending |
+| 14-day trial on any plan                            | Builds confidence before asking for payment; generous enough to evaluate                                           | — Pending |
+| Read-only on trial expiry                           | Users keep visibility into their setup, creating urgency without destroying their work                             | — Pending |
+| Free: 3 repos / 3 services                          | Enough to try it out, not enough for real production work                                                          | — Pending |
+| Plan picker after signup                            | Explicit plan choice rather than auto-assigning — user commits to trying a tier                                    | — Pending |
+| No credit card for trial                            | Earn trust first by delivering value; payment only when user decides to subscribe                                  | — Pending |
+| One trial per GitHub ID                             | Natural abuse prevention — creating new GitHub accounts is high friction; add age checks later if needed           | — Pending |
+| Functional core / imperative shell for CI providers | Share provider-agnostic dispatch/status logic; isolate IO per provider so new providers add a shell, not a rewrite | — Pending |
+| Jenkins creds per-account (mirror GitHub App)       | Consistent with existing credential model; one Jenkins connection per account                                      | — Pending |
+| Jenkins API token encrypted at rest                 | Long-lived secret persisted in Mongo — net-new security surface vs GitHub's non-secret installationId              | — Pending |
+| Reporter stays TypeScript (Rust deferred)           | Reuse the just-shipped reporter; revisit a native binary when multi-CI portability pain is concrete                | — Pending |
+| Server↔reporter share a contract, not code         | Overlap is only status vocab + outcome mapping + endpoint shapes; pin with shared golden vectors                   | — Pending |
 
 ---
 
-_Last updated: 2026-07-11 — Phase 5 complete (CI/CD GitHub Action); v1.0 milestone fully executed_
+_Last updated: 2026-07-11 — Started milestone v1.2 (Jenkins CI/CD Provider Support)_
