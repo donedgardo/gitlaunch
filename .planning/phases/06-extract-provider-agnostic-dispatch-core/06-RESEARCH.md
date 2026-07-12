@@ -550,7 +550,7 @@ it("should produce exactly the same workflow_dispatch call after planDispatch re
 
 The transition map (A1) is the only item needing confirmation. The safest implementation exports `isLegalTransition` without enforcing it at the `BuildService` layer in Phase 6, so existing tests stay green regardless.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Should `isLegalTransition` be enforced in Phase 6 or just exported?**
 
