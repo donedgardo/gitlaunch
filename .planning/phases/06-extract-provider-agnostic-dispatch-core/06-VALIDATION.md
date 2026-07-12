@@ -17,8 +17,8 @@ created: 2026-07-12
 
 | Property               | Value                                                                        |
 | ---------------------- | ---------------------------------------------------------------------------- |
-| **Framework**          | jest (ts-jest)                                                               |
-| **Config file**        | `jest.config.js` (existing)                                                  |
+| **Framework**          | vitest ^1.3.1                                                                |
+| **Config file**        | `vitest.config.ts` / `vite.config.ts` (existing)                             |
 | **Quick run command**  | `yarn test`                                                                  |
 | **Full suite command** | `yarn test` (server, 511 tests) + `cd github-action && yarn test` (13 tests) |
 | **Estimated runtime**  | ~15s server, ~3s github-action                                               |
@@ -51,7 +51,7 @@ _Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky_
 - [ ] `src/services/dispatch/deployStatus.test.ts` — tests for PROV-01 (outcome→status, legal transitions), no mocks
 - [ ] `src/services/dispatch/planDispatch.test.ts` — tests for PROV-02 (DispatchPlan / ValidationError, no IO), no mocks
 
-_Existing jest infrastructure covers all phase requirements — no framework install needed._
+_Existing vitest infrastructure covers all phase requirements — no framework install needed._
 
 ---
 
