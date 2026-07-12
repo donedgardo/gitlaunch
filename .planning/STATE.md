@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: — Jenkins CI/CD Provider Support
-status: executing
-stopped_at: Completed 06-02-PLAN.md
-last_updated: "2026-07-12T06:49:25.956Z"
+status: verifying
+stopped_at: Completed 06-03-PLAN.md
+last_updated: "2026-07-12T06:52:31.582Z"
 last_activity: 2026-07-12
 progress:
   total_phases: 6
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-07-12)
 
 Phase: 06 (extract-provider-agnostic-dispatch-core) — EXECUTING
 Plan: 3 of 3
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-07-12
 
 Progress: [██████████] 100%
@@ -58,6 +58,7 @@ Progress: [██████████] 100%
 _Updated after each plan completion_
 | Phase 06 P01 | 4 | 3 tasks | 2 files |
 | Phase 06-extract-provider-agnostic-dispatch-core P02 | 5 | 3 tasks | 2 files |
+| Phase 06-extract-provider-agnostic-dispatch-core P03 | 5 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -119,6 +120,8 @@ Recent decisions affecting current work:
 - planDispatch takes resolved installationId as number (not account object) — pure/impure boundary stays clean
 - ValidationError.reason verbatim 'GitHub App not installed for this account' matches buildDispatchService.ts:39 so Plan 03 integration assertions stay green
 - DispatchPlan union single-member (GitHubDispatchPlan only) in Phase 6 — Jenkins member added Phase 9
+- kind stripped via destructuring { kind: \_kind, ...input } = plan before githubDispatch.dispatch — bridges GitHubDispatchPlan to DispatchInput shape at impure/pure boundary
+- ValidationError branch in BuildDispatchService kept even though effectively unreachable — guard exists for future non-GitHub callers
 
 ### Roadmap Evolution
 
@@ -185,8 +188,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-07-12T06:49:25.946Z
-Stopped at: Completed 06-02-PLAN.md
+Last session: 2026-07-12T06:52:31.573Z
+Stopped at: Completed 06-03-PLAN.md
 Resume file: None
 
 ## Milestone v1.0 (Billing + CI/CD) — Complete
