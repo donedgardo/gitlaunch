@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: — Jenkins CI/CD Provider Support
 status: executing
-stopped_at: Completed 06-01-PLAN.md
-last_updated: "2026-07-12T06:46:35.776Z"
+stopped_at: Completed 06-02-PLAN.md
+last_updated: "2026-07-12T06:49:25.956Z"
 last_activity: 2026-07-12
 progress:
   total_phases: 6
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-07-12)
 ## Current Position
 
 Phase: 06 (extract-provider-agnostic-dispatch-core) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-07-12
 
@@ -57,6 +57,7 @@ Progress: [██████████] 100%
 
 _Updated after each plan completion_
 | Phase 06 P01 | 4 | 3 tasks | 2 files |
+| Phase 06-extract-provider-agnostic-dispatch-core P02 | 5 | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -115,6 +116,9 @@ Recent decisions affecting current work:
 - **TrialRegistryRepository.ensureIndexes() called during startup** (04-04) — All repositories with indexes must call ensureIndexes() in start() function before server.listen()
 - isLegalTransition exported as utility only in Phase 6 — NOT enforced in BuildService (per RESEARCH Pitfall 1)
 - LEGAL_TRANSITIONS map kept module-private in deployStatus.ts — declarative single source of truth
+- planDispatch takes resolved installationId as number (not account object) — pure/impure boundary stays clean
+- ValidationError.reason verbatim 'GitHub App not installed for this account' matches buildDispatchService.ts:39 so Plan 03 integration assertions stay green
+- DispatchPlan union single-member (GitHubDispatchPlan only) in Phase 6 — Jenkins member added Phase 9
 
 ### Roadmap Evolution
 
@@ -181,8 +185,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-07-12T06:46:35.768Z
-Stopped at: Completed 06-01-PLAN.md
+Last session: 2026-07-12T06:49:25.946Z
+Stopped at: Completed 06-02-PLAN.md
 Resume file: None
 
 ## Milestone v1.0 (Billing + CI/CD) — Complete
