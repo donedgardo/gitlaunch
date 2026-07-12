@@ -162,7 +162,14 @@ Plans:
 3. GitHub Actions dispatch runs through `planDispatch` with identical observable behavior — a deploy still triggers the same workflow_dispatch as before
 4. All existing build/dispatch/status tests remain green
 
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+
+- [ ] 06-01-PLAN.md — Pure deployStatus module (outcome→status + legal-transition guard) with no-mock tests (TDD, PROV-01)
+- [ ] 06-02-PLAN.md — Pure planDispatch function (DispatchPlan | ValidationError, zero IO) with no-mock tests (TDD, PROV-02)
+- [ ] 06-03-PLAN.md — Route BuildDispatchService.dispatch through planDispatch, strip kind, prove identical workflow_dispatch (PROV-02)
+
 **UI hint**: no
 
 ### Phase 7: Unify the provider-neutral reporter
@@ -236,7 +243,7 @@ Phases execute in numeric order: 6 → 7 → 8 → 9 → 10
 
 | Phase                                          | Plans Complete | Status      | Completed |
 | ---------------------------------------------- | -------------- | ----------- | --------- |
-| 6. Extract provider-agnostic dispatch core     | 0/TBD          | Not started | -         |
+| 6. Extract provider-agnostic dispatch core     | 0/3            | Not started | -         |
 | 7. Unify the provider-neutral reporter         | 0/TBD          | Not started | -         |
 | 8. Per-account Jenkins credentials + selection | 0/TBD          | Not started | -         |
 | 9. JenkinsDispatchService                      | 0/TBD          | Not started | -         |
