@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: — Jenkins CI/CD Provider Support
-status: planning
-stopped_at: Roadmap being defined for Jenkins CI/CD Provider Support
-last_updated: "2026-07-12T06:41:45.391Z"
-last_activity: 2026-07-12 — Milestone v1.2 roadmap defined (phases 6–10)
+status: executing
+stopped_at: Completed 06-01-PLAN.md
+last_updated: "2026-07-12T06:46:35.776Z"
+last_activity: 2026-07-12
 progress:
   total_phases: 6
   completed_phases: 6
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-12)
 
 **Core value:** Developers can deploy their software continuously and reliably through GitLaunch, with a subscription model that lets them start with a free trial and upgrade when they see the value.
-**Current focus:** Milestone v1.2 — Jenkins CI/CD Provider Support (roadmap defined; ready to plan Phase 6)
+**Current focus:** Phase 06 — extract-provider-agnostic-dispatch-core
 
 ## Current Position
 
-Phase: 6 — Extract provider-agnostic dispatch core (not started)
-Plan: — (awaiting /gsd:plan-phase 6)
-Status: Roadmap defined — ready to plan Phase 6
-Last activity: 2026-07-12 — Milestone v1.2 roadmap defined (phases 6–10)
+Phase: 06 (extract-provider-agnostic-dispatch-core) — EXECUTING
+Plan: 2 of 3
+Status: Ready to execute
+Last activity: 2026-07-12
 
-Progress: [░░░░░░░░░░░░] 0/5 phases (milestone v1.2: phases 6–10)
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -56,6 +56,7 @@ Progress: [░░░░░░░░░░░░] 0/5 phases (milestone v1.2: pha
 - Trend: Consistent fast execution (avg 3.6min over last 5)
 
 _Updated after each plan completion_
+| Phase 06 P01 | 4 | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -112,6 +113,8 @@ Recent decisions affecting current work:
 - **isReadOnly true when payment failed AND grace expired** (04-03) — Full access during grace encourages payment; restriction after grace creates urgency
 - **Banner priority: payment failure > trial > read-only** (04-03) — Users see most critical message first
 - **TrialRegistryRepository.ensureIndexes() called during startup** (04-04) — All repositories with indexes must call ensureIndexes() in start() function before server.listen()
+- isLegalTransition exported as utility only in Phase 6 — NOT enforced in BuildService (per RESEARCH Pitfall 1)
+- LEGAL_TRANSITIONS map kept module-private in deployStatus.ts — declarative single source of truth
 
 ### Roadmap Evolution
 
@@ -178,9 +181,9 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-07-12 (milestone v1.2 started)
-Stopped at: Roadmap being defined for Jenkins CI/CD Provider Support
-Resume file: —
+Last session: 2026-07-12T06:46:35.768Z
+Stopped at: Completed 06-01-PLAN.md
+Resume file: None
 
 ## Milestone v1.0 (Billing + CI/CD) — Complete
 

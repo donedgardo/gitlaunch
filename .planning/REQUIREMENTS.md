@@ -45,7 +45,8 @@ Scoped to milestone v1.2. Continues numbering; phases 06–10.
 
 ### Provider Abstraction
 
-- [ ] **PROV-01**: Deployment status logic (outcome→status mapping, legal transitions) lives in a single provider-agnostic core used by both the server and the reporter
+- [x] **PROV-01
+      **: Deployment status logic (outcome→status mapping, legal transitions) lives in a single provider-agnostic core used by both the server and the reporter
 - [ ] **PROV-02**: Deployment dispatch is computed as a provider-agnostic plan; GitHub Actions dispatch runs through it with no observable behavior change (existing tests stay green)
 - [ ] **PROV-03**: The reporter is provider-neutral and the GitHub Action is a thin wrapper over it; a shared golden-vector fixture keeps the server↔reporter status contract in lockstep
 
