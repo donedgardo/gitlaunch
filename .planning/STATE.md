@@ -5,10 +5,10 @@ milestone_name: Jenkins CI/CD Provider Support
 status: planning
 stopped_at: ""
 last_updated: "2026-07-12T00:00:00.000Z"
-last_activity: 2026-07-12 -- Milestone v1.2 started (defining roadmap)
+last_activity: 2026-07-12 -- Milestone v1.2 roadmap defined (phases 6-10)
 progress:
-  total_phases: 5
-  completed_phases: 0
+  total_phases: 10
+  completed_phases: 5
   total_plans: 0
   completed_plans: 0
   percent: 0
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-12)
 
 **Core value:** Developers can deploy their software continuously and reliably through GitLaunch, with a subscription model that lets them start with a free trial and upgrade when they see the value.
-**Current focus:** Milestone v1.2 — Jenkins CI/CD Provider Support (defining roadmap)
+**Current focus:** Milestone v1.2 — Jenkins CI/CD Provider Support (roadmap defined; ready to plan Phase 6)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining roadmap
-Last activity: 2026-07-12 — Milestone v1.2 started
+Phase: 6 — Extract provider-agnostic dispatch core (not started)
+Plan: — (awaiting /gsd:plan-phase 6)
+Status: Roadmap defined — ready to plan Phase 6
+Last activity: 2026-07-12 — Milestone v1.2 roadmap defined (phases 6–10)
 
-Progress: [░░░░░░░░░░░░] 0/0 plans (milestone v1.2)
+Progress: [░░░░░░░░░░░░] 0/5 phases (milestone v1.2: phases 6–10)
 
 ## Performance Metrics
 
