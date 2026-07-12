@@ -35,12 +35,12 @@ Developers can deploy their software continuously and reliably through GitLaunch
 - ✓ API key authentication for programmatic access — existing
 - ✓ GitHub App integration for webhook-driven builds — existing
 - ✓ Reusable GitHub Action (single-step deploy + post-step auto-outcome detection) replaces copy-paste workflow setup — Validated in Phase 5 (CICD-01/02/03)
+- ✓ Provider-agnostic functional core for deployment status + dispatch planning — Validated in Phase 6 (PROV-01, PROV-02)
 
 ### Active
 
 <!-- v1.2 Jenkins CI/CD Provider Support -->
 
-- [ ] Provider-agnostic functional core for deployment status + dispatch planning (PROV-01, PROV-02)
 - [ ] Provider-neutral reporter with shared golden-vector contract; GitHub Action as a thin wrapper (PROV-03)
 - [ ] Per-account Jenkins credentials with token encrypted at rest (JENK-01)
 - [ ] Per-service provider selection (GitHub Actions vs Jenkins) + Jenkins job name (JENK-02)
@@ -95,7 +95,7 @@ The development approach is strict TDD: acceptance criteria first, then a Playwr
 | Plan picker after signup                            | Explicit plan choice rather than auto-assigning — user commits to trying a tier                                    | — Pending |
 | No credit card for trial                            | Earn trust first by delivering value; payment only when user decides to subscribe                                  | — Pending |
 | One trial per GitHub ID                             | Natural abuse prevention — creating new GitHub accounts is high friction; add age checks later if needed           | — Pending |
-| Functional core / imperative shell for CI providers | Share provider-agnostic dispatch/status logic; isolate IO per provider so new providers add a shell, not a rewrite | — Pending |
+| Functional core / imperative shell for CI providers | Share provider-agnostic dispatch/status logic; isolate IO per provider so new providers add a shell, not a rewrite | ✓ Phase 6 |
 | Jenkins creds per-account (mirror GitHub App)       | Consistent with existing credential model; one Jenkins connection per account                                      | — Pending |
 | Jenkins API token encrypted at rest                 | Long-lived secret persisted in Mongo — net-new security surface vs GitHub's non-secret installationId              | — Pending |
 | Reporter stays TypeScript (Rust deferred)           | Reuse the just-shipped reporter; revisit a native binary when multi-CI portability pain is concrete                | — Pending |
@@ -103,4 +103,4 @@ The development approach is strict TDD: acceptance criteria first, then a Playwr
 
 ---
 
-_Last updated: 2026-07-11 — Started milestone v1.2 (Jenkins CI/CD Provider Support)_
+_Last updated: 2026-07-12 — Phase 6 complete: provider-agnostic dispatch/status core extracted (PROV-01, PROV-02)_
