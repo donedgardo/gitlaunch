@@ -166,9 +166,9 @@ Plans:
 
 Plans:
 
-- [ ] 06-01-PLAN.md — Pure deployStatus module (outcome→status + legal-transition guard) with no-mock tests (TDD, PROV-01)
-- [ ] 06-02-PLAN.md — Pure planDispatch function (DispatchPlan | ValidationError, zero IO) with no-mock tests (TDD, PROV-02)
-- [ ] 06-03-PLAN.md — Route BuildDispatchService.dispatch through planDispatch, strip kind, prove identical workflow_dispatch (PROV-02)
+- [x] 06-01-PLAN.md — Pure deployStatus module (outcome→status + legal-transition guard) with no-mock tests (TDD, PROV-01)
+- [x] 06-02-PLAN.md — Pure planDispatch function (DispatchPlan | ValidationError, zero IO) with no-mock tests (TDD, PROV-02)
+- [x] 06-03-PLAN.md — Route BuildDispatchService.dispatch through planDispatch, strip kind, prove identical workflow_dispatch (PROV-02)
 
 **UI hint**: no
 
