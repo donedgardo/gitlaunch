@@ -2,10 +2,8 @@ import { ObjectId } from "mongodb";
 import { AccountRepository } from "../../repositories/accountRepository";
 import { RepositoryRepository } from "../../repositories/repositoryRepository";
 import { ServiceRepository } from "../../repositories/serviceRepository";
-import {
-  MultiTenantGithubDispatchService,
-  DispatchInput,
-} from "../github/githubDispatchService";
+import { MultiTenantGithubDispatchService } from "../github/githubDispatchService";
+import { planDispatch } from "../dispatch/planDispatch";
 
 export interface BuildDispatchServiceI {
   dispatch(
@@ -51,16 +49,20 @@ export class BuildDispatchService implements BuildDispatchServiceI {
       throw new Error("Repository not found");
     }
 
-    const input: DispatchInput = {
-      installationId: account.githubInstallationId,
-      owner: repository.githubOwner,
-      repo: repository.githubRepoName,
-      workflowFile: service.workflowFile,
+    const plan = planDispatch(
+      service,
+      account.githubInstallationId,
+      repository,
       buildId,
       environment,
-      serviceId: serviceId.toString(),
-    };
+      serviceId.toString(),
+    );
 
+    if (plan.kind === "validation-error") {
+      throw new Error(plan.reason);
+    }
+
+    const { kind: _kind, ...input } = plan;
     await this.githubDispatch.dispatch(input);
   }
 }
