@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { DeploymentStatus } from "../service/deploymentStatus";
 import { outcomeToStatus, isLegalTransition } from "./deployStatus";
-import type { CIOutcome, TransitionResult } from "./deployStatus";
 
 describe("deployStatus", () => {
   describe("outcomeToStatus", () => {

@@ -1,9 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  planDispatch,
-  GitHubDispatchPlan,
-  ValidationError,
-} from "./planDispatch";
+import { planDispatch, ValidationError } from "./planDispatch";
 
 describe("planDispatch", () => {
   const validService = { workflowFile: "deploy-backend.yml" };
