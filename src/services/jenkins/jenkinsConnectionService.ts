@@ -1,6 +1,11 @@
 import { ObjectId } from "mongodb";
 import { AccountRepository } from "../../repositories/accountRepository";
-import { encryptSecret, decryptSecret } from "../crypto/secretBox";
+import {
+  encryptSecret,
+  decryptSecret,
+  needsReEncryption,
+  reEncryptToPrimary,
+} from "../crypto/secretBox";
 
 export type ConnectJenkinsInput = {
   accountId: ObjectId;
@@ -63,5 +68,24 @@ export class JenkinsConnectionService {
       return null;
     }
     return decryptSecret(connection.apiTokenEncrypted);
+  }
+
+  /**
+   * Re-encrypts the stored token under the current primary key if it was
+   * encrypted with a rotated-out (or legacy) key. Returns true if it changed.
+   * Lets the token migrate to a new key without the user re-entering it.
+   */
+  async reEncryptStoredToken(accountId: ObjectId): Promise<boolean> {
+    const account = await this.accountRepo.findById(accountId);
+    const connection = account?.jenkinsConnection;
+    if (!connection || !needsReEncryption(connection.apiTokenEncrypted)) {
+      return false;
+    }
+    await this.accountRepo.setJenkinsConnection(accountId, {
+      baseUrl: connection.baseUrl,
+      username: connection.username,
+      apiTokenEncrypted: reEncryptToPrimary(connection.apiTokenEncrypted),
+    });
+    return true;
   }
 }
