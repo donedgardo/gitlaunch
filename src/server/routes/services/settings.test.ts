@@ -437,4 +437,95 @@ describe("Settings Routes - Workflow Configuration", () => {
       expect(found).not.toBeNull();
     });
   });
+
+  describe("PATCH /services/:serviceId/provider", () => {
+    async function seedService() {
+      const account = await accountRepo.create({
+        name: "Test Org",
+        slug: "test-org",
+      });
+      const repository = await repositoryRepo.create({
+        accountId: account._id,
+        githubRepoId: 999,
+        githubFullName: "test-org/my-repo",
+        githubRepoName: "my-repo",
+        githubOwner: "test-org",
+        isPrivate: false,
+      });
+      const service = await serviceRepo.create({
+        accountId: account._id,
+        repositoryId: repository._id,
+        name: "my-service",
+      });
+      const sessionToken = sessionService.createSession({
+        userId: new ObjectId(),
+        accountId: account._id,
+      });
+      return { service, sessionToken };
+    }
+
+    it("should set the service to the jenkins provider with a job name", async () => {
+      const { service, sessionToken } = await seedService();
+
+      const response = await app.inject({
+        method: "PATCH",
+        url: `/services/${service._id}/provider`,
+        cookies: { session: sessionToken },
+        payload: { ciProvider: "jenkins", jobName: "deploy-backend" },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const updated = await serviceRepo.findById(service._id);
+      expect(updated?.ciProvider).toBe("jenkins");
+      expect(updated?.jobName).toBe("deploy-backend");
+    });
+
+    it("should switch back to github and drop the job name", async () => {
+      const { service, sessionToken } = await seedService();
+      await serviceRepo.setProvider(service.accountId, service._id, {
+        ciProvider: "jenkins",
+        jobName: "deploy-backend",
+      });
+
+      const response = await app.inject({
+        method: "PATCH",
+        url: `/services/${service._id}/provider`,
+        cookies: { session: sessionToken },
+        payload: { ciProvider: "github" },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const updated = await serviceRepo.findById(service._id);
+      expect(updated?.ciProvider).toBe("github");
+      expect(updated?.jobName).toBeNull();
+    });
+
+    it("should reject jenkins without a job name", async () => {
+      const { service, sessionToken } = await seedService();
+
+      const response = await app.inject({
+        method: "PATCH",
+        url: `/services/${service._id}/provider`,
+        cookies: { session: sessionToken },
+        payload: { ciProvider: "jenkins", jobName: "" },
+      });
+
+      expect(response.statusCode).toBe(400);
+      const updated = await serviceRepo.findById(service._id);
+      expect(updated?.ciProvider).toBe("github");
+    });
+
+    it("should reject an unknown provider", async () => {
+      const { service, sessionToken } = await seedService();
+
+      const response = await app.inject({
+        method: "PATCH",
+        url: `/services/${service._id}/provider`,
+        cookies: { session: sessionToken },
+        payload: { ciProvider: "gitlab", jobName: "x" },
+      });
+
+      expect(response.statusCode).toBe(400);
+    });
+  });
 });

@@ -1,0 +1,89 @@
+{{> navigation }}
+
+<div class="max-w-3xl mx-auto px-4 py-10">
+  <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Jenkins</h1>
+  <p class="text-sm text-gray-600 dark:text-gray-400 mb-6">
+    Connect a Jenkins server to deploy services through it. Your API token is
+    encrypted at rest and never shown again after saving.
+  </p>
+
+  {{#if error}}
+  <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 mb-6 text-sm text-red-700 dark:text-red-300">
+    {{error}}
+  </div>
+  {{/if}}
+
+  <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-lg overflow-hidden">
+    <div class="p-6">
+      {{#if connection}}
+      <!-- Connected state -->
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Connection</h2>
+        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+          Connected
+        </span>
+      </div>
+      <dl class="text-sm space-y-2 mb-6">
+        <div class="flex justify-between">
+          <dt class="text-gray-500 dark:text-gray-400">Server URL</dt>
+          <dd class="text-gray-900 dark:text-white font-mono">{{connection.baseUrl}}</dd>
+        </div>
+        <div class="flex justify-between">
+          <dt class="text-gray-500 dark:text-gray-400">Username</dt>
+          <dd class="text-gray-900 dark:text-white font-mono">{{connection.username}}</dd>
+        </div>
+        <div class="flex justify-between">
+          <dt class="text-gray-500 dark:text-gray-400">API token</dt>
+          <dd class="text-gray-400 dark:text-gray-500 font-mono">•••••••••• (hidden)</dd>
+        </div>
+        <div class="flex justify-between">
+          <dt class="text-gray-500 dark:text-gray-400">Updated</dt>
+          <dd class="text-gray-900 dark:text-white">{{connection.updatedAt}}</dd>
+        </div>
+      </dl>
+      <button
+        hx-delete="/settings/jenkins"
+        hx-target="body"
+        hx-confirm="Disconnect Jenkins? Services set to Jenkins will stop dispatching until you reconnect."
+        class="px-4 py-2 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition-colors text-sm">
+        Disconnect
+      </button>
+
+      <div class="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+        <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-3">Replace credentials</h3>
+      </div>
+      {{else}}
+      <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Connect Jenkins</h2>
+      {{/if}}
+
+      <!-- Connect / replace form. The API token is write-only: it is never
+           pre-filled, so saving without re-entering it is intentional. -->
+      <form method="POST" action="/settings/jenkins" class="space-y-4">
+        <div>
+          <label for="jenkins-base-url" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Server URL</label>
+          <input type="url" id="jenkins-base-url" name="baseUrl" required
+            placeholder="https://ci.example.com"
+            value="{{#if connection}}{{connection.baseUrl}}{{/if}}"
+            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+        </div>
+        <div>
+          <label for="jenkins-username" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Username</label>
+          <input type="text" id="jenkins-username" name="username" required
+            placeholder="deploy-bot"
+            value="{{#if connection}}{{connection.username}}{{/if}}"
+            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+        </div>
+        <div>
+          <label for="jenkins-api-token" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">API token</label>
+          <input type="password" id="jenkins-api-token" name="apiToken" required autocomplete="off"
+            placeholder="Paste your Jenkins API token"
+            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+        </div>
+        <button type="submit"
+          class="px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors text-sm">
+          {{#if connection}}Save changes{{else}}Connect Jenkins{{/if}}
+        </button>
+      </form>
+    </div>
+  </div>
+</div>

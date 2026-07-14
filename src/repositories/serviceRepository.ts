@@ -5,6 +5,8 @@ export type Environment = {
   order: number;
 };
 
+export type CIProvider = "github" | "jenkins";
+
 export type Service = {
   _id: ObjectId;
   accountId: ObjectId;
@@ -15,6 +17,8 @@ export type Service = {
   eventType: string;
   workflowConfigured: boolean;
   isActive: boolean;
+  ciProvider: CIProvider;
+  jobName: string | null;
   createdAt: Date;
 };
 
@@ -58,6 +62,8 @@ export class ServiceRepository {
       eventType: input.eventType || "deployment",
       workflowConfigured: false,
       isActive: true,
+      ciProvider: "github",
+      jobName: null,
       createdAt: now,
     };
 
@@ -65,33 +71,75 @@ export class ServiceRepository {
     return { _id: result.insertedId, ...service };
   }
 
+  // Legacy services predate the provider fields; default them at read time so
+  // no data migration is required.
+  private normalize(service: Service | null): Service | null {
+    if (!service) {
+      return null;
+    }
+    return {
+      ...service,
+      ciProvider: service.ciProvider ?? "github",
+      jobName: service.jobName ?? null,
+    };
+  }
+
+  private normalizeMany(services: Service[]): Service[] {
+    return services.map((s) => this.normalize(s) as Service);
+  }
+
   async findById(id: ObjectId): Promise<Service | null> {
-    return this.collection.findOne({ _id: id });
+    return this.normalize(await this.collection.findOne({ _id: id }));
   }
 
   async findByAccountAndId(
     accountId: ObjectId,
     id: ObjectId,
   ): Promise<Service | null> {
-    return this.collection.findOne({ _id: id, accountId });
+    return this.normalize(
+      await this.collection.findOne({ _id: id, accountId }),
+    );
   }
 
   async findByRepositoryId(
     accountId: ObjectId,
     repositoryId: ObjectId,
   ): Promise<Service[]> {
-    return this.collection.find({ accountId, repositoryId }).toArray();
+    return this.normalizeMany(
+      await this.collection.find({ accountId, repositoryId }).toArray(),
+    );
   }
 
   async findByAccountId(accountId: ObjectId): Promise<Service[]> {
-    return this.collection.find({ accountId }).toArray();
+    return this.normalizeMany(
+      await this.collection.find({ accountId }).toArray(),
+    );
   }
 
   async findByAccountIdAndName(
     accountId: ObjectId,
     name: string,
   ): Promise<Service | null> {
-    return this.collection.findOne({ accountId, name });
+    return this.normalize(await this.collection.findOne({ accountId, name }));
+  }
+
+  async setProvider(
+    accountId: ObjectId,
+    id: ObjectId,
+    provider: { ciProvider: CIProvider; jobName: string | null },
+  ): Promise<Service | null> {
+    return this.normalize(
+      await this.collection.findOneAndUpdate(
+        { _id: id, accountId },
+        {
+          $set: {
+            ciProvider: provider.ciProvider,
+            jobName: provider.jobName,
+          },
+        },
+        { returnDocument: "after" },
+      ),
+    );
   }
 
   async updateWorkflowConfiguration(

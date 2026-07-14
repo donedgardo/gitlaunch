@@ -379,4 +379,54 @@ describe("AccountRepository", () => {
       expect(updated?.trialEndsAt).toBeNull();
     });
   });
+
+  describe("Jenkins connection", () => {
+    it("should default jenkinsConnection to null on create", async () => {
+      // When: I create an account
+      const account = await repo.create({ name: "No Jenkins", slug: "no-jk" });
+
+      // Then: it has no Jenkins connection
+      expect(account.jenkinsConnection).toBeNull();
+    });
+
+    it("should store a Jenkins connection and read it back", async () => {
+      // Given: an account
+      const created = await repo.create({ name: "Jenkins Co", slug: "jk-co" });
+
+      // When: I save a Jenkins connection (token already encrypted)
+      await repo.setJenkinsConnection(created._id, {
+        baseUrl: "https://ci.example.com",
+        username: "deploy-bot",
+        apiTokenEncrypted: "v1:iv:tag:cipher",
+      });
+
+      // Then: the connection is persisted
+      const updated = await repo.findById(created._id);
+      expect(updated?.jenkinsConnection?.baseUrl).toBe(
+        "https://ci.example.com",
+      );
+      expect(updated?.jenkinsConnection?.username).toBe("deploy-bot");
+      expect(updated?.jenkinsConnection?.apiTokenEncrypted).toBe(
+        "v1:iv:tag:cipher",
+      );
+      expect(updated?.jenkinsConnection?.updatedAt).toBeInstanceOf(Date);
+    });
+
+    it("should clear a Jenkins connection", async () => {
+      // Given: an account with a Jenkins connection
+      const created = await repo.create({ name: "Drop JK", slug: "drop-jk" });
+      await repo.setJenkinsConnection(created._id, {
+        baseUrl: "https://ci.example.com",
+        username: "deploy-bot",
+        apiTokenEncrypted: "v1:iv:tag:cipher",
+      });
+
+      // When: I clear it
+      await repo.clearJenkinsConnection(created._id);
+
+      // Then: it is null again
+      const updated = await repo.findById(created._id);
+      expect(updated?.jenkinsConnection).toBeNull();
+    });
+  });
 });

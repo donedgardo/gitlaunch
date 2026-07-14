@@ -94,6 +94,9 @@ export function registerSettingsRoutes(
             name: service.name,
             workflowFile: service.workflowFile,
             eventType: service.eventType,
+            ciProvider: service.ciProvider,
+            isJenkins: service.ciProvider === "jenkins",
+            jobName: service.jobName,
           },
           repository: repository
             ? {
@@ -355,6 +358,60 @@ export function registerSettingsRoutes(
         );
         return reply.status(400).send();
       }
+    },
+  );
+
+  // PATCH /services/:serviceId/provider - Choose CI provider (HTMX)
+  app.patch<{
+    Params: { serviceId: string };
+    Body: { ciProvider: string; jobName?: string };
+  }>(
+    "/services/:serviceId/provider",
+    async (
+      request: FastifyRequest<{
+        Params: { serviceId: string };
+        Body: { ciProvider: string; jobName?: string };
+      }>,
+      reply: FastifyReply,
+    ) => {
+      const result = await loadServiceWithAuth(request, reply);
+      if (!result) return;
+
+      const { service, accountId } = result;
+      const ciProvider = request.body.ciProvider;
+      const jobName = request.body.jobName?.trim() || null;
+
+      function toastError(message: string) {
+        reply.header(
+          "HX-Trigger",
+          JSON.stringify({ showToast: { message, type: "error" } }),
+        );
+        return reply.status(400).send();
+      }
+
+      if (ciProvider !== "github" && ciProvider !== "jenkins") {
+        return toastError("Unknown CI provider");
+      }
+      if (ciProvider === "jenkins" && !jobName) {
+        return toastError("A Jenkins job name is required");
+      }
+
+      await serviceRepository.setProvider(accountId, service._id, {
+        ciProvider,
+        jobName: ciProvider === "jenkins" ? jobName : null,
+      });
+      analytics?.track("service_provider_updated", {
+        serviceId: service._id.toString(),
+        ciProvider,
+      });
+
+      reply.header(
+        "HX-Trigger",
+        JSON.stringify({
+          showToast: { message: "CI provider saved", type: "success" },
+        }),
+      );
+      return reply.status(200).send();
     },
   );
 

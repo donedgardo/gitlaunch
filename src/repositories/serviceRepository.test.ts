@@ -564,4 +564,86 @@ describe("ServiceRepository", () => {
       expect(await repo.findById(service2._id)).not.toBeNull();
     });
   });
+
+  describe("CI provider selection", () => {
+    it("should default new services to the github provider with no job name", async () => {
+      // When: I create a service
+      const service = await repo.create({
+        accountId: new ObjectId(),
+        repositoryId: new ObjectId(),
+        name: "defaults",
+      });
+
+      // Then: it deploys via GitHub Actions by default
+      expect(service.ciProvider).toBe("github");
+      expect(service.jobName).toBeNull();
+    });
+
+    it("should set a service to the jenkins provider with a job name", async () => {
+      // Given: a service
+      const created = await repo.create({
+        accountId: new ObjectId(),
+        repositoryId: new ObjectId(),
+        name: "to-jenkins",
+      });
+
+      // When: I switch it to Jenkins
+      await repo.setProvider(created.accountId, created._id, {
+        ciProvider: "jenkins",
+        jobName: "deploy-backend",
+      });
+
+      // Then: the provider and job name are persisted
+      const updated = await repo.findById(created._id);
+      expect(updated?.ciProvider).toBe("jenkins");
+      expect(updated?.jobName).toBe("deploy-backend");
+    });
+
+    it("should switch a service back to github and drop the job name", async () => {
+      // Given: a Jenkins service
+      const created = await repo.create({
+        accountId: new ObjectId(),
+        repositoryId: new ObjectId(),
+        name: "back-to-gh",
+      });
+      await repo.setProvider(created.accountId, created._id, {
+        ciProvider: "jenkins",
+        jobName: "deploy-backend",
+      });
+
+      // When: I switch back to GitHub Actions
+      await repo.setProvider(created.accountId, created._id, {
+        ciProvider: "github",
+        jobName: null,
+      });
+
+      // Then: it is a github service with no job name
+      const updated = await repo.findById(created._id);
+      expect(updated?.ciProvider).toBe("github");
+      expect(updated?.jobName).toBeNull();
+    });
+
+    it("should read legacy services (no provider field) as github", async () => {
+      // Given: a pre-existing service document with no ciProvider/jobName
+      const raw = {
+        accountId: new ObjectId(),
+        repositoryId: new ObjectId(),
+        name: "legacy",
+        environments: [],
+        workflowFile: "deploy.yml",
+        eventType: "deployment",
+        workflowConfigured: false,
+        isActive: true,
+        createdAt: new Date(),
+      };
+      const { insertedId } = await db.collection("services").insertOne(raw);
+
+      // When: I read it back
+      const service = await repo.findById(insertedId);
+
+      // Then: it defaults to the github provider
+      expect(service?.ciProvider).toBe("github");
+      expect(service?.jobName).toBeNull();
+    });
+  });
 });

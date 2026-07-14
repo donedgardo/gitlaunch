@@ -43,6 +43,9 @@ import { StripeApiClient } from "../services/billing/stripeApiClient";
 import { registerStripeWebhookRoute } from "./routes/webhooks/stripe";
 import { registerBillingRoutes } from "./routes/settings/billing";
 import { registerApiKeyRoutes } from "./routes/settings/apiKeys";
+import { registerJenkinsSettingsRoutes } from "./routes/settings/jenkins";
+import { JenkinsConnectionService } from "../services/jenkins/jenkinsConnectionService";
+import { assertEncryptionKey } from "../services/crypto/secretBox";
 import { registerSetupRoutes } from "./routes/dashboard/setup";
 import { DbClientI } from "./health/dbClientI";
 import {
@@ -75,6 +78,8 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     analytics = new NoOpAnalytics(),
   } = deps;
 
+  assertEncryptionKey();
+
   const server = Fastify();
   registerPlugins(server);
 
@@ -90,6 +95,9 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
 
   // Services
   const apiKeyService = new ApiKeyService(apiKeyRepository, accountRepository);
+  const jenkinsConnectionService = new JenkinsConnectionService(
+    accountRepository,
+  );
   const planEnforcementService = new PlanEnforcementService(
     accountRepository,
     repositoryRepository,
@@ -162,6 +170,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
 
   // API key management routes
   registerApiKeyRoutes(server, { apiKeyService, serviceRepository });
+  registerJenkinsSettingsRoutes(server, { jenkinsConnectionService });
 
   // Setup wizard routes
   registerSetupRoutes(server, {

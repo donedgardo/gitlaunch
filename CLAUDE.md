@@ -85,6 +85,7 @@ Copy `sample.env` to `.env`. Required variables:
 - `COOKIE_SECRET_SIGNATURE` - Cookie signing secret
 - `API_KEY` - API authentication key
 - `GH_PAT` - GitHub Personal Access Token for dispatch workflows
+- `ENCRYPTION_KEY` - 32-byte base64 key for encrypting stored secrets at rest (e.g. Jenkins API tokens); generate with `openssl rand -base64 32`. Boot fails closed if missing/invalid.
 
 ## TDD Development Mode
 

@@ -14,6 +14,13 @@ export type PlanLimits = {
   publicReposOnly: boolean;
 };
 
+export type JenkinsConnection = {
+  baseUrl: string;
+  username: string;
+  apiTokenEncrypted: string; // ciphertext only — never plaintext
+  updatedAt: Date;
+};
+
 export type Account = {
   _id: ObjectId;
   name: string;
@@ -27,6 +34,7 @@ export type Account = {
   githubInstallationId: number | null;
   githubInstallationAccessToken: string | null;
   githubInstallationTokenExpiresAt: Date | null;
+  jenkinsConnection: JenkinsConnection | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -92,6 +100,7 @@ export class AccountRepository {
       githubInstallationId: null,
       githubInstallationAccessToken: null,
       githubInstallationTokenExpiresAt: null,
+      jenkinsConnection: null,
       createdAt: now,
       updatedAt: now,
     };
@@ -117,6 +126,38 @@ export class AccountRepository {
       {
         $set: {
           githubInstallationId: installationId,
+          updatedAt: new Date(),
+        },
+      },
+    );
+  }
+
+  async setJenkinsConnection(
+    id: ObjectId,
+    connection: Omit<JenkinsConnection, "updatedAt">,
+  ): Promise<void> {
+    await this.collection.updateOne(
+      { _id: id },
+      {
+        $set: {
+          jenkinsConnection: {
+            baseUrl: connection.baseUrl,
+            username: connection.username,
+            apiTokenEncrypted: connection.apiTokenEncrypted,
+            updatedAt: new Date(),
+          },
+          updatedAt: new Date(),
+        },
+      },
+    );
+  }
+
+  async clearJenkinsConnection(id: ObjectId): Promise<void> {
+    await this.collection.updateOne(
+      { _id: id },
+      {
+        $set: {
+          jenkinsConnection: null,
           updatedAt: new Date(),
         },
       },
