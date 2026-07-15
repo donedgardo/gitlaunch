@@ -1,9 +1,10 @@
 import { ObjectId } from "mongodb";
 import { AccountRepository } from "../../repositories/accountRepository";
-import { RepositoryRepository } from "../../repositories/repositoryRepository";
-import { ServiceRepository } from "../../repositories/serviceRepository";
-import { MultiTenantGithubDispatchService } from "../github/githubDispatchService";
-import { planDispatch } from "../dispatch/planDispatch";
+import {
+  ServiceRepository,
+  CIProvider,
+} from "../../repositories/serviceRepository";
+import { ProviderDispatcher } from "../dispatch/providerDispatcher";
 
 export interface BuildDispatchServiceI {
   dispatch(
@@ -15,12 +16,15 @@ export interface BuildDispatchServiceI {
 }
 
 export class BuildDispatchService implements BuildDispatchServiceI {
+  private dispatchers: Map<CIProvider, ProviderDispatcher>;
+
   constructor(
     private accountRepo: AccountRepository,
-    private repoRepo: RepositoryRepository,
     private serviceRepo: ServiceRepository,
-    private githubDispatch: MultiTenantGithubDispatchService,
-  ) {}
+    dispatchers: ProviderDispatcher[],
+  ) {
+    this.dispatchers = new Map(dispatchers.map((d) => [d.provider, d]));
+  }
 
   async dispatch(
     accountId: ObjectId,
@@ -28,42 +32,22 @@ export class BuildDispatchService implements BuildDispatchServiceI {
     buildId: string,
     environment: string,
   ): Promise<void> {
-    // Look up account to get GitHub installation ID
     const account = await this.accountRepo.findById(accountId);
     if (!account) {
       throw new Error("Account not found");
     }
-    if (!account.githubInstallationId) {
-      throw new Error("GitHub App not installed for this account");
-    }
 
-    // Look up service to get workflow config
     const service = await this.serviceRepo.findById(serviceId);
     if (!service) {
       throw new Error("Service not found");
     }
 
-    // Look up repository to get GitHub details
-    const repository = await this.repoRepo.findById(service.repositoryId);
-    if (!repository) {
-      throw new Error("Repository not found");
+    const dispatcher = this.dispatchers.get(service.ciProvider);
+    if (!dispatcher) {
+      throw new Error(`No dispatcher for provider '${service.ciProvider}'`);
     }
 
-    const plan = planDispatch(
-      service,
-      account.githubInstallationId,
-      repository,
-      buildId,
-      environment,
-      serviceId.toString(),
-    );
-
-    if (plan.kind === "validation-error") {
-      throw new Error(plan.reason);
-    }
-
-    const { kind: _kind, ...input } = plan;
-    await this.githubDispatch.dispatch(input);
+    await dispatcher.dispatch({ account, service, buildId, environment });
   }
 }
 

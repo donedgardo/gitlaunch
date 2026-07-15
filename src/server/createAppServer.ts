@@ -22,6 +22,9 @@ import { BuildRepository } from "../repositories/buildRepository";
 import { BuildService } from "../services/build/buildService";
 import { BuildDispatchService } from "../services/build/buildDispatchService";
 import { MultiTenantGithubDispatchService } from "../services/github/githubDispatchService";
+import { GithubProviderDispatcher } from "../services/github/githubProviderDispatcher";
+import { JenkinsDispatchService } from "../services/jenkins/jenkinsDispatchService";
+import { JenkinsProviderDispatcher } from "../services/jenkins/jenkinsProviderDispatcher";
 import { SessionService } from "../services/auth/sessionService";
 import { UserRepository } from "../repositories/userRepository";
 import { AccountRepository } from "../repositories/accountRepository";
@@ -109,15 +112,21 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     trialRegistryRepository,
   );
 
-  // GitHub dispatch service for triggering workflows
+  // Provider dispatch strategies for triggering deployments
   const githubDispatchService = new MultiTenantGithubDispatchService(
     installationTokenService,
   );
+  const jenkinsDispatchService = new JenkinsDispatchService();
   const buildDispatchService = new BuildDispatchService(
     accountRepository,
-    repositoryRepository,
     serviceRepository,
-    githubDispatchService,
+    [
+      new GithubProviderDispatcher(repositoryRepository, githubDispatchService),
+      new JenkinsProviderDispatcher(
+        jenkinsConnectionService,
+        jenkinsDispatchService,
+      ),
+    ],
   );
   const buildService = new BuildService(
     buildRepository,
