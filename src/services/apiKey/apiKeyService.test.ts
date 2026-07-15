@@ -1,11 +1,12 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { MongoMemoryServer } from "mongodb-memory-server";
 import { MongoClient, Db, ObjectId } from "mongodb";
+import * as bcrypt from "bcrypt";
 import { AccountRepository } from "../../repositories/accountRepository";
 import { ApiKeyRepository } from "../../repositories/apiKeyRepository";
 import { ApiKeyService } from "./apiKeyService";
 
-describe("ApiKeyService", { sequential: true, retry: 2 }, () => {
+describe("ApiKeyService", { sequential: true }, () => {
   let mongoServer: MongoMemoryServer;
   let client: MongoClient;
   let db: Db;
@@ -125,6 +126,33 @@ describe("ApiKeyService", { sequential: true, retry: 2 }, () => {
 
       // Then: validation fails
       expect(result).toBeNull();
+    });
+
+    it("should validate a key whose random segment contains an underscore", async () => {
+      // base64url random parts can contain "_"; the stored prefix is the first
+      // 8 chars of that random segment, so validation must not break on the "_".
+      const slug = uniqueSlug("underscore-org");
+      const account = await accountRepo.create({ name: "Underscore", slug });
+      const random = "a_b1c2d3e4f5";
+      const fullKey = `pk_${slug}_${random}`;
+      const keyPrefix = `pk_${slug}_${random.slice(0, 8)}`;
+      const keyHash = await bcrypt.hash(fullKey, 10);
+      await apiKeyRepo.create({
+        accountId: account._id,
+        createdByUserId: new ObjectId(),
+        name: "underscore key",
+        keyPrefix,
+        keyHash,
+        scopes: ["builds:write"],
+        expiresAt: null,
+      });
+
+      // When: I validate the full key
+      const result = await service.validate(fullKey);
+
+      // Then: it resolves to the stored key
+      expect(result).not.toBeNull();
+      expect(result?.keyPrefix).toBe(keyPrefix);
     });
 
     it("should return null for revoked key", async () => {

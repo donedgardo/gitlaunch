@@ -71,12 +71,15 @@ export class ApiKeyService {
       return null;
     }
 
-    // Extract prefix (pk_{slug}_{first8chars})
+    // Extract prefix (pk_{slug}_{first8chars}). The random segment is base64url
+    // and may itself contain "_", so rejoin everything after the slug before
+    // taking the first 8 chars — matching how generate() built the prefix.
     const parts = key.split("_");
     if (parts.length < 3) {
       return null;
     }
-    const prefix = `${parts[0]}_${parts[1]}_${parts[2].slice(0, 8)}`;
+    const randomPart = parts.slice(2).join("_");
+    const prefix = `${parts[0]}_${parts[1]}_${randomPart.slice(0, 8)}`;
 
     // Find key by prefix
     const apiKey = await this.apiKeyRepo.findByPrefix(prefix);
