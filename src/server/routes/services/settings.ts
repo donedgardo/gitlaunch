@@ -104,6 +104,8 @@ export function registerSettingsRoutes(
               }
             : null,
           environments,
+          apiUrl: process.env.PUBLIC_URL,
+          firstEnv: environments[0]?.name ?? "staging",
           canDelete: environments.length > 1,
           services: serviceNames,
           activeService: service.name,

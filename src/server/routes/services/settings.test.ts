@@ -79,6 +79,9 @@ describe("Settings Routes - Workflow Configuration", () => {
           buildReportingInstructions:
             "/partials/buildReportingInstructions.hbs",
           deploymentSetupGuide: "/partials/deploymentSetupGuide.hbs",
+          jenkinsBuildReportingGuide:
+            "/partials/jenkinsBuildReportingGuide.hbs",
+          jenkinsDeploymentGuide: "/partials/jenkinsDeploymentGuide.hbs",
         },
       },
     });
@@ -137,6 +140,83 @@ describe("Settings Routes - Workflow Configuration", () => {
       // ...and no longer shows the old verbose 4-step status pattern
       expect(response.body).not.toContain("action: update-status");
       expect(response.body).not.toContain("status: deployed");
+    });
+  });
+
+  describe("GET /services/:serviceId/settings — CI provider guides", () => {
+    async function createServiceForProvider(
+      slug: string,
+      provider: "github" | "jenkins",
+    ) {
+      const account = await accountRepo.create({ name: slug, slug });
+      const repository = await repositoryRepo.create({
+        accountId: account._id,
+        githubRepoId: 999,
+        githubFullName: `${slug}/my-repo`,
+        githubRepoName: "my-repo",
+        githubOwner: slug,
+        isPrivate: false,
+      });
+      const service = await serviceRepo.create({
+        accountId: account._id,
+        repositoryId: repository._id,
+        name: "my-service",
+      });
+      if (provider === "jenkins") {
+        await serviceRepo.setProvider(account._id, service._id, {
+          ciProvider: "jenkins",
+          jobName: "deploy-backend",
+        });
+      }
+      const sessionToken = sessionService.createSession({
+        userId: new ObjectId(),
+        accountId: account._id,
+      });
+      return { service, sessionToken };
+    }
+
+    it("should show Jenkins pipeline guides for a jenkins-provider service", async () => {
+      // Given: a service configured to use Jenkins
+      const { service, sessionToken } = await createServiceForProvider(
+        "jenkins-org",
+        "jenkins",
+      );
+
+      // When: the settings page is loaded
+      const response = await app.inject({
+        method: "GET",
+        url: `/services/${service._id}/settings`,
+        cookies: { session: sessionToken },
+      });
+
+      // Then: it renders the Jenkins deploy pipeline and build-report curl...
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain("pipeline {");
+      expect(response.body).toContain(`/api/v1/services/${service._id}/builds`);
+      expect(response.body).toContain("credentials('gitlaunch-api-key')");
+
+      // ...and not the GitHub Actions guide
+      expect(response.body).not.toContain("donedgardo/build-reporter");
+    });
+
+    it("should show the GitHub Actions guide for a github-provider service", async () => {
+      // Given: a service using the default GitHub provider
+      const { service, sessionToken } = await createServiceForProvider(
+        "github-org",
+        "github",
+      );
+
+      // When: the settings page is loaded
+      const response = await app.inject({
+        method: "GET",
+        url: `/services/${service._id}/settings`,
+        cookies: { session: sessionToken },
+      });
+
+      // Then: it renders the GitHub Actions guide, not the Jenkins pipeline
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain("donedgardo/build-reporter");
+      expect(response.body).not.toContain("pipeline {");
     });
   });
 

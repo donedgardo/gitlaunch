@@ -158,14 +158,22 @@
         </p>
       </div>
 
-      <!-- GitHub Secrets Setup -->
-      {{> githubSecretsSetup serviceId=service.id idPrefix="settings_" showCopyButton=true }}
+      {{#if service.isJenkins}}
+        <!-- Jenkins Build Reporting -->
+        {{> jenkinsBuildReportingGuide apiUrl=apiUrl serviceId=service.id }}
 
-      <!-- Build Reporting Instructions -->
-      {{> buildReportingInstructions idPrefix="settings_" }}
+        <!-- Jenkins Deployment Pipeline -->
+        {{> jenkinsDeploymentGuide apiUrl=apiUrl serviceId=service.id firstEnv=firstEnv }}
+      {{else}}
+        <!-- GitHub Secrets Setup -->
+        {{> githubSecretsSetup serviceId=service.id idPrefix="settings_" showCopyButton=true }}
 
-      <!-- Deployment Setup Guide -->
-      {{> deploymentSetupGuide serviceId=service.id environments=environments }}
+        <!-- Build Reporting Instructions -->
+        {{> buildReportingInstructions idPrefix="settings_" }}
+
+        <!-- Deployment Setup Guide -->
+        {{> deploymentSetupGuide serviceId=service.id environments=environments }}
+      {{/if}}
     </div>
 
     <!-- Danger Zone -->

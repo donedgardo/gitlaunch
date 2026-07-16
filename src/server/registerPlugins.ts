@@ -44,6 +44,8 @@ export function registerPlugins(server: FastifyInstance) {
         deploymentSetupGuide: "/partials/deploymentSetupGuide.hbs",
         environmentList: "/partials/environmentList.hbs",
         githubSecretsSetup: "/partials/githubSecretsSetup.hbs",
+        jenkinsBuildReportingGuide: "/partials/jenkinsBuildReportingGuide.hbs",
+        jenkinsDeploymentGuide: "/partials/jenkinsDeploymentGuide.hbs",
         htmxDashboard: "/partials/htmxDashboard.hbs",
         paginationControls: "/partials/paginationControls.hbs",
         setupStep: "/partials/setupStep.hbs",
