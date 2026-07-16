@@ -326,6 +326,48 @@ describe("Billing Routes", () => {
       // Then: unauthorized
       expect(response.statusCode).toBe(401);
     });
+
+    it("should offer an upgrade checkout option for a Free account that still has a Stripe customer", async () => {
+      // Given: an account that upgraded then downgraded back to Free.
+      // downgradeToFree keeps stripeCustomerId, so the account is on the Free
+      // plan but still has a Stripe customer record.
+      const account = await accountRepo.create({
+        name: "Lapsed Org",
+        slug: "lapsed-org",
+      });
+      await accountRepo.upgradeToPlan(
+        account._id,
+        "cus_lapsed",
+        "sub_lapsed",
+        Plan.Pro,
+      );
+      await accountRepo.downgradeToFree(account._id);
+      const user = await userRepo.create({
+        email: "lapsed@example.com",
+        name: "Lapsed User",
+        githubId: 22345,
+        githubLogin: "lapseduser",
+        avatarUrl: null,
+      });
+      const sessionToken = sessionService.createSession({
+        userId: user._id,
+        accountId: account._id,
+      });
+
+      // When: I visit the billing page
+      const response = await app.inject({
+        method: "GET",
+        url: "/settings/billing",
+        cookies: {
+          session: sessionToken,
+        },
+      });
+
+      // Then: I am offered a way to upgrade (a checkout action), not only the
+      // billing portal.
+      expect(response.statusCode).toBe(200);
+      expect(response.payload).toContain('action="/api/billing/checkout"');
+    });
   });
 
   describe("POST /api/billing/checkout with plan parameter", () => {

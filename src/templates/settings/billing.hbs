@@ -57,18 +57,27 @@
           </p>
         </div>
         <div>
-          {{#if hasStripeCustomer}}
-            <form method="POST" action="/api/billing/portal">
-              <input type="hidden" name="returnUrl" value="/settings/billing">
-              <button type="submit" class="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors">
-                Manage Billing
-              </button>
-            </form>
-          {{else if isOnTrial}}
+          {{#if isPaid}}
+            {{#if hasStripeCustomer}}
+              <form method="POST" action="/api/billing/portal">
+                <input type="hidden" name="returnUrl" value="/settings/billing">
+                <button type="submit" class="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors">
+                  Manage Billing
+                </button>
+              </form>
+            {{else}}
+              <form method="POST" action="/api/billing/checkout">
+                <input type="hidden" name="plan" value="{{planLower}}">
+                <button type="submit" class="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors">
+                  Subscribe Now
+                </button>
+              </form>
+            {{/if}}
+          {{else if hasStripeCustomer}}
             <form method="POST" action="/api/billing/checkout">
-              <input type="hidden" name="plan" value="{{planLower}}">
+              <input type="hidden" name="plan" value="pro">
               <button type="submit" class="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors">
-                Subscribe Now
+                Upgrade to Pro
               </button>
             </form>
           {{else}}
