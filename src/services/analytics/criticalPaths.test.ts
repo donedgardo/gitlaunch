@@ -260,7 +260,7 @@ describe("Critical Path Analytics Integration", () => {
         method: "PATCH",
         url: `/services/${service._id}/workflow`,
         cookies: { session },
-        payload: { workflowFile: "deploy.yml", eventType: "deployment" },
+        payload: { workflowFile: "deploy.yml" },
       });
       expect(analytics.hasEvent("workflow_configured")).toBe(true);
 

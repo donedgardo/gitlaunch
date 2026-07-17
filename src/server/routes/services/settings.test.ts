@@ -258,7 +258,6 @@ describe("Settings Routes - Workflow Configuration", () => {
         },
         payload: {
           workflowFile: "custom-deploy.yml",
-          eventType: "custom-deployment",
         },
       });
 
@@ -268,7 +267,6 @@ describe("Settings Routes - Workflow Configuration", () => {
       // Verify service was updated
       const updatedService = await serviceRepo.findById(service._id);
       expect(updatedService?.workflowFile).toBe("custom-deploy.yml");
-      expect(updatedService?.eventType).toBe("custom-deployment");
       expect(updatedService?.workflowConfigured).toBe(true);
     });
 
@@ -300,7 +298,6 @@ describe("Settings Routes - Workflow Configuration", () => {
         url: `/services/${service._id}/workflow`,
         payload: {
           workflowFile: "custom-deploy.yml",
-          eventType: "custom-deployment",
         },
       });
 
@@ -333,7 +330,6 @@ describe("Settings Routes - Workflow Configuration", () => {
         },
         payload: {
           workflowFile: "custom-deploy.yml",
-          eventType: "custom-deployment",
         },
       });
 
@@ -384,7 +380,6 @@ describe("Settings Routes - Workflow Configuration", () => {
         },
         payload: {
           workflowFile: "custom-deploy.yml",
-          eventType: "custom-deployment",
         },
       });
 

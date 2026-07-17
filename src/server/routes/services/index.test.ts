@@ -240,7 +240,6 @@ describe("Service Routes - Workflow Configuration", () => {
         },
         payload: {
           workflowFile: "deploy-prod.yml",
-          eventType: "deploy-production",
         },
       });
 
@@ -251,7 +250,6 @@ describe("Service Routes - Workflow Configuration", () => {
       // Verify service was updated
       const updatedService = await serviceRepo.findById(service._id);
       expect(updatedService?.workflowFile).toBe("deploy-prod.yml");
-      expect(updatedService?.eventType).toBe("deploy-production");
       expect(updatedService?.workflowConfigured).toBe(true);
     });
 
@@ -280,7 +278,6 @@ describe("Service Routes - Workflow Configuration", () => {
         name: "legacy-service",
         environments: [{ name: "staging", order: 0 }],
         workflowFile: "deploy.yml",
-        eventType: "deployment",
         isActive: true,
         createdAt: new Date(),
         // Note: workflowConfigured is NOT set
@@ -301,7 +298,6 @@ describe("Service Routes - Workflow Configuration", () => {
         },
         payload: {
           workflowFile: "deploy.yml",
-          eventType: "deployment",
         },
       });
 

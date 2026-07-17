@@ -14,7 +14,6 @@ export type Service = {
   name: string;
   environments: Environment[];
   workflowFile: string;
-  eventType: string;
   workflowConfigured: boolean;
   isActive: boolean;
   ciProvider: CIProvider;
@@ -28,7 +27,6 @@ export type CreateServiceInput = {
   name: string;
   environments?: Environment[];
   workflowFile?: string;
-  eventType?: string;
 };
 
 const DEFAULT_ENVIRONMENTS: Environment[] = [
@@ -59,7 +57,6 @@ export class ServiceRepository {
       name: input.name,
       environments: input.environments || DEFAULT_ENVIRONMENTS,
       workflowFile: input.workflowFile || "deploy.yml",
-      eventType: input.eventType || "deployment",
       workflowConfigured: false,
       isActive: true,
       ciProvider: "github",
@@ -144,14 +141,13 @@ export class ServiceRepository {
 
   async updateWorkflowConfiguration(
     id: ObjectId,
-    config: { workflowFile: string; eventType: string },
+    config: { workflowFile: string },
   ): Promise<Service | null> {
     const result = await this.collection.findOneAndUpdate(
       { _id: id },
       {
         $set: {
           workflowFile: config.workflowFile,
-          eventType: config.eventType,
           workflowConfigured: true,
         },
       },

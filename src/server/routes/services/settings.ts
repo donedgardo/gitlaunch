@@ -93,7 +93,6 @@ export function registerSettingsRoutes(
             id: service._id.toString(),
             name: service.name,
             workflowFile: service.workflowFile,
-            eventType: service.eventType,
             ciProvider: service.ciProvider,
             isJenkins: service.ciProvider === "jenkins",
             jobName: service.jobName,
@@ -303,13 +302,13 @@ export function registerSettingsRoutes(
   // PATCH /services/:serviceId/workflow - Update workflow configuration (HTMX)
   app.patch<{
     Params: { serviceId: string };
-    Body: { workflowFile: string; eventType: string };
+    Body: { workflowFile: string };
   }>(
     "/services/:serviceId/workflow",
     async (
       request: FastifyRequest<{
         Params: { serviceId: string };
-        Body: { workflowFile: string; eventType: string };
+        Body: { workflowFile: string };
       }>,
       reply: FastifyReply,
     ) => {
@@ -317,12 +316,11 @@ export function registerSettingsRoutes(
       if (!result) return;
 
       const { service } = result;
-      const { workflowFile, eventType } = request.body;
+      const { workflowFile } = request.body;
 
       try {
         await serviceRepository.updateWorkflowConfiguration(service._id, {
           workflowFile: workflowFile || "deploy.yml",
-          eventType: eventType || "deployment",
         });
         analytics?.track("workflow_configured", {
           serviceId: service._id.toString(),

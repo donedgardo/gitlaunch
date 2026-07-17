@@ -7,17 +7,16 @@ import { authenticateTestUser, TEST_USERS } from "./helpers/auth";
  * WHY THIS MATTERS:
  * ─────────────────
  * Different services may use different GitHub Actions workflows for deployment.
- * Users need to configure which workflow file and event type GitLaunch should
- * trigger when they click "Deploy" in the dashboard.
+ * Users need to configure which workflow file GitLaunch should trigger when
+ * they click "Deploy" in the dashboard.
  *
  * SUCCESS CRITERIA:
  * ─────────────────
  * 1. Users can VIEW their current workflow settings
  * 2. Users can CHANGE the workflow file (e.g., deploy.yml → custom-deploy.yml)
- * 3. Users can CHANGE the event type (e.g., deployment → deploy-staging)
- * 4. Changes PERSIST across page reloads
- * 5. Workflow dropdown POPULATES with workflows from GitHub
- * 6. Dropdown PRE-SELECTS the currently configured workflow
+ * 3. Changes PERSIST across page reloads
+ * 4. Workflow dropdown POPULATES with workflows from GitHub
+ * 5. Dropdown PRE-SELECTS the currently configured workflow
  */
 
 // Use serial mode because tests modify the same service and depend on order
@@ -34,7 +33,6 @@ test.describe.serial("Workflow Settings", () => {
       page.getByRole("heading", { name: "Deployment Workflow", exact: true }),
     ).toBeVisible();
     await expect(page.locator("#workflowFile")).toBeVisible();
-    await expect(page.locator("#eventType")).toBeVisible();
 
     // Wait for HTMX to load the options
     await page.waitForFunction(() => {
@@ -50,7 +48,6 @@ test.describe.serial("Workflow Settings", () => {
 
     // Verify default values from test data setup
     await expect(page.locator("#workflowFile")).toHaveValue("deploy.yml");
-    await expect(page.locator("#eventType")).toHaveValue("deployment");
   });
 
   test("workflow dropdown is a select element that loads from GitHub", async ({
@@ -156,25 +153,7 @@ test.describe.serial("Workflow Settings", () => {
     await expect(page.locator("#workflowFile")).toHaveValue("ci.yml");
   });
 
-  test("user can change event type", async ({ page }) => {
-    // Given: I am on service settings
-    await authenticateTestUser(page, TEST_USERS.userWithService);
-    await page.goto("/services/000000000000000000000203/settings");
-
-    // When: I change the event type and save
-    await page.locator("#eventType").clear();
-    await page.locator("#eventType").fill("deploy-staging");
-    await page.getByRole("button", { name: /save workflow/i }).click();
-
-    // Then: I should see a success toast
-    await expect(page.getByText("Workflow settings saved")).toBeVisible();
-
-    // And: The change persists on reload
-    await page.reload();
-    await expect(page.locator("#eventType")).toHaveValue("deploy-staging");
-  });
-
-  test("user can change both workflow file and event type together", async ({
+  test("user can reset the workflow file to its original value", async ({
     page,
   }) => {
     // Given: I am on service settings
@@ -193,17 +172,15 @@ test.describe.serial("Workflow Settings", () => {
       );
     });
 
-    // When: I change both settings and save
-    // NOTE: Reset to original values so serial tests can run again
+    // When: I change the workflow file and save
+    // NOTE: Reset to original value so serial tests can run again
     await page.locator("#workflowFile").selectOption("deploy.yml");
-    await page.locator("#eventType").clear();
-    await page.locator("#eventType").fill("deployment");
     await page.getByRole("button", { name: /save workflow/i }).click();
 
     // Then: I should see a success toast
     await expect(page.getByText("Workflow settings saved")).toBeVisible();
 
-    // And: Both changes persist on reload
+    // And: The change persists on reload
     await page.reload();
 
     // Wait for options to load again
@@ -219,6 +196,5 @@ test.describe.serial("Workflow Settings", () => {
     });
 
     await expect(page.locator("#workflowFile")).toHaveValue("deploy.yml");
-    await expect(page.locator("#eventType")).toHaveValue("deployment");
   });
 });

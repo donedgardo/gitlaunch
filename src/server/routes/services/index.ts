@@ -345,13 +345,13 @@ export function registerServiceRoutes(
   // POST /services/:serviceId/configure-workflow - Save workflow configuration
   app.post<{
     Params: { serviceId: string };
-    Body: { workflowFile: string; eventType: string };
+    Body: { workflowFile: string };
   }>(
     "/services/:serviceId/configure-workflow",
     async (
       request: FastifyRequest<{
         Params: { serviceId: string };
-        Body: { workflowFile: string; eventType: string };
+        Body: { workflowFile: string };
       }>,
       reply: FastifyReply,
     ) => {
@@ -362,7 +362,7 @@ export function registerServiceRoutes(
 
       const accountId = new ObjectId(request.session.accountId);
       const { serviceId } = request.params;
-      const { workflowFile, eventType } = request.body;
+      const { workflowFile } = request.body;
 
       // Validate ObjectId
       let serviceObjectId: ObjectId;
@@ -384,7 +384,6 @@ export function registerServiceRoutes(
       // Update the service configuration
       await serviceRepository.updateWorkflowConfiguration(serviceObjectId, {
         workflowFile: workflowFile || "deploy.yml",
-        eventType: eventType || "deployment",
       });
 
       // Redirect to dashboard

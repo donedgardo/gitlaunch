@@ -48,7 +48,6 @@ describe("ServiceRepository", () => {
         { name: "prod", order: 1 },
       ]);
       expect(service.workflowFile).toBe("deploy.yml");
-      expect(service.eventType).toBe("deployment");
       expect(service.isActive).toBe(true);
       expect(service.createdAt).toBeInstanceOf(Date);
     });
@@ -86,13 +85,11 @@ describe("ServiceRepository", () => {
         name: "frontend",
         environments: customEnvs,
         workflowFile: "deploy-frontend.yml",
-        eventType: "deploy-frontend",
       });
 
       // Then
       expect(service.environments).toEqual(customEnvs);
       expect(service.workflowFile).toBe("deploy-frontend.yml");
-      expect(service.eventType).toBe("deploy-frontend");
     });
   });
 
@@ -216,7 +213,7 @@ describe("ServiceRepository", () => {
   });
 
   describe("updateWorkflowConfiguration", () => {
-    it("should update workflow file and event type", async () => {
+    it("should update workflow file", async () => {
       // Given: a service exists
       const accountId = new ObjectId();
       const repositoryId = new ObjectId();
@@ -229,13 +226,11 @@ describe("ServiceRepository", () => {
       // When: I update workflow configuration
       const updated = await repo.updateWorkflowConfiguration(service._id, {
         workflowFile: "deploy-prod.yml",
-        eventType: "deploy-prod",
       });
 
-      // Then: workflowFile and eventType are updated
+      // Then: workflowFile is updated
       expect(updated).not.toBeNull();
       expect(updated?.workflowFile).toBe("deploy-prod.yml");
-      expect(updated?.eventType).toBe("deploy-prod");
     });
 
     it("should set workflowConfigured to true", async () => {
@@ -252,7 +247,6 @@ describe("ServiceRepository", () => {
       // When: I update workflow configuration
       const updated = await repo.updateWorkflowConfiguration(service._id, {
         workflowFile: "deploy.yml",
-        eventType: "deployment",
       });
 
       // Then: workflowConfigured is set to true
@@ -266,7 +260,6 @@ describe("ServiceRepository", () => {
       // When: I update workflow configuration
       const result = await repo.updateWorkflowConfiguration(fakeId, {
         workflowFile: "deploy.yml",
-        eventType: "deployment",
       });
 
       // Then: null is returned
@@ -287,7 +280,6 @@ describe("ServiceRepository", () => {
       // When: I update workflow configuration
       const updated = await repo.updateWorkflowConfiguration(service._id, {
         workflowFile: "new-workflow.yml",
-        eventType: "new-event",
       });
 
       // Then: environments are not changed
@@ -494,7 +486,6 @@ describe("ServiceRepository", () => {
         repositoryId,
         name: "preserve-fields-test",
         workflowFile: "custom-deploy.yml",
-        eventType: "custom-event",
         environments: [{ name: "dev", order: 0 }],
       });
 
@@ -504,7 +495,6 @@ describe("ServiceRepository", () => {
       // Then: other fields are preserved
       const updated = await repo.findById(service._id);
       expect(updated?.workflowFile).toBe("custom-deploy.yml");
-      expect(updated?.eventType).toBe("custom-event");
       expect(updated?.name).toBe("preserve-fields-test");
       expect(updated?.environments).toEqual([{ name: "dev", order: 0 }]);
     });
@@ -631,7 +621,6 @@ describe("ServiceRepository", () => {
         name: "legacy",
         environments: [],
         workflowFile: "deploy.yml",
-        eventType: "deployment",
         workflowConfigured: false,
         isActive: true,
         createdAt: new Date(),

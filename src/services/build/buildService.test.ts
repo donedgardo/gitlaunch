@@ -828,7 +828,6 @@ describe("BuildService", () => {
       // Manually set workflowConfigured to true via updateWorkflowConfiguration
       await serviceRepo.updateWorkflowConfiguration(svc._id, {
         workflowFile: "deploy.yml",
-        eventType: "deployment",
       });
       const configuredService = await serviceRepo.findById(svc._id);
       expect(configuredService?.workflowConfigured).toBe(true);

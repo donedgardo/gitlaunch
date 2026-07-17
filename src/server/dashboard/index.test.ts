@@ -282,7 +282,6 @@ describe("Dashboard Routes", () => {
       // Mark workflow as configured
       await serviceRepo.updateWorkflowConfiguration(service._id, {
         workflowFile: "deploy.yml",
-        eventType: "deployment",
       });
 
       // Create a build
@@ -708,7 +707,6 @@ describe("Dashboard Routes", () => {
       // Mark workflow as configured so builds table shows
       await serviceRepo.updateWorkflowConfiguration(service._id, {
         workflowFile: "deploy.yml",
-        eventType: "deployment",
       });
 
       // Create 25 builds
@@ -775,7 +773,6 @@ describe("Dashboard Routes", () => {
       // Mark workflow as configured so builds table shows
       await serviceRepo.updateWorkflowConfiguration(service._id, {
         workflowFile: "deploy.yml",
-        eventType: "deployment",
       });
 
       // Create 25 builds
@@ -950,7 +947,6 @@ describe("Dashboard Routes", () => {
       // Mark workflow as configured so builds table shows
       await serviceRepo.updateWorkflowConfiguration(service._id, {
         workflowFile: "deploy.yml",
-        eventType: "deployment",
       });
 
       for (let i = 1; i <= 25; i++) {
@@ -1117,7 +1113,6 @@ describe("Dashboard Routes", () => {
       // Mark workflow as configured so builds table shows
       await serviceRepo.updateWorkflowConfiguration(service._id, {
         workflowFile: "deploy.yml",
-        eventType: "deployment",
       });
 
       // Create 25 builds
