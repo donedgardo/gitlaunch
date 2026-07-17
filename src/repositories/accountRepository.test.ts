@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { MongoMemoryServer } from "mongodb-memory-server";
 import { MongoClient, Db } from "mongodb";
-import { AccountRepository, Plan } from "./accountRepository";
+import { AccountRepository, Plan, PLAN_LIMITS_MAP } from "./accountRepository";
 
 describe("AccountRepository", () => {
   let mongoServer: MongoMemoryServer;
@@ -115,21 +115,71 @@ describe("AccountRepository", () => {
     });
   });
 
-  describe("updateInstallation", () => {
-    it("should update account with installation ID", async () => {
+  describe("github connection", () => {
+    it("should start with no github connection", async () => {
+      // Given/When: a fresh account
+      const created = await repo.create({
+        name: "Fresh",
+        slug: "fresh-acct",
+      });
+
+      // Then: it has no github connection
+      expect(created.githubConnection).toBeNull();
+    });
+
+    it("should record a github connection when an installation is linked", async () => {
       // Given: an account exists
       const created = await repo.create({
         name: "Install Me",
         slug: "install-me",
       });
-      expect(created.githubInstallationId).toBeNull();
 
-      // When: I update the installation
+      // When: I link a GitHub App installation
       await repo.updateInstallation(created._id, 12345);
 
-      // Then: the account has the installation ID
+      // Then: the account carries a github connection value object
       const updated = await repo.findById(created._id);
-      expect(updated?.githubInstallationId).toBe(12345);
+      expect(updated?.githubConnection?.installationId).toBe(12345);
+      expect(updated?.githubConnection?.connectedAt).toBeInstanceOf(Date);
+    });
+
+    it("should clear the github connection on disconnect", async () => {
+      // Given: a connected account
+      const created = await repo.create({ name: "Bye", slug: "bye-acct" });
+      await repo.updateInstallation(created._id, 12345);
+
+      // When: I clear the connection
+      await repo.clearGithubConnection(created._id);
+
+      // Then: it has no github connection
+      const updated = await repo.findById(created._id);
+      expect(updated?.githubConnection).toBeNull();
+    });
+
+    it("should read a legacy flat installation id as a github connection", async () => {
+      // Given: a pre-existing account document with only the legacy flat field
+      const now = new Date();
+      const { insertedId } = await db.collection("accounts").insertOne({
+        name: "Legacy",
+        slug: "legacy-acct",
+        plan: Plan.Free,
+        planLimits: PLAN_LIMITS_MAP[Plan.Free],
+        stripeCustomerId: null,
+        stripeSubscriptionId: null,
+        paymentFailedAt: null,
+        trialEndsAt: null,
+        githubInstallationId: 98765,
+        jenkinsConnection: null,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      // When: I read it back
+      const account = await repo.findById(insertedId);
+
+      // Then: the legacy installation id surfaces as a github connection VO
+      expect(account?.githubConnection?.installationId).toBe(98765);
+      expect(account?.githubConnection?.connectedAt).toEqual(now);
     });
   });
 

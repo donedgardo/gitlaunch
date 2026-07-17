@@ -155,7 +155,7 @@ export function registerOnboardingRoutes(
       }
 
       // If GitHub App is already installed, redirect to repo selection
-      if (account.githubInstallationId) {
+      if (account.githubConnection) {
         return reply.redirect("/onboarding/repositories");
       }
 
@@ -199,7 +199,7 @@ export function registerOnboardingRoutes(
       }
 
       // If GitHub App is not installed, redirect to install page
-      if (!account.githubInstallationId) {
+      if (!account.githubConnection) {
         return reply.redirect("/onboarding");
       }
 
@@ -236,7 +236,7 @@ export function registerOnboardingRoutes(
           privateReposAllowed: usage.privateReposAllowed,
           plan: usage.plan,
           returnTo,
-          githubInstallationId: account.githubInstallationId,
+          githubInstallationId: account.githubConnection.installationId,
         },
         { layout: "/layouts/main.hbs" },
       );

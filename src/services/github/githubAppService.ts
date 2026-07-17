@@ -47,7 +47,7 @@ export class GitHubAppService {
 
   async hasInstallation(accountId: ObjectId): Promise<boolean> {
     const account = await this.accountRepo.findById(accountId);
-    return account?.githubInstallationId !== null;
+    return account?.githubConnection != null;
   }
 
   async listInstallationRepos(accountId: ObjectId): Promise<GitHubRepo[]> {
@@ -56,7 +56,7 @@ export class GitHubAppService {
       throw new Error("Account not found");
     }
 
-    if (!account.githubInstallationId) {
+    if (!account.githubConnection) {
       throw new Error("Account does not have a GitHub App installation");
     }
 
@@ -67,7 +67,7 @@ export class GitHubAppService {
     }
 
     const { token } = await this.tokenService.getToken(
-      account.githubInstallationId,
+      account.githubConnection.installationId,
     );
     return this.apiClient.listInstallationRepos(token);
   }
@@ -82,7 +82,7 @@ export class GitHubAppService {
       throw new Error("Account not found");
     }
 
-    if (!account.githubInstallationId) {
+    if (!account.githubConnection) {
       throw new Error("Account does not have a GitHub App installation");
     }
 
@@ -93,7 +93,7 @@ export class GitHubAppService {
     }
 
     const { token } = await this.tokenService.getToken(
-      account.githubInstallationId,
+      account.githubConnection.installationId,
     );
     return this.apiClient.listWorkflows(token, owner, repo);
   }

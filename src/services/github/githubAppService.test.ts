@@ -104,7 +104,7 @@ describe("GitHubAppService", () => {
 
       // Then: the account has the installation ID
       const updated = await accountRepo.findById(account._id);
-      expect(updated?.githubInstallationId).toBe(12345);
+      expect(updated?.githubConnection?.installationId).toBe(12345);
     });
 
     it("should throw error if account not found", async () => {

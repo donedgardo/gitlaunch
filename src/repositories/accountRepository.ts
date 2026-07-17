@@ -21,6 +21,11 @@ export type JenkinsConnection = {
   updatedAt: Date;
 };
 
+export type GithubConnection = {
+  installationId: number;
+  connectedAt: Date;
+};
+
 export type Account = {
   _id: ObjectId;
   name: string;
@@ -31,11 +36,16 @@ export type Account = {
   stripeSubscriptionId: string | null;
   paymentFailedAt: Date | null;
   trialEndsAt: Date | null;
-  githubInstallationId: number | null;
+  githubConnection: GithubConnection | null;
   jenkinsConnection: JenkinsConnection | null;
   createdAt: Date;
   updatedAt: Date;
 };
+
+// Documents written before the GithubConnection value object stored the
+// installation as a flat `githubInstallationId`. Read-time normalization keeps
+// those readable without a data migration.
+type LegacyAccountFields = { githubInstallationId?: number | null };
 
 export type CreateAccountInput = {
   name: string;
@@ -95,7 +105,7 @@ export class AccountRepository {
       stripeSubscriptionId: null,
       paymentFailedAt: null,
       trialEndsAt: null,
-      githubInstallationId: null,
+      githubConnection: null,
       jenkinsConnection: null,
       createdAt: now,
       updatedAt: now,
@@ -105,12 +115,32 @@ export class AccountRepository {
     return { _id: result.insertedId, ...account };
   }
 
+  // Reconstructs the GithubConnection value object from a legacy flat
+  // `githubInstallationId` document so hosted data needs no migration.
+  private normalize(account: Account | null): Account | null {
+    if (!account) {
+      return null;
+    }
+    if (account.githubConnection) {
+      return account;
+    }
+    const legacyId = (account as Account & LegacyAccountFields)
+      .githubInstallationId;
+    return {
+      ...account,
+      githubConnection:
+        legacyId != null
+          ? { installationId: legacyId, connectedAt: account.createdAt }
+          : null,
+    };
+  }
+
   async findBySlug(slug: string): Promise<Account | null> {
-    return this.collection.findOne({ slug });
+    return this.normalize(await this.collection.findOne({ slug }));
   }
 
   async findById(id: ObjectId): Promise<Account | null> {
-    return this.collection.findOne({ _id: id });
+    return this.normalize(await this.collection.findOne({ _id: id }));
   }
 
   async updateInstallation(
@@ -121,9 +151,26 @@ export class AccountRepository {
       { _id: id },
       {
         $set: {
-          githubInstallationId: installationId,
+          githubConnection: {
+            installationId,
+            connectedAt: new Date(),
+          },
           updatedAt: new Date(),
         },
+        $unset: { githubInstallationId: "" },
+      },
+    );
+  }
+
+  async clearGithubConnection(id: ObjectId): Promise<void> {
+    await this.collection.updateOne(
+      { _id: id },
+      {
+        $set: {
+          githubConnection: null,
+          updatedAt: new Date(),
+        },
+        $unset: { githubInstallationId: "" },
       },
     );
   }
@@ -219,7 +266,9 @@ export class AccountRepository {
   }
 
   async findBySubscriptionId(subscriptionId: string): Promise<Account | null> {
-    return this.collection.findOne({ stripeSubscriptionId: subscriptionId });
+    return this.normalize(
+      await this.collection.findOne({ stripeSubscriptionId: subscriptionId }),
+    );
   }
 
   async setPaymentFailed(id: ObjectId): Promise<void> {

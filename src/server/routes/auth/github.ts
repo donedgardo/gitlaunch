@@ -145,7 +145,7 @@ export function registerGitHubAuthRoutes(
           return reply.redirect("/onboarding/plan-selection");
         }
 
-        if (!account?.githubInstallationId) {
+        if (!account?.githubConnection) {
           return reply.redirect("/onboarding");
         }
 

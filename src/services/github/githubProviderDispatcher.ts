@@ -20,7 +20,7 @@ export class GithubProviderDispatcher implements ProviderDispatcher {
     buildId,
     environment,
   }: DispatchContext): Promise<void> {
-    if (!account.githubInstallationId) {
+    if (!account.githubConnection) {
       throw new Error("GitHub App not installed for this account");
     }
 
@@ -31,7 +31,7 @@ export class GithubProviderDispatcher implements ProviderDispatcher {
 
     const plan = planDispatch(
       service,
-      account.githubInstallationId,
+      account.githubConnection.installationId,
       repository,
       buildId,
       environment,

@@ -71,7 +71,7 @@ describe("StripeService", () => {
       maxEnvironments: 2,
       publicReposOnly: true,
     },
-    githubInstallationId: null,
+    githubConnection: null,
     jenkinsConnection: null,
     trialEndsAt: null,
     createdAt: new Date(),

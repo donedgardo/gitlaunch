@@ -74,7 +74,7 @@ describe("GitHub Installation Routes", () => {
 
       // And: installation is linked to account
       const updated = await accountRepo.findById(account._id);
-      expect(updated?.githubInstallationId).toBe(98765);
+      expect(updated?.githubConnection?.installationId).toBe(98765);
     });
 
     it("should return 400 if installation_id is missing", async () => {
