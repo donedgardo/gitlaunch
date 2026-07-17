@@ -49,8 +49,6 @@ export default async function globalSetup() {
       stripeSubscriptionId: null,
       paymentFailedAt: null,
       githubInstallationId: null, // No GitHub App installed
-      githubInstallationAccessToken: null,
-      githubInstallationTokenExpiresAt: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -92,8 +90,6 @@ export default async function globalSetup() {
       stripeSubscriptionId: null,
       paymentFailedAt: null,
       githubInstallationId: 12345, // Has GitHub App installed
-      githubInstallationAccessToken: null,
-      githubInstallationTokenExpiresAt: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -135,8 +131,6 @@ export default async function globalSetup() {
       stripeSubscriptionId: "sub_test_paid",
       paymentFailedAt: null,
       githubInstallationId: 12346, // Has GitHub App installed
-      githubInstallationAccessToken: null,
-      githubInstallationTokenExpiresAt: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -179,8 +173,6 @@ export default async function globalSetup() {
       stripeSubscriptionId: null,
       paymentFailedAt: null,
       githubInstallationId: 12347, // Has GitHub App installed
-      githubInstallationAccessToken: null,
-      githubInstallationTokenExpiresAt: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -234,8 +226,6 @@ export default async function globalSetup() {
       stripeSubscriptionId: null,
       paymentFailedAt: null,
       githubInstallationId: 12348, // Has GitHub App installed
-      githubInstallationAccessToken: null,
-      githubInstallationTokenExpiresAt: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -281,8 +271,6 @@ export default async function globalSetup() {
       stripeSubscriptionId: null,
       paymentFailedAt: null,
       githubInstallationId: 12350,
-      githubInstallationAccessToken: null,
-      githubInstallationTokenExpiresAt: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -374,8 +362,6 @@ export default async function globalSetup() {
       stripeSubscriptionId: null,
       paymentFailedAt: null,
       githubInstallationId: 12349,
-      githubInstallationAccessToken: null,
-      githubInstallationTokenExpiresAt: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -480,8 +466,6 @@ export default async function globalSetup() {
       stripeSubscriptionId: null,
       paymentFailedAt: null,
       githubInstallationId: 12351,
-      githubInstallationAccessToken: null,
-      githubInstallationTokenExpiresAt: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -535,8 +519,6 @@ export default async function globalSetup() {
       stripeSubscriptionId: null,
       paymentFailedAt: null,
       githubInstallationId: 12352,
-      githubInstallationAccessToken: null,
-      githubInstallationTokenExpiresAt: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -594,8 +576,6 @@ export default async function globalSetup() {
       paymentFailedAt: null,
       trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
       githubInstallationId: 12360,
-      githubInstallationAccessToken: null,
-      githubInstallationTokenExpiresAt: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -677,8 +657,6 @@ export default async function globalSetup() {
       paymentFailedAt: null,
       trialEndsAt: null,
       githubInstallationId: 12361,
-      githubInstallationAccessToken: null,
-      githubInstallationTokenExpiresAt: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     });

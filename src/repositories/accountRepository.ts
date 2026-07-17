@@ -32,8 +32,6 @@ export type Account = {
   paymentFailedAt: Date | null;
   trialEndsAt: Date | null;
   githubInstallationId: number | null;
-  githubInstallationAccessToken: string | null;
-  githubInstallationTokenExpiresAt: Date | null;
   jenkinsConnection: JenkinsConnection | null;
   createdAt: Date;
   updatedAt: Date;
@@ -98,8 +96,6 @@ export class AccountRepository {
       paymentFailedAt: null,
       trialEndsAt: null,
       githubInstallationId: null,
-      githubInstallationAccessToken: null,
-      githubInstallationTokenExpiresAt: null,
       jenkinsConnection: null,
       createdAt: now,
       updatedAt: now,

@@ -103,8 +103,6 @@ describe("MembershipService interface", () => {
       publicReposOnly: true,
     },
     githubInstallationId: null,
-    githubInstallationAccessToken: null,
-    githubInstallationTokenExpiresAt: null,
     jenkinsConnection: null,
     trialEndsAt: null,
     createdAt: new Date(),
