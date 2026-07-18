@@ -227,7 +227,7 @@ export class ServiceRepository {
       { $push: { environments: env } },
       { returnDocument: "after" },
     );
-    return result;
+    return this.normalize(result);
   }
 
   async updateEnvironment(
@@ -256,7 +256,7 @@ export class ServiceRepository {
       return this.findById(id);
     }
 
-    return result;
+    return this.normalize(result);
   }
 
   async removeEnvironment(
@@ -268,7 +268,7 @@ export class ServiceRepository {
       { $pull: { environments: { name: envName } } },
       { returnDocument: "after" },
     );
-    return result;
+    return this.normalize(result);
   }
 
   async delete(id: ObjectId): Promise<boolean> {
