@@ -47,6 +47,7 @@ import { registerStripeWebhookRoute } from "./routes/webhooks/stripe";
 import { registerBillingRoutes } from "./routes/settings/billing";
 import { registerApiKeyRoutes } from "./routes/settings/apiKeys";
 import { registerJenkinsSettingsRoutes } from "./routes/settings/jenkins";
+import { registerGithubSettingsRoutes } from "./routes/settings/github";
 import { JenkinsConnectionService } from "../services/jenkins/jenkinsConnectionService";
 import { GithubConnectionService } from "../services/github/githubConnectionService";
 import { assertEncryptionKey } from "../services/crypto/secretBox";
@@ -184,6 +185,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
   // API key management routes
   registerApiKeyRoutes(server, { apiKeyService, serviceRepository });
   registerJenkinsSettingsRoutes(server, { jenkinsConnectionService });
+  registerGithubSettingsRoutes(server, { githubConnectionService });
 
   // Setup wizard routes
   registerSetupRoutes(server, {
