@@ -1,0 +1,1159 @@
+<style>
+  :root {
+    --bg: #ebeef1;
+    --surface: #ffffff;
+    --surface-2: #f3f5f7;
+    --ink: #161d22;
+    --muted: #566370;
+    --faint: #8a96a0;
+    --line: #d8dde2;
+    --line-strong: #c4cbd2;
+    --accent: #ff5a1f;
+    --accent-soft: #ffe9e0;
+    --accent-ink: #c6410f;
+    --ok: #3e9e74;
+    --stage: #4a7fb0;
+    --clay: #b4503c;
+    --amber: #b7841f;
+    --shadow: 0 1px 2px rgba(20, 29, 34, 0.04),
+      0 8px 28px rgba(20, 29, 34, 0.06);
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas,
+      monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto,
+      sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d1317;
+      --surface: #141c22;
+      --surface-2: #19232a;
+      --ink: #e7eef3;
+      --muted: #93a0ab;
+      --faint: #66737e;
+      --line: #24313a;
+      --line-strong: #31414c;
+      --accent: #ff6a33;
+      --accent-soft: #2a1a12;
+      --accent-ink: #ff8a5c;
+      --ok: #4fb98c;
+      --stage: #6098c8;
+      --clay: #d06a54;
+      --amber: #d3a03c;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 30px rgba(0, 0, 0, 0.35);
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #ebeef1;
+    --surface: #ffffff;
+    --surface-2: #f3f5f7;
+    --ink: #161d22;
+    --muted: #566370;
+    --faint: #8a96a0;
+    --line: #d8dde2;
+    --line-strong: #c4cbd2;
+    --accent: #ff5a1f;
+    --accent-soft: #ffe9e0;
+    --accent-ink: #c6410f;
+    --ok: #3e9e74;
+    --stage: #4a7fb0;
+    --clay: #b4503c;
+    --amber: #b7841f;
+    --shadow: 0 1px 2px rgba(20, 29, 34, 0.04),
+      0 8px 28px rgba(20, 29, 34, 0.06);
+  }
+  :root[data-theme="dark"] {
+    --bg: #0d1317;
+    --surface: #141c22;
+    --surface-2: #19232a;
+    --ink: #e7eef3;
+    --muted: #93a0ab;
+    --faint: #66737e;
+    --line: #24313a;
+    --line-strong: #31414c;
+    --accent: #ff6a33;
+    --accent-soft: #2a1a12;
+    --accent-ink: #ff8a5c;
+    --ok: #4fb98c;
+    --stage: #6098c8;
+    --clay: #d06a54;
+    --amber: #d3a03c;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 30px rgba(0, 0, 0, 0.35);
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    margin: 0;
+  }
+  .page {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    padding: clamp(20px, 5vw, 64px) clamp(16px, 5vw, 48px) 80px;
+  }
+  .wrap {
+    max-width: 1120px;
+    margin: 0 auto;
+  }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .eyebrow::before {
+    content: "";
+    width: 26px;
+    height: 2px;
+    background: var(--accent);
+    display: inline-block;
+  }
+
+  /* ---------- Masthead ---------- */
+  .masthead {
+    margin-top: 26px;
+  }
+  .mast-top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 20px;
+    padding-bottom: 26px;
+    border-bottom: 1px solid var(--line-strong);
+  }
+  h1 {
+    font-size: clamp(44px, 8vw, 92px);
+    line-height: 0.94;
+    letter-spacing: -0.03em;
+    font-weight: 800;
+    margin: 14px 0 0;
+    text-wrap: balance;
+  }
+  h1 .mark {
+    color: var(--accent);
+  }
+  .lede {
+    font-size: clamp(16px, 2.1vw, 20px);
+    color: var(--muted);
+    max-width: 34ch;
+    margin: 16px 0 0;
+    text-wrap: balance;
+  }
+  .meta {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--faint);
+    text-align: right;
+    line-height: 1.9;
+    letter-spacing: 0.03em;
+  }
+  .meta b {
+    color: var(--muted);
+    font-weight: 600;
+  }
+
+  /* ---------- Thesis ---------- */
+  .thesis {
+    margin-top: 26px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--accent);
+    border-radius: 12px;
+    padding: clamp(22px, 3.5vw, 36px);
+    box-shadow: var(--shadow);
+  }
+  .thesis .tag {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+  }
+  .thesis p {
+    font-size: clamp(19px, 2.7vw, 27px);
+    line-height: 1.42;
+    letter-spacing: -0.012em;
+    margin: 14px 0 0;
+    font-weight: 450;
+    max-width: 44ch;
+  }
+  .thesis strong {
+    font-weight: 700;
+  }
+  .thesis .hl {
+    color: var(--accent-ink);
+    font-weight: 600;
+  }
+
+  .section-label {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 54px 0 18px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .section-label::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--line);
+  }
+
+  /* ---------- Shelf switch ---------- */
+  .shelves {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  .shelf {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 22px 22px 24px;
+    box-shadow: var(--shadow);
+  }
+  .shelf.wrong {
+    opacity: 0.92;
+  }
+  .shelf.right {
+    border-color: var(--accent);
+    background: linear-gradient(180deg, var(--accent-soft), var(--surface) 60%);
+  }
+  .shelf .kicker {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .shelf.wrong .kicker {
+    color: var(--clay);
+  }
+  .shelf.right .kicker {
+    color: var(--accent-ink);
+  }
+  .shelf h3 {
+    font-size: 21px;
+    letter-spacing: -0.02em;
+    margin: 8px 0 10px;
+    font-weight: 750;
+  }
+  .shelf h3 s {
+    color: var(--faint);
+    text-decoration-thickness: 2px;
+  }
+  .shelf ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+  }
+  .shelf li {
+    position: relative;
+    padding-left: 20px;
+    font-size: 14.5px;
+    color: var(--muted);
+  }
+  .shelf li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.62em;
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+  }
+  .shelf.wrong li::before {
+    background: var(--clay);
+  }
+  .shelf.right li::before {
+    background: var(--accent);
+  }
+  .shelf li b {
+    color: var(--ink);
+    font-weight: 650;
+  }
+
+  /* ---------- Deployment board ---------- */
+  .board {
+    margin-top: 16px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+  .board-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--line);
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+  }
+  .dot3 {
+    display: flex;
+    gap: 6px;
+  }
+  .dot3 span {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--line-strong);
+  }
+  .board-bar .path {
+    color: var(--faint);
+  }
+  .board-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .env {
+    padding: 18px 18px 20px;
+    border-right: 1px solid var(--line);
+  }
+  .env:last-child {
+    border-right: none;
+  }
+  .env-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .env-name {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .pill {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .pill.live {
+    color: var(--ok);
+    background: color-mix(in srgb, var(--ok) 15%, transparent);
+  }
+  .pill.stage {
+    color: var(--stage);
+    background: color-mix(in srgb, var(--stage) 15%, transparent);
+  }
+  .pill.ready {
+    color: var(--amber);
+    background: color-mix(in srgb, var(--amber) 16%, transparent);
+  }
+  .live-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--ok);
+    animation: pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.35;
+    }
+  }
+  .build {
+    font-family: var(--mono);
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .build .sha {
+    color: var(--accent-ink);
+  }
+  .build-sub {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--faint);
+    margin-top: 3px;
+  }
+  .env-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 14px;
+  }
+  .btn {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    letter-spacing: 0.04em;
+    padding: 6px 11px;
+    border-radius: 7px;
+    border: 1px solid var(--line-strong);
+    background: var(--surface-2);
+    color: var(--muted);
+    cursor: default;
+  }
+  .btn.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+    font-weight: 600;
+  }
+  .board-note {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--faint);
+    text-align: center;
+    padding: 11px;
+    border-top: 1px dashed var(--line);
+  }
+
+  /* ---------- Component canvas ---------- */
+  .canvas {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 16px;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 20px 20px 22px;
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+  }
+  .card .num {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--accent);
+    letter-spacing: 0.1em;
+  }
+  .card h3 {
+    font-size: 17px;
+    letter-spacing: -0.015em;
+    margin: 6px 0 12px;
+    font-weight: 720;
+  }
+  .card p,
+  .card li {
+    font-size: 14px;
+    color: var(--muted);
+  }
+  .card p {
+    margin: 0;
+  }
+  .card ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .card li {
+    position: relative;
+    padding-left: 16px;
+  }
+  .card li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.58em;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--line-strong);
+  }
+  .card li b,
+  .card p b {
+    color: var(--ink);
+    font-weight: 650;
+  }
+  .c-alt {
+    grid-column: span 3;
+  }
+  .c-attr {
+    grid-column: span 3;
+  }
+  .c-value {
+    grid-column: span 3;
+  }
+  .c-who {
+    grid-column: span 3;
+  }
+  .c-cat {
+    grid-column: span 4;
+    border-color: var(--accent);
+    background: linear-gradient(160deg, var(--accent-soft), var(--surface) 55%);
+  }
+  .c-cat h3 {
+    font-size: 19px;
+  }
+  .c-cat .frame {
+    font-size: clamp(18px, 2.4vw, 23px);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    line-height: 1.25;
+    margin: 4px 0 12px;
+  }
+  .c-cat .not {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--clay);
+  }
+  .c-cat .not s {
+    opacity: 0.8;
+  }
+  .c-trend {
+    grid-column: span 2;
+  }
+  .chip {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    color: var(--muted);
+    margin: 2px 4px 2px 0;
+  }
+  .beacon {
+    margin-top: auto;
+    padding-top: 12px;
+  }
+  .beacon .tagline {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+    display: block;
+    margin-bottom: 4px;
+  }
+
+  /* ---------- Fear panel ---------- */
+  .fear {
+    margin-top: 16px;
+    background: #0e1519;
+    color: #e7eef3;
+    border-radius: 14px;
+    padding: clamp(26px, 4vw, 44px);
+    border: 1px solid #22303a;
+    position: relative;
+    overflow: hidden;
+  }
+  :root[data-theme="light"] .fear {
+    background: #10171c;
+  }
+  .fear .kicker {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  .fear blockquote {
+    margin: 14px 0 0;
+    font-size: clamp(21px, 3.4vw, 34px);
+    line-height: 1.32;
+    letter-spacing: -0.02em;
+    font-weight: 550;
+    max-width: 24ch;
+    text-wrap: balance;
+  }
+  .fear .three {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-top: 28px;
+  }
+  .fear .fbit {
+    border-top: 2px solid var(--accent);
+    padding-top: 12px;
+  }
+  .fear .fbit .t {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #ff8a5c;
+  }
+  .fear .fbit .d {
+    font-size: 14px;
+    color: #a9b6c0;
+    margin-top: 6px;
+  }
+
+  /* ---------- Hook ---------- */
+  .hooks {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .hook {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 18px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 18px 22px;
+    box-shadow: var(--shadow);
+  }
+  .hook.lead {
+    border-color: var(--accent);
+  }
+  .hook .rank {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--faint);
+  }
+  .hook.lead .rank {
+    color: var(--accent);
+  }
+  .hook .line {
+    font-size: clamp(16px, 2.3vw, 22px);
+    font-weight: 600;
+    letter-spacing: -0.015em;
+  }
+  .hook .badge {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+    background: var(--accent-soft);
+    padding: 4px 10px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  .hook:not(.lead) .badge {
+    visibility: hidden;
+  }
+
+  /* ---------- Two-up: market + next ---------- */
+  .twoup {
+    display: grid;
+    grid-template-columns: 1.15fr 0.85fr;
+    gap: 16px;
+  }
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: var(--shadow);
+  }
+  .panel h3 {
+    font-size: 18px;
+    letter-spacing: -0.015em;
+    margin: 0 0 12px;
+    font-weight: 720;
+  }
+  .panel p {
+    font-size: 14.5px;
+    color: var(--muted);
+    margin: 0 0 12px;
+  }
+  .panel p:last-child {
+    margin-bottom: 0;
+  }
+  .panel .em {
+    color: var(--ink);
+    font-weight: 600;
+  }
+  .steps {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    counter-reset: s;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .steps li {
+    position: relative;
+    padding-left: 42px;
+    font-size: 14.5px;
+    color: var(--muted);
+  }
+  .steps li::before {
+    counter-increment: s;
+    content: counter(s);
+    position: absolute;
+    left: 0;
+    top: -2px;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background: var(--accent);
+    color: #fff;
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 700;
+    display: grid;
+    place-items: center;
+  }
+  .steps li b {
+    color: var(--ink);
+    font-weight: 650;
+  }
+
+  .foot {
+    margin-top: 46px;
+    padding-top: 18px;
+    border-top: 1px solid var(--line);
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--faint);
+    letter-spacing: 0.03em;
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  @media (max-width: 760px) {
+    .shelves,
+    .twoup {
+      grid-template-columns: 1fr;
+    }
+    .board-grid {
+      grid-template-columns: 1fr;
+    }
+    .env {
+      border-right: none;
+      border-bottom: 1px solid var(--line);
+    }
+    .env:last-child {
+      border-bottom: none;
+    }
+    .canvas {
+      grid-template-columns: 1fr;
+    }
+    .c-alt,
+    .c-attr,
+    .c-value,
+    .c-who,
+    .c-cat,
+    .c-trend {
+      grid-column: 1 / -1;
+    }
+    .fear .three {
+      grid-template-columns: 1fr;
+    }
+    .hook {
+      grid-template-columns: auto 1fr;
+    }
+    .hook .badge {
+      display: none;
+    }
+    .meta {
+      text-align: left;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .live-dot {
+      animation: none;
+    }
+  }
+</style>
+
+<div class="page">
+  <div class="wrap">
+    <header class="masthead">
+      <div class="eyebrow">Positioning Canvas</div>
+      <div class="mast-top">
+        <div>
+          <h1>Git<span class="mark">Launch</span></h1>
+          <p class="lede">
+            Deployment control your whole team can drive — not another CI/CD
+            tool.
+          </p>
+        </div>
+        <div class="meta">
+          <div><b>Prepared for</b> GitLaunch founding team</div>
+          <div><b>Purpose</b> align on one shelf before we write copy</div>
+          <div><b>Status</b> draft v1 · validate with 5–10 users</div>
+        </div>
+      </div>
+    </header>
+
+    <section class="thesis" aria-label="Positioning statement">
+      <span class="tag">The positioning statement</span>
+      <p>
+        For <strong>lean teams with no platform team</strong>, GitLaunch is
+        <span class="hl">deployment control everyone can drive</span>. Unlike a
+        stale spreadsheet and a brave engineer running scripts — or heavyweight
+        tools built for platform teams — it shows exactly what's deployed in
+        every environment and lets anyone promote or roll back in one click. So
+        a bad deploy stops being a 3&nbsp;a.m. crisis, and deploy day stops
+        being a ritual to dread.
+      </p>
+    </section>
+
+    <!-- SHELF SWITCH -->
+    <div class="section-label">The core move · get off the wrong shelf</div>
+    <div class="shelves">
+      <div class="shelf wrong">
+        <div class="kicker">✕ Don't sit here</div>
+        <h3><s>"A CI/CD tool"</s></h3>
+        <ul>
+          <li>
+            Judged on <b>YAML, pipelines, build minutes, plugins</b> — a game
+            you don't play
+          </li>
+          <li>
+            You don't build or test code;
+            <b>GitHub Actions or Jenkins already does</b>
+          </li>
+          <li>
+            Sells to the platform engineer who loves pipelines —
+            <b>the wrong buyer</b>
+          </li>
+          <li>
+            A weak, redundant entry in a <b>commoditized, crowded</b> category
+          </li>
+        </ul>
+      </div>
+      <div class="shelf right">
+        <div class="kicker">→ Sit here</div>
+        <h3>"Deployment control<br />anyone can drive"</h3>
+        <ul>
+          <li>
+            Judged on <b>visibility, rollback speed, who can ship</b> — where
+            you win
+          </li>
+          <li>
+            Begins where the pipeline ends: <b>what's where, who moves it</b>
+          </li>
+          <li>
+            CI becomes a <b>complement, not a competitor</b> — keep your Actions
+          </li>
+          <li>
+            The alternative here is a spreadsheet and a hero —
+            <b>you look like magic</b>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- DEPLOYMENT BOARD -->
+    <div class="section-label">What "this shelf" looks like on screen</div>
+    <div
+      class="board"
+      role="img"
+      aria-label="Mock GitLaunch deployment board showing builds across production, staging and QA"
+    >
+      <div class="board-bar">
+        <span class="dot3"><span></span><span></span><span></span></span>
+        <span class="path">gitlaunch · web-app · release board</span>
+      </div>
+      <div class="board-grid">
+        <div class="env">
+          <div class="env-head">
+            <span class="env-name">Production</span>
+            <span class="pill live"
+              ><span class="live-dot"></span>Deployed</span
+            >
+          </div>
+          <div class="build">
+            build&nbsp;#4291 · <span class="sha">a3f9c2</span>
+          </div>
+          <div class="build-sub">live 3d · by ci · v2.14.0</div>
+          <div class="env-actions">
+            <span class="btn">Roll back</span><span class="btn">History</span>
+          </div>
+        </div>
+        <div class="env">
+          <div class="env-head">
+            <span class="env-name">Staging</span>
+            <span class="pill stage">Verifying</span>
+          </div>
+          <div class="build">
+            build&nbsp;#4297 · <span class="sha">7e1b04</span>
+          </div>
+          <div class="build-sub">2h ago · by qa-maria · v2.15.0-rc1</div>
+          <div class="env-actions">
+            <span class="btn primary">Promote to prod</span
+            ><span class="btn">Roll back</span>
+          </div>
+        </div>
+        <div class="env">
+          <div class="env-head">
+            <span class="env-name">QA / Preview</span>
+            <span class="pill ready">Ready</span>
+          </div>
+          <div class="build">
+            build&nbsp;#4298 · <span class="sha">c0d5aa</span>
+          </div>
+          <div class="build-sub">18m ago · by ci · v2.15.0-rc2</div>
+          <div class="env-actions">
+            <span class="btn">Promote to staging</span>
+          </div>
+        </div>
+      </div>
+      <div class="board-note">
+        One screen answers: where is build X? · what's on each environment? ·
+        what's ready to promote? · undo in one click.
+      </div>
+    </div>
+
+    <!-- COMPONENT CANVAS -->
+    <div class="section-label">The six positioning components</div>
+    <div class="canvas">
+      <div class="card c-alt">
+        <span class="num">01 — Competitive alternatives</span>
+        <h3>What they'd do without you</h3>
+        <ul>
+          <li>
+            A <b>Notion page / spreadsheet</b> of "what's deployed where," stale
+            within a day
+          </li>
+          <li><b>Slack archaeology:</b> "hey, what's on staging right now?"</li>
+          <li>
+            The <b>one engineer</b> who knows the deploy script — a single point
+            of failure
+          </li>
+          <li>
+            Reading <b>CI logs + git SHAs</b> to reverse-engineer what's live
+          </li>
+          <li>
+            Heavyweight CD (Harness, Spinnaker, Octopus, Argo) —
+            <b>built for platform teams they don't have</b>
+          </li>
+        </ul>
+      </div>
+
+      <div class="card c-attr">
+        <span class="num">02 — Unique attributes</span>
+        <h3>What only you have</h3>
+        <ul>
+          <li>
+            <b>Situational awareness:</b> one screen for what's where and what's
+            ready
+          </li>
+          <li>
+            <b>Democratized promote &amp; rollback:</b> anyone can move a build
+            — no YAML, no kubectl
+          </li>
+          <li>
+            <b>One-click rollback:</b> undo a bad deploy in seconds, not a war
+            room
+          </li>
+          <li>Sits <b>on top of</b> your existing CI — nothing to rip out</li>
+        </ul>
+      </div>
+
+      <div class="card c-value">
+        <span class="num">03 — Value &amp; proof</span>
+        <h3>Why it matters</h3>
+        <ul>
+          <li>Deployment becomes <b>calm, visible, anyone-can-do-it</b></li>
+          <li>
+            Cuts <b>lead time</b> (code-complete → live) and
+            <b>MTTR</b> (one-click rollback)
+          </li>
+          <li>
+            Kills the <b>bus factor</b> — delivery stops depending on one person
+          </li>
+          <li>
+            <b>Proof:</b> two DORA metrics move in week one; deploy-day
+            incidents drop
+          </li>
+        </ul>
+      </div>
+
+      <div class="card c-who">
+        <span class="num">04 — Who cares a lot</span>
+        <h3>The target that feels it</h3>
+        <ul>
+          <li>
+            <b>Lean product teams</b> — Series&nbsp;A–B startups, small
+            scaleups, agencies
+          </li>
+          <li>
+            Ship <b>frequently</b>, deploy is bottlenecked on one or two people
+          </li>
+          <li><b>No dedicated platform / DevOps / release team</b></li>
+          <li>Want <b>QA, PMs, POs</b> able to ship and roll back safely</li>
+        </ul>
+        <div class="beacon">
+          <span class="tagline">Beachhead</span>
+          <span class="chip"
+            >frequently-shipping startups on GitHub Actions or Jenkins</span
+          >
+        </div>
+      </div>
+
+      <div class="card c-cat">
+        <span class="num">05 — Market category</span>
+        <h3>The frame of reference</h3>
+        <div class="frame">
+          Release &amp; deployment control for teams without a platform team.
+        </div>
+        <p style="margin-bottom: 10px">
+          Say-it-out-loud descriptor:
+          <b>"Continuous delivery your whole team can drive."</b> This frame
+          makes visibility, rollback, and democratization the
+          <b>obvious</b> winning features — and puts the enterprise CD tools on
+          a different shelf.
+        </p>
+        <div class="not">
+          Category we refuse: <s>CI/CD tool</s> · <s>pipeline automation</s>
+        </div>
+      </div>
+
+      <div class="card c-trend">
+        <span class="num">06 — Trend</span>
+        <h3>Why now</h3>
+        <p style="margin-bottom: 12px">
+          Backlash against <b>DIY platform complexity</b> — "you shouldn't need
+          a platform team to deploy safely."
+        </p>
+        <p>
+          Plus <b>DORA metrics</b> going mainstream — and you move two of the
+          four directly.
+        </p>
+      </div>
+    </div>
+
+    <!-- FEAR -->
+    <div class="section-label">What actually drives the buy</div>
+    <div class="fear">
+      <div class="kicker">The 3 a.m. fear</div>
+      <blockquote>
+        "We can't say what's in production right now — and if it breaks, only
+        one person can even roll it back."
+      </blockquote>
+      <div class="three">
+        <div class="fbit">
+          <div class="t">Bus-factor fear</div>
+          <div class="d">
+            Deploys live in one person's head. If they're out, we're stuck — or
+            worse, exposed.
+          </div>
+        </div>
+        <div class="fbit">
+          <div class="t">Blindness fear</div>
+          <div class="d">
+            Nobody can confidently state what's actually live across
+            environments right now.
+          </div>
+        </div>
+        <div class="fbit">
+          <div class="t">Rollback fear</div>
+          <div class="d">
+            A bad deploy is bleeding revenue and reputation, and undo is slow
+            and uncertain.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- HOOK -->
+    <div class="section-label">Attention in 10 seconds · ranked</div>
+    <div class="hooks">
+      <div class="hook lead">
+        <span class="rank">A1</span>
+        <span class="line"
+          >"Know exactly what's deployed where — and let anyone roll it back in
+          one click."</span
+        >
+        <span class="badge">lead with this</span>
+      </div>
+      <div class="hook">
+        <span class="rank">A2</span>
+        <span class="line"
+          >"Deployments shouldn't need a hero. See every build, promote or roll
+          back — no YAML, no fear."</span
+        >
+        <span class="badge">lead with this</span>
+      </div>
+      <div class="hook">
+        <span class="rank">A3</span>
+        <span class="line"
+          >"Your releases on one screen. QA, PMs, and devs can all ship safely —
+          no platform team required."</span
+        >
+        <span class="badge">lead with this</span>
+      </div>
+    </div>
+
+    <!-- MARKET + NEXT -->
+    <div class="section-label">Market &amp; next moves</div>
+    <div class="twoup">
+      <div class="panel">
+        <h3>Addressable market — sized bottom-up</h3>
+        <p>
+          Don't chase a fake TAM number. Size it as
+          <span class="em"
+            >software teams that deploy regularly AND lack a platform team</span
+          >
+          — the long tail of startups, scaleups, product shops, and agencies.
+        </p>
+        <p>
+          This is the <span class="em">underserved middle</span> that enterprise
+          CD vendors deliberately ignore because these buyers are "too small."
+          That neglect is the whole opening.
+        </p>
+        <p>
+          Land at the <span class="em">beachhead</span> — frequently-shipping
+          startups already on GitHub Actions or Jenkins, where the pain is
+          sharpest and the alternative is weakest — then expand outward.
+        </p>
+      </div>
+      <div class="panel">
+        <h3>Do these two things next</h3>
+        <ol class="steps">
+          <li>
+            <b>Interview 5–10 of your happiest users.</b> Listen for their exact
+            words for the pain ("I never know what's on staging," "only Dave can
+            deploy"). Real positioning is discovered in their language, not
+            invented in a room.
+          </li>
+          <li>
+            <b>Kill the CI/CD framing everywhere.</b> Site, deck, onboarding —
+            reframe CI as a complement, and commit the whole team to this one
+            shelf before writing a line of copy.
+          </li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="foot">
+      <span>GitLaunch · Positioning Canvas · draft v1</span>
+      <span
+        >Context you set → what am I / why care → the shelf wins the sale</span
+      >
+    </div>
+  </div>
+</div>

@@ -1,0 +1,1030 @@
+<style>
+  :root {
+    --bg: #ebeef1;
+    --surface: #ffffff;
+    --surface-2: #f3f5f7;
+    --ink: #161d22;
+    --muted: #566370;
+    --faint: #8a96a0;
+    --line: #d8dde2;
+    --line-strong: #c4cbd2;
+    --accent: #ff5a1f;
+    --accent-soft: #ffe9e0;
+    --accent-ink: #c6410f;
+    --ok: #3e9e74;
+    --stage: #4a7fb0;
+    --clay: #b4503c;
+    --amber: #b7841f;
+    --shadow: 0 1px 2px rgba(20, 29, 34, 0.04),
+      0 8px 28px rgba(20, 29, 34, 0.06);
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas,
+      monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto,
+      sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d1317;
+      --surface: #141c22;
+      --surface-2: #19232a;
+      --ink: #e7eef3;
+      --muted: #93a0ab;
+      --faint: #66737e;
+      --line: #24313a;
+      --line-strong: #31414c;
+      --accent: #ff6a33;
+      --accent-soft: #2a1a12;
+      --accent-ink: #ff8a5c;
+      --ok: #4fb98c;
+      --stage: #6098c8;
+      --clay: #d06a54;
+      --amber: #d3a03c;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 30px rgba(0, 0, 0, 0.35);
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #ebeef1;
+    --surface: #ffffff;
+    --surface-2: #f3f5f7;
+    --ink: #161d22;
+    --muted: #566370;
+    --faint: #8a96a0;
+    --line: #d8dde2;
+    --line-strong: #c4cbd2;
+    --accent: #ff5a1f;
+    --accent-soft: #ffe9e0;
+    --accent-ink: #c6410f;
+    --ok: #3e9e74;
+    --stage: #4a7fb0;
+    --clay: #b4503c;
+    --amber: #b7841f;
+    --shadow: 0 1px 2px rgba(20, 29, 34, 0.04),
+      0 8px 28px rgba(20, 29, 34, 0.06);
+  }
+  :root[data-theme="dark"] {
+    --bg: #0d1317;
+    --surface: #141c22;
+    --surface-2: #19232a;
+    --ink: #e7eef3;
+    --muted: #93a0ab;
+    --faint: #66737e;
+    --line: #24313a;
+    --line-strong: #31414c;
+    --accent: #ff6a33;
+    --accent-soft: #2a1a12;
+    --accent-ink: #ff8a5c;
+    --ok: #4fb98c;
+    --stage: #6098c8;
+    --clay: #d06a54;
+    --amber: #d3a03c;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 30px rgba(0, 0, 0, 0.35);
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    margin: 0;
+  }
+  .page {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    padding: clamp(20px, 5vw, 64px) clamp(16px, 5vw, 48px) 80px;
+  }
+  .wrap {
+    max-width: 1120px;
+    margin: 0 auto;
+  }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .eyebrow::before {
+    content: "";
+    width: 26px;
+    height: 2px;
+    background: var(--accent);
+    display: inline-block;
+  }
+
+  /* Masthead */
+  .masthead {
+    margin-top: 26px;
+  }
+  .mast-top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 20px;
+    padding-bottom: 26px;
+    border-bottom: 1px solid var(--line-strong);
+  }
+  h1 {
+    font-size: clamp(40px, 7vw, 82px);
+    line-height: 0.95;
+    letter-spacing: -0.03em;
+    font-weight: 800;
+    margin: 14px 0 0;
+    text-wrap: balance;
+  }
+  h1 .mark {
+    color: var(--accent);
+  }
+  .lede {
+    font-size: clamp(16px, 2.1vw, 20px);
+    color: var(--muted);
+    max-width: 40ch;
+    margin: 16px 0 0;
+    text-wrap: balance;
+  }
+  .meta {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--faint);
+    text-align: right;
+    line-height: 1.9;
+    letter-spacing: 0.03em;
+  }
+  .meta b {
+    color: var(--muted);
+    font-weight: 600;
+  }
+
+  .section-label {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 54px 0 18px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .section-label::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--line);
+  }
+
+  /* Bets table */
+  .bets {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+  .bets-row {
+    display: grid;
+    grid-template-columns: 1fr 1.3fr 1.2fr;
+    gap: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .bets-row:last-child {
+    border-bottom: none;
+  }
+  .bets-row.head {
+    background: var(--surface-2);
+  }
+  .bets-row.head > div {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .bets-cell {
+    padding: 15px 18px;
+    border-right: 1px solid var(--line);
+    font-size: 14px;
+    color: var(--muted);
+  }
+  .bets-cell:last-child {
+    border-right: none;
+  }
+  .bets-cell .claim {
+    font-weight: 700;
+    color: var(--ink);
+    display: block;
+    font-size: 14.5px;
+  }
+  .bets-cell .tag {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--accent-ink);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .bets-cell.warn {
+    color: var(--clay);
+  }
+
+  /* Buckets */
+  .buckets {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+  .bucket {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: var(--shadow);
+  }
+  .bucket .n {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--accent);
+    letter-spacing: 0.06em;
+  }
+  .bucket h3 {
+    font-size: 16px;
+    letter-spacing: -0.015em;
+    margin: 6px 0 8px;
+    font-weight: 720;
+  }
+  .bucket .count {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--faint);
+  }
+  .bucket p {
+    font-size: 13.5px;
+    color: var(--muted);
+    margin: 8px 0 0;
+  }
+
+  /* Rules panel */
+  .rules {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--accent);
+    border-radius: 12px;
+    padding: clamp(22px, 3.5vw, 32px);
+    box-shadow: var(--shadow);
+  }
+  .rules .tag {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+  }
+  .rules h3 {
+    font-size: 20px;
+    letter-spacing: -0.02em;
+    margin: 8px 0 6px;
+    font-weight: 750;
+  }
+  .rules .sub {
+    font-size: 14px;
+    color: var(--faint);
+    margin: 0 0 18px;
+  }
+  .rules ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px 26px;
+  }
+  .rules li {
+    position: relative;
+    padding-left: 20px;
+    font-size: 14px;
+    color: var(--muted);
+  }
+  .rules li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.6em;
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    background: var(--accent);
+  }
+  .rules li b {
+    color: var(--ink);
+    font-weight: 650;
+  }
+
+  /* Interview flow */
+  .flow {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .qcard {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 22px clamp(20px, 3vw, 28px) 24px;
+    box-shadow: var(--shadow);
+  }
+  .qhead {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 4px;
+  }
+  .qhead .num {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--accent);
+    letter-spacing: 0.06em;
+  }
+  .qhead h3 {
+    font-size: clamp(19px, 2.6vw, 24px);
+    letter-spacing: -0.02em;
+    margin: 0;
+    font-weight: 760;
+  }
+  .qhead .time {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    padding: 3px 9px;
+    border-radius: 999px;
+    letter-spacing: 0.04em;
+  }
+  .qhead .validates {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--accent-ink);
+    background: var(--accent-soft);
+    padding: 3px 9px;
+    border-radius: 999px;
+    letter-spacing: 0.03em;
+    margin-left: auto;
+  }
+  .qlist {
+    margin: 14px 0 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .qlist li {
+    position: relative;
+    padding-left: 22px;
+    font-size: 15px;
+    color: var(--ink);
+  }
+  .qlist li::before {
+    content: "›";
+    position: absolute;
+    left: 2px;
+    top: -1px;
+    color: var(--accent);
+    font-weight: 700;
+    font-size: 16px;
+  }
+  .qlist li .probe {
+    display: block;
+    font-size: 13px;
+    color: var(--faint);
+    margin-top: 2px;
+  }
+  .listen {
+    margin-top: 16px;
+    background: var(--surface-2);
+    border-left: 2px solid var(--accent);
+    border-radius: 0 8px 8px 0;
+    padding: 12px 16px;
+  }
+  .listen .t {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+  }
+  .listen .d {
+    font-size: 13.5px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+  .listen .d b {
+    color: var(--ink);
+    font-weight: 650;
+  }
+
+  /* Scorecard */
+  .scorecard {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+  .sc-row {
+    display: grid;
+    grid-template-columns: 1fr 1.4fr auto;
+    gap: 0;
+    border-bottom: 1px solid var(--line);
+    align-items: center;
+  }
+  .sc-row:last-child {
+    border-bottom: none;
+  }
+  .sc-row.head {
+    background: var(--surface-2);
+  }
+  .sc-row.head > div {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .sc-cell {
+    padding: 13px 18px;
+    font-size: 14px;
+  }
+  .sc-cell.dim {
+    color: var(--ink);
+    font-weight: 600;
+    border-right: 1px solid var(--line);
+  }
+  .sc-cell.blank {
+    color: var(--faint);
+    font-style: italic;
+    border-right: 1px solid var(--line);
+  }
+  .sc-cell.mark {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--faint);
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    text-align: right;
+  }
+
+  /* Synthesis */
+  .synth {
+    background: #0e1519;
+    color: #e7eef3;
+    border-radius: 14px;
+    padding: clamp(26px, 4vw, 40px);
+    border: 1px solid #22303a;
+  }
+  :root[data-theme="light"] .synth {
+    background: #10171c;
+  }
+  .synth .kicker {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  .synth h3 {
+    font-size: clamp(20px, 3vw, 28px);
+    letter-spacing: -0.02em;
+    margin: 12px 0 6px;
+    font-weight: 650;
+    max-width: 26ch;
+    text-wrap: balance;
+  }
+  .synth .steps {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 18px;
+    margin-top: 24px;
+    counter-reset: sy;
+  }
+  .synth .step {
+    border-top: 2px solid var(--accent);
+    padding-top: 12px;
+  }
+  .synth .step .t {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #ff8a5c;
+  }
+  .synth .step .d {
+    font-size: 14px;
+    color: #a9b6c0;
+    margin-top: 6px;
+  }
+  .synth .out {
+    margin-top: 26px;
+    font-size: 15px;
+    color: #c6d2db;
+    border-left: 2px solid var(--accent);
+    padding-left: 16px;
+    max-width: 62ch;
+  }
+  .synth .out b {
+    color: #fff;
+    font-weight: 650;
+  }
+
+  .foot {
+    margin-top: 46px;
+    padding-top: 18px;
+    border-top: 1px solid var(--line);
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--faint);
+    letter-spacing: 0.03em;
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .foot a {
+    color: var(--accent-ink);
+    text-decoration: none;
+  }
+
+  @media (max-width: 760px) {
+    .buckets,
+    .bets-row,
+    .rules ul,
+    .synth .steps,
+    .sc-row {
+      grid-template-columns: 1fr;
+    }
+    .bets-cell,
+    .sc-cell.dim,
+    .sc-cell.blank {
+      border-right: none;
+      border-bottom: 1px solid var(--line);
+    }
+    .bets-cell:last-child {
+      border-bottom: none;
+    }
+    .sc-cell.mark {
+      text-align: left;
+    }
+    .qhead .validates {
+      margin-left: 0;
+    }
+    .meta {
+      text-align: left;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      scroll-behavior: auto;
+    }
+  }
+</style>
+
+<div class="page">
+  <div class="wrap">
+    <header class="masthead">
+      <div class="eyebrow">Field Guide · Customer Discovery</div>
+      <div class="mast-top">
+        <div>
+          <h1>Customer<br /><span class="mark">Interviews</span></h1>
+          <p class="lede">
+            Validate the positioning in customers' own words — don't invent it
+            in a room.
+          </p>
+        </div>
+        <div class="meta">
+          <div><b>Companion to</b> the Positioning Canvas</div>
+          <div><b>Target</b> 8–12 interviews · ~30 min each</div>
+          <div><b>Deliverable</b> verbatim quotes → homepage copy</div>
+        </div>
+      </div>
+    </header>
+
+    <!-- WHAT WE'RE TESTING -->
+    <div class="section-label">What we're trying to learn · the four bets</div>
+    <div class="bets">
+      <div class="bets-row head">
+        <div class="bets-cell">Canvas claim</div>
+        <div class="bets-cell">What we're testing</div>
+        <div class="bets-cell">We're wrong if…</div>
+      </div>
+      <div class="bets-row">
+        <div class="bets-cell">
+          <span class="tag">Segment</span
+          ><span class="claim">Lean teams, no platform team</span>
+        </div>
+        <div class="bets-cell">These are the people who feel the pain most</div>
+        <div class="bets-cell warn">
+          Our happiest users actually <b>have</b> a platform team, or are large
+          orgs
+        </div>
+      </div>
+      <div class="bets-row">
+        <div class="bets-cell">
+          <span class="tag">Alternatives</span
+          ><span class="claim">Spreadsheet + a brave engineer + Slack</span>
+        </div>
+        <div class="bets-cell">This is what they'd really do without us</div>
+        <div class="bets-cell warn">
+          They'd reach for Octopus / Harness / Argo instead
+        </div>
+      </div>
+      <div class="bets-row">
+        <div class="bets-cell">
+          <span class="tag">Value</span
+          ><span class="claim">Visibility + one-click promote / rollback</span>
+        </div>
+        <div class="bets-cell">This is the value they'd hate to lose</div>
+        <div class="bets-cell warn">
+          They mostly value something we didn't list
+        </div>
+      </div>
+      <div class="bets-row">
+        <div class="bets-cell">
+          <span class="tag">Fear</span
+          ><span class="claim"
+            >"Can't say what's live, only one person can roll back"</span
+          >
+        </div>
+        <div class="bets-cell">This fear drives the decision to buy</div>
+        <div class="bets-cell warn">
+          The trigger to buy was something else entirely
+        </div>
+      </div>
+    </div>
+
+    <!-- WHO -->
+    <div class="section-label">
+      Who to interview · 8–12 across three buckets
+    </div>
+    <div class="buckets">
+      <div class="bucket">
+        <span class="n">A</span>
+        <h3>Happiest users</h3>
+        <span class="count">5–6 interviews</span>
+        <p>
+          The ones who'd be most upset if GitLaunch vanished. Highest signal for
+          <b>value</b> and <b>language</b>.
+        </p>
+      </div>
+      <div class="bucket">
+        <span class="n">B</span>
+        <h3>Recent adopters</h3>
+        <span class="count">2–3 interviews</span>
+        <p>
+          Signed up in the last 60 days. Fresh memory of the <b>trigger</b> and
+          the <b>alternatives they weighed</b>.
+        </p>
+      </div>
+      <div class="bucket">
+        <span class="n">C</span>
+        <h3>Evaluated / churned</h3>
+        <span class="count">2–3 interviews</span>
+        <p>
+          Tells us the <b>segment boundary</b> and where the value didn't land.
+        </p>
+      </div>
+    </div>
+    <p style="font-size: 14px; color: var(--muted); margin: 14px 2px 0">
+      All must
+      <b style="color: var(--ink); font-weight: 650"
+        >deploy software regularly</b
+      >. Where possible, talk to an engineer <em>and</em> a QA / PM / PO at the
+      same account — the democratization claim lives or dies on non-engineers.
+    </p>
+
+    <!-- GROUND RULES -->
+    <div class="section-label">Ground rules · read before every call</div>
+    <div class="rules">
+      <span class="tag">The Mom Test</span>
+      <h3>Get truth, not compliments</h3>
+      <p class="sub">The moment you pitch, you've contaminated the data.</p>
+      <ul>
+        <li>
+          <b>Ask about the past, not the future.</b> "Walk me through your last
+          deploy" beats "Would you use a feature that…"
+        </li>
+        <li>
+          <b>Don't pitch, teach, or defend.</b> If they ask what you think:
+          "I'll tell you after — I don't want to bias you."
+        </li>
+        <li>
+          <b>Dig for the specific and recent.</b> "The last time that happened"
+          &gt; "generally." Chase numbers, names, stories.
+        </li>
+        <li>
+          <b>Capture exact words.</b> Verbatim phrases <em>are</em> the
+          deliverable — they become the copy.
+        </li>
+        <li>
+          <b>Embrace the silence.</b> Wait after they answer. The second thing
+          they say is usually truer.
+        </li>
+        <li>
+          <b>Record if allowed.</b> Audio + notes, so you can mine the language
+          later.
+        </li>
+      </ul>
+    </div>
+
+    <!-- THE CONVERSATION -->
+    <div class="section-label">
+      The conversation · ~30 minutes, ordered so you never pitch
+    </div>
+    <div class="flow">
+      <div class="qcard">
+        <div class="qhead">
+          <span class="num">01</span>
+          <h3>Warm-up &amp; context</h3>
+          <span class="time">≈4 min</span>
+          <span class="validates">validates · Segment</span>
+        </div>
+        <ul class="qlist">
+          <li>What's your role, and how does your team ship software?</li>
+          <li>How often do you deploy, and to which environments?</li>
+          <li>
+            Who's involved when something goes to production? Walk me through
+            who touches it.
+          </li>
+          <li>
+            Do you have anyone whose job is deployment / release / platform /
+            DevOps?
+          </li>
+        </ul>
+        <div class="listen">
+          <div class="t">Listening for</div>
+          <div class="d">
+            Team size and shape, deploy frequency, and — critically —
+            <b>whether a platform team exists</b>. The single most important
+            segment signal.
+          </div>
+        </div>
+      </div>
+
+      <div class="qcard">
+        <div class="qhead">
+          <span class="num">02</span>
+          <h3>Life before GitLaunch</h3>
+          <span class="time">≈6 min</span>
+          <span class="validates">validates · Alternatives + Trigger</span>
+        </div>
+        <ul class="qlist">
+          <li>
+            Before GitLaunch, how did you keep track of what was deployed where?
+          </li>
+          <li>
+            Take me back to the moment you started looking for something better.
+            What happened that week?
+          </li>
+          <li>
+            What else did you try or seriously consider?<span class="probe"
+              >Tools, a spreadsheet, a script, hiring someone, doing
+              nothing?</span
+            >
+          </li>
+          <li>
+            Why didn't those work — or why not just keep doing what you were
+            doing?
+          </li>
+        </ul>
+        <div class="listen">
+          <div class="t">Listening for</div>
+          <div class="d">
+            The real competitive set. Spreadsheet + Slack + "the one person who
+            knows" <b>confirms the canvas</b>; Octopus / Harness / Argo
+            <b>breaks it</b>. The trigger event tells us what starts a buying
+            journey.
+          </div>
+        </div>
+      </div>
+
+      <div class="qcard">
+        <div class="qhead">
+          <span class="num">03</span>
+          <h3>Deploy-day stories &amp; stakes</h3>
+          <span class="time">≈7 min</span>
+          <span class="validates">validates · The Fear</span>
+        </div>
+        <ul class="qlist">
+          <li>
+            Tell me about the last deploy that went wrong. What happened, and
+            what did you do?
+          </li>
+          <li>How did you figure out what was actually live at that moment?</li>
+          <li>
+            When you needed to undo it — how did that go? Who could do it?
+          </li>
+          <li>
+            How do people feel on a deploy day?<span class="probe"
+              >Is there a ritual, dread, a checklist, a designated person?</span
+            >
+          </li>
+          <li>
+            What's the worst-case version of a bad deploy for your business?
+          </li>
+        </ul>
+        <div class="listen">
+          <div class="t">Listening for</div>
+          <div class="d">
+            The three fears — <b>bus-factor</b> ("only X can roll back"),
+            <b>blindness</b> ("weren't sure what was live"),
+            <b>rollback</b> ("undo was slow/scary"). Note which they reach for
+            <b>first and hottest</b> — that's the fear to lead with.
+          </div>
+        </div>
+      </div>
+
+      <div class="qcard">
+        <div class="qhead">
+          <span class="num">04</span>
+          <h3>Value in their words</h3>
+          <span class="time">≈6 min</span>
+          <span class="validates">validates · Value + Attributes</span>
+        </div>
+        <ul class="qlist">
+          <li>What can you do now that you couldn't before GitLaunch?</li>
+          <li>What's the thing you'd miss most if we took it away tomorrow?</li>
+          <li>
+            Has <em>who's able</em> to deploy or roll back changed? Who does it
+            now?
+          </li>
+          <li>Anything you expected it to help with that it doesn't?</li>
+        </ul>
+        <div class="listen">
+          <div class="t">Listening for</div>
+          <div class="d">
+            Whether they volunteer <b>visibility</b> and
+            <b>anyone-can-promote/rollback</b> unprompted. "Who deploys now" is
+            direct proof (or disproof) of the democratization claim.
+          </div>
+        </div>
+      </div>
+
+      <div class="qcard">
+        <div class="qhead">
+          <span class="num">05</span>
+          <h3>Category &amp; language</h3>
+          <span class="time">≈4 min</span>
+          <span class="validates">validates · Category + Hook</span>
+        </div>
+        <ul class="qlist">
+          <li>
+            If a peer asked "what's GitLaunch?", how would you describe it in a
+            sentence?
+          </li>
+          <li>
+            What kind of tool is it, in your head? What "bucket" does it live
+            in?
+          </li>
+          <li>
+            If GitLaunch disappeared tomorrow, what's the first thing you'd do?
+          </li>
+        </ul>
+        <div class="listen">
+          <div class="t">Listening for</div>
+          <div class="d">
+            Do they say <b>"CI/CD tool"</b> (the shelf we're leaving) or
+            something closer to "where we see and control what's deployed"?
+            Their one-sentence description is a candidate headline.
+          </div>
+        </div>
+      </div>
+
+      <div class="qcard">
+        <div class="qhead">
+          <span class="num">06</span>
+          <h3>Wrap</h3>
+          <span class="time">≈3 min</span>
+          <span class="validates">validates · Reach</span>
+        </div>
+        <ul class="qlist">
+          <li>
+            Who else on your team should I talk to?<span class="probe"
+              >Especially a non-engineer who deploys.</span
+            >
+          </li>
+          <li>Anything I should have asked but didn't?</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- SCORECARD -->
+    <div class="section-label">Signals scorecard · fill in after each call</div>
+    <div class="scorecard">
+      <div class="sc-row head">
+        <div class="sc-cell dim">Dimension</div>
+        <div class="sc-cell blank" style="font-style: normal">
+          Verbatim quotes
+        </div>
+        <div class="sc-cell mark">Confirms / Breaks</div>
+      </div>
+      <div class="sc-row">
+        <div class="sc-cell dim">Has a platform team?</div>
+        <div class="sc-cell blank">…</div>
+        <div class="sc-cell mark">segment</div>
+      </div>
+      <div class="sc-row">
+        <div class="sc-cell dim">Trigger to look for a solution</div>
+        <div class="sc-cell blank">…</div>
+        <div class="sc-cell mark">trigger</div>
+      </div>
+      <div class="sc-row">
+        <div class="sc-cell dim">True alternative(s)</div>
+        <div class="sc-cell blank">…</div>
+        <div class="sc-cell mark">alternatives</div>
+      </div>
+      <div class="sc-row">
+        <div class="sc-cell dim">Value they'd hate to lose</div>
+        <div class="sc-cell blank">…</div>
+        <div class="sc-cell mark">value</div>
+      </div>
+      <div class="sc-row">
+        <div class="sc-cell dim">Dominant fear</div>
+        <div class="sc-cell blank">bus-factor / blindness / rollback</div>
+        <div class="sc-cell mark">fear</div>
+      </div>
+      <div class="sc-row">
+        <div class="sc-cell dim">Who deploys now vs. before</div>
+        <div class="sc-cell blank">…</div>
+        <div class="sc-cell mark">democratization</div>
+      </div>
+      <div class="sc-row">
+        <div class="sc-cell dim">Their one-line description</div>
+        <div class="sc-cell blank">…</div>
+        <div class="sc-cell mark">hook</div>
+      </div>
+      <div class="sc-row">
+        <div class="sc-cell dim">Category bucket in their head</div>
+        <div class="sc-cell blank">…</div>
+        <div class="sc-cell mark">category</div>
+      </div>
+    </div>
+
+    <!-- SYNTHESIS -->
+    <div class="section-label">Synthesizing across interviews</div>
+    <div class="synth">
+      <div class="kicker">After ~8 conversations</div>
+      <h3>
+        Look for a pattern of language and a pattern of pain — not a vote count.
+      </h3>
+      <div class="steps">
+        <div class="step">
+          <div class="t">1 · Segment</div>
+          <div class="d">
+            Do the people who love us cluster on "no platform team, ships
+            often"? If the enthusiasts skew elsewhere, follow the enthusiasts —
+            that's the discovery.
+          </div>
+        </div>
+        <div class="step">
+          <div class="t">2 · The words</div>
+          <div class="d">
+            Collect every verbatim phrase for pain and value. The most-repeated
+            phrasing becomes the hook. If customers never say "deployment
+            control," don't either.
+          </div>
+        </div>
+        <div class="step">
+          <div class="t">3 · The dominant fear</div>
+          <div class="d">
+            Whichever fear shows up first and hottest is the one to build the
+            sales narrative around.
+          </div>
+        </div>
+        <div class="step">
+          <div class="t">4 · The alternative</div>
+          <div class="d">
+            If nobody names heavyweight CD tools, the fight is against
+            spreadsheets + heroes — never position against Harness / Spinnaker
+            in copy.
+          </div>
+        </div>
+      </div>
+      <p class="out">
+        <b>Output:</b> update the Positioning Canvas with what you learned — the
+        segment definition, the hook copy, and the lead fear — and note anything
+        that broke. A canvas that survives contact with 8 real customers is
+        worth building a homepage on. One that doesn't just saved you a rewrite.
+      </p>
+    </div>
+
+    <div class="foot">
+      <span>GitLaunch · Customer Interview Guide · draft v1</span>
+      <span>Companion to the Positioning Canvas</span>
+    </div>
+  </div>
+</div>
