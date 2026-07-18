@@ -120,6 +120,57 @@ describe("Onboarding Routes", () => {
     await app.ready();
   });
 
+  describe("GET /onboarding — provider fork", () => {
+    it("should offer both GitHub App and Jenkins when nothing is connected", async () => {
+      // Given: an account with no provider connected
+      const account = await accountRepo.create({
+        name: "Fork Org",
+        slug: "fork-org",
+      });
+      const sessionToken = sessionService.createSession({
+        userId: new ObjectId(),
+        accountId: account._id,
+      });
+
+      // When: the user lands on onboarding
+      const response = await app.inject({
+        method: "GET",
+        url: "/onboarding",
+        cookies: { session: sessionToken },
+      });
+
+      // Then: they get the provider-choice page, not a forced GitHub App install
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain(
+        'data-template="onboarding/choose-provider"',
+      );
+    });
+
+    it("should redirect to repository selection once GitHub is connected", async () => {
+      // Given: an account with the GitHub App already installed
+      const account = await accountRepo.create({
+        name: "Gh Org",
+        slug: "gh-org",
+      });
+      await accountRepo.updateInstallation(account._id, 12345);
+      const sessionToken = sessionService.createSession({
+        userId: new ObjectId(),
+        accountId: account._id,
+      });
+
+      // When: the user lands on onboarding
+      const response = await app.inject({
+        method: "GET",
+        url: "/onboarding",
+        cookies: { session: sessionToken },
+      });
+
+      // Then: they skip the fork and go straight to repo selection
+      expect(response.statusCode).toBe(302);
+      expect(response.headers.location).toBe("/onboarding/repositories");
+    });
+  });
+
   describe("GET /onboarding/plan-selection", () => {
     it("should render plan selection template for authenticated users", async () => {
       // Given: an authenticated user with a new account

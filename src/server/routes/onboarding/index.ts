@@ -159,19 +159,21 @@ export function registerOnboardingRoutes(
         return reply.redirect("/onboarding/repositories");
       }
 
-      // Show GitHub App installation page
-      analytics?.navigation("github_app_install");
+      // Provider fork: GitHub App or Jenkins. Jenkins-only shops never install
+      // the GitHub App.
+      analytics?.navigation("choose_provider");
       const useFakeGitHub = process.env.USE_FAKE_GITHUB === "true";
       const installUrl = useFakeGitHub
         ? "/github/installation/callback?installation_id=12345"
         : `https://github.com/apps/${process.env.GH_APP_NAME || "gitlaunchapp"}/installations/new`;
 
       return reply.view(
-        "onboarding/install-github",
+        "onboarding/choose-provider",
         {
-          title: "Connect GitHub",
+          title: "Choose a CI provider",
           accountName: account.name,
           installUrl,
+          jenkinsConnected: account.jenkinsConnection != null,
         },
         { layout: "/layouts/main.hbs" },
       );
