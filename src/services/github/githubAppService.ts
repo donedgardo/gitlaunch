@@ -33,23 +33,6 @@ export class GitHubAppService {
     private apiClient?: IGitHubApiClient,
   ) {}
 
-  async linkInstallation(
-    accountId: ObjectId,
-    installationId: number,
-  ): Promise<void> {
-    const account = await this.accountRepo.findById(accountId);
-    if (!account) {
-      throw new Error("Account not found");
-    }
-
-    await this.accountRepo.updateInstallation(accountId, installationId);
-  }
-
-  async hasInstallation(accountId: ObjectId): Promise<boolean> {
-    const account = await this.accountRepo.findById(accountId);
-    return account?.githubConnection != null;
-  }
-
   async listInstallationRepos(accountId: ObjectId): Promise<GitHubRepo[]> {
     const account = await this.accountRepo.findById(accountId);
     if (!account) {

@@ -1,10 +1,10 @@
 import { FastifyInstance } from "fastify";
 import { ObjectId } from "mongodb";
-import { GitHubAppService } from "../../../services/github/githubAppService";
+import { GithubConnectionService } from "../../../services/github/githubConnectionService";
 import { AnalyticsService } from "../../../services/analytics/analytics";
 
 type InstallationRouteDeps = {
-  gitHubAppService: GitHubAppService;
+  githubConnectionService: GithubConnectionService;
   analytics?: AnalyticsService;
 };
 
@@ -28,7 +28,7 @@ export function registerInstallationRoutes(
     const accountId = new ObjectId(request.session.accountId);
     const installationId = parseInt(installationIdStr, 10);
 
-    await deps.gitHubAppService.linkInstallation(accountId, installationId);
+    await deps.githubConnectionService.connect({ accountId, installationId });
     deps.analytics?.track("github_app_installed", {
       accountId: accountId.toString(),
       installationId,

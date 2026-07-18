@@ -46,10 +46,6 @@ class FakeGitHubAppService {
   async listInstallationRepos(_accountId: ObjectId) {
     return this.repos;
   }
-
-  async linkInstallation(_accountId: ObjectId, _installationId: number) {
-    // no-op for tests
-  }
 }
 
 describe("Onboarding Routes", () => {

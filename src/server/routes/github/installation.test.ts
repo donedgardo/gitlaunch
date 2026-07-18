@@ -4,7 +4,7 @@ import { MongoClient, Db, ObjectId } from "mongodb";
 import Fastify, { FastifyInstance } from "fastify";
 import cookie from "@fastify/cookie";
 import { AccountRepository } from "../../../repositories/accountRepository";
-import { GitHubAppService } from "../../../services/github/githubAppService";
+import { GithubConnectionService } from "../../../services/github/githubConnectionService";
 import { SessionService } from "../../../services/auth/sessionService";
 import { sessionAuthMiddleware } from "../../middleware/sessionAuth";
 import { registerInstallationRoutes } from "./installation";
@@ -15,7 +15,7 @@ describe("GitHub Installation Routes", () => {
   let db: Db;
   let app: FastifyInstance;
   let accountRepo: AccountRepository;
-  let gitHubAppService: GitHubAppService;
+  let githubConnectionService: GithubConnectionService;
   let sessionService: SessionService;
 
   const TEST_SECRET = "test-secret-for-sessions";
@@ -36,13 +36,13 @@ describe("GitHub Installation Routes", () => {
     await db.collection("accounts").deleteMany({});
 
     accountRepo = new AccountRepository(db);
-    gitHubAppService = new GitHubAppService(accountRepo);
+    githubConnectionService = new GithubConnectionService(accountRepo);
     sessionService = new SessionService(TEST_SECRET);
 
     app = Fastify();
     await app.register(cookie);
     sessionAuthMiddleware(app, sessionService);
-    registerInstallationRoutes(app, { gitHubAppService });
+    registerInstallationRoutes(app, { githubConnectionService });
     await app.ready();
   });
 

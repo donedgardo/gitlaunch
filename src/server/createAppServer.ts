@@ -48,6 +48,7 @@ import { registerBillingRoutes } from "./routes/settings/billing";
 import { registerApiKeyRoutes } from "./routes/settings/apiKeys";
 import { registerJenkinsSettingsRoutes } from "./routes/settings/jenkins";
 import { JenkinsConnectionService } from "../services/jenkins/jenkinsConnectionService";
+import { GithubConnectionService } from "../services/github/githubConnectionService";
 import { assertEncryptionKey } from "../services/crypto/secretBox";
 import { registerSetupRoutes } from "./routes/dashboard/setup";
 import { DbClientI } from "./health/dbClientI";
@@ -99,6 +100,9 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
   // Services
   const apiKeyService = new ApiKeyService(apiKeyRepository, accountRepository);
   const jenkinsConnectionService = new JenkinsConnectionService(
+    accountRepository,
+  );
+  const githubConnectionService = new GithubConnectionService(
     accountRepository,
   );
   const planEnforcementService = new PlanEnforcementService(
@@ -221,7 +225,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
 
   // GitHub App installation routes
   registerInstallationRoutes(server, {
-    gitHubAppService,
+    githubConnectionService,
     analytics,
   });
 

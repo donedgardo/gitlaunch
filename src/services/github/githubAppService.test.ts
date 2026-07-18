@@ -71,7 +71,6 @@ describe("GitHubAppService", () => {
   let client: MongoClient;
   let db: Db;
   let accountRepo: AccountRepository;
-  let service: GitHubAppService;
 
   beforeAll(async () => {
     mongoServer = await MongoMemoryServer.create();
@@ -79,7 +78,6 @@ describe("GitHubAppService", () => {
     await client.connect();
     db = client.db("test");
     accountRepo = new AccountRepository(db);
-    service = new GitHubAppService(accountRepo);
   });
 
   afterAll(async () => {
@@ -89,64 +87,6 @@ describe("GitHubAppService", () => {
 
   beforeEach(async () => {
     await db.collection("accounts").deleteMany({});
-  });
-
-  describe("linkInstallation", () => {
-    it("should link installation ID to account", async () => {
-      // Given: an account exists
-      const account = await accountRepo.create({
-        name: "My Org",
-        slug: "my-org",
-      });
-
-      // When: I link an installation
-      await service.linkInstallation(account._id, 12345);
-
-      // Then: the account has the installation ID
-      const updated = await accountRepo.findById(account._id);
-      expect(updated?.githubConnection?.installationId).toBe(12345);
-    });
-
-    it("should throw error if account not found", async () => {
-      // Given: a non-existent account ID
-      const fakeAccountId = new (await import("mongodb")).ObjectId();
-
-      // When/Then: linking installation throws error
-      await expect(
-        service.linkInstallation(fakeAccountId, 12345),
-      ).rejects.toThrow("Account not found");
-    });
-  });
-
-  describe("hasInstallation", () => {
-    it("should return true when account has installation", async () => {
-      // Given: an account with installation
-      const account = await accountRepo.create({
-        name: "My Org",
-        slug: "my-org",
-      });
-      await service.linkInstallation(account._id, 12345);
-
-      // When: I check if it has installation
-      const result = await service.hasInstallation(account._id);
-
-      // Then: it returns true
-      expect(result).toBe(true);
-    });
-
-    it("should return false when account has no installation", async () => {
-      // Given: an account without installation
-      const account = await accountRepo.create({
-        name: "My Org",
-        slug: "my-org-2",
-      });
-
-      // When: I check if it has installation
-      const result = await service.hasInstallation(account._id);
-
-      // Then: it returns false
-      expect(result).toBe(false);
-    });
   });
 
   describe("listInstallationRepos", () => {
