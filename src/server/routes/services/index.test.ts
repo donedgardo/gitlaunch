@@ -249,7 +249,10 @@ describe("Service Routes - Workflow Configuration", () => {
 
       // Verify service was updated
       const updatedService = await serviceRepo.findById(service._id);
-      expect(updatedService?.workflowFile).toBe("deploy-prod.yml");
+      expect(updatedService?.deployment).toEqual({
+        provider: "github",
+        workflowFile: "deploy-prod.yml",
+      });
       expect(updatedService?.workflowConfigured).toBe(true);
     });
 

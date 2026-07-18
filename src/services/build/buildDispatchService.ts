@@ -42,9 +42,11 @@ export class BuildDispatchService implements BuildDispatchServiceI {
       throw new Error("Service not found");
     }
 
-    const dispatcher = this.dispatchers.get(service.ciProvider);
+    const dispatcher = this.dispatchers.get(service.deployment.provider);
     if (!dispatcher) {
-      throw new Error(`No dispatcher for provider '${service.ciProvider}'`);
+      throw new Error(
+        `No dispatcher for provider '${service.deployment.provider}'`,
+      );
     }
 
     await dispatcher.dispatch({ account, service, buildId, environment });

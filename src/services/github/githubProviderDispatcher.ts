@@ -20,6 +20,9 @@ export class GithubProviderDispatcher implements ProviderDispatcher {
     buildId,
     environment,
   }: DispatchContext): Promise<void> {
+    if (service.deployment.provider !== "github") {
+      throw new Error("Service is not configured for GitHub deployment");
+    }
     if (!account.githubConnection) {
       throw new Error("GitHub App not installed for this account");
     }
@@ -30,7 +33,7 @@ export class GithubProviderDispatcher implements ProviderDispatcher {
     }
 
     const plan = planDispatch(
-      service,
+      service.deployment,
       account.githubConnection.installationId,
       repository,
       buildId,

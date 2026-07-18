@@ -1,4 +1,4 @@
-import { Service } from "../../repositories/serviceRepository";
+import { GithubDeployment } from "../../repositories/serviceRepository";
 import { Repository } from "../../repositories/repositoryRepository";
 
 export type GitHubDispatchPlan = {
@@ -33,7 +33,7 @@ export type ValidationError = {
 export type PlanDispatchResult = DispatchPlan | ValidationError;
 
 export function planDispatch(
-  service: Pick<Service, "workflowFile">,
+  deployment: Pick<GithubDeployment, "workflowFile">,
   installationId: number,
   repository: Pick<Repository, "githubOwner" | "githubRepoName">,
   buildId: string,
@@ -51,7 +51,7 @@ export function planDispatch(
     installationId,
     owner: repository.githubOwner,
     repo: repository.githubRepoName,
-    workflowFile: service.workflowFile,
+    workflowFile: deployment.workflowFile,
     buildId,
     environment,
     serviceId,

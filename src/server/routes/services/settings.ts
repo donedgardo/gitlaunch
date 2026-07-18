@@ -92,10 +92,16 @@ export function registerSettingsRoutes(
           service: {
             id: service._id.toString(),
             name: service.name,
-            workflowFile: service.workflowFile,
-            ciProvider: service.ciProvider,
-            isJenkins: service.ciProvider === "jenkins",
-            jobName: service.jobName,
+            workflowFile:
+              service.deployment.provider === "github"
+                ? service.deployment.workflowFile
+                : "",
+            ciProvider: service.deployment.provider,
+            isJenkins: service.deployment.provider === "jenkins",
+            jobName:
+              service.deployment.provider === "jenkins"
+                ? service.deployment.jobName
+                : null,
           },
           repository: repository
             ? {

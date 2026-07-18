@@ -20,13 +20,16 @@ export class JenkinsProviderDispatcher implements ProviderDispatcher {
     buildId,
     environment,
   }: DispatchContext): Promise<void> {
+    if (service.deployment.provider !== "jenkins") {
+      throw new Error("Service is not configured for Jenkins deployment");
+    }
     const apiToken = await this.jenkinsConnection.getDecryptedToken(
       account._id,
     );
     const plan = planJenkinsDispatch(
       account.jenkinsConnection,
       apiToken,
-      service.jobName,
+      service.deployment.jobName,
       buildId,
       environment,
       service._id.toString(),

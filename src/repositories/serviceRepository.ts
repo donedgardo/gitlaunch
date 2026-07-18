@@ -7,17 +7,32 @@ export type Environment = {
 
 export type CIProvider = "github" | "jenkins";
 
+// Provider-specific dispatch configuration. What each provider needs to trigger
+// a deployment lives in its own variant — a GitHub service cannot hold a
+// jobName, a Jenkins service cannot hold a workflowFile. repositoryId is NOT
+// here: it is the service's source repo (commit links for every build, plus the
+// GitHub dispatch target) and lives on Service.
+export type GithubDeployment = {
+  provider: "github";
+  workflowFile: string;
+};
+
+export type JenkinsDeployment = {
+  provider: "jenkins";
+  jobName: string;
+};
+
+export type Deployment = GithubDeployment | JenkinsDeployment;
+
 export type Service = {
   _id: ObjectId;
   accountId: ObjectId;
   repositoryId: ObjectId;
   name: string;
   environments: Environment[];
-  workflowFile: string;
   workflowConfigured: boolean;
   isActive: boolean;
-  ciProvider: CIProvider;
-  jobName: string | null;
+  deployment: Deployment;
   createdAt: Date;
 };
 
@@ -27,6 +42,15 @@ export type CreateServiceInput = {
   name: string;
   environments?: Environment[];
   workflowFile?: string;
+};
+
+// Documents written before the Deployment value object stored dispatch config
+// as flat fields (ciProvider / workflowFile / jobName). Read-time normalization
+// reconstructs the union so hosted data needs no migration.
+type LegacyServiceFields = {
+  ciProvider?: CIProvider;
+  workflowFile?: string;
+  jobName?: string | null;
 };
 
 const DEFAULT_ENVIRONMENTS: Environment[] = [
@@ -42,25 +66,29 @@ export class ServiceRepository {
   }
 
   async ensureIndexes(): Promise<void> {
-    // Unique compound index: one service name per repo per account
+    // Unique compound index: one service name per account (dashboard routes by
+    // service name, so names must be unique regardless of source repo).
     await this.collection.createIndex(
-      { accountId: 1, repositoryId: 1, name: 1 },
+      { accountId: 1, name: 1 },
       { unique: true },
     );
   }
 
   async create(input: CreateServiceInput): Promise<Service> {
     const now = new Date();
+    // New services default to a GitHub deployment; provider-first creation
+    // arrives in the wizard work (Stage 3).
     const service: Omit<Service, "_id"> = {
       accountId: input.accountId,
       repositoryId: input.repositoryId,
       name: input.name,
       environments: input.environments || DEFAULT_ENVIRONMENTS,
-      workflowFile: input.workflowFile || "deploy.yml",
       workflowConfigured: false,
       isActive: true,
-      ciProvider: "github",
-      jobName: null,
+      deployment: {
+        provider: "github",
+        workflowFile: input.workflowFile || "deploy.yml",
+      },
       createdAt: now,
     };
 
@@ -68,17 +96,24 @@ export class ServiceRepository {
     return { _id: result.insertedId, ...service };
   }
 
-  // Legacy services predate the provider fields; default them at read time so
-  // no data migration is required.
+  // Legacy services stored dispatch config as flat fields; reconstruct the
+  // Deployment value object at read time so no data migration is required.
   private normalize(service: Service | null): Service | null {
     if (!service) {
       return null;
     }
-    return {
-      ...service,
-      ciProvider: service.ciProvider ?? "github",
-      jobName: service.jobName ?? null,
-    };
+    if (service.deployment) {
+      return service;
+    }
+    const legacy = service as Service & LegacyServiceFields;
+    const deployment: Deployment =
+      legacy.ciProvider === "jenkins"
+        ? { provider: "jenkins", jobName: legacy.jobName ?? "" }
+        : {
+            provider: "github",
+            workflowFile: legacy.workflowFile ?? "deploy.yml",
+          };
+    return { ...service, deployment };
   }
 
   private normalizeMany(services: Service[]): Service[] {
@@ -125,14 +160,28 @@ export class ServiceRepository {
     id: ObjectId,
     provider: { ciProvider: CIProvider; jobName: string | null },
   ): Promise<Service | null> {
+    let deployment: Deployment;
+    if (provider.ciProvider === "jenkins") {
+      deployment = { provider: "jenkins", jobName: provider.jobName ?? "" };
+    } else {
+      // Preserve an existing GitHub workflow file across a github→github save;
+      // default it when switching over from Jenkins (which carries no workflow).
+      const current = this.normalize(
+        await this.collection.findOne({ _id: id, accountId }),
+      );
+      const workflowFile =
+        current?.deployment.provider === "github"
+          ? current.deployment.workflowFile
+          : "deploy.yml";
+      deployment = { provider: "github", workflowFile };
+    }
+
     return this.normalize(
       await this.collection.findOneAndUpdate(
         { _id: id, accountId },
         {
-          $set: {
-            ciProvider: provider.ciProvider,
-            jobName: provider.jobName,
-          },
+          $set: { deployment },
+          $unset: { ciProvider: "", jobName: "", workflowFile: "" },
         },
         { returnDocument: "after" },
       ),
@@ -143,18 +192,23 @@ export class ServiceRepository {
     id: ObjectId,
     config: { workflowFile: string },
   ): Promise<Service | null> {
-    const result = await this.collection.findOneAndUpdate(
-      { _id: id },
-      {
-        $set: {
-          workflowFile: config.workflowFile,
-          workflowConfigured: true,
+    // Configuring a workflow file is inherently a GitHub deployment operation.
+    return this.normalize(
+      await this.collection.findOneAndUpdate(
+        { _id: id },
+        {
+          $set: {
+            deployment: {
+              provider: "github",
+              workflowFile: config.workflowFile,
+            },
+            workflowConfigured: true,
+          },
+          $unset: { ciProvider: "", jobName: "", workflowFile: "" },
         },
-      },
-      { returnDocument: "after" },
+        { returnDocument: "after" },
+      ),
     );
-
-    return result;
   }
 
   async markWorkflowConfigured(id: ObjectId): Promise<void> {

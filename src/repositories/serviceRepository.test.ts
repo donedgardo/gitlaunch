@@ -47,7 +47,10 @@ describe("ServiceRepository", () => {
         { name: "staging", order: 0 },
         { name: "prod", order: 1 },
       ]);
-      expect(service.workflowFile).toBe("deploy.yml");
+      expect(service.deployment).toEqual({
+        provider: "github",
+        workflowFile: "deploy.yml",
+      });
       expect(service.isActive).toBe(true);
       expect(service.createdAt).toBeInstanceOf(Date);
     });
@@ -89,7 +92,10 @@ describe("ServiceRepository", () => {
 
       // Then
       expect(service.environments).toEqual(customEnvs);
-      expect(service.workflowFile).toBe("deploy-frontend.yml");
+      expect(service.deployment).toEqual({
+        provider: "github",
+        workflowFile: "deploy-frontend.yml",
+      });
     });
   });
 
@@ -230,7 +236,10 @@ describe("ServiceRepository", () => {
 
       // Then: workflowFile is updated
       expect(updated).not.toBeNull();
-      expect(updated?.workflowFile).toBe("deploy-prod.yml");
+      expect(updated?.deployment).toEqual({
+        provider: "github",
+        workflowFile: "deploy-prod.yml",
+      });
     });
 
     it("should set workflowConfigured to true", async () => {
@@ -289,16 +298,24 @@ describe("ServiceRepository", () => {
   });
 
   describe("ensureIndexes", () => {
-    it("should create unique index on accountId, repositoryId, name", async () => {
-      // Given
+    it("should enforce a unique service name per account", async () => {
+      // Given: a service named "api" in an account
       await repo.ensureIndexes();
       const accountId = new ObjectId();
-      const repositoryId = new ObjectId();
-      await repo.create({ accountId, repositoryId, name: "api" });
+      await repo.create({
+        accountId,
+        repositoryId: new ObjectId(),
+        name: "api",
+      });
 
-      // When/Then - creating duplicate should fail
+      // When/Then: a second "api" in the same account fails, even from a
+      // different source repo (dashboard routes by name, so names must be unique)
       await expect(
-        repo.create({ accountId, repositoryId, name: "api" }),
+        repo.create({
+          accountId,
+          repositoryId: new ObjectId(),
+          name: "api",
+        }),
       ).rejects.toThrow();
     });
   });
@@ -494,7 +511,10 @@ describe("ServiceRepository", () => {
 
       // Then: other fields are preserved
       const updated = await repo.findById(service._id);
-      expect(updated?.workflowFile).toBe("custom-deploy.yml");
+      expect(updated?.deployment).toEqual({
+        provider: "github",
+        workflowFile: "custom-deploy.yml",
+      });
       expect(updated?.name).toBe("preserve-fields-test");
       expect(updated?.environments).toEqual([{ name: "dev", order: 0 }]);
     });
@@ -555,8 +575,8 @@ describe("ServiceRepository", () => {
     });
   });
 
-  describe("CI provider selection", () => {
-    it("should default new services to the github provider with no job name", async () => {
+  describe("deployment configuration", () => {
+    it("should default new services to a github deployment", async () => {
       // When: I create a service
       const service = await repo.create({
         accountId: new ObjectId(),
@@ -565,11 +585,13 @@ describe("ServiceRepository", () => {
       });
 
       // Then: it deploys via GitHub Actions by default
-      expect(service.ciProvider).toBe("github");
-      expect(service.jobName).toBeNull();
+      expect(service.deployment).toEqual({
+        provider: "github",
+        workflowFile: "deploy.yml",
+      });
     });
 
-    it("should set a service to the jenkins provider with a job name", async () => {
+    it("should switch a service to a jenkins deployment with a job name", async () => {
       // Given: a service
       const created = await repo.create({
         accountId: new ObjectId(),
@@ -583,13 +605,15 @@ describe("ServiceRepository", () => {
         jobName: "deploy-backend",
       });
 
-      // Then: the provider and job name are persisted
+      // Then: the deployment becomes a jenkins variant carrying the job name
       const updated = await repo.findById(created._id);
-      expect(updated?.ciProvider).toBe("jenkins");
-      expect(updated?.jobName).toBe("deploy-backend");
+      expect(updated?.deployment).toEqual({
+        provider: "jenkins",
+        jobName: "deploy-backend",
+      });
     });
 
-    it("should switch a service back to github and drop the job name", async () => {
+    it("should switch a service back to a github deployment and drop the job name", async () => {
       // Given: a Jenkins service
       const created = await repo.create({
         accountId: new ObjectId(),
@@ -607,22 +631,44 @@ describe("ServiceRepository", () => {
         jobName: null,
       });
 
-      // Then: it is a github service with no job name
+      // Then: it is a github deployment (a jobName cannot exist on this variant)
       const updated = await repo.findById(created._id);
-      expect(updated?.ciProvider).toBe("github");
-      expect(updated?.jobName).toBeNull();
+      expect(updated?.deployment.provider).toBe("github");
+      expect(updated?.deployment).not.toHaveProperty("jobName");
     });
 
-    it("should read legacy services (no provider field) as github", async () => {
-      // Given: a pre-existing service document with no ciProvider/jobName
+    it("should keep repositoryId across a provider switch (source repo for commit links)", async () => {
+      // Given: a github service with a source repo
+      const repositoryId = new ObjectId();
+      const created = await repo.create({
+        accountId: new ObjectId(),
+        repositoryId,
+        name: "keeps-repo",
+      });
+
+      // When: I switch it to Jenkins
+      await repo.setProvider(created.accountId, created._id, {
+        ciProvider: "jenkins",
+        jobName: "deploy-backend",
+      });
+
+      // Then: the source repo is untouched — every build still links to a commit
+      const updated = await repo.findById(created._id);
+      expect(updated?.repositoryId).toEqual(repositoryId);
+    });
+
+    it("should read a legacy github service (flat fields) as a github deployment", async () => {
+      // Given: a pre-existing document with the legacy flat dispatch fields
       const raw = {
         accountId: new ObjectId(),
         repositoryId: new ObjectId(),
-        name: "legacy",
+        name: "legacy-github",
         environments: [],
-        workflowFile: "deploy.yml",
+        workflowFile: "ship.yml",
         workflowConfigured: false,
         isActive: true,
+        ciProvider: "github",
+        jobName: null,
         createdAt: new Date(),
       };
       const { insertedId } = await db.collection("services").insertOne(raw);
@@ -630,9 +676,37 @@ describe("ServiceRepository", () => {
       // When: I read it back
       const service = await repo.findById(insertedId);
 
-      // Then: it defaults to the github provider
-      expect(service?.ciProvider).toBe("github");
-      expect(service?.jobName).toBeNull();
+      // Then: the flat fields become a github deployment variant
+      expect(service?.deployment).toEqual({
+        provider: "github",
+        workflowFile: "ship.yml",
+      });
+    });
+
+    it("should read a legacy jenkins service (flat fields) as a jenkins deployment", async () => {
+      // Given: a pre-existing jenkins document with flat fields
+      const raw = {
+        accountId: new ObjectId(),
+        repositoryId: new ObjectId(),
+        name: "legacy-jenkins",
+        environments: [],
+        workflowFile: "deploy.yml",
+        workflowConfigured: false,
+        isActive: true,
+        ciProvider: "jenkins",
+        jobName: "legacy-job",
+        createdAt: new Date(),
+      };
+      const { insertedId } = await db.collection("services").insertOne(raw);
+
+      // When: I read it back
+      const service = await repo.findById(insertedId);
+
+      // Then: it becomes a jenkins deployment variant
+      expect(service?.deployment).toEqual({
+        provider: "jenkins",
+        jobName: "legacy-job",
+      });
     });
   });
 });

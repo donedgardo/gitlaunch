@@ -266,7 +266,10 @@ describe("Settings Routes - Workflow Configuration", () => {
 
       // Verify service was updated
       const updatedService = await serviceRepo.findById(service._id);
-      expect(updatedService?.workflowFile).toBe("custom-deploy.yml");
+      expect(updatedService?.deployment).toEqual({
+        provider: "github",
+        workflowFile: "custom-deploy.yml",
+      });
       expect(updatedService?.workflowConfigured).toBe(true);
     });
 
@@ -551,8 +554,10 @@ describe("Settings Routes - Workflow Configuration", () => {
 
       expect(response.statusCode).toBe(200);
       const updated = await serviceRepo.findById(service._id);
-      expect(updated?.ciProvider).toBe("jenkins");
-      expect(updated?.jobName).toBe("deploy-backend");
+      expect(updated?.deployment).toEqual({
+        provider: "jenkins",
+        jobName: "deploy-backend",
+      });
     });
 
     it("should switch back to github and drop the job name", async () => {
@@ -571,8 +576,8 @@ describe("Settings Routes - Workflow Configuration", () => {
 
       expect(response.statusCode).toBe(200);
       const updated = await serviceRepo.findById(service._id);
-      expect(updated?.ciProvider).toBe("github");
-      expect(updated?.jobName).toBeNull();
+      expect(updated?.deployment.provider).toBe("github");
+      expect(updated?.deployment).not.toHaveProperty("jobName");
     });
 
     it("should reject jenkins without a job name", async () => {
@@ -587,7 +592,7 @@ describe("Settings Routes - Workflow Configuration", () => {
 
       expect(response.statusCode).toBe(400);
       const updated = await serviceRepo.findById(service._id);
-      expect(updated?.ciProvider).toBe("github");
+      expect(updated?.deployment.provider).toBe("github");
     });
 
     it("should reject an unknown provider", async () => {
