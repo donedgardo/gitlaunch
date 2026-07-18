@@ -33,11 +33,11 @@ export function registerHandlebarsHelpers() {
   });
   handlebars.registerHelper(
     "getBuildCommitLink",
-    function (githubFullName: string, buildId: string) {
-      if (!githubFullName || !buildId) {
+    function (repoUrl: string, buildId: string) {
+      if (!repoUrl || !buildId) {
         return "#";
       }
-      return `https://github.com/${githubFullName}/commit/${buildId}`;
+      return `${repoUrl.replace(/\/+$/, "")}/commit/${buildId}`;
     },
   );
   handlebars.registerHelper("shortSha", function (sha: string) {

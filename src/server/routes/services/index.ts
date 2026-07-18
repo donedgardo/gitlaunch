@@ -157,6 +157,7 @@ export function registerServiceRoutes(
           accountId: account._id,
           repositoryId: new ObjectId(repositoryId),
           name: name.trim(),
+          repoUrl: `https://github.com/${repository.githubFullName}`,
         });
 
         analytics?.track("service_created", {

@@ -32,6 +32,9 @@ export type Service = {
   environments: Environment[];
   workflowConfigured: boolean;
   isActive: boolean;
+  // Source repo URL for commit links (buildId is the SHA) — every service has
+  // one regardless of provider, so a Jenkins shop never needs the GitHub App.
+  repoUrl: string;
   deployment: Deployment;
   createdAt: Date;
 };
@@ -42,11 +45,13 @@ export type CreateServiceInput = {
   name: string;
   environments?: Environment[];
   workflowFile?: string;
+  repoUrl?: string;
 };
 
 // Documents written before the Deployment value object stored dispatch config
 // as flat fields (ciProvider / workflowFile / jobName). Read-time normalization
-// reconstructs the union so hosted data needs no migration.
+// reconstructs the union — and defaults repoUrl — so hosted data needs no
+// migration.
 type LegacyServiceFields = {
   ciProvider?: CIProvider;
   workflowFile?: string;
@@ -85,6 +90,7 @@ export class ServiceRepository {
       environments: input.environments || DEFAULT_ENVIRONMENTS,
       workflowConfigured: false,
       isActive: true,
+      repoUrl: input.repoUrl || "",
       deployment: {
         provider: "github",
         workflowFile: input.workflowFile || "deploy.yml",
@@ -102,8 +108,9 @@ export class ServiceRepository {
     if (!service) {
       return null;
     }
+    const repoUrl = service.repoUrl ?? "";
     if (service.deployment) {
-      return service;
+      return { ...service, repoUrl };
     }
     const legacy = service as Service & LegacyServiceFields;
     const deployment: Deployment =
@@ -113,7 +120,7 @@ export class ServiceRepository {
             provider: "github",
             workflowFile: legacy.workflowFile ?? "deploy.yml",
           };
-    return { ...service, deployment };
+    return { ...service, repoUrl, deployment };
   }
 
   private normalizeMany(services: Service[]): Service[] {

@@ -166,11 +166,17 @@ export default function (deps: DashboardRoutesDeps) {
             name: e.name,
           }));
 
-        // Load repository info for commit links
+        // Commit-link source: prefer the service's own repoUrl; fall back to
+        // the connected repository's GitHub URL for legacy services that
+        // predate repoUrl (no migration needed).
         const repository = await repositoryRepository.findById(
           activeService.repositoryId,
         );
-        const githubFullName = repository?.githubFullName || "";
+        const repoUrl =
+          activeService.repoUrl ||
+          (repository?.githubFullName
+            ? `https://github.com/${repository.githubFullName}`
+            : "");
 
         // Load paginated builds for this service
         const { builds, total, hasMore } = await buildRepository.findPaginated(
@@ -217,7 +223,7 @@ export default function (deps: DashboardRoutesDeps) {
               serviceName: serviceName,
               environments,
               builds: formattedBuilds,
-              githubFullName,
+              repoUrl,
               needsDeploymentSetup,
               pagination,
               trialDaysRemaining: accountState.trialDaysRemaining,
@@ -247,7 +253,7 @@ export default function (deps: DashboardRoutesDeps) {
             serviceId: activeService._id.toString(),
             environments,
             builds: formattedBuilds,
-            githubFullName,
+            repoUrl,
             needsDeploymentSetup,
             newApiKey,
             showSimulateBuild: process.env.USE_FAKE_GITHUB === "true",

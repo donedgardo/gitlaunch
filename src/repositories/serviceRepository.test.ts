@@ -71,6 +71,31 @@ describe("ServiceRepository", () => {
       expect(service.workflowConfigured).toBe(false);
     });
 
+    it("should store a repoUrl for commit links", async () => {
+      // Given/When: a service created with a source repo URL
+      const service = await repo.create({
+        accountId: new ObjectId(),
+        repositoryId: new ObjectId(),
+        name: "with-repo-url",
+        repoUrl: "https://github.com/acme/api",
+      });
+
+      // Then: the repo URL is persisted for building commit links
+      expect(service.repoUrl).toBe("https://github.com/acme/api");
+    });
+
+    it("should default repoUrl to an empty string when none is given", async () => {
+      // Given/When: a service created without a repo URL
+      const service = await repo.create({
+        accountId: new ObjectId(),
+        repositoryId: new ObjectId(),
+        name: "no-repo-url",
+      });
+
+      // Then: repoUrl is a safe empty string, never undefined
+      expect(service.repoUrl).toBe("");
+    });
+
     it("should create a service with custom environments", async () => {
       // Given
       const accountId = new ObjectId();

@@ -227,7 +227,7 @@ export default function (deps: BuildRoutesDeps) {
                 environments,
                 serviceName,
                 serviceId: service._id.toString(),
-                githubFullName: "",
+                repoUrl: service.repoUrl || "",
               };
 
               const html = buildRowTemplate(buildData);
