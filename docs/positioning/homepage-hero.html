@@ -1,0 +1,1183 @@
+<style>
+  :root {
+    --bg: #ebeef1;
+    --surface: #ffffff;
+    --surface-2: #f3f5f7;
+    --ink: #161d22;
+    --muted: #566370;
+    --faint: #8a96a0;
+    --line: #d8dde2;
+    --line-strong: #c4cbd2;
+    --accent: #ff5a1f;
+    --accent-2: #ff8a3d;
+    --accent-soft: #ffe9e0;
+    --accent-ink: #c6410f;
+    --ok: #3e9e74;
+    --stage: #4a7fb0;
+    --amber: #b7841f;
+    --shadow: 0 1px 2px rgba(20, 29, 34, 0.05),
+      0 10px 34px rgba(20, 29, 34, 0.08);
+    --shadow-lg: 0 4px 12px rgba(20, 29, 34, 0.08),
+      0 30px 70px rgba(20, 29, 34, 0.16);
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas,
+      monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto,
+      sans-serif;
+    --glow: radial-gradient(
+      60% 60% at 70% 10%,
+      rgba(255, 90, 31, 0.1),
+      transparent 70%
+    );
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0c1216;
+      --surface: #131b21;
+      --surface-2: #18222a;
+      --ink: #e7eef3;
+      --muted: #94a1ac;
+      --faint: #63707b;
+      --line: #24313a;
+      --line-strong: #32424d;
+      --accent: #ff6a33;
+      --accent-2: #ff9a55;
+      --accent-soft: #2a1911;
+      --accent-ink: #ff9060;
+      --ok: #52bc8f;
+      --stage: #6099c9;
+      --amber: #d4a13e;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 12px 36px rgba(0, 0, 0, 0.4);
+      --shadow-lg: 0 6px 18px rgba(0, 0, 0, 0.4),
+        0 36px 80px rgba(0, 0, 0, 0.55);
+      --glow: radial-gradient(
+        60% 60% at 70% 10%,
+        rgba(255, 106, 51, 0.14),
+        transparent 70%
+      );
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #ebeef1;
+    --surface: #ffffff;
+    --surface-2: #f3f5f7;
+    --ink: #161d22;
+    --muted: #566370;
+    --faint: #8a96a0;
+    --line: #d8dde2;
+    --line-strong: #c4cbd2;
+    --accent: #ff5a1f;
+    --accent-2: #ff8a3d;
+    --accent-soft: #ffe9e0;
+    --accent-ink: #c6410f;
+    --ok: #3e9e74;
+    --stage: #4a7fb0;
+    --amber: #b7841f;
+    --shadow: 0 1px 2px rgba(20, 29, 34, 0.05),
+      0 10px 34px rgba(20, 29, 34, 0.08);
+    --shadow-lg: 0 4px 12px rgba(20, 29, 34, 0.08),
+      0 30px 70px rgba(20, 29, 34, 0.16);
+    --glow: radial-gradient(
+      60% 60% at 70% 10%,
+      rgba(255, 90, 31, 0.1),
+      transparent 70%
+    );
+  }
+  :root[data-theme="dark"] {
+    --bg: #0c1216;
+    --surface: #131b21;
+    --surface-2: #18222a;
+    --ink: #e7eef3;
+    --muted: #94a1ac;
+    --faint: #63707b;
+    --line: #24313a;
+    --line-strong: #32424d;
+    --accent: #ff6a33;
+    --accent-2: #ff9a55;
+    --accent-soft: #2a1911;
+    --accent-ink: #ff9060;
+    --ok: #52bc8f;
+    --stage: #6099c9;
+    --amber: #d4a13e;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 12px 36px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 6px 18px rgba(0, 0, 0, 0.4), 0 36px 80px rgba(0, 0, 0, 0.55);
+    --glow: radial-gradient(
+      60% 60% at 70% 10%,
+      rgba(255, 106, 51, 0.14),
+      transparent 70%
+    );
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    margin: 0;
+  }
+  .page {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  .wrap {
+    max-width: 1160px;
+    margin: 0 auto;
+    padding: 0 clamp(16px, 4vw, 40px);
+  }
+  a {
+    color: inherit;
+  }
+
+  /* Entrance */
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(16px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  .rise {
+    opacity: 0;
+    animation: rise 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
+  }
+  .d1 {
+    animation-delay: 0.05s;
+  }
+  .d2 {
+    animation-delay: 0.15s;
+  }
+  .d3 {
+    animation-delay: 0.25s;
+  }
+  .d4 {
+    animation-delay: 0.35s;
+  }
+  .d5 {
+    animation-delay: 0.5s;
+  }
+
+  /* Nav */
+  nav {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    backdrop-filter: saturate(1.4) blur(10px);
+    background: color-mix(in srgb, var(--bg) 82%, transparent);
+    border-bottom: 1px solid var(--line);
+  }
+  .nav-in {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 62px;
+  }
+  .brand {
+    font-weight: 800;
+    font-size: 19px;
+    letter-spacing: -0.02em;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+  }
+  .brand .glyph {
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    background: linear-gradient(145deg, var(--accent), var(--accent-2));
+    display: inline-grid;
+    place-items: center;
+    color: #fff;
+    font-size: 12px;
+    box-shadow: 0 2px 8px rgba(255, 90, 31, 0.4);
+  }
+  .brand .glyph::before {
+    content: "◮";
+    transform: rotate(0deg);
+  }
+  .brand .mk {
+    color: var(--accent);
+  }
+  .nav-links {
+    display: flex;
+    align-items: center;
+    gap: 26px;
+    font-size: 14px;
+    color: var(--muted);
+  }
+  .nav-links a {
+    text-decoration: none;
+  }
+  .nav-links a:hover {
+    color: var(--ink);
+  }
+  .btn {
+    font-family: var(--sans);
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: 9px;
+    padding: 10px 16px;
+    border: 1px solid var(--line-strong);
+    background: var(--surface);
+    color: var(--ink);
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition:
+      transform 0.12s ease,
+      box-shadow 0.12s ease,
+      background 0.12s ease;
+  }
+  .btn:hover {
+    transform: translateY(-1px);
+  }
+  .btn.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+    box-shadow: 0 6px 18px rgba(255, 90, 31, 0.34);
+  }
+  .btn.primary:hover {
+    box-shadow: 0 10px 26px rgba(255, 90, 31, 0.44);
+  }
+  .btn.ghost {
+    background: transparent;
+  }
+  .nav-links .btn {
+    padding: 8px 15px;
+  }
+
+  /* Hero */
+  .hero {
+    position: relative;
+    padding: clamp(48px, 8vw, 96px) 0 clamp(40px, 6vw, 72px);
+    background-image: var(--glow);
+  }
+  .hero-grid {
+    display: grid;
+    grid-template-columns: 1.02fr 1fr;
+    gap: clamp(28px, 4vw, 56px);
+    align-items: center;
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    background: var(--accent-soft);
+    border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+    padding: 6px 12px;
+    border-radius: 999px;
+  }
+  h1 {
+    font-size: clamp(38px, 5.6vw, 66px);
+    line-height: 1.02;
+    letter-spacing: -0.032em;
+    font-weight: 820;
+    margin: 22px 0 0;
+    text-wrap: balance;
+  }
+  h1 .u {
+    color: var(--accent);
+    position: relative;
+    white-space: nowrap;
+  }
+  .subhead {
+    font-size: clamp(16px, 1.9vw, 20px);
+    color: var(--muted);
+    max-width: 40ch;
+    margin: 20px 0 0;
+    text-wrap: balance;
+  }
+  .cta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin: 30px 0 0;
+  }
+  .cta-row .btn {
+    padding: 13px 22px;
+    font-size: 15px;
+  }
+  .trust {
+    margin: 22px 0 0;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--faint);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .trust .ci {
+    color: var(--muted);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 3px 8px;
+    background: var(--surface);
+  }
+
+  /* Board (signature) */
+  .board-frame {
+    position: relative;
+  }
+  .board {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+  }
+  .board-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 13px 16px;
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--line);
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .dot3 {
+    display: flex;
+    gap: 6px;
+  }
+  .dot3 span {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--line-strong);
+  }
+  .board-bar .path {
+    color: var(--faint);
+  }
+  .board-bar .rel {
+    margin-left: auto;
+    color: var(--accent-ink);
+  }
+  .envs {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+  .env {
+    padding: 16px 18px;
+    border-bottom: 1px solid var(--line);
+    display: grid;
+    grid-template-columns: 92px 1fr auto;
+    gap: 14px;
+    align-items: center;
+  }
+  .env:last-child {
+    border-bottom: none;
+  }
+  .env-name {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .build {
+    font-family: var(--mono);
+    font-size: 14.5px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .build .sha {
+    color: var(--accent-ink);
+  }
+  .build-sub {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--faint);
+    margin-top: 3px;
+    transition: color 0.3s ease;
+  }
+  .pill {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 4px 9px;
+    border-radius: 999px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+  }
+  .pill.live {
+    color: var(--ok);
+    background: color-mix(in srgb, var(--ok) 16%, transparent);
+  }
+  .pill.stage {
+    color: var(--stage);
+    background: color-mix(in srgb, var(--stage) 16%, transparent);
+  }
+  .pill.ready {
+    color: var(--amber);
+    background: color-mix(in srgb, var(--amber) 18%, transparent);
+  }
+  .live-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+    animation: pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.3;
+    }
+  }
+  .env-act {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 7px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--accent);
+    background: var(--accent);
+    color: #fff;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .env-act.ghost {
+    background: var(--surface-2);
+    border-color: var(--line-strong);
+    color: var(--muted);
+  }
+  /* promote progress */
+  .promo {
+    grid-column: 1 / -1;
+    height: 0;
+    overflow: hidden;
+    transition: height 0.3s ease;
+  }
+  .promo.on {
+    height: 26px;
+  }
+  .promo-track {
+    height: 5px;
+    border-radius: 4px;
+    background: var(--surface-2);
+    overflow: hidden;
+    margin-top: 8px;
+  }
+  .promo-fill {
+    height: 100%;
+    width: 0;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    border-radius: 4px;
+    transition: width 1.7s cubic-bezier(0.4, 0.1, 0.2, 1);
+  }
+  .promo-fill.go {
+    width: 100%;
+  }
+  .promo-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--accent-ink);
+    letter-spacing: 0.05em;
+  }
+  @keyframes flash {
+    0% {
+      background: var(--accent-soft);
+    }
+    100% {
+      background: transparent;
+    }
+  }
+  .env.flash {
+    animation: flash 1.4s ease-out;
+  }
+  .float-tag {
+    position: absolute;
+    right: -14px;
+    top: -16px;
+    background: var(--ink);
+    color: var(--bg);
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 7px 12px;
+    border-radius: 999px;
+    box-shadow: var(--shadow);
+    transform: rotate(2deg);
+  }
+  .float-tag b {
+    color: var(--accent-2);
+  }
+
+  /* Section scaffolding */
+  section {
+    position: relative;
+  }
+  .band {
+    padding: clamp(52px, 8vw, 96px) 0;
+  }
+  .kicker {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+  }
+  .h2 {
+    font-size: clamp(28px, 4vw, 44px);
+    line-height: 1.08;
+    letter-spacing: -0.028em;
+    font-weight: 800;
+    margin: 12px 0 0;
+    text-wrap: balance;
+    max-width: 20ch;
+  }
+  .lead2 {
+    font-size: clamp(16px, 1.8vw, 19px);
+    color: var(--muted);
+    max-width: 54ch;
+    margin: 16px 0 0;
+  }
+
+  /* Reframe strip */
+  .reframe {
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    background: var(--surface);
+  }
+  .reframe-in {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 30px;
+    padding: 26px 0;
+    flex-wrap: wrap;
+  }
+  .reframe .line {
+    font-size: clamp(18px, 2.4vw, 26px);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  .reframe .line .dim {
+    color: var(--faint);
+  }
+  .reframe .line .mk {
+    color: var(--accent);
+  }
+  .reframe .stack {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+    flex-wrap: wrap;
+  }
+  .reframe .chip {
+    border: 1px solid var(--line-strong);
+    border-radius: 7px;
+    padding: 6px 11px;
+    background: var(--surface-2);
+  }
+
+  /* Value trio */
+  .trio {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+    margin-top: 40px;
+  }
+  .vcard {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 26px 24px 28px;
+    box-shadow: var(--shadow);
+    position: relative;
+    overflow: hidden;
+  }
+  .vcard::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    opacity: 0.9;
+  }
+  .vcard .vi {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: var(--accent-soft);
+    border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+    display: grid;
+    place-items: center;
+    margin-bottom: 16px;
+  }
+  .vcard .vi svg {
+    width: 20px;
+    height: 20px;
+    stroke: var(--accent-ink);
+    fill: none;
+    stroke-width: 1.9;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .vcard h3 {
+    font-size: 20px;
+    letter-spacing: -0.02em;
+    margin: 0 0 8px;
+    font-weight: 740;
+  }
+  .vcard p {
+    font-size: 14.5px;
+    color: var(--muted);
+    margin: 0;
+  }
+  .vcard .was {
+    margin-top: 16px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--faint);
+    border-top: 1px dashed var(--line);
+    padding-top: 12px;
+  }
+  .vcard .was b {
+    color: var(--accent-ink);
+    font-weight: 600;
+  }
+
+  /* Fear panel */
+  .fear-band {
+    padding: clamp(52px, 8vw, 96px) 0;
+  }
+  .fear {
+    background: #0d1418;
+    color: #e7eef3;
+    border-radius: 20px;
+    padding: clamp(30px, 5vw, 60px);
+    border: 1px solid #23303a;
+    position: relative;
+    overflow: hidden;
+  }
+  :root[data-theme="light"] .fear {
+    background: #101820;
+  }
+  .fear::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(
+      50% 80% at 85% 0%,
+      rgba(255, 106, 51, 0.16),
+      transparent 60%
+    );
+    pointer-events: none;
+  }
+  .fear .kicker {
+    color: var(--accent-2);
+    position: relative;
+  }
+  .fear blockquote {
+    position: relative;
+    margin: 16px 0 0;
+    font-size: clamp(24px, 4vw, 42px);
+    line-height: 1.22;
+    letter-spacing: -0.025em;
+    font-weight: 600;
+    max-width: 20ch;
+    text-wrap: balance;
+  }
+  .fear .after {
+    position: relative;
+    margin: 22px 0 0;
+    font-size: clamp(16px, 2vw, 20px);
+    color: #a9b6c0;
+    max-width: 44ch;
+  }
+  .fear .after b {
+    color: #fff;
+    font-weight: 650;
+  }
+  .fear .three {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+    margin-top: 34px;
+  }
+  .fear .fb {
+    border-top: 2px solid var(--accent);
+    padding-top: 12px;
+  }
+  .fear .fb .t {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #ff9060;
+  }
+  .fear .fb .d {
+    font-size: 14px;
+    color: #a9b6c0;
+    margin-top: 6px;
+  }
+
+  /* Metrics */
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+    margin-top: 40px;
+  }
+  .metric {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 26px;
+    box-shadow: var(--shadow);
+  }
+  .metric .big {
+    font-size: clamp(34px, 5vw, 52px);
+    font-weight: 820;
+    letter-spacing: -0.03em;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    background: linear-gradient(120deg, var(--accent), var(--accent-2));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .metric .lbl {
+    font-size: 14.5px;
+    color: var(--muted);
+    margin-top: 12px;
+  }
+  .metric .lbl b {
+    color: var(--ink);
+    font-weight: 650;
+  }
+  .metric .note {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--faint);
+    margin-top: 8px;
+  }
+
+  /* Final CTA */
+  .final {
+    text-align: center;
+    padding: clamp(60px, 9vw, 110px) 0;
+    background-image: var(--glow);
+  }
+  .final .h2 {
+    margin-left: auto;
+    margin-right: auto;
+    max-width: 18ch;
+  }
+  .final .cta-row {
+    justify-content: center;
+  }
+  .final .subhead2 {
+    color: var(--muted);
+    font-size: 17px;
+    margin: 16px auto 0;
+    max-width: 46ch;
+  }
+
+  footer {
+    border-top: 1px solid var(--line);
+    padding: 30px 0;
+  }
+  .foot-in {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--faint);
+  }
+
+  @media (max-width: 860px) {
+    .hero-grid {
+      grid-template-columns: 1fr;
+    }
+    .board-frame {
+      margin-top: 10px;
+    }
+    .nav-links a:not(.btn) {
+      display: none;
+    }
+    .trio,
+    .metrics,
+    .fear .three {
+      grid-template-columns: 1fr;
+    }
+    .reframe-in {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 16px;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .rise {
+      opacity: 1;
+      animation: none;
+    }
+    .live-dot {
+      animation: none;
+    }
+    .promo-fill {
+      transition: none;
+    }
+    .env.flash {
+      animation: none;
+    }
+  }
+</style>
+
+<div class="page">
+  <nav>
+    <div class="wrap nav-in">
+      <div class="brand">
+        <span class="glyph"></span>Git<span class="mk">Launch</span>
+      </div>
+      <div class="nav-links">
+        <a href="#how">How it works</a>
+        <a href="#why">Why GitLaunch</a>
+        <a href="#pricing">Pricing</a>
+        <a href="#start" class="btn primary">Start free</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <header class="hero">
+    <div class="wrap hero-grid">
+      <div class="hero-copy">
+        <span class="eyebrow rise d1"
+          >Deployment control · not another CI/CD tool</span
+        >
+        <h1 class="rise d2">
+          Know exactly what's deployed where.<br /><span class="u"
+            >Roll it back in one click.</span
+          >
+        </h1>
+        <p class="subhead rise d3">
+          GitLaunch shows every build across every environment — and lets anyone
+          on the team promote or roll back safely. No YAML. No hero. No
+          deploy-day dread.
+        </p>
+        <div class="cta-row rise d4">
+          <a href="#start" class="btn primary">Start free →</a>
+          <a href="#how" class="btn ghost">See it live</a>
+        </div>
+        <div class="trust rise d4">
+          Works on top of your CI —
+          <span class="ci">GitHub Actions</span>
+          <span class="ci">Jenkins</span>
+          <span>or both.</span>
+        </div>
+      </div>
+
+      <div class="board-frame rise d5">
+        <div class="float-tag">promoted in <b>one click</b></div>
+        <div
+          class="board"
+          id="board"
+          role="img"
+          aria-label="A GitLaunch release board: build 4297 promoting from staging to production"
+        >
+          <div class="board-bar">
+            <span class="dot3"><span></span><span></span><span></span></span>
+            <span class="path">web-app · release board</span>
+            <span class="rel" id="relTag">v2.15.0</span>
+          </div>
+          <div class="envs">
+            <div class="env" id="envProd">
+              <span class="env-name">Production</span>
+              <div>
+                <div class="build">
+                  build&nbsp;#<span id="prodNo">4291</span> ·
+                  <span class="sha" id="prodSha">a3f9c2</span>
+                </div>
+                <div class="build-sub" id="prodSub">
+                  live 3d · deployed by ci
+                </div>
+              </div>
+              <span class="pill live"
+                ><span class="live-dot"></span>Deployed</span
+              >
+            </div>
+            <div class="env" id="envStage">
+              <span class="env-name">Staging</span>
+              <div>
+                <div class="build">
+                  build&nbsp;#4297 · <span class="sha">7e1b04</span>
+                </div>
+                <div class="build-sub">verified · qa-maria · v2.15.0</div>
+              </div>
+              <span class="env-act" id="promoteBtn">Promote to prod</span>
+              <div class="promo" id="promo">
+                <div class="promo-label" id="promoLabel">
+                  Promoting #4297 to production…
+                </div>
+                <div class="promo-track">
+                  <div class="promo-fill" id="promoFill"></div>
+                </div>
+              </div>
+            </div>
+            <div class="env">
+              <span class="env-name">QA / Preview</span>
+              <div>
+                <div class="build">
+                  build&nbsp;#4298 · <span class="sha">c0d5aa</span>
+                </div>
+                <div class="build-sub">18m ago · ci · v2.15.0-rc2</div>
+              </div>
+              <span class="env-act ghost">Promote</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- REFRAME -->
+  <section class="reframe">
+    <div class="wrap reframe-in">
+      <div class="line">
+        <span class="dim">Your pipeline builds it.</span> GitLaunch
+        <span class="mk">runs the show</span> after.
+      </div>
+      <div class="stack">
+        <span>sits on top of</span>
+        <span class="chip">GitHub Actions</span>
+        <span class="chip">Jenkins</span>
+        <span>— keep what you have</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- VALUE TRIO -->
+  <section class="band" id="how">
+    <div class="wrap">
+      <span class="kicker">What you get on day one</span>
+      <h2 class="h2">Deployment, minus the ritual.</h2>
+      <p class="lead2">
+        Three fears about shipping software — turned into three things your
+        whole team can just do.
+      </p>
+      <div class="trio">
+        <div class="vcard">
+          <div class="vi">
+            <svg viewBox="0 0 24 24">
+              <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+          </div>
+          <h3>See everything</h3>
+          <p>
+            One screen answers "what's on staging?", "what's live?", and "what's
+            ready to promote?" — no SHAs, no Slack, no spreadsheet.
+          </p>
+          <div class="was">
+            Was: <b>nobody's sure what's actually in production.</b>
+          </div>
+        </div>
+        <div class="vcard">
+          <div class="vi">
+            <svg viewBox="0 0 24 24">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
+          </div>
+          <h3>Anyone can ship</h3>
+          <p>
+            QA, PMs, product owners — anyone can promote a build between
+            environments safely. Delivery stops depending on the one engineer
+            who "knows."
+          </p>
+          <div class="was">Was: <b>only one person can deploy.</b></div>
+        </div>
+        <div class="vcard">
+          <div class="vi">
+            <svg viewBox="0 0 24 24">
+              <path d="M3 2v6h6" />
+              <path d="M3 8a9 9 0 1 0 2.5-5.9" />
+            </svg>
+          </div>
+          <h3>Instant rollback</h3>
+          <p>
+            A bad deploy stops being a war room. Roll back to the last good
+            build in one click — seconds, not a scramble to remember how.
+          </p>
+          <div class="was">Was: <b>undo is slow and scary.</b></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEAR -->
+  <section class="fear-band" id="why">
+    <div class="wrap">
+      <div class="fear">
+        <span class="kicker">Deploy day shouldn't feel like this</span>
+        <blockquote>
+          "We can't say what's live right now — and only one person can roll it
+          back."
+        </blockquote>
+        <p class="after">
+          That's the 3&nbsp;a.m. fear GitLaunch is built to end.
+          <b>Make deploys visible, reversible, and something anyone can do</b> —
+          and deploy day becomes boring, in the best way.
+        </p>
+        <div class="three">
+          <div class="fb">
+            <div class="t">Bus-factor → shared</div>
+            <div class="d">
+              Deploys leave one person's head. The whole team can ship and undo.
+            </div>
+          </div>
+          <div class="fb">
+            <div class="t">Blindness → visible</div>
+            <div class="d">
+              Always know exactly what's running in every environment, right
+              now.
+            </div>
+          </div>
+          <div class="fb">
+            <div class="t">Slow undo → one click</div>
+            <div class="d">
+              Roll back to the last good build the moment something looks wrong.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- METRICS -->
+  <section class="band">
+    <div class="wrap">
+      <span class="kicker">Why it matters</span>
+      <h2 class="h2">The two DORA metrics your board asks about.</h2>
+      <p class="lead2">
+        GitLaunch moves the numbers that define elite delivery — because faster
+        promotion and one-click rollback are exactly what they measure.
+      </p>
+      <div class="metrics">
+        <div class="metric">
+          <div class="big">↓ lead time</div>
+          <div class="lbl">
+            <b>Code-complete to live</b>, without waiting on the one person who
+            can deploy.
+          </div>
+          <div class="note">DORA · delivery lead time</div>
+        </div>
+        <div class="metric">
+          <div class="big">↓ MTTR</div>
+          <div class="lbl">
+            <b>One-click rollback</b> turns "how long were we down?" into
+            seconds.
+          </div>
+          <div class="note">DORA · time to restore</div>
+        </div>
+        <div class="metric">
+          <div class="big">0</div>
+          <div class="lbl">
+            <b>Pipelines to rebuild.</b> Sits on top of the CI you already run.
+          </div>
+          <div class="note">GitHub Actions · Jenkins · both</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FINAL CTA -->
+  <section class="final" id="start">
+    <div class="wrap">
+      <span class="kicker">Start free</span>
+      <h2 class="h2">Make deploy day boring.</h2>
+      <p class="subhead2">
+        Connect your CI, see every build across every environment, and give your
+        whole team a safe button to ship and roll back.
+      </p>
+      <div class="cta-row">
+        <a href="#" class="btn primary">Start free →</a>
+        <a href="#" class="btn ghost">Book a 15-min demo</a>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="wrap foot-in">
+      <span>GitLaunch · deployment control your whole team can drive</span>
+      <span>© GitLaunch</span>
+    </div>
+  </footer>
+</div>
+
+<script>
+  (function () {
+    var reduce =
+      window.matchMedia &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    var promo = document.getElementById("promo");
+    var fill = document.getElementById("promoFill");
+    var label = document.getElementById("promoLabel");
+    var btn = document.getElementById("promoteBtn");
+    var envProd = document.getElementById("envProd");
+    var prodNo = document.getElementById("prodNo");
+    var prodSha = document.getElementById("prodSha");
+    var prodSub = document.getElementById("prodSub");
+
+    function settle() {
+      prodNo.textContent = "4297";
+      prodSha.textContent = "7e1b04";
+      prodSub.textContent = "live just now · promoted by qa-maria";
+      envProd.classList.add("flash");
+      if (promo) promo.classList.remove("on");
+      if (btn) {
+        btn.classList.add("ghost");
+        btn.textContent = "Promoted ✓";
+      }
+    }
+
+    if (reduce) {
+      settle();
+      return;
+    }
+
+    // one-time promote sequence, kicked off after the hero settles
+    setTimeout(function () {
+      if (!promo) return;
+      promo.classList.add("on");
+      if (btn) btn.textContent = "Promoting…";
+      requestAnimationFrame(function () {
+        fill.classList.add("go");
+      });
+      setTimeout(function () {
+        if (label) label.textContent = "#4297 is now live in production.";
+        settle();
+      }, 1850);
+    }, 1400);
+  })();
+</script>

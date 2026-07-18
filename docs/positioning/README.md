@@ -2,10 +2,11 @@
 
 Working artifacts for how we position, market, and sell GitLaunch. Each HTML file is a self-contained design artifact — open it in a browser, or use the shared link.
 
-| Artifact                                                    | Shareable link                                                       | What it's for                                                                                                        |
-| ----------------------------------------------------------- | -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| [Positioning Canvas](./positioning-canvas.html)             | https://claude.ai/code/artifact/e6b2813f-e905-4def-b84d-df5e96af49dd | The shelf we sit on, the six positioning components, the fear that drives the buy, and the 10-second hook.           |
-| [Customer Interview Guide](./customer-interview-guide.html) | https://claude.ai/code/artifact/060720b1-f52e-4a16-8902-c7592302ccc8 | Field guide for validating the canvas in customers' own words — the four bets, the questions, and how to synthesize. |
+| Artifact                                                    | Shareable link                                                       | What it's for                                                                                                                                                         |
+| ----------------------------------------------------------- | -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Positioning Canvas](./positioning-canvas.html)             | https://claude.ai/code/artifact/e6b2813f-e905-4def-b84d-df5e96af49dd | The shelf we sit on, the six positioning components, the fear that drives the buy, and the 10-second hook.                                                            |
+| [Customer Interview Guide](./customer-interview-guide.html) | https://claude.ai/code/artifact/060720b1-f52e-4a16-8902-c7592302ccc8 | Field guide for validating the canvas in customers' own words — the four bets, the questions, and how to synthesize.                                                  |
+| [Homepage Hero](./homepage-hero.html)                       | https://claude.ai/code/artifact/b5d1309c-443e-4735-b97b-9d8953f8e2b4 | The landing page built on this positioning — live promote-to-prod board, value trio, the fear, DORA metrics. Shipped as the app homepage (`src/templates/index.hbs`). |
 
 ## The one-line thesis
 
