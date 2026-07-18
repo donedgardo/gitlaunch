@@ -41,7 +41,6 @@ describe("ServiceRepository", () => {
       // Then
       expect(service._id).toBeDefined();
       expect(service.accountId).toEqual(accountId);
-      expect(service.repositoryId).toEqual(repositoryId);
       expect(service.name).toBe("backend");
       expect(service.environments).toEqual([
         { name: "staging", order: 0 },
@@ -49,6 +48,7 @@ describe("ServiceRepository", () => {
       ]);
       expect(service.deployment).toEqual({
         provider: "github",
+        repositoryId,
         workflowFile: "deploy.yml",
       });
       expect(service.isActive).toBe(true);
@@ -119,6 +119,7 @@ describe("ServiceRepository", () => {
       expect(service.environments).toEqual(customEnvs);
       expect(service.deployment).toEqual({
         provider: "github",
+        repositoryId,
         workflowFile: "deploy-frontend.yml",
       });
     });
@@ -259,10 +260,11 @@ describe("ServiceRepository", () => {
         workflowFile: "deploy-prod.yml",
       });
 
-      // Then: workflowFile is updated
+      // Then: workflowFile is updated, dispatch-target repo preserved
       expect(updated).not.toBeNull();
       expect(updated?.deployment).toEqual({
         provider: "github",
+        repositoryId,
         workflowFile: "deploy-prod.yml",
       });
     });
@@ -538,6 +540,7 @@ describe("ServiceRepository", () => {
       const updated = await repo.findById(service._id);
       expect(updated?.deployment).toEqual({
         provider: "github",
+        repositoryId,
         workflowFile: "custom-deploy.yml",
       });
       expect(updated?.name).toBe("preserve-fields-test");
@@ -601,17 +604,19 @@ describe("ServiceRepository", () => {
   });
 
   describe("deployment configuration", () => {
-    it("should default new services to a github deployment", async () => {
+    it("should default new services to a github deployment carrying the repo", async () => {
       // When: I create a service
+      const repositoryId = new ObjectId();
       const service = await repo.create({
         accountId: new ObjectId(),
-        repositoryId: new ObjectId(),
+        repositoryId,
         name: "defaults",
       });
 
-      // Then: it deploys via GitHub Actions by default
+      // Then: it deploys via GitHub Actions by default, dispatch target in-variant
       expect(service.deployment).toEqual({
         provider: "github",
+        repositoryId,
         workflowFile: "deploy.yml",
       });
     });
@@ -625,12 +630,13 @@ describe("ServiceRepository", () => {
       });
 
       // When: I switch it to Jenkins
-      await repo.setProvider(created.accountId, created._id, {
-        ciProvider: "jenkins",
+      await repo.setDeployment(created.accountId, created._id, {
+        provider: "jenkins",
         jobName: "deploy-backend",
       });
 
       // Then: the deployment becomes a jenkins variant carrying the job name
+      // (and no repositoryId — Jenkins has no dispatch-target repo)
       const updated = await repo.findById(created._id);
       expect(updated?.deployment).toEqual({
         provider: "jenkins",
@@ -638,55 +644,61 @@ describe("ServiceRepository", () => {
       });
     });
 
-    it("should switch a service back to a github deployment and drop the job name", async () => {
+    it("should switch a service back to a github deployment with a fresh repo", async () => {
       // Given: a Jenkins service
       const created = await repo.create({
         accountId: new ObjectId(),
         repositoryId: new ObjectId(),
         name: "back-to-gh",
       });
-      await repo.setProvider(created.accountId, created._id, {
-        ciProvider: "jenkins",
+      await repo.setDeployment(created.accountId, created._id, {
+        provider: "jenkins",
         jobName: "deploy-backend",
       });
 
-      // When: I switch back to GitHub Actions
-      await repo.setProvider(created.accountId, created._id, {
-        ciProvider: "github",
-        jobName: null,
+      // When: I switch back to GitHub Actions with a dispatch-target repo
+      const newRepoId = new ObjectId();
+      await repo.setDeployment(created.accountId, created._id, {
+        provider: "github",
+        repositoryId: newRepoId,
+        workflowFile: "deploy.yml",
       });
 
       // Then: it is a github deployment (a jobName cannot exist on this variant)
       const updated = await repo.findById(created._id);
-      expect(updated?.deployment.provider).toBe("github");
-      expect(updated?.deployment).not.toHaveProperty("jobName");
+      expect(updated?.deployment).toEqual({
+        provider: "github",
+        repositoryId: newRepoId,
+        workflowFile: "deploy.yml",
+      });
     });
 
-    it("should keep repositoryId across a provider switch (source repo for commit links)", async () => {
-      // Given: a github service with a source repo
-      const repositoryId = new ObjectId();
+    it("should keep repoUrl across a provider switch (commit links survive)", async () => {
+      // Given: a github service with a source repo URL for commit links
       const created = await repo.create({
         accountId: new ObjectId(),
-        repositoryId,
-        name: "keeps-repo",
+        repositoryId: new ObjectId(),
+        name: "keeps-repo-url",
+        repoUrl: "https://github.com/acme/api",
       });
 
-      // When: I switch it to Jenkins
-      await repo.setProvider(created.accountId, created._id, {
-        ciProvider: "jenkins",
+      // When: I switch it to Jenkins (dropping the GitHub dispatch target)
+      await repo.setDeployment(created.accountId, created._id, {
+        provider: "jenkins",
         jobName: "deploy-backend",
       });
 
-      // Then: the source repo is untouched — every build still links to a commit
+      // Then: repoUrl is untouched — every build still links to a commit
       const updated = await repo.findById(created._id);
-      expect(updated?.repositoryId).toEqual(repositoryId);
+      expect(updated?.repoUrl).toBe("https://github.com/acme/api");
     });
 
     it("should read a legacy github service (flat fields) as a github deployment", async () => {
       // Given: a pre-existing document with the legacy flat dispatch fields
+      const repositoryId = new ObjectId();
       const raw = {
         accountId: new ObjectId(),
-        repositoryId: new ObjectId(),
+        repositoryId,
         name: "legacy-github",
         environments: [],
         workflowFile: "ship.yml",
@@ -701,9 +713,38 @@ describe("ServiceRepository", () => {
       // When: I read it back
       const service = await repo.findById(insertedId);
 
-      // Then: the flat fields become a github deployment variant
+      // Then: the flat fields become a github variant, repo folded into it
       expect(service?.deployment).toEqual({
         provider: "github",
+        repositoryId,
+        workflowFile: "ship.yml",
+      });
+    });
+
+    it("should fold a Stage 2 top-level repositoryId into the github variant", async () => {
+      // Given: a Stage 2 document — deployment exists but repositoryId is still
+      // at the top level (not yet inside the variant)
+      const repositoryId = new ObjectId();
+      const raw = {
+        accountId: new ObjectId(),
+        repositoryId,
+        name: "stage2-github",
+        environments: [],
+        workflowConfigured: true,
+        isActive: true,
+        repoUrl: "",
+        deployment: { provider: "github", workflowFile: "ship.yml" },
+        createdAt: new Date(),
+      };
+      const { insertedId } = await db.collection("services").insertOne(raw);
+
+      // When: I read it back
+      const service = await repo.findById(insertedId);
+
+      // Then: the top-level repo is folded into the github variant
+      expect(service?.deployment).toEqual({
+        provider: "github",
+        repositoryId,
         workflowFile: "ship.yml",
       });
     });

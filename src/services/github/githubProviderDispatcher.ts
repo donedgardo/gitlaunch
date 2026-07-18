@@ -27,7 +27,9 @@ export class GithubProviderDispatcher implements ProviderDispatcher {
       throw new Error("GitHub App not installed for this account");
     }
 
-    const repository = await this.repoRepo.findById(service.repositoryId);
+    const repository = await this.repoRepo.findById(
+      service.deployment.repositoryId,
+    );
     if (!repository) {
       throw new Error("Repository not found");
     }

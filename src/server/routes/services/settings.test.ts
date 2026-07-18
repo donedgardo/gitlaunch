@@ -163,8 +163,8 @@ describe("Settings Routes - Workflow Configuration", () => {
         name: "my-service",
       });
       if (provider === "jenkins") {
-        await serviceRepo.setProvider(account._id, service._id, {
-          ciProvider: "jenkins",
+        await serviceRepo.setDeployment(account._id, service._id, {
+          provider: "jenkins",
           jobName: "deploy-backend",
         });
       }
@@ -268,6 +268,7 @@ describe("Settings Routes - Workflow Configuration", () => {
       const updatedService = await serviceRepo.findById(service._id);
       expect(updatedService?.deployment).toEqual({
         provider: "github",
+        repositoryId: repository._id,
         workflowFile: "custom-deploy.yml",
       });
       expect(updatedService?.workflowConfigured).toBe(true);
@@ -539,7 +540,7 @@ describe("Settings Routes - Workflow Configuration", () => {
         userId: new ObjectId(),
         accountId: account._id,
       });
-      return { service, sessionToken };
+      return { service, repository, sessionToken };
     }
 
     it("should set the service to the jenkins provider with a job name", async () => {
@@ -560,10 +561,36 @@ describe("Settings Routes - Workflow Configuration", () => {
       });
     });
 
-    it("should switch back to github and drop the job name", async () => {
+    it("should switch back to github with a chosen dispatch-target repo", async () => {
+      const { service, repository, sessionToken } = await seedService();
+      await serviceRepo.setDeployment(service.accountId, service._id, {
+        provider: "jenkins",
+        jobName: "deploy-backend",
+      });
+
+      const response = await app.inject({
+        method: "PATCH",
+        url: `/services/${service._id}/provider`,
+        cookies: { session: sessionToken },
+        payload: {
+          ciProvider: "github",
+          repositoryId: repository._id.toString(),
+        },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const updated = await serviceRepo.findById(service._id);
+      expect(updated?.deployment).toEqual({
+        provider: "github",
+        repositoryId: repository._id,
+        workflowFile: "deploy.yml",
+      });
+    });
+
+    it("should reject switching to github without a repository", async () => {
       const { service, sessionToken } = await seedService();
-      await serviceRepo.setProvider(service.accountId, service._id, {
-        ciProvider: "jenkins",
+      await serviceRepo.setDeployment(service.accountId, service._id, {
+        provider: "jenkins",
         jobName: "deploy-backend",
       });
 
@@ -574,10 +601,10 @@ describe("Settings Routes - Workflow Configuration", () => {
         payload: { ciProvider: "github" },
       });
 
-      expect(response.statusCode).toBe(200);
+      // A GitHub service needs a dispatch target — the switch is rejected
+      expect(response.statusCode).toBe(400);
       const updated = await serviceRepo.findById(service._id);
-      expect(updated?.deployment.provider).toBe("github");
-      expect(updated?.deployment).not.toHaveProperty("jobName");
+      expect(updated?.deployment.provider).toBe("jenkins");
     });
 
     it("should reject jenkins without a job name", async () => {

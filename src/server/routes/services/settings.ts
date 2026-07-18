@@ -1,6 +1,9 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { ObjectId } from "mongodb";
-import { ServiceRepository } from "../../../repositories/serviceRepository";
+import {
+  ServiceRepository,
+  Deployment,
+} from "../../../repositories/serviceRepository";
 import { RepositoryRepository } from "../../../repositories/repositoryRepository";
 import { EnvironmentService } from "../../../services/environment/environmentService";
 import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
@@ -71,10 +74,19 @@ export function registerSettingsRoutes(
 
       const { service, accountId } = result;
 
-      // Get repository info
-      const repository = await repositoryRepository.findById(
-        service.repositoryId,
-      );
+      // The GitHub dispatch-target repo (if this is a GitHub service).
+      const dispatchRepoId =
+        service.deployment.provider === "github"
+          ? service.deployment.repositoryId
+          : null;
+      const repository = dispatchRepoId
+        ? await repositoryRepository.findById(dispatchRepoId)
+        : null;
+
+      // Connected repositories power the provider form's repo picker (needed
+      // when switching a service to GitHub, which requires a dispatch target).
+      const repositories =
+        await repositoryRepository.findByAccountId(accountId);
 
       // Get all services for navigation
       const services = await serviceRepository.findByAccountId(accountId);
@@ -102,12 +114,18 @@ export function registerSettingsRoutes(
               service.deployment.provider === "jenkins"
                 ? service.deployment.jobName
                 : null,
+            repositoryId: dispatchRepoId ? dispatchRepoId.toString() : null,
           },
           repository: repository
             ? {
                 fullName: repository.githubFullName,
               }
             : null,
+          repositories: repositories.map((r) => ({
+            id: r._id.toString(),
+            fullName: r.githubFullName,
+            selected: dispatchRepoId ? r._id.equals(dispatchRepoId) : false,
+          })),
           environments,
           apiUrl: process.env.PUBLIC_URL,
           firstEnv: environments[0]?.name ?? "staging",
@@ -370,13 +388,13 @@ export function registerSettingsRoutes(
   // PATCH /services/:serviceId/provider - Choose CI provider (HTMX)
   app.patch<{
     Params: { serviceId: string };
-    Body: { ciProvider: string; jobName?: string };
+    Body: { ciProvider: string; jobName?: string; repositoryId?: string };
   }>(
     "/services/:serviceId/provider",
     async (
       request: FastifyRequest<{
         Params: { serviceId: string };
-        Body: { ciProvider: string; jobName?: string };
+        Body: { ciProvider: string; jobName?: string; repositoryId?: string };
       }>,
       reply: FastifyReply,
     ) => {
@@ -398,14 +416,46 @@ export function registerSettingsRoutes(
       if (ciProvider !== "github" && ciProvider !== "jenkins") {
         return toastError("Unknown CI provider");
       }
-      if (ciProvider === "jenkins" && !jobName) {
-        return toastError("A Jenkins job name is required");
+
+      let deployment: Deployment;
+      if (ciProvider === "jenkins") {
+        if (!jobName) {
+          return toastError("A Jenkins job name is required");
+        }
+        deployment = { provider: "jenkins", jobName };
+      } else {
+        // GitHub dispatch needs a target repo. Reuse the current one when the
+        // service is already GitHub; otherwise the form must supply one.
+        const repositoryId =
+          request.body.repositoryId?.trim() ||
+          (service.deployment.provider === "github"
+            ? service.deployment.repositoryId.toString()
+            : "");
+        if (!repositoryId) {
+          return toastError("Select a repository to deploy via GitHub Actions");
+        }
+        let repoObjectId: ObjectId;
+        try {
+          repoObjectId = new ObjectId(repositoryId);
+        } catch {
+          return toastError("Invalid repository");
+        }
+        const repository = await repositoryRepository.findById(repoObjectId);
+        if (!repository || !repository.accountId.equals(accountId)) {
+          return toastError("Invalid repository");
+        }
+        const workflowFile =
+          service.deployment.provider === "github"
+            ? service.deployment.workflowFile
+            : "deploy.yml";
+        deployment = {
+          provider: "github",
+          repositoryId: repoObjectId,
+          workflowFile,
+        };
       }
 
-      await serviceRepository.setProvider(accountId, service._id, {
-        ciProvider,
-        jobName: ciProvider === "jenkins" ? jobName : null,
-      });
+      await serviceRepository.setDeployment(accountId, service._id, deployment);
       analytics?.track("service_provider_updated", {
         serviceId: service._id.toString(),
         ciProvider,

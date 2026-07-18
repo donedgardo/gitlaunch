@@ -204,8 +204,8 @@ describe("BuildDispatchService", () => {
         repositoryId: repository._id,
         name: "backend",
       });
-      await serviceRepo.setProvider(account._id, svc._id, {
-        ciProvider: "jenkins",
+      await serviceRepo.setDeployment(account._id, svc._id, {
+        provider: "jenkins",
         jobName: "deploy-backend",
       });
 
@@ -243,8 +243,8 @@ describe("BuildDispatchService", () => {
         repositoryId: repository._id,
         name: "backend",
       });
-      await serviceRepo.setProvider(account._id, svc._id, {
-        ciProvider: "jenkins",
+      await serviceRepo.setDeployment(account._id, svc._id, {
+        provider: "jenkins",
         jobName: "deploy-backend",
       });
 
@@ -278,10 +278,10 @@ describe("BuildDispatchService", () => {
         repositoryId: repository._id,
         name: "backend",
       });
-      // Provider set to jenkins but jobName left null
-      await serviceRepo.setProvider(account._id, svc._id, {
-        ciProvider: "jenkins",
-        jobName: null,
+      // Provider set to jenkins but jobName left blank
+      await serviceRepo.setDeployment(account._id, svc._id, {
+        provider: "jenkins",
+        jobName: "",
       });
 
       await expect(

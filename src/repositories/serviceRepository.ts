@@ -1,4 +1,4 @@
-import { Db, ObjectId, Collection } from "mongodb";
+import { Db, ObjectId, Collection, Filter } from "mongodb";
 
 export type Environment = {
   name: string;
@@ -9,11 +9,12 @@ export type CIProvider = "github" | "jenkins";
 
 // Provider-specific dispatch configuration. What each provider needs to trigger
 // a deployment lives in its own variant — a GitHub service cannot hold a
-// jobName, a Jenkins service cannot hold a workflowFile. repositoryId is NOT
-// here: it is the service's source repo (commit links for every build, plus the
-// GitHub dispatch target) and lives on Service.
+// jobName, a Jenkins service cannot hold a workflowFile. repositoryId is the
+// App-connected GitHub dispatch target, so it lives in the GitHub variant only;
+// a Jenkins service has no repositoryId (commit links come from Service.repoUrl).
 export type GithubDeployment = {
   provider: "github";
+  repositoryId: ObjectId;
   workflowFile: string;
 };
 
@@ -27,7 +28,6 @@ export type Deployment = GithubDeployment | JenkinsDeployment;
 export type Service = {
   _id: ObjectId;
   accountId: ObjectId;
-  repositoryId: ObjectId;
   name: string;
   environments: Environment[];
   workflowConfigured: boolean;
@@ -49,13 +49,15 @@ export type CreateServiceInput = {
 };
 
 // Documents written before the Deployment value object stored dispatch config
-// as flat fields (ciProvider / workflowFile / jobName). Read-time normalization
-// reconstructs the union — and defaults repoUrl — so hosted data needs no
-// migration.
+// as flat fields (ciProvider / workflowFile / jobName / repositoryId); a Stage 2
+// document has a deployment but still carried repositoryId at the top level.
+// Read-time normalization reconstructs the union — folding repositoryId into the
+// GitHub variant and defaulting repoUrl — so hosted data needs no migration.
 type LegacyServiceFields = {
   ciProvider?: CIProvider;
   workflowFile?: string;
   jobName?: string | null;
+  repositoryId?: ObjectId;
 };
 
 const DEFAULT_ENVIRONMENTS: Environment[] = [
@@ -85,7 +87,6 @@ export class ServiceRepository {
     // arrives in the wizard work (Stage 3).
     const service: Omit<Service, "_id"> = {
       accountId: input.accountId,
-      repositoryId: input.repositoryId,
       name: input.name,
       environments: input.environments || DEFAULT_ENVIRONMENTS,
       workflowConfigured: false,
@@ -93,6 +94,7 @@ export class ServiceRepository {
       repoUrl: input.repoUrl || "",
       deployment: {
         provider: "github",
+        repositoryId: input.repositoryId,
         workflowFile: input.workflowFile || "deploy.yml",
       },
       createdAt: now,
@@ -109,17 +111,32 @@ export class ServiceRepository {
       return null;
     }
     const repoUrl = service.repoUrl ?? "";
-    if (service.deployment) {
-      return { ...service, repoUrl };
-    }
     const legacy = service as Service & LegacyServiceFields;
-    const deployment: Deployment =
-      legacy.ciProvider === "jenkins"
-        ? { provider: "jenkins", jobName: legacy.jobName ?? "" }
-        : {
-            provider: "github",
-            workflowFile: legacy.workflowFile ?? "deploy.yml",
-          };
+    let deployment = service.deployment;
+
+    if (!deployment) {
+      // Pre-Stage-2 flat document: reconstruct the whole union.
+      deployment =
+        legacy.ciProvider === "jenkins"
+          ? { provider: "jenkins", jobName: legacy.jobName ?? "" }
+          : {
+              provider: "github",
+              repositoryId: legacy.repositoryId as ObjectId,
+              workflowFile: legacy.workflowFile ?? "deploy.yml",
+            };
+    } else if (
+      deployment.provider === "github" &&
+      !(deployment as Partial<GithubDeployment>).repositoryId
+    ) {
+      // Stage 2 document: the GitHub variant existed but repositoryId still
+      // lived at the top level — fold it into the variant.
+      deployment = {
+        provider: "github",
+        repositoryId: legacy.repositoryId as ObjectId,
+        workflowFile: deployment.workflowFile,
+      };
+    }
+
     return { ...service, repoUrl, deployment };
   }
 
@@ -144,8 +161,15 @@ export class ServiceRepository {
     accountId: ObjectId,
     repositoryId: ObjectId,
   ): Promise<Service[]> {
+    // repositoryId is the GitHub dispatch target, held inside the deployment
+    // variant; also match legacy documents that still carry it at the top level.
     return this.normalizeMany(
-      await this.collection.find({ accountId, repositoryId }).toArray(),
+      await this.collection
+        .find({
+          accountId,
+          $or: [{ "deployment.repositoryId": repositoryId }, { repositoryId }],
+        } as Filter<Service>)
+        .toArray(),
     );
   }
 
@@ -162,33 +186,24 @@ export class ServiceRepository {
     return this.normalize(await this.collection.findOne({ accountId, name }));
   }
 
-  async setProvider(
+  // Replace a service's deployment with a fully-formed variant. The caller owns
+  // building it (e.g. a GitHub deployment must supply its dispatch-target repo).
+  async setDeployment(
     accountId: ObjectId,
     id: ObjectId,
-    provider: { ciProvider: CIProvider; jobName: string | null },
+    deployment: Deployment,
   ): Promise<Service | null> {
-    let deployment: Deployment;
-    if (provider.ciProvider === "jenkins") {
-      deployment = { provider: "jenkins", jobName: provider.jobName ?? "" };
-    } else {
-      // Preserve an existing GitHub workflow file across a github→github save;
-      // default it when switching over from Jenkins (which carries no workflow).
-      const current = this.normalize(
-        await this.collection.findOne({ _id: id, accountId }),
-      );
-      const workflowFile =
-        current?.deployment.provider === "github"
-          ? current.deployment.workflowFile
-          : "deploy.yml";
-      deployment = { provider: "github", workflowFile };
-    }
-
     return this.normalize(
       await this.collection.findOneAndUpdate(
         { _id: id, accountId },
         {
           $set: { deployment },
-          $unset: { ciProvider: "", jobName: "", workflowFile: "" },
+          $unset: {
+            ciProvider: "",
+            jobName: "",
+            workflowFile: "",
+            repositoryId: "",
+          },
         },
         { returnDocument: "after" },
       ),
@@ -199,7 +214,16 @@ export class ServiceRepository {
     id: ObjectId,
     config: { workflowFile: string },
   ): Promise<Service | null> {
-    // Configuring a workflow file is inherently a GitHub deployment operation.
+    // Configuring a workflow file is inherently a GitHub deployment operation;
+    // preserve the existing dispatch-target repo on the GitHub variant.
+    const current = this.normalize(await this.collection.findOne({ _id: id }));
+    if (!current) {
+      return null;
+    }
+    if (current.deployment.provider !== "github") {
+      return current;
+    }
+
     return this.normalize(
       await this.collection.findOneAndUpdate(
         { _id: id },
@@ -207,11 +231,17 @@ export class ServiceRepository {
           $set: {
             deployment: {
               provider: "github",
+              repositoryId: current.deployment.repositoryId,
               workflowFile: config.workflowFile,
             },
             workflowConfigured: true,
           },
-          $unset: { ciProvider: "", jobName: "", workflowFile: "" },
+          $unset: {
+            ciProvider: "",
+            jobName: "",
+            workflowFile: "",
+            repositoryId: "",
+          },
         },
         { returnDocument: "after" },
       ),

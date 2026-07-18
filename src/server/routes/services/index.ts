@@ -291,9 +291,16 @@ export function registerServiceRoutes(
         return reply.status(404).send("Service not found");
       }
 
+      // Workflow selection only applies to GitHub-deployed services.
+      if (service.deployment.provider !== "github") {
+        return reply
+          .header("Content-Type", "text/html")
+          .send("<option value=''>Not a GitHub service</option>");
+      }
+
       // Get the repository
       const repository = await repositoryRepository.findById(
-        service.repositoryId,
+        service.deployment.repositoryId,
       );
       if (!repository) {
         return reply.status(404).send("Repository not found");

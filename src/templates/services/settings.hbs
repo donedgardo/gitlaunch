@@ -68,10 +68,20 @@
           <div>
             <label for="ciProvider" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Provider</label>
             <select id="ciProvider" name="ciProvider"
-              onchange="document.getElementById('jenkins-job-field').style.display = this.value === 'jenkins' ? 'block' : 'none';"
+              onchange="document.getElementById('jenkins-job-field').style.display = this.value === 'jenkins' ? 'block' : 'none'; document.getElementById('github-repo-field').style.display = this.value === 'github' ? 'block' : 'none';"
               class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
               <option value="github" {{#unless service.isJenkins}}selected{{/unless}}>GitHub Actions</option>
               <option value="jenkins" {{#if service.isJenkins}}selected{{/if}}>Jenkins</option>
+            </select>
+          </div>
+          <div id="github-repo-field" style="display: {{#if service.isJenkins}}none{{else}}block{{/if}};">
+            <label for="repositoryId" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Repository (dispatch target)</label>
+            <select id="repositoryId" name="repositoryId"
+              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+              <option value="">Select a repository…</option>
+              {{#each repositories}}
+              <option value="{{this.id}}" {{#if this.selected}}selected{{/if}}>{{this.fullName}}</option>
+              {{/each}}
             </select>
           </div>
           <div id="jenkins-job-field" style="display: {{#if service.isJenkins}}block{{else}}none{{/if}};">

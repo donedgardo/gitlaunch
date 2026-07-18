@@ -167,11 +167,15 @@ export default function (deps: DashboardRoutesDeps) {
           }));
 
         // Commit-link source: prefer the service's own repoUrl; fall back to
-        // the connected repository's GitHub URL for legacy services that
+        // the connected repository's GitHub URL for legacy GitHub services that
         // predate repoUrl (no migration needed).
-        const repository = await repositoryRepository.findById(
-          activeService.repositoryId,
-        );
+        const dispatchRepoId =
+          activeService.deployment.provider === "github"
+            ? activeService.deployment.repositoryId
+            : null;
+        const repository = dispatchRepoId
+          ? await repositoryRepository.findById(dispatchRepoId)
+          : null;
         const repoUrl =
           activeService.repoUrl ||
           (repository?.githubFullName
