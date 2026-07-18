@@ -22,12 +22,12 @@ test.describe("Onboarding - GitHub App Installation", () => {
 
     // Verify we're on the landing page
     await expect(
-      page.getByRole("heading", { name: /deploy with confidence/i }),
+      page.getByRole("heading", { name: /roll it back in one click/i }),
     ).toBeVisible();
 
-    // Verify Get Started button exists and links to auth
+    // Verify the primary "Start free" CTA exists and links to auth
     const getStartedLink = page
-      .getByRole("link", { name: /get started free/i })
+      .getByRole("link", { name: /start free/i })
       .first();
     await expect(getStartedLink).toBeVisible();
     await expect(getStartedLink).toHaveAttribute("href", "/auth/github");

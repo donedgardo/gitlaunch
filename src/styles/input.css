@@ -1,3 +1,66 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ------------------------------------------------------------------ *
+ * GitLaunch design tokens — single source of truth for the app theme.
+ * Semantic Tailwind colors (bg-surface, text-ink, bg-accent, …) resolve
+ * to these vars; the gray/blue ramps are remapped in tailwind.config.js
+ * so existing pages inherit the instrument-panel palette too.
+ * Dark mode is media-based (matches Tailwind's default darkMode: 'media').
+ * ------------------------------------------------------------------ */
+:root {
+  --bg: #ebeef1;
+  --surface: #ffffff;
+  --surface-2: #f3f5f7;
+  --ink: #161d22;
+  --muted: #566370;
+  --faint: #8a96a0;
+  --line: #d8dde2;
+  --line-strong: #c4cbd2;
+  --accent: #ff5a1f;
+  --accent-2: #ff8a3d;
+  --accent-soft: #ffe9e0;
+  --accent-ink: #c6410f;
+  --ok: #3e9e74;
+  --stage: #4a7fb0;
+  --amber: #b7841f;
+  --shadow: 0 1px 2px rgba(20, 29, 34, 0.05), 0 10px 34px rgba(20, 29, 34, 0.08);
+  --shadow-lg: 0 4px 12px rgba(20, 29, 34, 0.08),
+    0 30px 70px rgba(20, 29, 34, 0.16);
+  --glow: radial-gradient(
+    60% 60% at 70% 10%,
+    rgba(255, 90, 31, 0.1),
+    transparent 70%
+  );
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto,
+    sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0c1216;
+    --surface: #131b21;
+    --surface-2: #18222a;
+    --ink: #e7eef3;
+    --muted: #94a1ac;
+    --faint: #63707b;
+    --line: #24313a;
+    --line-strong: #32424d;
+    --accent: #ff6a33;
+    --accent-2: #ff9a55;
+    --accent-soft: #2a1911;
+    --accent-ink: #ff9060;
+    --ok: #52bc8f;
+    --stage: #6099c9;
+    --amber: #d4a13e;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 12px 36px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 6px 18px rgba(0, 0, 0, 0.4), 0 36px 80px rgba(0, 0, 0, 0.55);
+    --glow: radial-gradient(
+      60% 60% at 70% 10%,
+      rgba(255, 106, 51, 0.14),
+      transparent 70%
+    );
+  }
+}
