@@ -96,6 +96,23 @@ describe("ServiceRepository", () => {
       expect(service.repoUrl).toBe("");
     });
 
+    it("should create a service born as a jenkins deployment", async () => {
+      // Given/When: a provider-first Jenkins service (no repositoryId at all)
+      const service = await repo.create({
+        accountId: new ObjectId(),
+        name: "jenkins-born",
+        repoUrl: "https://github.com/acme/api",
+        deployment: { provider: "jenkins", jobName: "deploy-api" },
+      });
+
+      // Then: it is a jenkins deployment with just a job name
+      expect(service.deployment).toEqual({
+        provider: "jenkins",
+        jobName: "deploy-api",
+      });
+      expect(service.repoUrl).toBe("https://github.com/acme/api");
+    });
+
     it("should create a service with custom environments", async () => {
       // Given
       const accountId = new ObjectId();

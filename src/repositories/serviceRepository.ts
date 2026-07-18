@@ -41,11 +41,15 @@ export type Service = {
 
 export type CreateServiceInput = {
   accountId: ObjectId;
-  repositoryId: ObjectId;
   name: string;
   environments?: Environment[];
-  workflowFile?: string;
   repoUrl?: string;
+  // Provider-first: supply a fully-formed deployment variant...
+  deployment?: Deployment;
+  // ...or the GitHub shorthand (repositoryId + optional workflowFile), which
+  // builds a GitHub deployment. Exactly one form is expected.
+  repositoryId?: ObjectId;
+  workflowFile?: string;
 };
 
 // Documents written before the Deployment value object stored dispatch config
@@ -83,8 +87,13 @@ export class ServiceRepository {
 
   async create(input: CreateServiceInput): Promise<Service> {
     const now = new Date();
-    // New services default to a GitHub deployment; provider-first creation
-    // arrives in the wizard work (Stage 3).
+    // Provider-first callers pass a deployment; the GitHub shorthand builds one
+    // from repositoryId for backward compatibility.
+    const deployment: Deployment = input.deployment ?? {
+      provider: "github",
+      repositoryId: input.repositoryId as ObjectId,
+      workflowFile: input.workflowFile || "deploy.yml",
+    };
     const service: Omit<Service, "_id"> = {
       accountId: input.accountId,
       name: input.name,
@@ -92,11 +101,7 @@ export class ServiceRepository {
       workflowConfigured: false,
       isActive: true,
       repoUrl: input.repoUrl || "",
-      deployment: {
-        provider: "github",
-        repositoryId: input.repositoryId,
-        workflowFile: input.workflowFile || "deploy.yml",
-      },
+      deployment,
       createdAt: now,
     };
 

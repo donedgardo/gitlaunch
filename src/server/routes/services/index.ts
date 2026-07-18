@@ -2,7 +2,10 @@ import { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { ObjectId } from "mongodb";
 import { AccountRepository } from "../../../repositories/accountRepository";
 import { RepositoryRepository } from "../../../repositories/repositoryRepository";
-import { ServiceRepository } from "../../../repositories/serviceRepository";
+import {
+  ServiceRepository,
+  Deployment,
+} from "../../../repositories/serviceRepository";
 import { ApiKeyService } from "../../../services/apiKey/apiKeyService";
 import { GitHubAppService } from "../../../services/github/githubAppService";
 import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
@@ -53,9 +56,10 @@ export function registerServiceRoutes(
       const repositories = await repositoryRepository.findByAccountId(
         account._id,
       );
+      const jenkinsConnected = account.jenkinsConnection != null;
 
-      // If no repositories, redirect to onboarding
-      if (repositories.length === 0) {
+      // Only send a user with no way to deploy at all back to onboarding.
+      if (repositories.length === 0 && !jenkinsConnected) {
         return reply.redirect("/onboarding");
       }
 
@@ -64,23 +68,33 @@ export function registerServiceRoutes(
         {
           title: "Create Service",
           repositories,
+          jenkinsConnected,
         },
         { layout: "/layouts/main.hbs" },
       );
     },
   );
 
-  // POST /services/new - Create a new service
+  // POST /services/new - Create a new service (provider-first)
   app.post<{
     Body: {
-      repositoryId: string;
-      name: string;
+      provider?: string;
+      repositoryId?: string;
+      name?: string;
+      jobName?: string;
+      repoUrl?: string;
     };
   }>(
     "/services/new",
     async (
       request: FastifyRequest<{
-        Body: { repositoryId: string; name: string };
+        Body: {
+          provider?: string;
+          repositoryId?: string;
+          name?: string;
+          jobName?: string;
+          repoUrl?: string;
+        };
       }>,
       reply: FastifyReply,
     ) => {
@@ -97,72 +111,80 @@ export function registerServiceRoutes(
         return reply.redirect("/auth/github");
       }
 
-      const { repositoryId, name } = request.body;
+      const provider =
+        request.body.provider === "jenkins" ? "jenkins" : "github";
+      const name = request.body.name?.trim() || "";
+      const jenkinsConnected = account.jenkinsConnection != null;
 
-      // Validate required fields
-      if (!repositoryId || !name) {
+      // Re-render the form with an error message.
+      const renderError = async (error: string) => {
         const repositories = await repositoryRepository.findByAccountId(
           account._id,
         );
         return reply.view(
           "services/new",
-          {
-            title: "Create Service",
-            repositories,
-            error: "Please select a repository and enter a service name.",
-          },
+          { title: "Create Service", repositories, jenkinsConnected, error },
           { layout: "/layouts/main.hbs" },
         );
+      };
+
+      if (!name) {
+        return renderError("Please enter a service name.");
       }
 
-      // Verify repository belongs to account
-      const repository = await repositoryRepository.findById(
-        new ObjectId(repositoryId),
-      );
-      if (!repository || !repository.accountId.equals(account._id)) {
-        const repositories = await repositoryRepository.findByAccountId(
-          account._id,
+      // Resolve the deployment + commit-link repoUrl per provider.
+      let deployment: Deployment;
+      let repoUrl: string;
+      if (provider === "jenkins") {
+        const jobName = request.body.jobName?.trim() || "";
+        if (!jenkinsConnected) {
+          return renderError(
+            "Connect a Jenkins server first from Settings → Jenkins.",
+          );
+        }
+        if (!jobName) {
+          return renderError("Please enter a Jenkins job name.");
+        }
+        deployment = { provider: "jenkins", jobName };
+        repoUrl = request.body.repoUrl?.trim() || "";
+      } else {
+        const repositoryId = request.body.repositoryId || "";
+        if (!repositoryId) {
+          return renderError("Please select a repository.");
+        }
+        const repository = await repositoryRepository.findById(
+          new ObjectId(repositoryId),
         );
-        return reply.view(
-          "services/new",
-          {
-            title: "Create Service",
-            repositories,
-            error: "Invalid repository selected.",
-          },
-          { layout: "/layouts/main.hbs" },
-        );
+        if (!repository || !repository.accountId.equals(account._id)) {
+          return renderError("Invalid repository selected.");
+        }
+        deployment = {
+          provider: "github",
+          repositoryId: repository._id,
+          workflowFile: "deploy.yml",
+        };
+        repoUrl = `https://github.com/${repository.githubFullName}`;
       }
 
       // Check plan limit for services
       const canAdd = await planEnforcementService.canAddService(account._id);
       if (!canAdd.allowed) {
-        const repositories = await repositoryRepository.findByAccountId(
-          account._id,
-        );
-        return reply.view(
-          "services/new",
-          {
-            title: "Create Service",
-            repositories,
-            error: canAdd.reason,
-          },
-          { layout: "/layouts/main.hbs" },
-        );
+        return renderError(canAdd.reason ?? "Service limit reached.");
       }
 
       // Create the service
       try {
         await serviceRepository.create({
           accountId: account._id,
-          repositoryId: new ObjectId(repositoryId),
-          name: name.trim(),
-          repoUrl: `https://github.com/${repository.githubFullName}`,
+          name,
+          deployment,
+          repoUrl,
         });
 
         analytics?.track("service_created", {
-          serviceName: name.trim(),
+          serviceName: name,
           accountId: account._id.toString(),
+          provider,
         });
 
         // Generate API key for this service
@@ -184,22 +206,12 @@ export function registerServiceRoutes(
         });
 
         // Redirect straight to dashboard
-        return reply.redirect(`/dashboard/${name.trim()}`);
+        return reply.redirect(`/dashboard/${name}`);
       } catch (error: any) {
         // Handle duplicate service name error
         if (error.code === 11000) {
-          const repositories = await repositoryRepository.findByAccountId(
-            account._id,
-          );
-          return reply.view(
-            "services/new",
-            {
-              title: "Create Service",
-              repositories,
-              error:
-                "A service with this name already exists for this repository.",
-            },
-            { layout: "/layouts/main.hbs" },
+          return renderError(
+            "A service with this name already exists for this account.",
           );
         }
         throw error;

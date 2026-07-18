@@ -312,4 +312,106 @@ describe("Service Routes - Workflow Configuration", () => {
       expect(updatedService?.workflowConfigured).toBe(true);
     });
   });
+
+  describe("POST /services/new — provider-first creation", () => {
+    async function seedAccount(slug: string) {
+      const account = await accountRepo.create({ name: slug, slug });
+      const session = sessionService.createSession({
+        userId: new ObjectId(),
+        accountId: account._id,
+      });
+      return { account, session };
+    }
+
+    it("should create a GitHub service from a selected repository", async () => {
+      const { account, session } = await seedAccount("gh-org");
+      const repository = await repositoryRepo.create({
+        accountId: account._id,
+        githubRepoId: 42,
+        githubFullName: "gh-org/api",
+        githubRepoName: "api",
+        githubOwner: "gh-org",
+        isPrivate: false,
+      });
+
+      const response = await app.inject({
+        method: "POST",
+        url: "/services/new",
+        cookies: { session },
+        payload: {
+          provider: "github",
+          name: "api",
+          repositoryId: repository._id.toString(),
+        },
+      });
+
+      expect(response.statusCode).toBe(302);
+      const created = await serviceRepo.findByAccountIdAndName(
+        account._id,
+        "api",
+      );
+      expect(created?.deployment).toEqual({
+        provider: "github",
+        repositoryId: repository._id,
+        workflowFile: "deploy.yml",
+      });
+      expect(created?.repoUrl).toBe("https://github.com/gh-org/api");
+    });
+
+    it("should create a Jenkins service with a job name and no GitHub repo", async () => {
+      const { account, session } = await seedAccount("jk-org");
+      // A connected Jenkins server is a prerequisite.
+      await accountRepo.setJenkinsConnection(account._id, {
+        baseUrl: "https://ci.example.com",
+        username: "bot",
+        apiTokenEncrypted: "cipher",
+      });
+
+      const response = await app.inject({
+        method: "POST",
+        url: "/services/new",
+        cookies: { session },
+        payload: {
+          provider: "jenkins",
+          name: "worker",
+          jobName: "deploy-worker",
+          repoUrl: "https://github.com/jk-org/worker",
+        },
+      });
+
+      expect(response.statusCode).toBe(302);
+      const created = await serviceRepo.findByAccountIdAndName(
+        account._id,
+        "worker",
+      );
+      expect(created?.deployment).toEqual({
+        provider: "jenkins",
+        jobName: "deploy-worker",
+      });
+      expect(created?.repoUrl).toBe("https://github.com/jk-org/worker");
+    });
+
+    it("should reject a Jenkins service when Jenkins is not connected", async () => {
+      const { account, session } = await seedAccount("jk-none");
+
+      const response = await app.inject({
+        method: "POST",
+        url: "/services/new",
+        cookies: { session },
+        payload: {
+          provider: "jenkins",
+          name: "worker",
+          jobName: "deploy-worker",
+        },
+      });
+
+      // Form re-renders (200) with an error; nothing is created.
+      expect(response.statusCode).toBe(200);
+      const created = await serviceRepo.findByAccountIdAndName(
+        account._id,
+        "worker",
+      );
+      expect(created).toBeNull();
+    });
+  });
 });
