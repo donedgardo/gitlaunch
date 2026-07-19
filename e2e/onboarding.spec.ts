@@ -33,42 +33,37 @@ test.describe("Onboarding - GitHub App Installation", () => {
     await expect(getStartedLink).toHaveAttribute("href", "/auth/github");
   });
 
-  test("user without GitHub App sees onboarding page", async ({ page }) => {
-    // Authenticate as user without GitHub App
+  test("user without a provider sees the provider choice", async ({ page }) => {
+    // Authenticate as user without any CI provider connected
     await authenticateTestUser(page, TEST_USERS.newUser);
 
     // Visit onboarding page
     await page.goto("/onboarding");
 
-    // Should see the onboarding page
+    // Should see the provider-choice page (not a forced GitHub App install)
     await expect(
-      page.getByRole("heading", { name: /welcome to gitlaunch/i }),
+      page.getByRole("heading", { name: /how do you deploy/i }),
     ).toBeVisible();
   });
 
-  test("onboarding page prompts user to install GitHub App", async ({
-    page,
-  }) => {
-    // Authenticate as user without GitHub App
+  test("onboarding offers both GitHub App and Jenkins", async ({ page }) => {
+    // Authenticate as user without any CI provider connected
     await authenticateTestUser(page, TEST_USERS.newUser);
 
     // Visit onboarding page
     await page.goto("/onboarding");
 
-    // Verify onboarding content
-    await expect(
-      page.getByRole("heading", { name: /welcome to gitlaunch/i }),
-    ).toBeVisible();
-    await expect(
-      page.getByText(/install the gitlaunch github app/i),
-    ).toBeVisible();
-
-    // Verify install button exists
+    // GitHub App install is one option...
     const installButton = page.getByRole("link", {
       name: /install github app/i,
     });
     await expect(installButton).toBeVisible();
     await expect(installButton).toHaveAttribute("href", /.+/);
+
+    // ...and Jenkins is the other — no GitHub App required.
+    await expect(
+      page.getByRole("link", { name: /connect jenkins/i }),
+    ).toBeVisible();
   });
 
   test("user with GitHub App is redirected to repository selection", async ({

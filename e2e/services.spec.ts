@@ -121,7 +121,7 @@ test.describe("Service Creation", () => {
     await expect(page.locator("#new-api-key")).not.toBeVisible();
   });
 
-  test("shows error when submitting without required fields", async ({
+  test("requires a name and lets the user choose a provider", async ({
     page,
   }) => {
     // Authenticate as user with repositories
@@ -130,13 +130,15 @@ test.describe("Service Creation", () => {
     // Visit create service page
     await page.goto("/services/new");
 
-    // The form has required fields, so we test that the button exists
     const submitButton = page.getByRole("button", { name: /create service/i });
     await expect(submitButton).toBeVisible();
 
-    // Verify required attributes are present
-    await expect(page.locator("#repositoryId")).toHaveAttribute("required", "");
+    // Service name is required at the form level.
     await expect(page.locator("#name")).toHaveAttribute("required", "");
+
+    // Provider is chosen up front; the repository requirement is enforced
+    // per-provider on the server (GitHub needs a repo, Jenkins needs a job).
+    await expect(page.locator("#provider")).toBeVisible();
   });
 
   test("unauthenticated user is redirected from create service page", async ({
