@@ -282,6 +282,87 @@ describe("Onboarding Routes", () => {
 
       expect(response.statusCode).toBe(404);
     });
+
+    it("configures a raw webhook deployment and lands on the dashboard", async () => {
+      const { account, session } = await authedAccount("raw-org");
+      const service = await serviceRepo.create({
+        accountId: account._id,
+        name: "api",
+        repoUrl: "https://github.com/acme/api",
+      });
+
+      const response = await app.inject({
+        method: "POST",
+        url: `/onboarding/setup-deploy/${service._id}/raw`,
+        cookies: { session },
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        payload: "endpointUrl=https://deploy.acme.com/hook",
+      });
+
+      expect(response.statusCode).toBe(302);
+      expect(response.headers.location).toBe(`/dashboard/${service.name}`);
+      const updated = await serviceRepo.findById(service._id);
+      expect(updated?.deployment).toEqual({
+        provider: "raw",
+        endpointUrl: "https://deploy.acme.com/hook",
+      });
+    });
+
+    it("configures a GitHub deployment from a connected repo", async () => {
+      const { account, session } = await authedAccount("gh-cd-org");
+      await accountRepo.updateInstallation(account._id, 12345);
+      const repository = await repositoryRepo.create({
+        accountId: account._id,
+        githubRepoId: 7,
+        githubFullName: "acme/api",
+        githubRepoName: "api",
+        githubOwner: "acme",
+        isPrivate: false,
+      });
+      const service = await serviceRepo.create({
+        accountId: account._id,
+        name: "api",
+        repoUrl: "https://github.com/acme/api",
+      });
+
+      const response = await app.inject({
+        method: "POST",
+        url: `/onboarding/setup-deploy/${service._id}/github`,
+        cookies: { session },
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        payload: `repositoryId=${repository._id}&workflowFile=ship.yml`,
+      });
+
+      expect(response.statusCode).toBe(302);
+      const updated = await serviceRepo.findById(service._id);
+      expect(updated?.deployment).toEqual({
+        provider: "github",
+        repositoryId: repository._id,
+        workflowFile: "ship.yml",
+      });
+    });
+
+    it("rejects a Jenkins deployment when Jenkins is not connected", async () => {
+      const { account, session } = await authedAccount("jk-cd-org");
+      const service = await serviceRepo.create({
+        accountId: account._id,
+        name: "api",
+        repoUrl: "https://github.com/acme/api",
+      });
+
+      const response = await app.inject({
+        method: "POST",
+        url: `/onboarding/setup-deploy/${service._id}/jenkins`,
+        cookies: { session },
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        payload: "jobName=deploy-api",
+      });
+
+      // Re-renders with an error; deployment stays unconfigured
+      expect(response.statusCode).toBe(200);
+      const updated = await serviceRepo.findById(service._id);
+      expect(updated?.deployment).toBeNull();
+    });
   });
 
   describe("GET /onboarding/plan-selection", () => {

@@ -288,34 +288,200 @@ export function registerOnboardingRoutes(
     },
   );
 
-  // GET /onboarding/setup-deploy/:serviceId - Step 3: set up CD.
-  // TODO(Slice C): render the deploy-setup tabs. For now, land on the dashboard.
+  // Step 3: set up CD. Loads the service (ownership-checked) and connection
+  // state, then renders the deploy-setup tabs (or an error re-render).
+  async function renderSetupDeploy(
+    request: FastifyRequest<{ Params: { serviceId: string } }>,
+    reply: FastifyReply,
+    error?: string,
+  ) {
+    if (!request.session) {
+      reply.redirect("/auth/github");
+      return null;
+    }
+    const accountId = new ObjectId(request.session.accountId);
+    const account = await accountRepository.findById(accountId);
+    if (!account) {
+      reply.redirect("/auth/github");
+      return null;
+    }
+    let serviceObjectId: ObjectId;
+    try {
+      serviceObjectId = new ObjectId(request.params.serviceId);
+    } catch {
+      reply.status(400).send("Invalid service ID");
+      return null;
+    }
+    const service = await serviceRepository.findByAccountAndId(
+      accountId,
+      serviceObjectId,
+    );
+    if (!service) {
+      reply.status(404).send("Service not found");
+      return null;
+    }
+
+    const repositories = await repositoryRepository.findByAccountId(accountId);
+    const environments = [...service.environments].sort(
+      (a, b) => a.order - b.order,
+    );
+    const useFakeGitHub = process.env.USE_FAKE_GITHUB === "true";
+    const installUrl = useFakeGitHub
+      ? "/github/installation/callback?installation_id=12345"
+      : `https://github.com/apps/${process.env.GH_APP_NAME || "gitlaunchapp"}/installations/new`;
+
+    reply.view(
+      "onboarding/setup-deploy",
+      {
+        title: "Set up deployments",
+        serviceId: service._id.toString(),
+        serviceName: service.name,
+        apiUrl: process.env.PUBLIC_URL,
+        firstEnv: environments[0]?.name ?? "staging",
+        environments,
+        githubConnected: account.githubConnection != null,
+        jenkinsConnected: account.jenkinsConnection != null,
+        installUrl,
+        repositories: repositories.map((r) => ({
+          id: r._id.toString(),
+          fullName: r.githubFullName,
+        })),
+        error,
+      },
+      { layout: "/layouts/main.hbs" },
+    );
+    return { service, accountId };
+  }
+
+  // GET /onboarding/setup-deploy/:serviceId - Step 3: choose a CD strategy
   app.get<{ Params: { serviceId: string } }>(
     "/onboarding/setup-deploy/:serviceId",
-    async (
-      request: FastifyRequest<{ Params: { serviceId: string } }>,
-      reply: FastifyReply,
-    ) => {
-      if (!request.session) {
-        return reply.redirect("/auth/github");
-      }
-      const accountId = new ObjectId(request.session.accountId);
-      let serviceObjectId: ObjectId;
-      try {
-        serviceObjectId = new ObjectId(request.params.serviceId);
-      } catch {
-        return reply.status(400).send("Invalid service ID");
-      }
-      const service = await serviceRepository.findByAccountAndId(
-        accountId,
-        serviceObjectId,
-      );
-      if (!service) {
-        return reply.status(404).send("Service not found");
-      }
-      return reply.redirect(`/dashboard/${service.name}`);
+    async (request, reply) => {
+      await renderSetupDeploy(request, reply);
     },
   );
+
+  // Load + verify a service for a setup-deploy POST.
+  async function loadForSetup(
+    request: FastifyRequest<{ Params: { serviceId: string } }>,
+    reply: FastifyReply,
+  ) {
+    if (!request.session) {
+      reply.redirect("/auth/github");
+      return null;
+    }
+    const accountId = new ObjectId(request.session.accountId);
+    let serviceObjectId: ObjectId;
+    try {
+      serviceObjectId = new ObjectId(request.params.serviceId);
+    } catch {
+      reply.status(400).send("Invalid service ID");
+      return null;
+    }
+    const service = await serviceRepository.findByAccountAndId(
+      accountId,
+      serviceObjectId,
+    );
+    if (!service) {
+      reply.status(404).send("Service not found");
+      return null;
+    }
+    return { service, accountId };
+  }
+
+  // POST .../github - configure GitHub Actions dispatch (repo + workflow)
+  app.post<{
+    Params: { serviceId: string };
+    Body: { repositoryId?: string; workflowFile?: string };
+  }>("/onboarding/setup-deploy/:serviceId/github", async (request, reply) => {
+    const loaded = await loadForSetup(request, reply);
+    if (!loaded) return;
+    const { service, accountId } = loaded;
+
+    const repositoryId = request.body.repositoryId?.trim() || "";
+    if (!repositoryId) {
+      return renderSetupDeploy(request, reply, "Select a repository.");
+    }
+    let repoObjectId: ObjectId;
+    try {
+      repoObjectId = new ObjectId(repositoryId);
+    } catch {
+      return renderSetupDeploy(request, reply, "Invalid repository.");
+    }
+    const repository = await repositoryRepository.findById(repoObjectId);
+    if (!repository || !repository.accountId.equals(accountId)) {
+      return renderSetupDeploy(request, reply, "Invalid repository.");
+    }
+
+    await serviceRepository.setDeployment(accountId, service._id, {
+      provider: "github",
+      repositoryId: repoObjectId,
+      workflowFile: request.body.workflowFile?.trim() || "deploy.yml",
+    });
+    analytics?.track("deployment_configured", {
+      serviceId: service._id.toString(),
+      provider: "github",
+    });
+    return reply.redirect(`/dashboard/${service.name}`);
+  });
+
+  // POST .../jenkins - configure Jenkins dispatch (job name)
+  app.post<{
+    Params: { serviceId: string };
+    Body: { jobName?: string };
+  }>("/onboarding/setup-deploy/:serviceId/jenkins", async (request, reply) => {
+    const loaded = await loadForSetup(request, reply);
+    if (!loaded) return;
+    const { service, accountId } = loaded;
+
+    const account = await accountRepository.findById(accountId);
+    if (!account?.jenkinsConnection) {
+      return renderSetupDeploy(
+        request,
+        reply,
+        "Connect a Jenkins server first.",
+      );
+    }
+    const jobName = request.body.jobName?.trim() || "";
+    if (!jobName) {
+      return renderSetupDeploy(request, reply, "Enter a Jenkins job name.");
+    }
+
+    await serviceRepository.setDeployment(accountId, service._id, {
+      provider: "jenkins",
+      jobName,
+    });
+    analytics?.track("deployment_configured", {
+      serviceId: service._id.toString(),
+      provider: "jenkins",
+    });
+    return reply.redirect(`/dashboard/${service.name}`);
+  });
+
+  // POST .../raw - configure a raw webhook endpoint
+  app.post<{
+    Params: { serviceId: string };
+    Body: { endpointUrl?: string };
+  }>("/onboarding/setup-deploy/:serviceId/raw", async (request, reply) => {
+    const loaded = await loadForSetup(request, reply);
+    if (!loaded) return;
+    const { service, accountId } = loaded;
+
+    const endpointUrl = request.body.endpointUrl?.trim() || "";
+    if (!endpointUrl) {
+      return renderSetupDeploy(request, reply, "Enter a deploy endpoint URL.");
+    }
+
+    await serviceRepository.setDeployment(accountId, service._id, {
+      provider: "raw",
+      endpointUrl,
+    });
+    analytics?.track("deployment_configured", {
+      serviceId: service._id.toString(),
+      provider: "raw",
+    });
+    return reply.redirect(`/dashboard/${service.name}`);
+  });
 
   // GET /onboarding - Main onboarding page
   app.get(

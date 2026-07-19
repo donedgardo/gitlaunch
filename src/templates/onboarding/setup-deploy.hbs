@@ -1,0 +1,121 @@
+<!-- Navigation -->
+<nav class="fixed w-full bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-800 z-50">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex justify-between h-16 items-center">
+      <span class="text-xl font-bold text-gray-900 dark:text-white">GitLaunch</span>
+      <span class="text-sm text-gray-500 dark:text-gray-400">Step 3 of 3 · Set up deployments</span>
+    </div>
+  </div>
+</nav>
+
+<div class="min-h-screen bg-gray-50 dark:bg-gray-900 pt-16">
+  <div class="max-w-3xl mx-auto px-4 py-12 sm:py-16">
+    <div class="text-center mb-8">
+      <h1 class="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white">
+        Set up deployments
+      </h1>
+      <p class="mt-3 text-lg text-gray-600 dark:text-gray-400">
+        Choose how GitLaunch triggers a deploy for <span class="font-semibold">{{serviceName}}</span>.
+      </p>
+    </div>
+
+    {{#if error}}
+    <div class="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
+      <p class="text-sm text-red-800 dark:text-red-200">{{error}}</p>
+    </div>
+    {{/if}}
+
+    <!-- Provider tabs -->
+    <div class="flex mb-6 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+      <button id="cd_tab_github" onclick="switchCdTab('github')" class="flex-1 px-3 py-2 text-sm font-medium rounded-md bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm">GitHub Actions</button>
+      <button id="cd_tab_jenkins" onclick="switchCdTab('jenkins')" class="flex-1 px-3 py-2 text-sm font-medium rounded-md text-gray-500 dark:text-gray-400">Jenkins</button>
+      <button id="cd_tab_raw" onclick="switchCdTab('raw')" class="flex-1 px-3 py-2 text-sm font-medium rounded-md text-gray-500 dark:text-gray-400">Raw webhook</button>
+    </div>
+
+    <!-- GitHub -->
+    <div id="cd_panel_github">
+      {{#if githubConnected}}
+        {{#if repositories.length}}
+        <form action="/onboarding/setup-deploy/{{serviceId}}/github" method="POST" class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-lg p-6 sm:p-8 mb-6 space-y-4">
+          <div>
+            <label for="repositoryId" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Repository</label>
+            <select id="repositoryId" name="repositoryId" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm">
+              <option value="">Select a repository…</option>
+              {{#each repositories}}
+              <option value="{{this.id}}">{{this.fullName}}</option>
+              {{/each}}
+            </select>
+          </div>
+          <div>
+            <label for="workflowFile" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Workflow file</label>
+            <input type="text" id="workflowFile" name="workflowFile" value="deploy.yml" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm">
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">The workflow GitLaunch dispatches to deploy.</p>
+          </div>
+          <button type="submit" class="px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors text-sm">Finish setup</button>
+        </form>
+        {{> deploymentSetupGuide serviceId=serviceId environments=environments}}
+        {{else}}
+        <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-lg p-6 sm:p-8">
+          <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">No repositories connected yet.</p>
+          <a href="/onboarding/repositories?returnTo=/onboarding/setup-deploy/{{serviceId}}" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors text-sm">Add repositories</a>
+        </div>
+        {{/if}}
+      {{else}}
+      <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-lg p-6 sm:p-8">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Connect GitHub</h2>
+        <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">Install the GitLaunch GitHub App so it can dispatch your deploy workflow.</p>
+        <a href="{{installUrl}}" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors text-sm">Install GitHub App</a>
+      </div>
+      {{/if}}
+    </div>
+
+    <!-- Jenkins -->
+    <div id="cd_panel_jenkins" style="display: none;">
+      {{#if jenkinsConnected}}
+      <form action="/onboarding/setup-deploy/{{serviceId}}/jenkins" method="POST" class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-lg p-6 sm:p-8 mb-6 space-y-4">
+        <div>
+          <label for="jobName" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Jenkins job name</label>
+          <input type="text" id="jobName" name="jobName" required placeholder="e.g. deploy-api" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm">
+          <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">GitLaunch triggers this job with buildWithParameters.</p>
+        </div>
+        <button type="submit" class="px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors text-sm">Finish setup</button>
+      </form>
+      {{> jenkinsDeploymentGuide apiUrl=apiUrl serviceId=serviceId firstEnv=firstEnv}}
+      {{else}}
+      <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-lg p-6 sm:p-8">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Connect Jenkins</h2>
+        <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">Connect a Jenkins server so GitLaunch can trigger deploy jobs.</p>
+        <a href="/settings/jenkins" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors text-sm">Connect Jenkins</a>
+      </div>
+      {{/if}}
+    </div>
+
+    <!-- Raw webhook -->
+    <div id="cd_panel_raw" style="display: none;">
+      <form action="/onboarding/setup-deploy/{{serviceId}}/raw" method="POST" class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-lg p-6 sm:p-8 space-y-4">
+        <div>
+          <label for="endpointUrl" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Deploy endpoint URL</label>
+          <input type="url" id="endpointUrl" name="endpointUrl" required placeholder="https://deploy.acme.com/hook" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm">
+        </div>
+        <div class="bg-gray-50 dark:bg-gray-700/40 rounded-lg p-3 text-xs text-gray-600 dark:text-gray-300">
+          On deploy, GitLaunch POSTs <code class="font-mono">{ "buildId", "environment" }</code> to this URL.
+          Report status back with
+          <code class="font-mono">PATCH {{apiUrl}}/api/v1/services/{{serviceId}}/builds/&lt;buildId&gt;/deploy/&lt;env&gt;</code>.
+        </div>
+        <button type="submit" class="px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors text-sm">Finish setup</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+function switchCdTab(tab) {
+  var tabs = ['github', 'jenkins', 'raw'];
+  var active = 'flex-1 px-3 py-2 text-sm font-medium rounded-md bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm';
+  var idle = 'flex-1 px-3 py-2 text-sm font-medium rounded-md text-gray-500 dark:text-gray-400';
+  tabs.forEach(function (t) {
+    document.getElementById('cd_panel_' + t).style.display = t === tab ? '' : 'none';
+    document.getElementById('cd_tab_' + t).className = t === tab ? active : idle;
+  });
+}
+</script>
