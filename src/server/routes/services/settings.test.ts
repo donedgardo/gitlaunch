@@ -604,7 +604,7 @@ describe("Settings Routes - Workflow Configuration", () => {
       // A GitHub service needs a dispatch target — the switch is rejected
       expect(response.statusCode).toBe(400);
       const updated = await serviceRepo.findById(service._id);
-      expect(updated?.deployment.provider).toBe("jenkins");
+      expect(updated?.deployment?.provider).toBe("jenkins");
     });
 
     it("should reject jenkins without a job name", async () => {
@@ -619,7 +619,7 @@ describe("Settings Routes - Workflow Configuration", () => {
 
       expect(response.statusCode).toBe(400);
       const updated = await serviceRepo.findById(service._id);
-      expect(updated?.deployment.provider).toBe("github");
+      expect(updated?.deployment?.provider).toBe("github");
     });
 
     it("should reject an unknown provider", async () => {

@@ -304,7 +304,7 @@ export function registerServiceRoutes(
       }
 
       // Workflow selection only applies to GitHub-deployed services.
-      if (service.deployment.provider !== "github") {
+      if (service.deployment?.provider !== "github") {
         return reply
           .header("Content-Type", "text/html")
           .send("<option value=''>Not a GitHub service</option>");

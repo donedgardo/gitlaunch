@@ -113,6 +113,38 @@ describe("ServiceRepository", () => {
       expect(service.repoUrl).toBe("https://github.com/acme/api");
     });
 
+    it("should create a service with no deployment when none is given", async () => {
+      // Given/When: only a name + repoUrl (the onboarding step-1 shape)
+      const service = await repo.create({
+        accountId: new ObjectId(),
+        name: "cd-pending",
+        repoUrl: "https://github.com/acme/api",
+      });
+
+      // Then: CD is not configured yet (null) until the deploy-setup step
+      expect(service.deployment).toBeNull();
+      expect(service.repoUrl).toBe("https://github.com/acme/api");
+    });
+
+    it("should create a service born as a raw webhook deployment", async () => {
+      // Given/When: a raw deployment (GitLaunch POSTs to a customer endpoint)
+      const service = await repo.create({
+        accountId: new ObjectId(),
+        name: "raw-born",
+        repoUrl: "https://github.com/acme/api",
+        deployment: {
+          provider: "raw",
+          endpointUrl: "https://deploy.acme.com/hook",
+        },
+      });
+
+      // Then: it is a raw deployment carrying the endpoint
+      expect(service.deployment).toEqual({
+        provider: "raw",
+        endpointUrl: "https://deploy.acme.com/hook",
+      });
+    });
+
     it("should create a service with custom environments", async () => {
       // Given
       const accountId = new ObjectId();

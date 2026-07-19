@@ -75,10 +75,9 @@ export function registerSettingsRoutes(
       const { service, accountId } = result;
 
       // The GitHub dispatch-target repo (if this is a GitHub service).
+      const deployment = service.deployment;
       const dispatchRepoId =
-        service.deployment.provider === "github"
-          ? service.deployment.repositoryId
-          : null;
+        deployment?.provider === "github" ? deployment.repositoryId : null;
       const repository = dispatchRepoId
         ? await repositoryRepository.findById(dispatchRepoId)
         : null;
@@ -105,15 +104,11 @@ export function registerSettingsRoutes(
             id: service._id.toString(),
             name: service.name,
             workflowFile:
-              service.deployment.provider === "github"
-                ? service.deployment.workflowFile
-                : "",
-            ciProvider: service.deployment.provider,
-            isJenkins: service.deployment.provider === "jenkins",
+              deployment?.provider === "github" ? deployment.workflowFile : "",
+            ciProvider: deployment?.provider ?? null,
+            isJenkins: deployment?.provider === "jenkins",
             jobName:
-              service.deployment.provider === "jenkins"
-                ? service.deployment.jobName
-                : null,
+              deployment?.provider === "jenkins" ? deployment.jobName : null,
             repositoryId: dispatchRepoId ? dispatchRepoId.toString() : null,
           },
           repository: repository
@@ -428,7 +423,7 @@ export function registerSettingsRoutes(
         // service is already GitHub; otherwise the form must supply one.
         const repositoryId =
           request.body.repositoryId?.trim() ||
-          (service.deployment.provider === "github"
+          (service.deployment?.provider === "github"
             ? service.deployment.repositoryId.toString()
             : "");
         if (!repositoryId) {
@@ -445,7 +440,7 @@ export function registerSettingsRoutes(
           return toastError("Invalid repository");
         }
         const workflowFile =
-          service.deployment.provider === "github"
+          service.deployment?.provider === "github"
             ? service.deployment.workflowFile
             : "deploy.yml";
         deployment = {

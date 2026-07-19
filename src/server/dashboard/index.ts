@@ -170,7 +170,7 @@ export default function (deps: DashboardRoutesDeps) {
         // the connected repository's GitHub URL for legacy GitHub services that
         // predate repoUrl (no migration needed).
         const dispatchRepoId =
-          activeService.deployment.provider === "github"
+          activeService.deployment?.provider === "github"
             ? activeService.deployment.repositoryId
             : null;
         const repository = dispatchRepoId
@@ -181,6 +181,10 @@ export default function (deps: DashboardRoutesDeps) {
           (repository?.githubFullName
             ? `https://github.com/${repository.githubFullName}`
             : "");
+
+        // Report-only (deployment not configured) services show status without
+        // Deploy/Redeploy controls.
+        const canDispatch = activeService.deployment != null;
 
         // Load paginated builds for this service
         const { builds, total, hasMore } = await buildRepository.findPaginated(
@@ -228,6 +232,7 @@ export default function (deps: DashboardRoutesDeps) {
               environments,
               builds: formattedBuilds,
               repoUrl,
+              canDispatch,
               needsDeploymentSetup,
               pagination,
               trialDaysRemaining: accountState.trialDaysRemaining,
@@ -258,6 +263,7 @@ export default function (deps: DashboardRoutesDeps) {
             environments,
             builds: formattedBuilds,
             repoUrl,
+            canDispatch,
             needsDeploymentSetup,
             newApiKey,
             showSimulateBuild: process.env.USE_FAKE_GITHUB === "true",
@@ -339,6 +345,7 @@ export default function (deps: DashboardRoutesDeps) {
               env,
               serviceName: service.name,
               serviceId,
+              canDispatch: service.deployment != null,
               isOobSwap: true,
             },
             { layout: "" },
@@ -433,6 +440,7 @@ export default function (deps: DashboardRoutesDeps) {
               env,
               serviceName: service.name,
               serviceId,
+              canDispatch: service.deployment != null,
               isOobSwap: true,
             },
             { layout: "" },

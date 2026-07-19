@@ -25,6 +25,8 @@ import { MultiTenantGithubDispatchService } from "../services/github/githubDispa
 import { GithubProviderDispatcher } from "../services/github/githubProviderDispatcher";
 import { JenkinsDispatchService } from "../services/jenkins/jenkinsDispatchService";
 import { JenkinsProviderDispatcher } from "../services/jenkins/jenkinsProviderDispatcher";
+import { RawProviderDispatcher } from "../services/raw/rawProviderDispatcher";
+import { RawDispatchService } from "../services/raw/rawDispatchService";
 import { SessionService } from "../services/auth/sessionService";
 import { UserRepository } from "../repositories/userRepository";
 import { AccountRepository } from "../repositories/accountRepository";
@@ -122,6 +124,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     installationTokenService,
   );
   const jenkinsDispatchService = new JenkinsDispatchService();
+  const rawDispatchService = new RawDispatchService();
   const buildDispatchService = new BuildDispatchService(
     accountRepository,
     serviceRepository,
@@ -131,6 +134,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
         jenkinsConnectionService,
         jenkinsDispatchService,
       ),
+      new RawProviderDispatcher(rawDispatchService),
     ],
   );
   const buildService = new BuildService(

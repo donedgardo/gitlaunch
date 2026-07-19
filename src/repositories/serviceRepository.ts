@@ -5,7 +5,7 @@ export type Environment = {
   order: number;
 };
 
-export type CIProvider = "github" | "jenkins";
+export type CIProvider = "github" | "jenkins" | "raw";
 
 // Provider-specific dispatch configuration. What each provider needs to trigger
 // a deployment lives in its own variant — a GitHub service cannot hold a
@@ -23,7 +23,14 @@ export type JenkinsDeployment = {
   jobName: string;
 };
 
-export type Deployment = GithubDeployment | JenkinsDeployment;
+// Raw webhook: GitLaunch POSTs { buildId, environment } to a customer endpoint
+// to trigger a deploy. Deploy status still comes back via the reporting API.
+export type RawDeployment = {
+  provider: "raw";
+  endpointUrl: string;
+};
+
+export type Deployment = GithubDeployment | JenkinsDeployment | RawDeployment;
 
 export type Service = {
   _id: ObjectId;
@@ -35,7 +42,9 @@ export type Service = {
   // Source repo URL for commit links (buildId is the SHA) — every service has
   // one regardless of provider, so a Jenkins shop never needs the GitHub App.
   repoUrl: string;
-  deployment: Deployment;
+  // null until CD is configured (onboarding creates a service with just a name
+  // + repoUrl, then sets the deployment in the deploy-setup step).
+  deployment: Deployment | null;
   createdAt: Date;
 };
 
@@ -88,12 +97,17 @@ export class ServiceRepository {
   async create(input: CreateServiceInput): Promise<Service> {
     const now = new Date();
     // Provider-first callers pass a deployment; the GitHub shorthand builds one
-    // from repositoryId for backward compatibility.
-    const deployment: Deployment = input.deployment ?? {
-      provider: "github",
-      repositoryId: input.repositoryId as ObjectId,
-      workflowFile: input.workflowFile || "deploy.yml",
-    };
+    // from repositoryId. With neither, CD is not configured yet (null) — the
+    // onboarding step-1 shape (name + repoUrl only).
+    const deployment: Deployment | null = input.deployment
+      ? input.deployment
+      : input.repositoryId
+        ? {
+            provider: "github",
+            repositoryId: input.repositoryId,
+            workflowFile: input.workflowFile || "deploy.yml",
+          }
+        : null;
     const service: Omit<Service, "_id"> = {
       accountId: input.accountId,
       name: input.name,
@@ -117,9 +131,16 @@ export class ServiceRepository {
     }
     const repoUrl = service.repoUrl ?? "";
     const legacy = service as Service & LegacyServiceFields;
-    let deployment = service.deployment;
+    // Distinguish an explicit null (CD not configured yet) from a missing field
+    // on a legacy document (reconstruct from the flat fields).
+    const stored = (service as { deployment?: Deployment | null }).deployment;
 
-    if (!deployment) {
+    if (stored === null) {
+      return { ...service, repoUrl, deployment: null };
+    }
+
+    let deployment: Deployment;
+    if (stored === undefined) {
       // Pre-Stage-2 flat document: reconstruct the whole union.
       deployment =
         legacy.ciProvider === "jenkins"
@@ -130,16 +151,18 @@ export class ServiceRepository {
               workflowFile: legacy.workflowFile ?? "deploy.yml",
             };
     } else if (
-      deployment.provider === "github" &&
-      !(deployment as Partial<GithubDeployment>).repositoryId
+      stored.provider === "github" &&
+      !(stored as Partial<GithubDeployment>).repositoryId
     ) {
       // Stage 2 document: the GitHub variant existed but repositoryId still
       // lived at the top level — fold it into the variant.
       deployment = {
         provider: "github",
         repositoryId: legacy.repositoryId as ObjectId,
-        workflowFile: deployment.workflowFile,
+        workflowFile: stored.workflowFile,
       };
+    } else {
+      deployment = stored;
     }
 
     return { ...service, repoUrl, deployment };
@@ -225,7 +248,7 @@ export class ServiceRepository {
     if (!current) {
       return null;
     }
-    if (current.deployment.provider !== "github") {
+    if (current.deployment?.provider !== "github") {
       return current;
     }
 

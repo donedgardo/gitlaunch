@@ -4,47 +4,55 @@
   {{#if isOobSwap}}hx-swap-oob="outerHTML"{{/if}}
   class="px-4 py-3 text-center"
 >
-  {{#if (showDeployButton status) }}
-    <button
-      hx-patch="/services/{{serviceId}}/builds/{{buildId}}/deploy/{{env}}"
-      hx-target="#{{serviceName}}-{{buildId}}-{{env}}"
-      hx-disabled-elt="this"
-      hx-on::before-request="this.innerHTML='<span class=\'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200\'>dispatching</span>'; this.className='px-3 py-1.5';"
-      class="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-colors"
-    >
-      Deploy
-    </button>
+  {{#if canDispatch}}
+    {{#if (showDeployButton status) }}
+      <button
+        hx-patch="/services/{{serviceId}}/builds/{{buildId}}/deploy/{{env}}"
+        hx-target="#{{serviceName}}-{{buildId}}-{{env}}"
+        hx-disabled-elt="this"
+        hx-on::before-request="this.innerHTML='<span class=\'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200\'>dispatching</span>'; this.className='px-3 py-1.5';"
+        class="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-colors"
+      >
+        Deploy
+      </button>
+    {{else}}
+      <div class="inline-flex items-center gap-1">
+        <span class="{{getStatusBadgeClass status}}">{{status}}</span>
+        {{#if (canCancel status)}}
+          <button
+            hx-delete="/services/{{serviceId}}/builds/{{buildId}}/deploy/{{env}}"
+            hx-target="#{{serviceName}}-{{buildId}}-{{env}}"
+            hx-disabled-elt="this"
+            hx-on::before-request="this.closest('div').querySelector('span').textContent='cancelling';"
+            class="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+            title="Cancel deployment"
+          >
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        {{/if}}
+        {{#if (canRedeploy status)}}
+          <button
+            hx-patch="/services/{{serviceId}}/builds/{{buildId}}/deploy/{{env}}"
+            hx-target="#{{serviceName}}-{{buildId}}-{{env}}"
+            hx-disabled-elt="this"
+            hx-on::before-request="this.closest('div').innerHTML='<span class=\'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200\'>dispatching</span>';"
+            class="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+            title="Redeploy"
+          >
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+            </svg>
+          </button>
+        {{/if}}
+      </div>
+    {{/if}}
   {{else}}
-    <div class="inline-flex items-center gap-1">
+    {{#if status}}
       <span class="{{getStatusBadgeClass status}}">{{status}}</span>
-      {{#if (canCancel status)}}
-        <button
-          hx-delete="/services/{{serviceId}}/builds/{{buildId}}/deploy/{{env}}"
-          hx-target="#{{serviceName}}-{{buildId}}-{{env}}"
-          hx-disabled-elt="this"
-          hx-on::before-request="this.closest('div').querySelector('span').textContent='cancelling';"
-          class="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
-          title="Cancel deployment"
-        >
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-          </svg>
-        </button>
-      {{/if}}
-      {{#if (canRedeploy status)}}
-        <button
-          hx-patch="/services/{{serviceId}}/builds/{{buildId}}/deploy/{{env}}"
-          hx-target="#{{serviceName}}-{{buildId}}-{{env}}"
-          hx-disabled-elt="this"
-          hx-on::before-request="this.closest('div').innerHTML='<span class=\'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200\'>dispatching</span>';"
-          class="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-          title="Redeploy"
-        >
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-          </svg>
-        </button>
-      {{/if}}
-    </div>
+    {{else}}
+      <span class="text-xs text-gray-400 dark:text-gray-500">—</span>
+    {{/if}}
   {{/if}}
 </td>

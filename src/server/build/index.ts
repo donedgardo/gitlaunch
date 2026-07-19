@@ -106,6 +106,7 @@ export default function (deps: BuildRoutesDeps) {
                   serviceName: event.serviceName,
                   serviceId: event.serviceId,
                   status: event.status,
+                  canDispatch: event.canDispatch,
                   isOobSwap: true,
                 });
                 yield {
@@ -228,6 +229,7 @@ export default function (deps: BuildRoutesDeps) {
                 serviceName,
                 serviceId: service._id.toString(),
                 repoUrl: service.repoUrl || "",
+                canDispatch: service.deployment != null,
               };
 
               const html = buildRowTemplate(buildData);

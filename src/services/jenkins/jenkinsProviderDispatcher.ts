@@ -20,7 +20,7 @@ export class JenkinsProviderDispatcher implements ProviderDispatcher {
     buildId,
     environment,
   }: DispatchContext): Promise<void> {
-    if (service.deployment.provider !== "jenkins") {
+    if (service.deployment?.provider !== "jenkins") {
       throw new Error("Service is not configured for Jenkins deployment");
     }
     const apiToken = await this.jenkinsConnection.getDecryptedToken(

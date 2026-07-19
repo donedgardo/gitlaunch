@@ -42,6 +42,10 @@ export class BuildDispatchService implements BuildDispatchServiceI {
       throw new Error("Service not found");
     }
 
+    if (!service.deployment) {
+      throw new Error("Deployment is not configured for this service yet");
+    }
+
     const dispatcher = this.dispatchers.get(service.deployment.provider);
     if (!dispatcher) {
       throw new Error(

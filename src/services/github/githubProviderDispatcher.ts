@@ -20,7 +20,7 @@ export class GithubProviderDispatcher implements ProviderDispatcher {
     buildId,
     environment,
   }: DispatchContext): Promise<void> {
-    if (service.deployment.provider !== "github") {
+    if (service.deployment?.provider !== "github") {
       throw new Error("Service is not configured for GitHub deployment");
     }
     if (!account.githubConnection) {

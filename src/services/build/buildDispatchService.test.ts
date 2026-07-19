@@ -288,6 +288,24 @@ describe("BuildDispatchService", () => {
         service.dispatch(account._id, svc._id, "build-123", "staging"),
       ).rejects.toThrow("Jenkins job name is not configured for this service");
     });
+
+    it("should refuse to dispatch when no deployment is configured", async () => {
+      // Given: a service whose CD is not set up yet (deployment null)
+      const account = await accountRepo.create({
+        name: "Pending Org",
+        slug: "pending-org",
+      });
+      const svc = await serviceRepo.create({
+        accountId: account._id,
+        name: "pending",
+        repoUrl: "https://github.com/pending/svc",
+      });
+
+      // When/Then: dispatching explains CD isn't configured
+      await expect(
+        service.dispatch(account._id, svc._id, "build-123", "staging"),
+      ).rejects.toThrow(/not configured/i);
+    });
   });
 });
 

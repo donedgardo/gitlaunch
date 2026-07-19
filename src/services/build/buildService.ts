@@ -11,6 +11,9 @@ export type BuildUpdateEvent = {
   status: DeploymentStatus;
   serviceId: string;
   serviceName: string;
+  // Report-only (manual) services have no dispatch — their rows show status
+  // without Deploy/Redeploy controls.
+  canDispatch: boolean;
 };
 
 export type CreateBuildInput = {
@@ -122,12 +125,14 @@ export class BuildService {
     }
 
     // Build SSE events
+    const canDispatch = service.deployment != null;
     const updateEvent: BuildUpdateEvent = {
       buildId: build.buildId,
       environment: input.environment,
       status: input.status,
       serviceId: input.serviceId.toString(),
       serviceName: service.name,
+      canDispatch,
     };
 
     const events: BuildUpdateEvent[] = [updateEvent];
@@ -147,6 +152,7 @@ export class BuildService {
           status: DeploymentStatus.NONE,
           serviceId: input.serviceId.toString(),
           serviceName: service.name,
+          canDispatch,
         });
       }
     }
