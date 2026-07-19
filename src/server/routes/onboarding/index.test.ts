@@ -13,6 +13,8 @@ import { ServiceRepository } from "../../../repositories/serviceRepository";
 import { MembershipRepository } from "../../../repositories/membershipRepository";
 import { UserRepository } from "../../../repositories/userRepository";
 import { TrialRegistryRepository } from "../../../repositories/trialRegistryRepository";
+import { ApiKeyRepository } from "../../../repositories/apiKeyRepository";
+import { ApiKeyService } from "../../../services/apiKey/apiKeyService";
 import { GitHubAppService } from "../../../services/github/githubAppService";
 import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
 import { TrialService } from "../../../services/billing/trialService";
@@ -55,9 +57,11 @@ describe("Onboarding Routes", () => {
   let app: FastifyInstance;
   let accountRepo: AccountRepository;
   let repositoryRepo: RepositoryRepository;
+  let serviceRepo: ServiceRepository;
   let membershipRepo: MembershipRepository;
   let userRepo: UserRepository;
   let trialRegistryRepo: TrialRegistryRepository;
+  let apiKeyService: ApiKeyService;
   let planEnforcementService: PlanEnforcementService;
   let trialService: TrialService;
   let fakeGitHubAppService: FakeGitHubAppService;
@@ -85,14 +89,16 @@ describe("Onboarding Routes", () => {
     await db.collection("memberships").deleteMany({});
     await db.collection("users").deleteMany({});
     await db.collection("trialRegistry").deleteMany({});
+    await db.collection("apiKeys").deleteMany({});
 
     accountRepo = new AccountRepository(db);
     repositoryRepo = new RepositoryRepository(db);
-    const serviceRepo = new ServiceRepository(db);
+    serviceRepo = new ServiceRepository(db);
     membershipRepo = new MembershipRepository(db);
     userRepo = new UserRepository(db);
     trialRegistryRepo = new TrialRegistryRepository(db);
     await trialRegistryRepo.ensureIndexes();
+    apiKeyService = new ApiKeyService(new ApiKeyRepository(db), accountRepo);
 
     planEnforcementService = new PlanEnforcementService(
       accountRepo,
@@ -113,7 +119,9 @@ describe("Onboarding Routes", () => {
       accountRepository: accountRepo,
       repositoryRepository: repositoryRepo,
       userRepository: userRepo,
+      serviceRepository: serviceRepo,
       gitHubAppService: fakeGitHubAppService as unknown as GitHubAppService,
+      apiKeyService,
       planEnforcementService,
       trialService,
     });
@@ -168,6 +176,111 @@ describe("Onboarding Routes", () => {
       // Then: they skip the fork and go straight to repo selection
       expect(response.statusCode).toBe(302);
       expect(response.headers.location).toBe("/onboarding/repositories");
+    });
+  });
+
+  describe("Reporting-first onboarding (service → report builds)", () => {
+    async function authedAccount(slug: string) {
+      const account = await accountRepo.create({ name: slug, slug });
+      const session = sessionService.createSession({
+        userId: new ObjectId(),
+        accountId: account._id,
+      });
+      return { account, session };
+    }
+
+    it("plan selection leads to service creation", async () => {
+      const { session } = await authedAccount("plan-org");
+      const response = await app.inject({
+        method: "POST",
+        url: "/onboarding/select-plan",
+        cookies: { session },
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        payload: "plan=free",
+      });
+      expect(response.statusCode).toBe(302);
+      expect(response.headers.location).toBe("/onboarding/service");
+    });
+
+    it("creates a report-only service (no CD) and advances to report-builds", async () => {
+      const { account, session } = await authedAccount("svc-org");
+
+      const response = await app.inject({
+        method: "POST",
+        url: "/onboarding/service",
+        cookies: { session },
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        payload: "name=api&repoUrl=https://github.com/acme/api",
+      });
+
+      // Redirects into the report-builds step for the new service
+      expect(response.statusCode).toBe(302);
+      const created = await serviceRepo.findByAccountIdAndName(
+        account._id,
+        "api",
+      );
+      expect(created).not.toBeNull();
+      expect(created?.repoUrl).toBe("https://github.com/acme/api");
+      // CD is not configured yet — that's the deploy-setup step
+      expect(created?.deployment).toBeNull();
+      expect(response.headers.location).toBe(
+        `/onboarding/report-builds/${created?._id}`,
+      );
+    });
+
+    it("re-renders the form with an error when fields are missing", async () => {
+      const { account, session } = await authedAccount("empty-org");
+
+      const response = await app.inject({
+        method: "POST",
+        url: "/onboarding/service",
+        cookies: { session },
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        payload: "name=&repoUrl=",
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain('data-template="onboarding/service"');
+      const services = await serviceRepo.findByAccountId(account._id);
+      expect(services).toHaveLength(0);
+    });
+
+    it("renders the report-builds guide for an owned service", async () => {
+      const { account, session } = await authedAccount("guide-org");
+      const service = await serviceRepo.create({
+        accountId: account._id,
+        name: "api",
+        repoUrl: "https://github.com/acme/api",
+      });
+
+      const response = await app.inject({
+        method: "GET",
+        url: `/onboarding/report-builds/${service._id}`,
+        cookies: { session },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain(
+        'data-template="onboarding/report-builds"',
+      );
+    });
+
+    it("returns 404 for a service the account does not own", async () => {
+      const { session } = await authedAccount("outsider-org");
+      const other = await accountRepo.create({ name: "Other", slug: "other" });
+      const service = await serviceRepo.create({
+        accountId: other._id,
+        name: "secret",
+        repoUrl: "https://github.com/other/secret",
+      });
+
+      const response = await app.inject({
+        method: "GET",
+        url: `/onboarding/report-builds/${service._id}`,
+        cookies: { session },
+      });
+
+      expect(response.statusCode).toBe(404);
     });
   });
 
@@ -236,7 +349,7 @@ describe("Onboarding Routes", () => {
 
       // Then: redirects to GitHub App install (skip plan selection)
       expect(response.statusCode).toBe(302);
-      expect(response.headers.location).toBe("/onboarding");
+      expect(response.headers.location).toBe("/onboarding/service");
     });
   });
 
@@ -269,7 +382,7 @@ describe("Onboarding Routes", () => {
 
       // Then: redirects to GitHub App install
       expect(response.statusCode).toBe(302);
-      expect(response.headers.location).toBe("/onboarding");
+      expect(response.headers.location).toBe("/onboarding/service");
 
       // And: account plan is set to Free
       const updatedAccount = await accountRepo.findById(account._id);
@@ -312,7 +425,7 @@ describe("Onboarding Routes", () => {
 
       // Then: redirects to GitHub App install
       expect(response.statusCode).toBe(302);
-      expect(response.headers.location).toBe("/onboarding");
+      expect(response.headers.location).toBe("/onboarding/service");
 
       // And: account plan is set to Pro
       const updatedAccount = await accountRepo.findById(account._id);
@@ -355,7 +468,7 @@ describe("Onboarding Routes", () => {
 
       // Then: redirects to GitHub App install
       expect(response.statusCode).toBe(302);
-      expect(response.headers.location).toBe("/onboarding");
+      expect(response.headers.location).toBe("/onboarding/service");
 
       // And: account plan is set to Team
       const updatedAccount = await accountRepo.findById(account._id);

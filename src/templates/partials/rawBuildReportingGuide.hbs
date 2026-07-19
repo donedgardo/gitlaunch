@@ -1,0 +1,47 @@
+<!-- Raw curl build reporting. Vars: apiUrl, serviceId, apiKey (optional) -->
+<div>
+  <p class="text-sm text-gray-500 dark:text-gray-400 mb-3">
+    From any CI system, POST your commit SHA to GitLaunch when a build succeeds:
+  </p>
+  <div class="relative">
+    <div class="bg-gray-900 dark:bg-gray-950 rounded-xl p-4 font-mono text-xs text-green-400 overflow-x-auto">
+      <pre class="whitespace-pre"><code>curl -X POST \
+  {{apiUrl}}/api/v1/services/{{serviceId}}/builds \
+  -H "Authorization: Bearer {{#if apiKey}}{{apiKey}}{{else}}$GITLAUNCH_API_KEY{{/if}}" \
+  -H "Content-Type: application/json" \
+  -d "{\"buildId\":\"$COMMIT_SHA\"}"</code></pre>
+    </div>
+    <button
+      onclick="copyRawBuildCode()"
+      class="absolute top-3 right-3 p-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
+      title="Copy to clipboard"
+    >
+      <svg id="raw_build_copy_icon" style="width: 20px; height: 20px;" class="text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+      </svg>
+      <svg id="raw_build_check_icon" style="width: 20px; height: 20px; display: none;" class="text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+      </svg>
+    </button>
+  </div>
+  <p class="mt-3 text-xs text-gray-500 dark:text-gray-400">
+    Set <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">$COMMIT_SHA</code> to your build's commit
+    (e.g. <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">git rev-parse HEAD</code>).
+  </p>
+</div>
+
+<script>
+function copyRawBuildCode() {
+  var code = 'curl -X POST \\\n  {{apiUrl}}/api/v1/services/{{serviceId}}/builds \\\n  -H "Authorization: Bearer {{#if apiKey}}{{apiKey}}{{else}}$GITLAUNCH_API_KEY{{/if}}" \\\n  -H "Content-Type: application/json" \\\n  -d "{\\"buildId\\":\\"$COMMIT_SHA\\"}"';
+  var copyIcon = document.getElementById('raw_build_copy_icon');
+  var checkIcon = document.getElementById('raw_build_check_icon');
+  navigator.clipboard.writeText(code).then(function () {
+    copyIcon.style.display = 'none';
+    checkIcon.style.display = 'block';
+    setTimeout(function () {
+      copyIcon.style.display = 'block';
+      checkIcon.style.display = 'none';
+    }, 2000);
+  });
+}
+</script>

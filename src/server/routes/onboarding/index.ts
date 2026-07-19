@@ -6,7 +6,9 @@ import {
 } from "../../../repositories/accountRepository";
 import { RepositoryRepository } from "../../../repositories/repositoryRepository";
 import { UserRepository } from "../../../repositories/userRepository";
+import { ServiceRepository } from "../../../repositories/serviceRepository";
 import { GitHubAppService } from "../../../services/github/githubAppService";
+import { ApiKeyService } from "../../../services/apiKey/apiKeyService";
 import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
 import { TrialService } from "../../../services/billing/trialService";
 import { AnalyticsService } from "../../../services/analytics/analytics";
@@ -15,7 +17,9 @@ export type OnboardingRoutesDeps = {
   accountRepository: AccountRepository;
   repositoryRepository: RepositoryRepository;
   userRepository: UserRepository;
+  serviceRepository: ServiceRepository;
   gitHubAppService: GitHubAppService;
+  apiKeyService: ApiKeyService;
   planEnforcementService: PlanEnforcementService;
   trialService: TrialService;
   analytics?: AnalyticsService;
@@ -29,7 +33,9 @@ export function registerOnboardingRoutes(
     accountRepository,
     repositoryRepository,
     userRepository,
+    serviceRepository,
     gitHubAppService,
+    apiKeyService,
     planEnforcementService,
     trialService,
     analytics,
@@ -52,9 +58,10 @@ export function registerOnboardingRoutes(
         return reply.redirect("/auth/github");
       }
 
-      // If account already has a non-Free plan set (returning user), skip to GitHub App install
+      // If account already has a non-Free plan set (returning user), skip to
+      // service creation.
       if (account.plan !== Plan.Free) {
-        return reply.redirect("/onboarding");
+        return reply.redirect("/onboarding/service");
       }
 
       // Show plan selection page
@@ -132,8 +139,181 @@ export function registerOnboardingRoutes(
         accountId: account._id.toString(),
       });
 
-      // Redirect to GitHub App install step
-      return reply.redirect("/onboarding");
+      // Reporting-first onboarding: create the service next.
+      return reply.redirect("/onboarding/service");
+    },
+  );
+
+  // GET /onboarding/service - Step 1: name your service + repo URL
+  app.get(
+    "/onboarding/service",
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      if (!request.session) {
+        return reply.redirect("/auth/github");
+      }
+      analytics?.navigation("onboarding_service");
+      return reply.view(
+        "onboarding/service",
+        { title: "Create your service" },
+        { layout: "/layouts/main.hbs" },
+      );
+    },
+  );
+
+  // POST /onboarding/service - Create a report-only service (no CD yet)
+  app.post<{ Body: { name?: string; repoUrl?: string } }>(
+    "/onboarding/service",
+    async (
+      request: FastifyRequest<{ Body: { name?: string; repoUrl?: string } }>,
+      reply: FastifyReply,
+    ) => {
+      if (!request.session) {
+        return reply.redirect("/auth/github");
+      }
+      const account = await accountRepository.findById(
+        new ObjectId(request.session.accountId),
+      );
+      if (!account) {
+        return reply.redirect("/auth/github");
+      }
+
+      const name = request.body.name?.trim() || "";
+      const repoUrl = request.body.repoUrl?.trim() || "";
+
+      const renderError = (error: string) =>
+        reply.view(
+          "onboarding/service",
+          { title: "Create your service", error, name, repoUrl },
+          { layout: "/layouts/main.hbs" },
+        );
+
+      if (!name || !repoUrl) {
+        return renderError("Enter a service name and a repository URL.");
+      }
+
+      const canAdd = await planEnforcementService.canAddService(account._id);
+      if (!canAdd.allowed) {
+        return renderError(canAdd.reason ?? "Service limit reached.");
+      }
+
+      let service;
+      try {
+        // No deployment yet — CD is configured in the deploy-setup step.
+        service = await serviceRepository.create({
+          accountId: account._id,
+          name,
+          repoUrl,
+        });
+      } catch (error: any) {
+        if (error.code === 11000) {
+          return renderError("A service with this name already exists.");
+        }
+        throw error;
+      }
+
+      const { key } = await apiKeyService.generate({
+        accountId: account._id,
+        createdByUserId: new ObjectId(request.session.userId),
+        name: `${name} API Key`,
+        scopes: ["builds:read", "builds:write", "deployments:write"],
+      });
+      // Signed cookie so the reporting guide can show the key once.
+      reply.setCookie("onboarding_api_key", key, {
+        signed: true,
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        path: "/",
+        maxAge: 3600,
+      });
+
+      analytics?.track("service_created", {
+        serviceName: name,
+        accountId: account._id.toString(),
+        provider: "onboarding",
+      });
+
+      return reply.redirect(`/onboarding/report-builds/${service._id}`);
+    },
+  );
+
+  // GET /onboarding/report-builds/:serviceId - Step 2: report a build (tabs)
+  app.get<{ Params: { serviceId: string } }>(
+    "/onboarding/report-builds/:serviceId",
+    async (
+      request: FastifyRequest<{ Params: { serviceId: string } }>,
+      reply: FastifyReply,
+    ) => {
+      if (!request.session) {
+        return reply.redirect("/auth/github");
+      }
+      const accountId = new ObjectId(request.session.accountId);
+
+      let serviceObjectId: ObjectId;
+      try {
+        serviceObjectId = new ObjectId(request.params.serviceId);
+      } catch {
+        return reply.status(400).send("Invalid service ID");
+      }
+      const service = await serviceRepository.findByAccountAndId(
+        accountId,
+        serviceObjectId,
+      );
+      if (!service) {
+        return reply.status(404).send("Service not found");
+      }
+
+      const apiKeyCookie = request.cookies.onboarding_api_key;
+      const apiKey = apiKeyCookie
+        ? reply.unsignCookie(apiKeyCookie).value
+        : null;
+
+      const environments = [...service.environments].sort(
+        (a, b) => a.order - b.order,
+      );
+
+      analytics?.navigation("onboarding_report_builds");
+      return reply.view(
+        "onboarding/report-builds",
+        {
+          title: "Report your first build",
+          serviceId: service._id.toString(),
+          serviceName: service.name,
+          apiUrl: process.env.PUBLIC_URL,
+          apiKey,
+          firstEnv: environments[0]?.name ?? "staging",
+        },
+        { layout: "/layouts/main.hbs" },
+      );
+    },
+  );
+
+  // GET /onboarding/setup-deploy/:serviceId - Step 3: set up CD.
+  // TODO(Slice C): render the deploy-setup tabs. For now, land on the dashboard.
+  app.get<{ Params: { serviceId: string } }>(
+    "/onboarding/setup-deploy/:serviceId",
+    async (
+      request: FastifyRequest<{ Params: { serviceId: string } }>,
+      reply: FastifyReply,
+    ) => {
+      if (!request.session) {
+        return reply.redirect("/auth/github");
+      }
+      const accountId = new ObjectId(request.session.accountId);
+      let serviceObjectId: ObjectId;
+      try {
+        serviceObjectId = new ObjectId(request.params.serviceId);
+      } catch {
+        return reply.status(400).send("Invalid service ID");
+      }
+      const service = await serviceRepository.findByAccountAndId(
+        accountId,
+        serviceObjectId,
+      );
+      if (!service) {
+        return reply.status(404).send("Service not found");
+      }
+      return reply.redirect(`/dashboard/${service.name}`);
     },
   );
 
