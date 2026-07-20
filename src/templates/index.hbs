@@ -34,10 +34,10 @@
 
   /* Hero */
   .hero { position: relative; padding: clamp(48px, 8vw, 96px) 0 clamp(40px, 6vw, 72px); background-image: var(--glow); }
-  .hero-grid { display: grid; grid-template-columns: 1.02fr 1fr; gap: clamp(28px, 4vw, 56px); align-items: center; }
+  .hero-grid { display: grid; grid-template-columns: minmax(0, 1.02fr) minmax(0, 1fr); gap: clamp(28px, 4vw, 56px); align-items: center; }
   .eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--accent-ink); display: inline-flex; align-items: center; gap: 9px; background: var(--accent-soft); border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent); padding: 6px 12px; border-radius: 999px; }
   h1 { font-size: clamp(38px, 5.6vw, 66px); line-height: 1.02; letter-spacing: -.032em; font-weight: 820; margin: 22px 0 0; text-wrap: balance; }
-  h1 .u { color: var(--accent); position: relative; white-space: nowrap; }
+  h1 .u { color: var(--accent); position: relative; }
   .subhead { font-size: clamp(16px, 1.9vw, 20px); color: var(--muted); max-width: 40ch; margin: 20px 0 0; text-wrap: balance; }
   .cta-row { display: flex; flex-wrap: wrap; gap: 12px; margin: 30px 0 0; }
   .cta-row .btn { padding: 13px 22px; font-size: 15px; }
@@ -45,37 +45,36 @@
   .trust .ci { color: var(--muted); border: 1px solid var(--line); border-radius: 6px; padding: 3px 8px; background: var(--surface); }
 
   /* Board (signature) */
-  .board-frame { position: relative; }
-  .board { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow-lg); overflow: hidden; }
+  .board-frame { position: relative; min-width: 0; }
+  .board { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow-lg); overflow: hidden; max-width: 100%; }
   .board-bar { display: flex; align-items: center; gap: 10px; padding: 13px 16px; background: var(--surface-2); border-bottom: 1px solid var(--line); font-family: var(--mono); font-size: 12px; color: var(--muted); }
   .dot3 { display: flex; gap: 6px; }
   .dot3 span { width: 10px; height: 10px; border-radius: 50%; background: var(--line-strong); }
   .board-bar .path { color: var(--faint); }
   .board-bar .rel { margin-left: auto; color: var(--accent-ink); }
-  .envs { display: grid; grid-template-columns: 1fr; }
-  .env { padding: 16px 18px; border-bottom: 1px solid var(--line); display: grid; grid-template-columns: 92px 1fr auto; gap: 14px; align-items: center; }
-  .env:last-child { border-bottom: none; }
-  .env-name { font-family: var(--mono); font-size: 11px; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
-  .build { font-family: var(--mono); font-size: 14.5px; font-weight: 600; letter-spacing: -.01em; }
+  /* Release table — environments as COLUMNS, builds as ROWS (matches the app) */
+  .rgrid { display: grid; grid-template-columns: 1.6fr 1fr 1fr; }
+  .rcell { padding: 13px 14px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 4px; min-height: 60px; min-width: 0; }
+  .rcell .build, .rcell .build-sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .rgrid .rcell:nth-child(3n+2), .rgrid .rcell:nth-child(3n) { border-left: 1px solid var(--line); }
+  .rgrid .rcell:nth-last-child(-n+3) { border-bottom: none; }
+  .rcell.rhead { min-height: 0; padding: 11px 16px; background: var(--surface-2); font-family: var(--mono); font-size: 10.5px; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); }
+  .build { font-family: var(--mono); font-size: 14px; font-weight: 600; letter-spacing: -.01em; }
   .build .sha { color: var(--accent-ink); }
-  .build-sub { font-family: var(--mono); font-size: 11px; color: var(--faint); margin-top: 3px; transition: color .3s ease; }
+  .build-sub { font-family: var(--mono); font-size: 10.5px; color: var(--faint); transition: color .3s ease; }
   .pill { font-family: var(--mono); font-size: 10px; letter-spacing: .05em; text-transform: uppercase; padding: 4px 9px; border-radius: 999px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
   .pill.live { color: var(--ok); background: color-mix(in srgb, var(--ok) 16%, transparent); }
-  .pill.stage { color: var(--stage); background: color-mix(in srgb, var(--stage) 16%, transparent); }
-  .pill.ready { color: var(--amber); background: color-mix(in srgb, var(--amber) 18%, transparent); }
   .live-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; animation: pulse 2.4s ease-in-out infinite; }
   @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
-  .env-act { font-family: var(--mono); font-size: 11px; padding: 7px 12px; border-radius: 8px; border: 1px solid var(--accent); background: var(--accent); color: #fff; font-weight: 600; white-space: nowrap; }
-  .env-act.ghost { background: var(--surface-2); border-color: var(--line-strong); color: var(--muted); }
-  /* promote progress */
-  .promo { grid-column: 1 / -1; height: 0; overflow: hidden; transition: height .3s ease; }
-  .promo.on { height: 26px; }
-  .promo-track { height: 5px; border-radius: 4px; background: var(--surface-2); overflow: hidden; margin-top: 8px; }
-  .promo-fill { height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), var(--accent-2)); border-radius: 4px; transition: width 1.7s cubic-bezier(.4,.1,.2,1); }
-  .promo-fill.go { width: 100%; }
-  .promo-label { font-family: var(--mono); font-size: 10px; color: var(--accent-ink); letter-spacing: .05em; }
+  .cbtn { font-family: var(--mono); font-size: 11px; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--accent); background: var(--accent); color: #fff; font-weight: 600; white-space: nowrap; }
+  .cbtn.ghost { background: var(--surface-2); border-color: var(--line-strong); color: var(--muted); }
+  /* one-click deploy progress (inside a cell) */
+  .cprog { height: 0; width: 100%; max-width: 100px; border-radius: 4px; background: var(--surface-2); overflow: hidden; transition: height .25s ease; }
+  .cprog.on { height: 4px; }
+  .cprog-fill { height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), var(--accent-2)); border-radius: 4px; transition: width 1.7s cubic-bezier(.4,.1,.2,1); }
+  .cprog-fill.go { width: 100%; }
   @keyframes flash { 0% { background: var(--accent-soft); } 100% { background: transparent; } }
-  .env.flash { animation: flash 1.4s ease-out; }
+  .rcell.flash { animation: flash 1.4s ease-out; }
   .float-tag { position: absolute; right: -14px; top: -16px; background: var(--ink); color: var(--bg); font-family: var(--mono); font-size: 11px; padding: 7px 12px; border-radius: 999px; box-shadow: var(--shadow); transform: rotate(2deg); }
   .float-tag b { color: var(--accent-2); }
 
@@ -189,42 +188,41 @@
       </div>
 
       <div class="board-frame rise d5">
-        <div class="float-tag">promoted in <b>one click</b></div>
-        <div class="board" id="board" role="img" aria-label="A GitLaunch release board: build 4297 promoting from staging to production">
+        <div class="float-tag">deployed in <b>one click</b></div>
+        <div class="board" id="board" role="img" aria-label="A GitLaunch release board: builds as rows, environments as columns; build 4298 deploying to production in one click">
           <div class="board-bar">
             <span class="dot3"><span></span><span></span><span></span></span>
             <span class="path">web-app · release board</span>
-            <span class="rel" id="relTag">v2.15.0</span>
+            <span class="rel">v2.15.0</span>
           </div>
-          <div class="envs">
-            <div class="env" id="envProd">
-              <span class="env-name">Production</span>
-              <div>
-                <div class="build">build&nbsp;#<span id="prodNo">4291</span> · <span class="sha" id="prodSha">a3f9c2</span></div>
-                <div class="build-sub" id="prodSub">live 3d · deployed by ci</div>
-              </div>
-              <span class="pill live"><span class="live-dot"></span>Deployed</span>
+          <div class="rgrid">
+            <div class="rcell rhead">Commit</div>
+            <div class="rcell rhead">Staging</div>
+            <div class="rcell rhead">Production</div>
+
+            <div class="rcell">
+              <div class="build">#4298 · <span class="sha">c0d5aa</span></div>
+              <div class="build-sub">18m ago · ci</div>
             </div>
-            <div class="env" id="envStage">
-              <span class="env-name">Staging</span>
-              <div>
-                <div class="build">build&nbsp;#4297 · <span class="sha">7e1b04</span></div>
-                <div class="build-sub">verified · qa-maria · v2.15.0</div>
-              </div>
-              <span class="env-act" id="promoteBtn">Promote to prod</span>
-              <div class="promo" id="promo">
-                <div class="promo-label" id="promoLabel">Promoting #4297 to production…</div>
-                <div class="promo-track"><div class="promo-fill" id="promoFill"></div></div>
-              </div>
+            <div class="rcell"><span class="pill live"><span class="live-dot"></span>Live</span></div>
+            <div class="rcell" id="cellProd">
+              <span class="cbtn" id="deployBtn">Deploy</span>
+              <div class="cprog" id="cprog"><div class="cprog-fill" id="cprogFill"></div></div>
             </div>
-            <div class="env">
-              <span class="env-name">QA / Preview</span>
-              <div>
-                <div class="build">build&nbsp;#4298 · <span class="sha">c0d5aa</span></div>
-                <div class="build-sub">18m ago · ci · v2.15.0-rc2</div>
-              </div>
-              <span class="env-act ghost">Promote</span>
+
+            <div class="rcell">
+              <div class="build">#4297 · <span class="sha">7e1b04</span></div>
+              <div class="build-sub">2h ago · qa-maria</div>
             </div>
+            <div class="rcell"><span class="cbtn ghost">Deploy</span></div>
+            <div class="rcell"><span class="cbtn ghost">Deploy</span></div>
+
+            <div class="rcell">
+              <div class="build">#4291 · <span class="sha">a3f9c2</span></div>
+              <div class="build-sub">3d ago · ci</div>
+            </div>
+            <div class="rcell"><span class="cbtn ghost">Deploy</span></div>
+            <div class="rcell" id="cellOld"><span class="pill live"><span class="live-dot"></span>Live&nbsp;3d</span></div>
           </div>
         </div>
       </div>
@@ -345,33 +343,31 @@
 <script>
   (function () {
     var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    var promo = document.getElementById('promo');
-    var fill = document.getElementById('promoFill');
-    var label = document.getElementById('promoLabel');
-    var btn = document.getElementById('promoteBtn');
-    var envProd = document.getElementById('envProd');
-    var prodNo = document.getElementById('prodNo');
-    var prodSha = document.getElementById('prodSha');
-    var prodSub = document.getElementById('prodSub');
+    var prog = document.getElementById('cprog');
+    var fill = document.getElementById('cprogFill');
+    var btn = document.getElementById('deployBtn');
+    var cellProd = document.getElementById('cellProd'); // #4298 → production
+    var cellOld = document.getElementById('cellOld');   // #4291 currently live in prod
 
+    // Deploy build #4298 to production in one click: its Production cell flips
+    // to Live, and the previously-live #4291 rolls off.
     function settle() {
-      prodNo.textContent = '4297';
-      prodSha.textContent = '7e1b04';
-      prodSub.textContent = 'live just now · promoted by qa-maria';
-      envProd.classList.add('flash');
-      if (promo) promo.classList.remove('on');
-      if (btn) { btn.classList.add('ghost'); btn.textContent = 'Promoted ✓'; }
+      if (cellProd) {
+        cellProd.innerHTML = '<span class="pill live"><span class="live-dot"></span>Live · just now</span>';
+        cellProd.classList.add('flash');
+      }
+      if (cellOld) cellOld.innerHTML = '<span class="cbtn ghost">Deploy</span>';
     }
 
     if (reduce) { settle(); return; }
 
-    // one-time promote sequence, kicked off after the hero settles
+    // one-time deploy sequence, kicked off after the hero settles
     setTimeout(function () {
-      if (!promo) return;
-      promo.classList.add('on');
-      if (btn) btn.textContent = 'Promoting…';
+      if (!prog || !fill) { settle(); return; }
+      if (btn) btn.textContent = 'Deploying…';
+      prog.classList.add('on');
       requestAnimationFrame(function () { fill.classList.add('go'); });
-      setTimeout(function () { if (label) label.textContent = '#4297 is now live in production.'; settle(); }, 1850);
+      setTimeout(settle, 1850);
     }, 1400);
   })();
 </script>
