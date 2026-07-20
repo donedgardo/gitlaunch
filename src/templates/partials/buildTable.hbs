@@ -1,3 +1,25 @@
+{{#unless canDispatch}}
+<div class="max-w-3xl mx-auto px-4 pt-6">
+  <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-2xl p-5 mb-6">
+    <div style="display: flex; align-items: flex-start; gap: 12px;">
+      <svg style="width: 24px; height: 24px; min-width: 24px;" class="text-blue-600 dark:text-blue-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+      </svg>
+      <div style="flex: 1; min-width: 0;">
+        <h3 class="font-semibold text-blue-800 dark:text-blue-200 mb-1">Finish deploy setup</h3>
+        <p class="text-sm text-blue-700 dark:text-blue-300 mb-3">
+          This service is reporting builds but can't deploy yet. Connect a deploy target
+          — GitHub Actions, Jenkins, or a raw webhook — to launch and roll back from here.
+        </p>
+        <a href="/onboarding/setup-deploy/{{serviceId}}" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors text-sm">
+          Set up deployments
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+{{/unless}}
+
 {{#if needsDeploymentSetup}}
 <div id="build-table">
   <div class="max-w-2xl mx-auto px-4 py-10">

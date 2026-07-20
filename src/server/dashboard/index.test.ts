@@ -311,6 +311,68 @@ describe("Dashboard Routes", () => {
       // And: it shows the build table
       expect(response.body).toContain("abc123");
     });
+
+    it("shows a finish-deploy-setup CTA for a report-only service (no CD)", async () => {
+      // Given: a report-only service — created with just a name, no deployment
+      const account = await accountRepo.create({
+        name: "Test Org",
+        slug: `test-org-${Date.now()}-${Math.random()}`,
+      });
+      const accountId = account._id;
+      const service = await serviceRepo.create({
+        accountId,
+        name: "report-only-service",
+      });
+      const sessionToken = sessionService.createSession({
+        userId: new ObjectId(),
+        accountId,
+      });
+
+      // When: visiting the dashboard for it
+      const response = await app.inject({
+        method: "GET",
+        url: "/dashboard/report-only-service",
+        cookies: { session: sessionToken },
+      });
+
+      // Then: a CTA links to the deploy-setup wizard for this service
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain(
+        `/onboarding/setup-deploy/${service._id}`,
+      );
+    });
+
+    it("does not show the finish-deploy-setup CTA once a deployment is configured", async () => {
+      // Given: a service with a GitHub deployment configured
+      const account = await accountRepo.create({
+        name: "Test Org",
+        slug: `test-org-${Date.now()}-${Math.random()}`,
+      });
+      const accountId = account._id;
+      const repositoryId = new ObjectId();
+      const service = await serviceRepo.create({
+        accountId,
+        repositoryId,
+        name: "configured-service",
+      });
+      const sessionToken = sessionService.createSession({
+        userId: new ObjectId(),
+        accountId,
+      });
+
+      // When: visiting the dashboard for it
+      const response = await app.inject({
+        method: "GET",
+        url: "/dashboard/configured-service",
+        cookies: { session: sessionToken },
+      });
+
+      // Then: no report-only deploy-setup CTA
+      expect(response.statusCode).toBe(200);
+      expect(response.body).not.toContain(
+        `/onboarding/setup-deploy/${service._id}`,
+      );
+    });
   });
 
   describe("PATCH /services/:serviceId/builds/:buildId/deploy/:env", () => {

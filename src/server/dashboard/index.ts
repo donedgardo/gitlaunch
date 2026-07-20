@@ -213,12 +213,14 @@ export default function (deps: DashboardRoutesDeps) {
           serviceName,
         };
 
-        // Check if we need to show deployment setup guide
-        // Show guide when builds exist but workflow hasn't been configured yet
-        // workflowConfigured may be undefined for services created before this feature
-        // Use total instead of builds.length since builds may be empty on later pages
+        // The inline deploy-workflow guide is GitHub-specific (add deploy.yml +
+        // secrets), so only show it once a GitHub deployment is chosen but its
+        // workflow file isn't configured yet. Report-only, Jenkins, and raw
+        // services get the "finish deploy setup" CTA instead (via canDispatch).
         const needsDeploymentSetup =
-          total > 0 && activeService.workflowConfigured !== true;
+          total > 0 &&
+          activeService.deployment?.provider === "github" &&
+          activeService.workflowConfigured !== true;
 
         // Handle HTMX partial request - no layout wrapper needed
         if (req.headers["hx-request"]) {
