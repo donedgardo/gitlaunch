@@ -281,6 +281,9 @@ export function registerOnboardingRoutes(
           apiUrl: process.env.PUBLIC_URL,
           apiKey,
           firstEnv: environments[0]?.name ?? "staging",
+          // Dev-only: report a fake build to exercise the SSE → next-step flow
+          // without a real CI pipeline.
+          showSimulateBuild: process.env.ENABLE_BUILD_SIMULATION === "true",
         },
         { layout: "/layouts/main.hbs" },
       );

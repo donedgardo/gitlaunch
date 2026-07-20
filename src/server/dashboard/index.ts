@@ -284,7 +284,7 @@ export default function (deps: DashboardRoutesDeps) {
             canDispatch,
             needsDeploymentSetup,
             newApiKey,
-            showSimulateBuild: process.env.USE_FAKE_GITHUB === "true",
+            showSimulateBuild: process.env.ENABLE_BUILD_SIMULATION === "true",
             pagination,
             trialDaysRemaining: accountState.trialDaysRemaining,
             isReadOnly: accountState.isReadOnly,

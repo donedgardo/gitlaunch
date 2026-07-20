@@ -261,6 +261,51 @@ describe("Onboarding Routes", () => {
       );
     });
 
+    it("offers a dev-mode simulate-build button when ENABLE_BUILD_SIMULATION is on", async () => {
+      const { account, session } = await authedAccount("dev-org");
+      const service = await serviceRepo.create({
+        accountId: account._id,
+        name: "api",
+      });
+
+      const prev = process.env.ENABLE_BUILD_SIMULATION;
+      process.env.ENABLE_BUILD_SIMULATION = "true";
+      try {
+        const response = await app.inject({
+          method: "GET",
+          url: `/onboarding/report-builds/${service._id}`,
+          cookies: { session },
+        });
+        expect(response.statusCode).toBe(200);
+        expect(response.body).toContain("simulate-build-btn");
+      } finally {
+        if (prev === undefined) delete process.env.ENABLE_BUILD_SIMULATION;
+        else process.env.ENABLE_BUILD_SIMULATION = prev;
+      }
+    });
+
+    it("hides the simulate-build button when not in dev mode", async () => {
+      const { account, session } = await authedAccount("prod-org");
+      const service = await serviceRepo.create({
+        accountId: account._id,
+        name: "api",
+      });
+
+      const prev = process.env.ENABLE_BUILD_SIMULATION;
+      delete process.env.ENABLE_BUILD_SIMULATION;
+      try {
+        const response = await app.inject({
+          method: "GET",
+          url: `/onboarding/report-builds/${service._id}`,
+          cookies: { session },
+        });
+        expect(response.statusCode).toBe(200);
+        expect(response.body).not.toContain("simulate-build-btn");
+      } finally {
+        if (prev !== undefined) process.env.ENABLE_BUILD_SIMULATION = prev;
+      }
+    });
+
     it("returns 404 for a service the account does not own", async () => {
       const { session } = await authedAccount("outsider-org");
       const other = await accountRepo.create({ name: "Other", slug: "other" });

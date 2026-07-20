@@ -71,7 +71,7 @@ export function registerSetupRoutes(
           serviceName: service.name,
           environments,
           hasBuilds,
-          showSimulateBuild: process.env.USE_FAKE_GITHUB === "true",
+          showSimulateBuild: process.env.ENABLE_BUILD_SIMULATION === "true",
         },
         { layout: "" },
       );
