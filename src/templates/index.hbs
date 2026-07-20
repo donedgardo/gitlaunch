@@ -66,15 +66,21 @@
   .pill.live { color: var(--ok); background: color-mix(in srgb, var(--ok) 16%, transparent); }
   .live-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; animation: pulse 2.4s ease-in-out infinite; }
   @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
-  .cbtn { font-family: var(--mono); font-size: 11px; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--accent); background: var(--accent); color: #fff; font-weight: 600; white-space: nowrap; }
-  .cbtn.ghost { background: var(--surface-2); border-color: var(--line-strong); color: var(--muted); }
+  .cbtn { font-family: var(--mono); font-size: 11px; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--accent); background: transparent; color: var(--accent-ink); font-weight: 600; white-space: nowrap; cursor: pointer; transition: background .12s ease, color .12s ease, transform .08s ease; }
+  .cbtn:hover { background: var(--accent); color: #fff; }
+  .cbtn:active { transform: translateY(1px); }
+  .cbtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .cbtn:disabled { cursor: default; }
+  .cbtn:disabled:hover { background: transparent; color: var(--accent-ink); }
   /* one-click deploy progress (inside a cell) */
-  .cprog { height: 0; width: 100%; max-width: 100px; border-radius: 4px; background: var(--surface-2); overflow: hidden; transition: height .25s ease; }
+  .cprog { height: 0; width: 100%; max-width: 100px; margin-top: 6px; border-radius: 4px; background: var(--surface-2); overflow: hidden; transition: height .25s ease; }
   .cprog.on { height: 4px; }
   .cprog-fill { height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), var(--accent-2)); border-radius: 4px; transition: width 1.7s cubic-bezier(.4,.1,.2,1); }
   .cprog-fill.go { width: 100%; }
   @keyframes flash { 0% { background: var(--accent-soft); } 100% { background: transparent; } }
   .rcell.flash { animation: flash 1.4s ease-out; }
+  .board-hint { text-align: center; margin-top: 12px; font-family: var(--mono); font-size: 11.5px; color: var(--faint); letter-spacing: .02em; }
+  .board-hint b { color: var(--accent-ink); font-weight: 600; }
   .float-tag { position: absolute; right: -14px; top: -16px; background: var(--ink); color: var(--bg); font-family: var(--mono); font-size: 11px; padding: 7px 12px; border-radius: 999px; box-shadow: var(--shadow); transform: rotate(2deg); }
   .float-tag b { color: var(--accent-2); }
 
@@ -188,8 +194,8 @@
       </div>
 
       <div class="board-frame rise d5">
-        <div class="float-tag">deployed in <b>one click</b></div>
-        <div class="board" id="board" role="img" aria-label="A GitLaunch release board: builds as rows, environments as columns; build 4298 deploying to production in one click">
+        <div class="float-tag">deploy in <b>one click</b></div>
+        <div class="board" id="board" role="group" aria-label="Interactive release board: click a Deploy button to move that build live in an environment">
           <div class="board-bar">
             <span class="dot3"><span></span><span></span><span></span></span>
             <span class="path">web-app · release board</span>
@@ -204,27 +210,25 @@
               <div class="build">#4298 · <span class="sha">c0d5aa</span></div>
               <div class="build-sub">18m ago · ci</div>
             </div>
-            <div class="rcell"><span class="pill live"><span class="live-dot"></span>Live</span></div>
-            <div class="rcell" id="cellProd">
-              <span class="cbtn" id="deployBtn">Deploy</span>
-              <div class="cprog" id="cprog"><div class="cprog-fill" id="cprogFill"></div></div>
-            </div>
+            <div class="rcell env-cell" data-col="staging"><span class="pill live"><span class="live-dot"></span>Live</span></div>
+            <div class="rcell env-cell" data-col="prod" id="autoCell"><button class="cbtn" type="button">Deploy</button></div>
 
             <div class="rcell">
               <div class="build">#4297 · <span class="sha">7e1b04</span></div>
               <div class="build-sub">2h ago · qa-maria</div>
             </div>
-            <div class="rcell"><span class="cbtn ghost">Deploy</span></div>
-            <div class="rcell"><span class="cbtn ghost">Deploy</span></div>
+            <div class="rcell env-cell" data-col="staging"><button class="cbtn" type="button">Deploy</button></div>
+            <div class="rcell env-cell" data-col="prod"><button class="cbtn" type="button">Deploy</button></div>
 
             <div class="rcell">
               <div class="build">#4291 · <span class="sha">a3f9c2</span></div>
               <div class="build-sub">3d ago · ci</div>
             </div>
-            <div class="rcell"><span class="cbtn ghost">Deploy</span></div>
-            <div class="rcell" id="cellOld"><span class="pill live"><span class="live-dot"></span>Live&nbsp;3d</span></div>
+            <div class="rcell env-cell" data-col="staging"><button class="cbtn" type="button">Deploy</button></div>
+            <div class="rcell env-cell" data-col="prod"><span class="pill live"><span class="live-dot"></span>Live&nbsp;3d</span></div>
           </div>
         </div>
+        <div class="board-hint">Go on — click any <b>Deploy</b> button.</div>
       </div>
     </div>
   </header>
@@ -343,31 +347,69 @@
 <script>
   (function () {
     var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    var prog = document.getElementById('cprog');
-    var fill = document.getElementById('cprogFill');
-    var btn = document.getElementById('deployBtn');
-    var cellProd = document.getElementById('cellProd'); // #4298 → production
-    var cellOld = document.getElementById('cellOld');   // #4291 currently live in prod
+    var board = document.getElementById('board');
+    if (!board) return;
 
-    // Deploy build #4298 to production in one click: its Production cell flips
-    // to Live, and the previously-live #4291 rolls off.
-    function settle() {
-      if (cellProd) {
-        cellProd.innerHTML = '<span class="pill live"><span class="live-dot"></span>Live · just now</span>';
-        cellProd.classList.add('flash');
-      }
-      if (cellOld) cellOld.innerHTML = '<span class="cbtn ghost">Deploy</span>';
+    var busy = {}; // one deploy at a time per column
+
+    function liveBadge(fresh) {
+      return '<span class="pill live"><span class="live-dot"></span>' +
+        (fresh ? 'Live · just now' : 'Live') + '</span>';
+    }
+    function setLive(cell) {
+      cell.innerHTML = liveBadge(true);
+      cell.classList.remove('flash');
+      void cell.offsetWidth;           // restart the flash on repeat deploys
+      cell.classList.add('flash');
+    }
+    function setDeploy(cell) {
+      cell.innerHTML = '<button class="cbtn" type="button">Deploy</button>';
     }
 
-    if (reduce) { settle(); return; }
+    // Deploy the build in `cell` to its column's environment: it flips to Live,
+    // and whatever was Live in that same column rolls back to a Deploy button.
+    function deploy(cell) {
+      var col = cell.getAttribute('data-col');
+      if (!col || busy[col]) return;
+      if (cell.querySelector('.pill.live')) return; // already live here
 
-    // one-time deploy sequence, kicked off after the hero settles
-    setTimeout(function () {
-      if (!prog || !fill) { settle(); return; }
-      if (btn) btn.textContent = 'Deploying…';
-      prog.classList.add('on');
+      var column = board.querySelectorAll('.env-cell[data-col="' + col + '"]');
+      function finish() {
+        for (var i = 0; i < column.length; i++) {
+          if (column[i] !== cell && column[i].querySelector('.pill.live')) {
+            setDeploy(column[i]);
+          }
+        }
+        setLive(cell);
+        busy[col] = false;
+      }
+
+      var btn = cell.querySelector('.cbtn');
+      if (reduce || !btn) { finish(); return; }
+
+      busy[col] = true;
+      btn.textContent = 'Deploying…';
+      btn.disabled = true;
+      var prog = document.createElement('div');
+      prog.className = 'cprog on';
+      prog.innerHTML = '<div class="cprog-fill"></div>';
+      cell.appendChild(prog);
+      var fill = prog.firstChild;
       requestAnimationFrame(function () { fill.classList.add('go'); });
-      setTimeout(settle, 1850);
-    }, 1400);
+      setTimeout(finish, 1850);
+    }
+
+    // Delegated: every Deploy button (including ones re-created after a deploy)
+    // is clickable and keyboard-activatable.
+    board.addEventListener('click', function (e) {
+      var btn = e.target.closest && e.target.closest('.cbtn');
+      if (!btn) return;
+      var cell = btn.closest('.env-cell');
+      if (cell) deploy(cell);
+    });
+
+    // One-time auto-demo so first-time visitors see the aha before they click.
+    var auto = document.getElementById('autoCell');
+    if (auto) setTimeout(function () { deploy(auto); }, 1400);
   })();
 </script>
