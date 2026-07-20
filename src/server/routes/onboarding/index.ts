@@ -482,46 +482,16 @@ export function registerOnboardingRoutes(
     return reply.redirect(`/dashboard/${service.name}`);
   });
 
-  // GET /onboarding - Main onboarding page
+  // GET /onboarding - Legacy entry point. The old choose-a-CI-provider fork is
+  // retired (provider choice now happens per service in the deploy-setup step);
+  // forward to the dashboard so old bookmarks don't 404.
   app.get(
     "/onboarding",
     async (request: FastifyRequest, reply: FastifyReply) => {
-      // Redirect to login if not authenticated
       if (!request.session) {
         return reply.redirect("/auth/github");
       }
-
-      // Get account from session
-      const account = await accountRepository.findById(
-        new ObjectId(request.session.accountId),
-      );
-      if (!account) {
-        return reply.redirect("/auth/github");
-      }
-
-      // If GitHub App is already installed, redirect to repo selection
-      if (account.githubConnection) {
-        return reply.redirect("/onboarding/repositories");
-      }
-
-      // Provider fork: GitHub App or Jenkins. Jenkins-only shops never install
-      // the GitHub App.
-      analytics?.navigation("choose_provider");
-      const useFakeGitHub = process.env.USE_FAKE_GITHUB === "true";
-      const installUrl = useFakeGitHub
-        ? "/github/installation/callback?installation_id=12345"
-        : `https://github.com/apps/${process.env.GH_APP_NAME || "gitlaunchapp"}/installations/new`;
-
-      return reply.view(
-        "onboarding/choose-provider",
-        {
-          title: "Choose a CI provider",
-          accountName: account.name,
-          installUrl,
-          jenkinsConnected: account.jenkinsConnection != null,
-        },
-        { layout: "/layouts/main.hbs" },
-      );
+      return reply.redirect("/dashboard");
     },
   );
 

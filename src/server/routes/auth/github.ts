@@ -139,14 +139,11 @@ export function registerGitHubAuthRoutes(
           isNewUser,
         });
 
-        // Redirect new users to plan selection first, then onboarding
-        // Returning users without GitHub App installation go to onboarding
+        // New users pick a plan first, then create their first service. GitHub
+        // is no longer the onboarding gate (Jenkins/raw shops never connect it),
+        // so returning users go straight to their dashboard.
         if (isNewUser) {
           return reply.redirect("/onboarding/plan-selection");
-        }
-
-        if (!account?.githubConnection) {
-          return reply.redirect("/onboarding");
         }
 
         return reply.redirect("/dashboard");

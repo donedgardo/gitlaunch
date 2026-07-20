@@ -58,9 +58,10 @@ export function registerServiceRoutes(
       );
       const jenkinsConnected = account.jenkinsConnection != null;
 
-      // Only send a user with no way to deploy at all back to onboarding.
+      // With no repo and no Jenkins, the provider-first form has nothing to
+      // offer — send them to create a report-only service (CD is set up later).
       if (repositories.length === 0 && !jenkinsConnected) {
-        return reply.redirect("/onboarding");
+        return reply.redirect("/onboarding/service");
       }
 
       return reply.view(

@@ -128,9 +128,11 @@ describe("Onboarding Routes", () => {
     await app.ready();
   });
 
-  describe("GET /onboarding — provider fork", () => {
-    it("should offer both GitHub App and Jenkins when nothing is connected", async () => {
-      // Given: an account with no provider connected
+  describe("GET /onboarding — retired provider fork", () => {
+    // The old choose-a-CI-provider fork is gone: provider choice now happens
+    // per service in the deploy-setup step. The legacy entry point just forwards
+    // to the dashboard so old bookmarks don't 404.
+    it("redirects to the dashboard when nothing is connected", async () => {
       const account = await accountRepo.create({
         name: "Fork Org",
         slug: "fork-org",
@@ -140,22 +142,17 @@ describe("Onboarding Routes", () => {
         accountId: account._id,
       });
 
-      // When: the user lands on onboarding
       const response = await app.inject({
         method: "GET",
         url: "/onboarding",
         cookies: { session: sessionToken },
       });
 
-      // Then: they get the provider-choice page, not a forced GitHub App install
-      expect(response.statusCode).toBe(200);
-      expect(response.body).toContain(
-        'data-template="onboarding/choose-provider"',
-      );
+      expect(response.statusCode).toBe(302);
+      expect(response.headers.location).toBe("/dashboard");
     });
 
-    it("should redirect to repository selection once GitHub is connected", async () => {
-      // Given: an account with the GitHub App already installed
+    it("redirects to the dashboard when GitHub is connected", async () => {
       const account = await accountRepo.create({
         name: "Gh Org",
         slug: "gh-org",
@@ -166,16 +163,14 @@ describe("Onboarding Routes", () => {
         accountId: account._id,
       });
 
-      // When: the user lands on onboarding
       const response = await app.inject({
         method: "GET",
         url: "/onboarding",
         cookies: { session: sessionToken },
       });
 
-      // Then: they skip the fork and go straight to repo selection
       expect(response.statusCode).toBe(302);
-      expect(response.headers.location).toBe("/onboarding/repositories");
+      expect(response.headers.location).toBe("/dashboard");
     });
   });
 
