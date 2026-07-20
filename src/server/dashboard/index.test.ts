@@ -129,12 +129,35 @@ describe("Dashboard Routes", () => {
         serviceRepository: serviceRepo,
         buildRepository: buildRepo,
         repositoryRepository: repositoryRepo,
+        accountRepository: accountRepo,
         buildService,
         trialService,
         planEnforcementService,
       }),
     );
     await app.ready();
+  });
+
+  describe("stale session (account no longer exists)", () => {
+    it("redirects to the home screen when the session's account is gone", async () => {
+      // Given: a validly-signed session for an account that isn't in the DB
+      // (e.g. after a local DB reset) — the JWT verifies but the account is gone
+      const sessionToken = sessionService.createSession({
+        userId: new ObjectId(),
+        accountId: new ObjectId(),
+      });
+
+      // When: visiting the dashboard
+      const response = await app.inject({
+        method: "GET",
+        url: "/dashboard",
+        cookies: { session: sessionToken },
+      });
+
+      // Then: they're sent to the home screen, not left on a broken dashboard
+      expect(response.statusCode).toBe(302);
+      expect(response.headers.location).toBe("/");
+    });
   });
 
   describe("GET /dashboard/:serviceName", () => {
@@ -468,9 +491,14 @@ describe("Dashboard Routes", () => {
     });
 
     it("should return 404 when service belongs to different account", async () => {
-      // Given: a service owned by a different account
+      // Given: a service owned by a different account, and an attacker who is a
+      // real, logged-in user of another account (just not the service's owner)
       const ownerAccountId = new ObjectId();
-      const attackerAccountId = new ObjectId();
+      const attackerAccount = await accountRepo.create({
+        name: "Attacker Org",
+        slug: `attacker-org-${Date.now()}-${Math.random()}`,
+      });
+      const attackerAccountId = attackerAccount._id;
       const attackerUserId = new ObjectId();
       const repositoryId = new ObjectId();
 

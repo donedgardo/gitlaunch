@@ -206,6 +206,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
       serviceRepository,
       buildRepository,
       repositoryRepository,
+      accountRepository,
       buildService,
       trialService,
       planEnforcementService,

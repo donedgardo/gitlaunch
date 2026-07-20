@@ -3,6 +3,7 @@ import { ObjectId } from "mongodb";
 import { ServiceRepository } from "../../repositories/serviceRepository";
 import { BuildRepository, Build } from "../../repositories/buildRepository";
 import { RepositoryRepository } from "../../repositories/repositoryRepository";
+import { AccountRepository } from "../../repositories/accountRepository";
 import { BuildService } from "../../services/build/buildService";
 import { DeploymentStatus } from "../../services/service/deploymentStatus";
 import { TrialService } from "../../services/billing/trialService";
@@ -15,6 +16,7 @@ export type DashboardRoutesDeps = {
   serviceRepository: ServiceRepository;
   buildRepository: BuildRepository;
   repositoryRepository: RepositoryRepository;
+  accountRepository: AccountRepository;
   buildService: BuildService;
   trialService: TrialService;
   planEnforcementService: PlanEnforcementService;
@@ -26,6 +28,7 @@ export default function (deps: DashboardRoutesDeps) {
     serviceRepository,
     buildRepository,
     repositoryRepository,
+    accountRepository,
     buildService,
     trialService,
     planEnforcementService,
@@ -33,12 +36,25 @@ export default function (deps: DashboardRoutesDeps) {
   } = deps;
 
   return function (server: FastifyInstance, opts: any, done: any) {
-    server.addHook("preHandler", (req, res, done) => {
+    server.addHook("preHandler", async (req, res) => {
       // Check for both new session (JWT) and legacy user auth
       if (!req.session && !req.user) {
         return res.redirect("/");
       }
-      done();
+
+      // A validly-signed session can still point at an account that no longer
+      // exists (e.g. after a local DB reset). Treat that as logged out: clear
+      // the stale cookie and send them home instead of rendering a broken
+      // dashboard for a phantom account.
+      if (req.session) {
+        const account = await accountRepository.findById(
+          new ObjectId(req.session.accountId),
+        );
+        if (!account) {
+          res.clearCookie("session", { path: "/" });
+          return res.redirect("/");
+        }
+      }
     });
 
     // Helper to convert Build to template-friendly format
