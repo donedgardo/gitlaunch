@@ -82,6 +82,7 @@ describe("Settings Routes - Workflow Configuration", () => {
           jenkinsBuildReportingGuide:
             "/partials/jenkinsBuildReportingGuide.hbs",
           jenkinsDeploymentGuide: "/partials/jenkinsDeploymentGuide.hbs",
+          rawBuildReportingGuide: "/partials/rawBuildReportingGuide.hbs",
         },
       },
     });
@@ -146,7 +147,7 @@ describe("Settings Routes - Workflow Configuration", () => {
   describe("GET /services/:serviceId/settings — CI provider guides", () => {
     async function createServiceForProvider(
       slug: string,
-      provider: "github" | "jenkins",
+      provider: "github" | "jenkins" | "raw",
     ) {
       const account = await accountRepo.create({ name: slug, slug });
       const repository = await repositoryRepo.create({
@@ -166,6 +167,12 @@ describe("Settings Routes - Workflow Configuration", () => {
         await serviceRepo.setDeployment(account._id, service._id, {
           provider: "jenkins",
           jobName: "deploy-backend",
+        });
+      }
+      if (provider === "raw") {
+        await serviceRepo.setDeployment(account._id, service._id, {
+          provider: "raw",
+          endpointUrl: "https://deploy.acme.com/hook",
         });
       }
       const sessionToken = sessionService.createSession({
@@ -216,6 +223,29 @@ describe("Settings Routes - Workflow Configuration", () => {
       // Then: it renders the GitHub Actions guide, not the Jenkins pipeline
       expect(response.statusCode).toBe(200);
       expect(response.body).toContain("donedgardo/build-reporter");
+      expect(response.body).not.toContain("pipeline {");
+    });
+
+    it("should show the raw webhook guide for a raw-provider service", async () => {
+      // Given: a service configured with a raw webhook deployment
+      const { service, sessionToken } = await createServiceForProvider(
+        "raw-org",
+        "raw",
+      );
+
+      // When: the settings page is loaded
+      const response = await app.inject({
+        method: "GET",
+        url: `/services/${service._id}/settings`,
+        cookies: { session: sessionToken },
+      });
+
+      // Then: the raw provider is reflected and its endpoint shown...
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain('value="raw"');
+      expect(response.body).toContain("https://deploy.acme.com/hook");
+      // ...and neither the GitHub Actions action nor the Jenkins pipeline
+      expect(response.body).not.toContain("donedgardo/build-reporter");
       expect(response.body).not.toContain("pipeline {");
     });
   });
@@ -619,6 +649,43 @@ describe("Settings Routes - Workflow Configuration", () => {
 
       expect(response.statusCode).toBe(400);
       const updated = await serviceRepo.findById(service._id);
+      expect(updated?.deployment?.provider).toBe("github");
+    });
+
+    it("should set the service to the raw provider with an endpoint URL", async () => {
+      const { service, sessionToken } = await seedService();
+
+      const response = await app.inject({
+        method: "PATCH",
+        url: `/services/${service._id}/provider`,
+        cookies: { session: sessionToken },
+        payload: {
+          ciProvider: "raw",
+          endpointUrl: "https://deploy.acme.com/hook",
+        },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const updated = await serviceRepo.findById(service._id);
+      expect(updated?.deployment).toEqual({
+        provider: "raw",
+        endpointUrl: "https://deploy.acme.com/hook",
+      });
+    });
+
+    it("should reject raw without an endpoint URL", async () => {
+      const { service, sessionToken } = await seedService();
+
+      const response = await app.inject({
+        method: "PATCH",
+        url: `/services/${service._id}/provider`,
+        cookies: { session: sessionToken },
+        payload: { ciProvider: "raw", endpointUrl: "" },
+      });
+
+      expect(response.statusCode).toBe(400);
+      const updated = await serviceRepo.findById(service._id);
+      // unchanged — still the GitHub deployment from seedService
       expect(updated?.deployment?.provider).toBe("github");
     });
 

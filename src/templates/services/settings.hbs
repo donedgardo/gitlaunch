@@ -65,16 +65,24 @@
       </div>
       <form hx-patch="/services/{{service.id}}/provider" hx-swap="none">
         <div class="p-6 space-y-4">
+          {{#unless service.isConfigured}}
+          <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+            <p class="text-xs text-amber-800 dark:text-amber-200">
+              No deploy target configured yet — this service is reporting builds only. Choose one below to enable deployments.
+            </p>
+          </div>
+          {{/unless}}
           <div>
             <label for="ciProvider" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Provider</label>
             <select id="ciProvider" name="ciProvider"
-              onchange="document.getElementById('jenkins-job-field').style.display = this.value === 'jenkins' ? 'block' : 'none'; document.getElementById('github-repo-field').style.display = this.value === 'github' ? 'block' : 'none';"
+              onchange="document.getElementById('jenkins-job-field').style.display = this.value === 'jenkins' ? 'block' : 'none'; document.getElementById('github-repo-field').style.display = this.value === 'github' ? 'block' : 'none'; document.getElementById('raw-endpoint-field').style.display = this.value === 'raw' ? 'block' : 'none';"
               class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-              <option value="github" {{#unless service.isJenkins}}selected{{/unless}}>GitHub Actions</option>
+              <option value="github" {{#if service.isGithub}}selected{{/if}}>GitHub Actions</option>
               <option value="jenkins" {{#if service.isJenkins}}selected{{/if}}>Jenkins</option>
+              <option value="raw" {{#if service.isRaw}}selected{{/if}}>Raw webhook</option>
             </select>
           </div>
-          <div id="github-repo-field" style="display: {{#if service.isJenkins}}none{{else}}block{{/if}};">
+          <div id="github-repo-field" style="display: {{#if service.isGithub}}block{{else}}none{{/if}};">
             <label for="repositoryId" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Repository (dispatch target)</label>
             <select id="repositoryId" name="repositoryId"
               class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
@@ -90,6 +98,15 @@
               value="{{service.jobName}}"
               class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
           </div>
+          <div id="raw-endpoint-field" style="display: {{#if service.isRaw}}block{{else}}none{{/if}};">
+            <label for="endpointUrl" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Deploy endpoint URL</label>
+            <input type="url" id="endpointUrl" name="endpointUrl" placeholder="https://deploy.acme.com/hook"
+              value="{{service.endpointUrl}}"
+              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              GitLaunch POSTs <code class="font-mono">{ "buildId", "environment" }</code> here to trigger a deploy.
+            </p>
+          </div>
         </div>
         <div class="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex justify-end">
           <button type="submit"
@@ -100,7 +117,8 @@
       </form>
     </div>
 
-    <!-- Deployment Workflow Section -->
+    <!-- Deployment Workflow Section (GitHub Actions only) -->
+    {{#if service.isGithub}}
     <div class="mt-8 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
       <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
         <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Deployment Workflow</h2>
@@ -142,6 +160,7 @@
         </div>
       </form>
     </div>
+    {{/if}}
 
     <!-- Setup Instructions Section -->
     <div class="mt-8">
@@ -159,14 +178,27 @@
         <!-- Jenkins Deployment Pipeline -->
         {{> jenkinsDeploymentGuide apiUrl=apiUrl serviceId=service.id firstEnv=firstEnv }}
       {{else}}
-        <!-- GitHub Secrets Setup -->
-        {{> githubSecretsSetup serviceId=service.id idPrefix="settings_" showCopyButton=true }}
+        {{#if service.isRaw}}
+          <!-- Raw webhook build reporting -->
+          <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-lg p-6 sm:p-8 mb-6">
+            {{> rawBuildReportingGuide apiUrl=apiUrl serviceId=service.id }}
+          </div>
+          <div class="bg-gray-50 dark:bg-gray-700/40 rounded-xl p-4 text-sm text-gray-600 dark:text-gray-300">
+            On deploy, GitLaunch POSTs <code class="font-mono">{ "buildId", "environment" }</code> to
+            <code class="font-mono break-all">{{service.endpointUrl}}</code>.
+            Report status back with
+            <code class="font-mono break-all">PATCH {{apiUrl}}/api/v1/services/{{service.id}}/builds/&lt;buildId&gt;/deploy/&lt;env&gt;</code>.
+          </div>
+        {{else}}
+          <!-- GitHub Secrets Setup -->
+          {{> githubSecretsSetup serviceId=service.id idPrefix="settings_" showCopyButton=true }}
 
-        <!-- Build Reporting Instructions -->
-        {{> buildReportingInstructions idPrefix="settings_" }}
+          <!-- Build Reporting Instructions -->
+          {{> buildReportingInstructions idPrefix="settings_" }}
 
-        <!-- Deployment Setup Guide -->
-        {{> deploymentSetupGuide serviceId=service.id environments=environments }}
+          <!-- Deployment Setup Guide -->
+          {{> deploymentSetupGuide serviceId=service.id environments=environments }}
+        {{/if}}
       {{/if}}
     </div>
 

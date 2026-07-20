@@ -76,6 +76,9 @@ export function registerSettingsRoutes(
 
       // The GitHub dispatch-target repo (if this is a GitHub service).
       const deployment = service.deployment;
+      // Report-only services have no deployment yet; the provider form defaults
+      // to GitHub for display so its repo picker is ready to fill in.
+      const effectiveProvider = deployment?.provider ?? "github";
       const dispatchRepoId =
         deployment?.provider === "github" ? deployment.repositoryId : null;
       const repository = dispatchRepoId
@@ -106,9 +109,14 @@ export function registerSettingsRoutes(
             workflowFile:
               deployment?.provider === "github" ? deployment.workflowFile : "",
             ciProvider: deployment?.provider ?? null,
-            isJenkins: deployment?.provider === "jenkins",
+            isConfigured: deployment != null,
+            isGithub: effectiveProvider === "github",
+            isJenkins: effectiveProvider === "jenkins",
+            isRaw: effectiveProvider === "raw",
             jobName:
               deployment?.provider === "jenkins" ? deployment.jobName : null,
+            endpointUrl:
+              deployment?.provider === "raw" ? deployment.endpointUrl : "",
             repositoryId: dispatchRepoId ? dispatchRepoId.toString() : null,
           },
           repository: repository
@@ -383,13 +391,23 @@ export function registerSettingsRoutes(
   // PATCH /services/:serviceId/provider - Choose CI provider (HTMX)
   app.patch<{
     Params: { serviceId: string };
-    Body: { ciProvider: string; jobName?: string; repositoryId?: string };
+    Body: {
+      ciProvider: string;
+      jobName?: string;
+      repositoryId?: string;
+      endpointUrl?: string;
+    };
   }>(
     "/services/:serviceId/provider",
     async (
       request: FastifyRequest<{
         Params: { serviceId: string };
-        Body: { ciProvider: string; jobName?: string; repositoryId?: string };
+        Body: {
+          ciProvider: string;
+          jobName?: string;
+          repositoryId?: string;
+          endpointUrl?: string;
+        };
       }>,
       reply: FastifyReply,
     ) => {
@@ -408,7 +426,11 @@ export function registerSettingsRoutes(
         return reply.status(400).send();
       }
 
-      if (ciProvider !== "github" && ciProvider !== "jenkins") {
+      if (
+        ciProvider !== "github" &&
+        ciProvider !== "jenkins" &&
+        ciProvider !== "raw"
+      ) {
         return toastError("Unknown CI provider");
       }
 
@@ -418,6 +440,12 @@ export function registerSettingsRoutes(
           return toastError("A Jenkins job name is required");
         }
         deployment = { provider: "jenkins", jobName };
+      } else if (ciProvider === "raw") {
+        const endpointUrl = request.body.endpointUrl?.trim() || "";
+        if (!endpointUrl) {
+          return toastError("A deploy endpoint URL is required");
+        }
+        deployment = { provider: "raw", endpointUrl };
       } else {
         // GitHub dispatch needs a target repo. Reuse the current one when the
         // service is already GitHub; otherwise the form must supply one.
