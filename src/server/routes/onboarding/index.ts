@@ -297,30 +297,29 @@ export function registerOnboardingRoutes(
     reply: FastifyReply,
     error?: string,
   ) {
+    // @fastify/view renders asynchronously, so every branch must RETURN the
+    // reply — otherwise the async handler resolves before the view is sent and
+    // Fastify emits an empty 200 (blank page).
     if (!request.session) {
-      reply.redirect("/auth/github");
-      return null;
+      return reply.redirect("/auth/github");
     }
     const accountId = new ObjectId(request.session.accountId);
     const account = await accountRepository.findById(accountId);
     if (!account) {
-      reply.redirect("/auth/github");
-      return null;
+      return reply.redirect("/auth/github");
     }
     let serviceObjectId: ObjectId;
     try {
       serviceObjectId = new ObjectId(request.params.serviceId);
     } catch {
-      reply.status(400).send("Invalid service ID");
-      return null;
+      return reply.status(400).send("Invalid service ID");
     }
     const service = await serviceRepository.findByAccountAndId(
       accountId,
       serviceObjectId,
     );
     if (!service) {
-      reply.status(404).send("Service not found");
-      return null;
+      return reply.status(404).send("Service not found");
     }
 
     const repositories = await repositoryRepository.findByAccountId(accountId);
@@ -332,7 +331,7 @@ export function registerOnboardingRoutes(
       ? "/github/installation/callback?installation_id=12345"
       : `https://github.com/apps/${process.env.GH_APP_NAME || "gitlaunchapp"}/installations/new`;
 
-    reply.view(
+    return reply.view(
       "onboarding/setup-deploy",
       {
         title: "Set up deployments",
@@ -352,14 +351,13 @@ export function registerOnboardingRoutes(
       },
       { layout: "/layouts/main.hbs" },
     );
-    return { service, accountId };
   }
 
   // GET /onboarding/setup-deploy/:serviceId - Step 3: choose a CD strategy
   app.get<{ Params: { serviceId: string } }>(
     "/onboarding/setup-deploy/:serviceId",
     async (request, reply) => {
-      await renderSetupDeploy(request, reply);
+      return renderSetupDeploy(request, reply);
     },
   );
 

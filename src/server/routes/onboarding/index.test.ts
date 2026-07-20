@@ -4,6 +4,9 @@ import { MongoClient, Db, ObjectId } from "mongodb";
 import Fastify, { FastifyInstance } from "fastify";
 import cookie from "@fastify/cookie";
 import formbody from "@fastify/formbody";
+import view from "@fastify/view";
+import * as handlebars from "handlebars";
+import path from "node:path";
 import {
   AccountRepository,
   Plan,
@@ -304,6 +307,55 @@ describe("Onboarding Routes", () => {
       } finally {
         if (prev !== undefined) process.env.ENABLE_BUILD_SIMULATION = prev;
       }
+    });
+
+    it("renders a full setup-deploy page (not a blank one) with the real view engine", async () => {
+      // Regression: the mock view sends synchronously, so it can't catch an
+      // unreturned async reply.view — which made the real page render blank
+      // (HTTP 200, empty body) after a build was reported. Use the real
+      // @fastify/view engine + layout to guard against that.
+      const { account, session } = await authedAccount("realview-org");
+      const service = await serviceRepo.create({
+        accountId: account._id,
+        name: "api",
+      });
+
+      const realApp = Fastify();
+      await realApp.register(cookie, { secret: COOKIE_SECRET });
+      await realApp.register(formbody);
+      await realApp.register(view, {
+        engine: { handlebars },
+        root: path.join(__dirname, "../../../templates"),
+        options: {
+          partials: {
+            deploymentSetupGuide: "/partials/deploymentSetupGuide.hbs",
+            jenkinsDeploymentGuide: "/partials/jenkinsDeploymentGuide.hbs",
+          },
+        },
+      });
+      sessionAuthMiddleware(realApp, sessionService);
+      registerOnboardingRoutes(realApp, {
+        accountRepository: accountRepo,
+        repositoryRepository: repositoryRepo,
+        userRepository: userRepo,
+        serviceRepository: serviceRepo,
+        gitHubAppService: fakeGitHubAppService as unknown as GitHubAppService,
+        apiKeyService,
+        planEnforcementService,
+        trialService,
+      });
+      await realApp.ready();
+
+      const response = await realApp.inject({
+        method: "GET",
+        url: `/onboarding/setup-deploy/${service._id}`,
+        cookies: { session },
+      });
+      await realApp.close();
+
+      expect(response.statusCode).toBe(200);
+      expect(response.body.length).toBeGreaterThan(0);
+      expect(response.body).toContain("Set up deployments");
     });
 
     it("returns 404 for a service the account does not own", async () => {
