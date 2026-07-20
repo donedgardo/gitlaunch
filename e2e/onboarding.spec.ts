@@ -33,55 +33,53 @@ test.describe("Onboarding - GitHub App Installation", () => {
     await expect(getStartedLink).toHaveAttribute("href", "/auth/github");
   });
 
-  test("user without a provider sees the provider choice", async ({ page }) => {
-    // Authenticate as user without any CI provider connected
+  test("legacy /onboarding entry point redirects to the dashboard", async ({
+    page,
+  }) => {
+    // The old choose-a-CI-provider fork is retired; provider choice now happens
+    // per service in the deploy-setup step.
     await authenticateTestUser(page, TEST_USERS.newUser);
 
-    // Visit onboarding page
     await page.goto("/onboarding");
 
-    // Should see the provider-choice page (not a forced GitHub App install)
+    await expect(page).toHaveURL(/\/dashboard/);
+  });
+
+  test("service creation asks only for a name, then guides build reporting", async ({
+    page,
+  }) => {
+    // Reporting-first onboarding: step 1 names the service (no repo URL, no
+    // provider), then step 2 helps report builds.
+    await authenticateTestUser(page, TEST_USERS.newUser);
+
+    await page.goto("/onboarding/service");
+
+    // Only a name is required — no repository URL field.
+    await expect(page.locator("#name")).toBeVisible();
+    await expect(page.locator("#repoUrl")).toHaveCount(0);
+
+    await page.locator("#name").fill(`svc-${Date.now()}`);
+    await page.getByRole("button", { name: /continue/i }).click();
+
+    // Advances to the build-reporting step with provider tabs.
+    await expect(page).toHaveURL(/\/onboarding\/report-builds\//);
     await expect(
-      page.getByRole("heading", { name: /how do you deploy/i }),
+      page.getByRole("heading", { name: /report your first build/i }),
     ).toBeVisible();
   });
 
-  test("onboarding offers both GitHub App and Jenkins", async ({ page }) => {
-    // Authenticate as user without any CI provider connected
-    await authenticateTestUser(page, TEST_USERS.newUser);
-
-    // Visit onboarding page
-    await page.goto("/onboarding");
-
-    // GitHub App install is one option...
-    const installButton = page.getByRole("link", {
-      name: /install github app/i,
-    });
-    await expect(installButton).toBeVisible();
-    await expect(installButton).toHaveAttribute("href", /.+/);
-
-    // ...and Jenkins is the other — no GitHub App required.
-    await expect(
-      page.getByRole("link", { name: /connect jenkins/i }),
-    ).toBeVisible();
-  });
-
-  test("user with GitHub App is redirected to repository selection", async ({
+  test("GitHub-connected user is no longer forced into repo selection", async ({
     page,
   }) => {
     // Authenticate as user WITH GitHub App installed
     await authenticateTestUser(page, TEST_USERS.userWithGitHubApp);
 
-    // Visit onboarding page
+    // Visit the legacy onboarding entry point
     await page.goto("/onboarding");
 
-    // Should be redirected to repository selection (has GitHub App)
-    await expect(page).toHaveURL(/\/onboarding\/repositories/);
-
-    // Should see repository selection page
-    await expect(
-      page.getByRole("heading", { name: /select repositories/i }),
-    ).toBeVisible();
+    // The redirect is unconditional now — even a GitHub-connected user lands on
+    // the dashboard rather than a forced repository-selection step.
+    await expect(page).toHaveURL(/\/dashboard/);
   });
 
   test("repository selection page has navigation options", async ({ page }) => {
