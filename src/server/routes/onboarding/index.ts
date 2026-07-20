@@ -161,10 +161,10 @@ export function registerOnboardingRoutes(
   );
 
   // POST /onboarding/service - Create a report-only service (no CD yet)
-  app.post<{ Body: { name?: string; repoUrl?: string } }>(
+  app.post<{ Body: { name?: string } }>(
     "/onboarding/service",
     async (
-      request: FastifyRequest<{ Body: { name?: string; repoUrl?: string } }>,
+      request: FastifyRequest<{ Body: { name?: string } }>,
       reply: FastifyReply,
     ) => {
       if (!request.session) {
@@ -178,17 +178,16 @@ export function registerOnboardingRoutes(
       }
 
       const name = request.body.name?.trim() || "";
-      const repoUrl = request.body.repoUrl?.trim() || "";
 
       const renderError = (error: string) =>
         reply.view(
           "onboarding/service",
-          { title: "Create your service", error, name, repoUrl },
+          { title: "Create your service", error, name },
           { layout: "/layouts/main.hbs" },
         );
 
-      if (!name || !repoUrl) {
-        return renderError("Enter a service name and a repository URL.");
+      if (!name) {
+        return renderError("Enter a service name.");
       }
 
       const canAdd = await planEnforcementService.canAddService(account._id);
@@ -198,11 +197,11 @@ export function registerOnboardingRoutes(
 
       let service;
       try {
-        // No deployment yet — CD is configured in the deploy-setup step.
+        // No deployment and no repoUrl yet — CD is configured in the
+        // deploy-setup step; the source repo (for SHA links) is set up later.
         service = await serviceRepository.create({
           accountId: account._id,
           name,
-          repoUrl,
         });
       } catch (error: any) {
         if (error.code === 11000) {

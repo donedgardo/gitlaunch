@@ -202,7 +202,7 @@ describe("Onboarding Routes", () => {
       expect(response.headers.location).toBe("/onboarding/service");
     });
 
-    it("creates a report-only service (no CD) and advances to report-builds", async () => {
+    it("creates a report-only service from just a name and advances to report-builds", async () => {
       const { account, session } = await authedAccount("svc-org");
 
       const response = await app.inject({
@@ -210,7 +210,7 @@ describe("Onboarding Routes", () => {
         url: "/onboarding/service",
         cookies: { session },
         headers: { "content-type": "application/x-www-form-urlencoded" },
-        payload: "name=api&repoUrl=https://github.com/acme/api",
+        payload: "name=api",
       });
 
       // Redirects into the report-builds step for the new service
@@ -220,7 +220,8 @@ describe("Onboarding Routes", () => {
         "api",
       );
       expect(created).not.toBeNull();
-      expect(created?.repoUrl).toBe("https://github.com/acme/api");
+      // repoUrl (for SHA links) is set up later, not in this wizard
+      expect(created?.repoUrl).toBe("");
       // CD is not configured yet — that's the deploy-setup step
       expect(created?.deployment).toBeNull();
       expect(response.headers.location).toBe(
@@ -228,7 +229,7 @@ describe("Onboarding Routes", () => {
       );
     });
 
-    it("re-renders the form with an error when fields are missing", async () => {
+    it("re-renders the form with an error when the name is missing", async () => {
       const { account, session } = await authedAccount("empty-org");
 
       const response = await app.inject({
@@ -236,7 +237,7 @@ describe("Onboarding Routes", () => {
         url: "/onboarding/service",
         cookies: { session },
         headers: { "content-type": "application/x-www-form-urlencoded" },
-        payload: "name=&repoUrl=",
+        payload: "name=",
       });
 
       expect(response.statusCode).toBe(200);
