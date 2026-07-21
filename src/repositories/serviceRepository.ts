@@ -225,7 +225,10 @@ export class ServiceRepository {
       await this.collection.findOneAndUpdate(
         { _id: id, accountId },
         {
-          $set: { deployment },
+          // Explicitly choosing a deployment (a GitHub variant carries its
+          // workflow file) IS configuring it — so the dashboard doesn't re-nag
+          // "set up your deploy workflow" after deploy setup completes.
+          $set: { deployment, workflowConfigured: true },
           $unset: {
             ciProvider: "",
             jobName: "",

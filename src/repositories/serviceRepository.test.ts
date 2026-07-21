@@ -670,6 +670,26 @@ describe("ServiceRepository", () => {
       });
     });
 
+    it("marks the service workflow-configured — setting a deployment IS configuring it", async () => {
+      // Given: a report-only service (no deployment, not yet configured)
+      const created = await repo.create({
+        accountId: new ObjectId(),
+        name: "cfg-on-set",
+      });
+      expect(created.workflowConfigured).toBe(false);
+
+      // When: a deployment is explicitly set (e.g. from deploy setup)
+      await repo.setDeployment(created.accountId, created._id, {
+        provider: "github",
+        repositoryId: new ObjectId(),
+        workflowFile: "deploy.yml",
+      });
+
+      // Then: it counts as configured, so the dashboard won't re-nag setup
+      const updated = await repo.findById(created._id);
+      expect(updated?.workflowConfigured).toBe(true);
+    });
+
     it("should switch a service to a jenkins deployment with a job name", async () => {
       // Given: a service
       const created = await repo.create({
