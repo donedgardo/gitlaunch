@@ -102,7 +102,9 @@ jobs:
 
   deploy-dev:
     name: Deploy to Dev
-    needs: [quality, integration, docker-build]
+    # Wait for report-build so the build exists before the dev deploy reports
+    # its status against it (otherwise the reporter 404s with "Build not found").
+    needs: [quality, integration, docker-build, report-build]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     uses: ./.github/workflows/deploy.yml
     with:

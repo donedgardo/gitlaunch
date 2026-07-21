@@ -47,7 +47,6 @@ jobs:
           ref: ${{ env.BUILD_ID }}
 
       - name: GitLaunch Deploy
-        if: env.ENVIRONMENT != 'dev'
         uses: donedgardo/build-reporter@v2
         with:
           api-key: ${{ secrets.GITLAUNCH_API_KEY }}
@@ -64,6 +63,39 @@ jobs:
         run: railway up --service ${{ secrets.RAILWAY_SERVICE_ID }} --detach
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+
+      - name: Report deployed
+        if: success()
+        uses: donedgardo/build-reporter@v2
+        with:
+          api-key: ${{ secrets.GITLAUNCH_API_KEY }}
+          service-id: ${{ vars.GITLAUNCH_SERVICE_ID }}
+          environment: ${{ env.ENVIRONMENT }}
+          build-id: ${{ env.BUILD_ID }}
+          action: update-status
+          status: deployed
+
+      - name: Report error
+        if: failure()
+        uses: donedgardo/build-reporter@v2
+        with:
+          api-key: ${{ secrets.GITLAUNCH_API_KEY }}
+          service-id: ${{ vars.GITLAUNCH_SERVICE_ID }}
+          environment: ${{ env.ENVIRONMENT }}
+          build-id: ${{ env.BUILD_ID }}
+          action: update-status
+          status: error
+
+      - name: Report cancelled
+        if: cancelled()
+        uses: donedgardo/build-reporter@v2
+        with:
+          api-key: ${{ secrets.GITLAUNCH_API_KEY }}
+          service-id: ${{ vars.GITLAUNCH_SERVICE_ID }}
+          environment: ${{ env.ENVIRONMENT }}
+          build-id: ${{ env.BUILD_ID }}
+          action: update-status
+          status: cancelled
 
       - name: Deployment Summary
         if: success()
