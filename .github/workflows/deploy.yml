@@ -64,38 +64,9 @@ jobs:
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 
-      - name: Report deployed
-        if: success()
-        uses: donedgardo/build-reporter@v2
-        with:
-          api-key: ${{ secrets.GITLAUNCH_API_KEY }}
-          service-id: ${{ vars.GITLAUNCH_SERVICE_ID }}
-          environment: ${{ env.ENVIRONMENT }}
-          build-id: ${{ env.BUILD_ID }}
-          action: update-status
-          status: deployed
-
-      - name: Report error
-        if: failure()
-        uses: donedgardo/build-reporter@v2
-        with:
-          api-key: ${{ secrets.GITLAUNCH_API_KEY }}
-          service-id: ${{ vars.GITLAUNCH_SERVICE_ID }}
-          environment: ${{ env.ENVIRONMENT }}
-          build-id: ${{ env.BUILD_ID }}
-          action: update-status
-          status: error
-
-      - name: Report cancelled
-        if: cancelled()
-        uses: donedgardo/build-reporter@v2
-        with:
-          api-key: ${{ secrets.GITLAUNCH_API_KEY }}
-          service-id: ${{ vars.GITLAUNCH_SERVICE_ID }}
-          environment: ${{ env.ENVIRONMENT }}
-          build-id: ${{ env.BUILD_ID }}
-          action: update-status
-          status: cancelled
+      # The GitLaunch Deploy step (action: deploy) auto-reports the terminal
+      # status (deployed/error/cancelled) via its post-hook based on the job
+      # outcome — no separate report steps needed.
 
       - name: Deployment Summary
         if: success()
