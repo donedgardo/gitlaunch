@@ -327,8 +327,13 @@ export function registerOnboardingRoutes(
       (a, b) => a.order - b.order,
     );
     const useFakeGitHub = process.env.USE_FAKE_GITHUB === "true";
+    // In fake mode the install link hits our local callback directly, so it can
+    // carry a returnTo that brings the connect flow back here to finish deploy
+    // setup. The real GitHub App flow can't preserve it (GitHub owns the
+    // redirect), so it falls back to the default post-install destination.
+    const returnTo = `/onboarding/setup-deploy/${service._id}`;
     const installUrl = useFakeGitHub
-      ? "/github/installation/callback?installation_id=12345"
+      ? `/github/installation/callback?installation_id=12345&returnTo=${encodeURIComponent(returnTo)}`
       : `https://github.com/apps/${process.env.GH_APP_NAME || "gitlaunchapp"}/installations/new`;
 
     return reply.view(

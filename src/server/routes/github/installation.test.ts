@@ -77,6 +77,53 @@ describe("GitHub Installation Routes", () => {
       expect(updated?.githubConnection?.installationId).toBe(98765);
     });
 
+    it("should preserve a local returnTo through repository selection", async () => {
+      // Given: an authenticated user connecting from the deploy-setup step
+      const account = await accountRepo.create({
+        name: "Return Org",
+        slug: "return-org",
+      });
+      const sessionToken = sessionService.createSession({
+        userId: new ObjectId(),
+        accountId: account._id,
+      });
+      const returnTo = "/onboarding/setup-deploy/abc123";
+
+      // When: the callback carries a returnTo
+      const response = await app.inject({
+        method: "GET",
+        url: `/github/installation/callback?installation_id=98765&returnTo=${encodeURIComponent(returnTo)}`,
+        cookies: { session: sessionToken },
+      });
+
+      // Then: repo selection is told where to send the user afterward
+      expect(response.statusCode).toBe(302);
+      expect(response.headers.location).toBe(
+        `/onboarding/repositories?returnTo=${encodeURIComponent(returnTo)}`,
+      );
+    });
+
+    it("should ignore a non-local returnTo (open-redirect guard)", async () => {
+      const account = await accountRepo.create({
+        name: "Evil Org",
+        slug: "evil-org",
+      });
+      const sessionToken = sessionService.createSession({
+        userId: new ObjectId(),
+        accountId: account._id,
+      });
+
+      const response = await app.inject({
+        method: "GET",
+        url: `/github/installation/callback?installation_id=98765&returnTo=https://evil.example.com`,
+        cookies: { session: sessionToken },
+      });
+
+      // Falls back to the default — never redirects off-site
+      expect(response.statusCode).toBe(302);
+      expect(response.headers.location).toBe("/onboarding/repositories");
+    });
+
     it("should return 400 if installation_id is missing", async () => {
       // Given: an account and authenticated user
       const account = await accountRepo.create({

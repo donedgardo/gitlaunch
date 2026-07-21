@@ -358,6 +358,37 @@ describe("Onboarding Routes", () => {
       expect(response.body).toContain("Set up deployments");
     });
 
+    it("fake-github install link returns to setup-deploy after connecting", async () => {
+      // In fake mode the install link hits our local callback directly, so it
+      // can carry a returnTo — letting the connect flow come back to deploy
+      // setup for local testing.
+      const { account, session } = await authedAccount("fake-install-org");
+      const service = await serviceRepo.create({
+        accountId: account._id,
+        name: "api",
+      });
+
+      const prev = process.env.USE_FAKE_GITHUB;
+      process.env.USE_FAKE_GITHUB = "true";
+      try {
+        const response = await app.inject({
+          method: "GET",
+          url: `/onboarding/setup-deploy/${service._id}`,
+          cookies: { session },
+        });
+        expect(response.statusCode).toBe(200);
+        // fake callback link...
+        expect(response.body).toContain("/github/installation/callback");
+        // ...carrying a returnTo back to this service's deploy-setup step
+        expect(response.body).toContain(
+          `returnTo=${encodeURIComponent(`/onboarding/setup-deploy/${service._id}`)}`,
+        );
+      } finally {
+        if (prev === undefined) delete process.env.USE_FAKE_GITHUB;
+        else process.env.USE_FAKE_GITHUB = prev;
+      }
+    });
+
     it("returns 404 for a service the account does not own", async () => {
       const { session } = await authedAccount("outsider-org");
       const other = await accountRepo.create({ name: "Other", slug: "other" });

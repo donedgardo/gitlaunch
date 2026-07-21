@@ -36,6 +36,7 @@ async function mockViewPluginFn(fastify: FastifyInstance) {
         ${template === "onboarding/plan-selection" ? `<h1>Choose your plan</h1>` : ""}
         ${data?.apiKey ? `<h1>Your API Key</h1><code id="api-key">${data.apiKey}</code>` : ""}
         ${data?.showSimulateBuild ? `<button id="simulate-build-btn">Simulate Build</button>` : ""}
+        ${data?.installUrl ? `<a id="install-url" href="${data.installUrl}">Install GitHub App</a>` : ""}
         ${data?.error ? `<div id="plan-error">${data.error}</div>` : ""}
         ${data?.maxRepositories ? `<span id="max-repos">${data.maxRepositories}</span>` : ""}
         ${data?.plan ? `<span id="plan">${data.plan}</span>` : ""}
