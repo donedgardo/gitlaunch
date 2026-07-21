@@ -118,6 +118,9 @@ describe("Dashboard Routes", () => {
           emptyBuilds: "/partials/emptyBuilds.hbs",
           deploymentSetupGuide: "/partials/deploymentSetupGuide.hbs",
           githubSecretsSetup: "/partials/githubSecretsSetup.hbs",
+          jenkinsBuildReportingGuide:
+            "/partials/jenkinsBuildReportingGuide.hbs",
+          rawBuildReportingGuide: "/partials/rawBuildReportingGuide.hbs",
           paginationControls: "/partials/paginationControls.hbs",
           setupStep: "/partials/setupStep.hbs",
         },
@@ -333,6 +336,92 @@ describe("Dashboard Routes", () => {
       expect(response.body).not.toContain("Configure Deployment Workflow");
       // And: it shows the build table
       expect(response.body).toContain("abc123");
+    });
+
+    it("shows the GitHub reporting guide (not the generic wizard) for a fresh GitHub service", async () => {
+      const account = await accountRepo.create({
+        name: "Test Org",
+        slug: `test-org-${Date.now()}-${Math.random()}`,
+      });
+      await serviceRepo.create({
+        accountId: account._id,
+        repositoryId: new ObjectId(),
+        name: "gh-empty",
+      });
+      const sessionToken = sessionService.createSession({
+        userId: new ObjectId(),
+        accountId: account._id,
+      });
+
+      const response = await app.inject({
+        method: "GET",
+        url: "/dashboard/gh-empty",
+        cookies: { session: sessionToken },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain("donedgardo/build-reporter");
+      // not the Jenkins or raw guide
+      expect(response.body).not.toContain("credentials('gitlaunch-api-key')");
+    });
+
+    it("shows the Jenkins reporting guide for a fresh Jenkins service (not GitHub Actions)", async () => {
+      const account = await accountRepo.create({
+        name: "Test Org",
+        slug: `test-org-${Date.now()}-${Math.random()}`,
+      });
+      const service = await serviceRepo.create({
+        accountId: account._id,
+        name: "jenkins-empty",
+      });
+      await serviceRepo.setDeployment(account._id, service._id, {
+        provider: "jenkins",
+        jobName: "deploy-api",
+      });
+      const sessionToken = sessionService.createSession({
+        userId: new ObjectId(),
+        accountId: account._id,
+      });
+
+      const response = await app.inject({
+        method: "GET",
+        url: "/dashboard/jenkins-empty",
+        cookies: { session: sessionToken },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain("credentials('gitlaunch-api-key')");
+      // not the GitHub Actions guide
+      expect(response.body).not.toContain("donedgardo/build-reporter");
+    });
+
+    it("shows the raw reporting guide for a fresh raw service (not GitHub Actions)", async () => {
+      const account = await accountRepo.create({
+        name: "Test Org",
+        slug: `test-org-${Date.now()}-${Math.random()}`,
+      });
+      const service = await serviceRepo.create({
+        accountId: account._id,
+        name: "raw-empty",
+      });
+      await serviceRepo.setDeployment(account._id, service._id, {
+        provider: "raw",
+        endpointUrl: "https://deploy.acme.com/hook",
+      });
+      const sessionToken = sessionService.createSession({
+        userId: new ObjectId(),
+        accountId: account._id,
+      });
+
+      const response = await app.inject({
+        method: "GET",
+        url: "/dashboard/raw-empty",
+        cookies: { session: sessionToken },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain("COMMIT_SHA");
+      expect(response.body).not.toContain("donedgardo/build-reporter");
     });
 
     it("shows a finish-deploy-setup CTA for a report-only service (no CD)", async () => {

@@ -201,6 +201,11 @@ export default function (deps: DashboardRoutesDeps) {
         // Report-only (deployment not configured) services show status without
         // Deploy/Redeploy controls.
         const canDispatch = activeService.deployment != null;
+        // Drives the provider-appropriate "report your first build" guide on the
+        // empty dashboard (GitHub Actions / Jenkins / raw). Report-only services
+        // default to the GitHub guide.
+        const provider = activeService.deployment?.provider ?? "github";
+        const apiUrl = process.env.PUBLIC_URL;
 
         // Load paginated builds for this service
         const { builds, total, hasMore } = await buildRepository.findPaginated(
@@ -251,6 +256,8 @@ export default function (deps: DashboardRoutesDeps) {
               builds: formattedBuilds,
               repoUrl,
               canDispatch,
+              provider,
+              apiUrl,
               needsDeploymentSetup,
               pagination,
               trialDaysRemaining: accountState.trialDaysRemaining,
@@ -282,6 +289,8 @@ export default function (deps: DashboardRoutesDeps) {
             builds: formattedBuilds,
             repoUrl,
             canDispatch,
+            provider,
+            apiUrl,
             needsDeploymentSetup,
             newApiKey,
             showSimulateBuild: process.env.ENABLE_BUILD_SIMULATION === "true",
