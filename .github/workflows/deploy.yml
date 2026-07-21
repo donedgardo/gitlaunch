@@ -46,14 +46,15 @@ jobs:
         with:
           ref: ${{ env.BUILD_ID }}
 
-      - name: GitLaunch Deploy
+      - name: Report deploying
         uses: donedgardo/build-reporter@v2
         with:
           api-key: ${{ secrets.GITLAUNCH_API_KEY }}
           service-id: ${{ vars.GITLAUNCH_SERVICE_ID }}
           environment: ${{ env.ENVIRONMENT }}
           build-id: ${{ env.BUILD_ID }}
-          action: deploy
+          action: update-status
+          status: deploying
 
       - name: Install Railway CLI
         run: npm install -g @railway/cli
@@ -64,9 +65,40 @@ jobs:
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 
-      # The GitLaunch Deploy step (action: deploy) auto-reports the terminal
-      # status (deployed/error/cancelled) via its post-hook based on the job
-      # outcome — no separate report steps needed.
+      # Explicit terminal status — GitHub-native success()/failure()/cancelled()
+      # is reliable, unlike the post-hook which can't read the job outcome.
+      - name: Report deployed
+        if: success()
+        uses: donedgardo/build-reporter@v2
+        with:
+          api-key: ${{ secrets.GITLAUNCH_API_KEY }}
+          service-id: ${{ vars.GITLAUNCH_SERVICE_ID }}
+          environment: ${{ env.ENVIRONMENT }}
+          build-id: ${{ env.BUILD_ID }}
+          action: update-status
+          status: deployed
+
+      - name: Report error
+        if: failure()
+        uses: donedgardo/build-reporter@v2
+        with:
+          api-key: ${{ secrets.GITLAUNCH_API_KEY }}
+          service-id: ${{ vars.GITLAUNCH_SERVICE_ID }}
+          environment: ${{ env.ENVIRONMENT }}
+          build-id: ${{ env.BUILD_ID }}
+          action: update-status
+          status: error
+
+      - name: Report cancelled
+        if: cancelled()
+        uses: donedgardo/build-reporter@v2
+        with:
+          api-key: ${{ secrets.GITLAUNCH_API_KEY }}
+          service-id: ${{ vars.GITLAUNCH_SERVICE_ID }}
+          environment: ${{ env.ENVIRONMENT }}
+          build-id: ${{ env.BUILD_ID }}
+          action: update-status
+          status: cancelled
 
       - name: Deployment Summary
         if: success()
