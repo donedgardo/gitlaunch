@@ -41,6 +41,25 @@ export function registerOnboardingRoutes(
     analytics,
   } = deps;
 
+  // GitHub App install URL. In fake mode it hits our local callback directly,
+  // so it can carry a local returnTo that survives the connect+select flow
+  // (the callback re-attaches it to repo selection). The real GitHub App flow
+  // can't preserve it — GitHub owns the post-install redirect.
+  function githubInstallUrl(returnTo?: string): string {
+    const useFakeGitHub = process.env.USE_FAKE_GITHUB === "true";
+    if (!useFakeGitHub) {
+      return `https://github.com/apps/${process.env.GH_APP_NAME || "gitlaunchapp"}/installations/new`;
+    }
+    const base = "/github/installation/callback?installation_id=12345";
+    const isLocalPath =
+      typeof returnTo === "string" &&
+      returnTo.startsWith("/") &&
+      !returnTo.startsWith("//");
+    return isLocalPath
+      ? `${base}&returnTo=${encodeURIComponent(returnTo)}`
+      : base;
+  }
+
   // GET /onboarding/plan-selection - Plan selection page
   app.get(
     "/onboarding/plan-selection",
@@ -326,15 +345,10 @@ export function registerOnboardingRoutes(
     const environments = [...service.environments].sort(
       (a, b) => a.order - b.order,
     );
-    const useFakeGitHub = process.env.USE_FAKE_GITHUB === "true";
-    // In fake mode the install link hits our local callback directly, so it can
-    // carry a returnTo that brings the connect flow back here to finish deploy
-    // setup. The real GitHub App flow can't preserve it (GitHub owns the
-    // redirect), so it falls back to the default post-install destination.
-    const returnTo = `/onboarding/setup-deploy/${service._id}`;
-    const installUrl = useFakeGitHub
-      ? `/github/installation/callback?installation_id=12345&returnTo=${encodeURIComponent(returnTo)}`
-      : `https://github.com/apps/${process.env.GH_APP_NAME || "gitlaunchapp"}/installations/new`;
+    // Connecting GitHub here should return to finish deploy setup (fake mode).
+    const installUrl = githubInstallUrl(
+      `/onboarding/setup-deploy/${service._id}`,
+    );
 
     return reply.view(
       "onboarding/setup-deploy",
@@ -521,9 +535,11 @@ export function registerOnboardingRoutes(
         return reply.redirect("/auth/github");
       }
 
-      // If GitHub App is not installed, redirect to install page
+      // No GitHub App yet — send them to install it, then back here (fake mode
+      // preserves returnTo so e.g. "don't see your repo?" from /services/new
+      // returns there afterward).
       if (!account.githubConnection) {
-        return reply.redirect("/onboarding");
+        return reply.redirect(githubInstallUrl(request.query.returnTo));
       }
 
       // Fetch available repositories from GitHub App installation

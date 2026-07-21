@@ -358,6 +358,49 @@ describe("Onboarding Routes", () => {
       expect(response.body).toContain("Set up deployments");
     });
 
+    it("repo selection without a GitHub connection sends the user to install (fake), preserving returnTo", async () => {
+      // Regression: retiring the choose-provider fork made /onboarding redirect
+      // to the dashboard, so the "don't see your repository?" link dead-ended
+      // there. It must instead prompt a GitHub App install and come back.
+      const { session } = await authedAccount("connect-fake-org");
+
+      const prev = process.env.USE_FAKE_GITHUB;
+      process.env.USE_FAKE_GITHUB = "true";
+      try {
+        const response = await app.inject({
+          method: "GET",
+          url: "/onboarding/repositories?returnTo=/services/new",
+          cookies: { session },
+        });
+        expect(response.statusCode).toBe(302);
+        expect(response.headers.location).toBe(
+          `/github/installation/callback?installation_id=12345&returnTo=${encodeURIComponent("/services/new")}`,
+        );
+      } finally {
+        if (prev === undefined) delete process.env.USE_FAKE_GITHUB;
+        else process.env.USE_FAKE_GITHUB = prev;
+      }
+    });
+
+    it("repo selection without a GitHub connection sends the user to the GitHub App (real)", async () => {
+      const { session } = await authedAccount("connect-real-org");
+
+      const prev = process.env.USE_FAKE_GITHUB;
+      delete process.env.USE_FAKE_GITHUB;
+      try {
+        const response = await app.inject({
+          method: "GET",
+          url: "/onboarding/repositories?returnTo=/services/new",
+          cookies: { session },
+        });
+        expect(response.statusCode).toBe(302);
+        expect(response.headers.location).toContain("github.com/apps/");
+        expect(response.headers.location).toContain("/installations/new");
+      } finally {
+        if (prev !== undefined) process.env.USE_FAKE_GITHUB = prev;
+      }
+    });
+
     it("fake-github install link returns to setup-deploy after connecting", async () => {
       // In fake mode the install link hits our local callback directly, so it
       // can carry a returnTo — letting the connect flow come back to deploy
