@@ -313,7 +313,7 @@ describe("Service Routes - Workflow Configuration", () => {
     });
   });
 
-  describe("POST /services/new — provider-first creation", () => {
+  describe("POST /services/new — report-only creation", () => {
     async function seedAccount(slug: string) {
       const account = await accountRepo.create({ name: slug, slug });
       const session = sessionService.createSession({
@@ -323,95 +323,49 @@ describe("Service Routes - Workflow Configuration", () => {
       return { account, session };
     }
 
-    it("should create a GitHub service from a selected repository", async () => {
-      const { account, session } = await seedAccount("gh-org");
-      const repository = await repositoryRepo.create({
-        accountId: account._id,
-        githubRepoId: 42,
-        githubFullName: "gh-org/api",
-        githubRepoName: "api",
-        githubOwner: "gh-org",
-        isPrivate: false,
-      });
+    it("creates a report-only service from just a name (CD picked later)", async () => {
+      const { account, session } = await seedAccount("report-org");
 
       const response = await app.inject({
         method: "POST",
         url: "/services/new",
         cookies: { session },
-        payload: {
-          provider: "github",
-          name: "api",
-          repositoryId: repository._id.toString(),
-        },
+        payload: { name: "api" },
       });
 
+      // Redirects to the dashboard for the new service...
       expect(response.statusCode).toBe(302);
+      expect(response.headers.location).toBe("/dashboard/api");
+
       const created = await serviceRepo.findByAccountIdAndName(
         account._id,
         "api",
       );
-      expect(created?.deployment).toEqual({
-        provider: "github",
-        repositoryId: repository._id,
-        workflowFile: "deploy.yml",
-      });
-      expect(created?.repoUrl).toBe("https://github.com/gh-org/api");
+      expect(created).not.toBeNull();
+      // ...with NO deployment — the CI choice must not assume a CD provider.
+      expect(created?.deployment).toBeNull();
+
+      // And a one-time API key cookie is set for the dashboard to display.
+      const setCookies = response.headers["set-cookie"];
+      const cookieStr = Array.isArray(setCookies)
+        ? setCookies.join(";")
+        : setCookies ?? "";
+      expect(cookieStr).toContain("new_api_key");
     });
 
-    it("should create a Jenkins service with a job name and no GitHub repo", async () => {
-      const { account, session } = await seedAccount("jk-org");
-      // A connected Jenkins server is a prerequisite.
-      await accountRepo.setJenkinsConnection(account._id, {
-        baseUrl: "https://ci.example.com",
-        username: "bot",
-        apiTokenEncrypted: "cipher",
-      });
+    it("re-renders with an error when the name is missing", async () => {
+      const { account, session } = await seedAccount("noname-org");
 
       const response = await app.inject({
         method: "POST",
         url: "/services/new",
         cookies: { session },
-        payload: {
-          provider: "jenkins",
-          name: "worker",
-          jobName: "deploy-worker",
-          repoUrl: "https://github.com/jk-org/worker",
-        },
+        payload: { name: "" },
       });
 
-      expect(response.statusCode).toBe(302);
-      const created = await serviceRepo.findByAccountIdAndName(
-        account._id,
-        "worker",
-      );
-      expect(created?.deployment).toEqual({
-        provider: "jenkins",
-        jobName: "deploy-worker",
-      });
-      expect(created?.repoUrl).toBe("https://github.com/jk-org/worker");
-    });
-
-    it("should reject a Jenkins service when Jenkins is not connected", async () => {
-      const { account, session } = await seedAccount("jk-none");
-
-      const response = await app.inject({
-        method: "POST",
-        url: "/services/new",
-        cookies: { session },
-        payload: {
-          provider: "jenkins",
-          name: "worker",
-          jobName: "deploy-worker",
-        },
-      });
-
-      // Form re-renders (200) with an error; nothing is created.
       expect(response.statusCode).toBe(200);
-      const created = await serviceRepo.findByAccountIdAndName(
-        account._id,
-        "worker",
-      );
-      expect(created).toBeNull();
+      const services = await serviceRepo.findByAccountId(account._id);
+      expect(services).toHaveLength(0);
     });
   });
 });

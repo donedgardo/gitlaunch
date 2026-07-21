@@ -58,82 +58,31 @@
               id="name"
               name="name"
               required
+              value="{{name}}"
               placeholder="e.g., api, web, worker"
               class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
             <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
-              A short, descriptive name for this service. Used in the dashboard and CI integration.
+              Next, we'll help you report builds. You pick how it deploys
+              (GitHub Actions, Jenkins, or a raw webhook) afterward.
             </p>
           </div>
 
-          <!-- CI Provider -->
+          <!-- Repository URL (optional, for commit links) -->
           <div>
-            <label for="provider" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              CI Provider
-            </label>
-            <select
-              id="provider"
-              name="provider"
-              onchange="document.getElementById('github-fields').style.display = this.value === 'github' ? 'block' : 'none'; document.getElementById('jenkins-fields').style.display = this.value === 'jenkins' ? 'block' : 'none';"
-              class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="github">GitHub Actions</option>
-              <option value="jenkins">Jenkins</option>
-            </select>
-          </div>
-
-          <!-- GitHub: repository picker -->
-          <div id="github-fields">
-            <label for="repositoryId" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Repository
-            </label>
-            <select
-              id="repositoryId"
-              name="repositoryId"
-              class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="">Select a repository...</option>
-              {{#each repositories}}
-              <option value="{{this._id}}">{{this.githubFullName}}</option>
-              {{/each}}
-            </select>
-            <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
-              The GitHub repository this service deploys from.
-              <a href="/onboarding/repositories?returnTo=/services/new" class="text-blue-600 dark:text-blue-400 hover:underline">
-                Don't see your repository? Add more repositories
-              </a>
-            </p>
-          </div>
-
-          <!-- Jenkins: job name + commit-link repo URL -->
-          <div id="jenkins-fields" style="display: none;">
-            {{#unless jenkinsConnected}}
-            <div class="mb-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg text-sm text-amber-800 dark:text-amber-200">
-              Jenkins isn't connected yet. <a href="/settings/jenkins" class="underline">Connect a Jenkins server</a> first.
-            </div>
-            {{/unless}}
-            <label for="jobName" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Jenkins Job Name
-            </label>
-            <input
-              type="text"
-              id="jobName"
-              name="jobName"
-              placeholder="e.g., deploy-api"
-              class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-            <label for="repoUrl" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mt-4 mb-2">
-              Repository URL <span class="text-gray-400">(for commit links)</span>
+            <label for="repoUrl" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Repository URL <span class="text-gray-400">(optional, for commit links)</span>
             </label>
             <input
               type="url"
               id="repoUrl"
               name="repoUrl"
+              value="{{repoUrl}}"
               placeholder="https://github.com/acme/api"
               class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
             <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
-              Where your commits live — used to link each build's SHA. No GitHub App required.
+              Where your commits live — used to link each build's SHA.
             </p>
           </div>
         </div>

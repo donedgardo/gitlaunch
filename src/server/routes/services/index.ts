@@ -2,10 +2,7 @@ import { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { ObjectId } from "mongodb";
 import { AccountRepository } from "../../../repositories/accountRepository";
 import { RepositoryRepository } from "../../../repositories/repositoryRepository";
-import {
-  ServiceRepository,
-  Deployment,
-} from "../../../repositories/serviceRepository";
+import { ServiceRepository } from "../../../repositories/serviceRepository";
 import { ApiKeyService } from "../../../services/apiKey/apiKeyService";
 import { GitHubAppService } from "../../../services/github/githubAppService";
 import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
@@ -52,37 +49,20 @@ export function registerServiceRoutes(
         return reply.redirect("/auth/github");
       }
 
-      // Get repositories for this account
-      const repositories = await repositoryRepository.findByAccountId(
-        account._id,
-      );
-      const jenkinsConnected = account.jenkinsConnection != null;
-
-      // With no repo and no Jenkins, the provider-first form has nothing to
-      // offer — send them to create a report-only service (CD is set up later).
-      if (repositories.length === 0 && !jenkinsConnected) {
-        return reply.redirect("/onboarding/service");
-      }
-
+      // Report-only creation: just a name (+ optional repo URL for commit
+      // links). The deploy provider is picked later in deploy setup.
       return reply.view(
         "services/new",
-        {
-          title: "Create Service",
-          repositories,
-          jenkinsConnected,
-        },
+        { title: "Create Service" },
         { layout: "/layouts/main.hbs" },
       );
     },
   );
 
-  // POST /services/new - Create a new service (provider-first)
+  // POST /services/new - Create a report-only service (CD picked later)
   app.post<{
     Body: {
-      provider?: string;
-      repositoryId?: string;
       name?: string;
-      jobName?: string;
       repoUrl?: string;
     };
   }>(
@@ -90,10 +70,7 @@ export function registerServiceRoutes(
     async (
       request: FastifyRequest<{
         Body: {
-          provider?: string;
-          repositoryId?: string;
           name?: string;
-          jobName?: string;
           repoUrl?: string;
         };
       }>,
@@ -112,59 +89,19 @@ export function registerServiceRoutes(
         return reply.redirect("/auth/github");
       }
 
-      const provider =
-        request.body.provider === "jenkins" ? "jenkins" : "github";
       const name = request.body.name?.trim() || "";
-      const jenkinsConnected = account.jenkinsConnection != null;
+      const repoUrl = request.body.repoUrl?.trim() || "";
 
       // Re-render the form with an error message.
-      const renderError = async (error: string) => {
-        const repositories = await repositoryRepository.findByAccountId(
-          account._id,
-        );
-        return reply.view(
+      const renderError = async (error: string) =>
+        reply.view(
           "services/new",
-          { title: "Create Service", repositories, jenkinsConnected, error },
+          { title: "Create Service", name, repoUrl, error },
           { layout: "/layouts/main.hbs" },
         );
-      };
 
       if (!name) {
         return renderError("Please enter a service name.");
-      }
-
-      // Resolve the deployment + commit-link repoUrl per provider.
-      let deployment: Deployment;
-      let repoUrl: string;
-      if (provider === "jenkins") {
-        const jobName = request.body.jobName?.trim() || "";
-        if (!jenkinsConnected) {
-          return renderError(
-            "Connect a Jenkins server first from Settings → Jenkins.",
-          );
-        }
-        if (!jobName) {
-          return renderError("Please enter a Jenkins job name.");
-        }
-        deployment = { provider: "jenkins", jobName };
-        repoUrl = request.body.repoUrl?.trim() || "";
-      } else {
-        const repositoryId = request.body.repositoryId || "";
-        if (!repositoryId) {
-          return renderError("Please select a repository.");
-        }
-        const repository = await repositoryRepository.findById(
-          new ObjectId(repositoryId),
-        );
-        if (!repository || !repository.accountId.equals(account._id)) {
-          return renderError("Invalid repository selected.");
-        }
-        deployment = {
-          provider: "github",
-          repositoryId: repository._id,
-          workflowFile: "deploy.yml",
-        };
-        repoUrl = `https://github.com/${repository.githubFullName}`;
       }
 
       // Check plan limit for services
@@ -173,19 +110,20 @@ export function registerServiceRoutes(
         return renderError(canAdd.reason ?? "Service limit reached.");
       }
 
-      // Create the service
+      // Create a report-only service — the deploy provider (GitHub / Jenkins /
+      // raw) is picked later in deploy setup, so choosing a CI provider for
+      // reporting never assumes a CD provider.
       try {
         await serviceRepository.create({
           accountId: account._id,
           name,
-          deployment,
           repoUrl,
         });
 
         analytics?.track("service_created", {
           serviceName: name,
           accountId: account._id.toString(),
-          provider,
+          provider: "report-only",
         });
 
         // Generate API key for this service

@@ -17,7 +17,6 @@ test.describe("Build Streaming", () => {
 
     const serviceName = `stream-test-${Date.now()}`;
     await page.goto("/services/new");
-    await page.locator("#repositoryId").selectOption({ index: 1 });
     await page.locator("#name").fill(serviceName);
     await page.getByRole("button", { name: /create service/i }).click();
 
@@ -35,22 +34,13 @@ test.describe("Build Streaming", () => {
     const serviceId = settingsHref.split("/services/")[1].split("/settings")[0];
     expect(serviceId).toBeTruthy();
 
-    // Configure the workflow (so needsDeploymentSetup is false)
-    await page.goto(`/services/${serviceId}/settings`);
-
-    // Wait for workflow dropdown to load and save
-    await page.waitForFunction(() => {
-      const select = document.querySelector(
-        "#workflowFile",
-      ) as HTMLSelectElement;
-      return (
-        select &&
-        select.options.length > 0 &&
-        !select.innerHTML.includes("Loading")
-      );
-    });
-    await page.getByRole("button", { name: /save workflow/i }).click();
-    await expect(page.getByText("Workflow settings saved")).toBeVisible();
+    // Configure a raw deploy target so builds are dispatchable (Deploy buttons)
+    // — a report-only service starts with no CD provider.
+    await page.goto(`/onboarding/setup-deploy/${serviceId}`);
+    await page.getByRole("button", { name: /raw webhook/i }).click();
+    await page.locator("#endpointUrl").fill("https://deploy.example.com/hook");
+    await page.getByRole("button", { name: /finish setup/i }).click();
+    await expect(page).toHaveURL(/\/dashboard/);
 
     // Report initial build
     const initialBuildId = `initial-${Date.now()}`;

@@ -12,7 +12,6 @@ test.describe("Delete Service", () => {
 
     const serviceName = `delete-test-${Date.now()}`;
     await page.goto("/services/new");
-    await page.locator("#repositoryId").selectOption({ index: 1 });
     await page.locator("#name").fill(serviceName);
     await page.getByRole("button", { name: /create service/i }).click();
 

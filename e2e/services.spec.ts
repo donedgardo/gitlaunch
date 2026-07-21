@@ -2,11 +2,11 @@ import { test, expect } from "@playwright/test";
 import { authenticateTestUser, TEST_USERS } from "./helpers/auth";
 
 test.describe("Service Creation", () => {
-  test("user with repositories sees create service form", async ({ page }) => {
-    // Authenticate as user with repositories
+  test("create service form asks only for a name (report-only)", async ({
+    page,
+  }) => {
     await authenticateTestUser(page, TEST_USERS.userWithRepos);
 
-    // Visit create service page
     await page.goto("/services/new");
 
     // Should see the create service form
@@ -14,25 +14,12 @@ test.describe("Service Creation", () => {
       page.getByRole("heading", { name: /create.*service/i }),
     ).toBeVisible();
 
-    // Should see repository dropdown
-    await expect(page.locator("#repositoryId")).toBeVisible();
-
-    // Should see service name input
+    // Name is required; there's an optional repo URL — no deploy-provider
+    // picker (CD is chosen later in deploy setup).
     await expect(page.locator("#name")).toBeVisible();
-  });
-
-  test("repository dropdown shows available repositories", async ({ page }) => {
-    // Authenticate as user with repositories
-    await authenticateTestUser(page, TEST_USERS.userWithRepos);
-
-    // Visit create service page
-    await page.goto("/services/new");
-
-    // Repository dropdown should have options from GitHub App installation
-    const repoOption = page.locator(
-      '#repositoryId option:has-text("test-org/test-repo")',
-    );
-    await expect(repoOption).toBeAttached();
+    await expect(page.locator("#repoUrl")).toBeVisible();
+    await expect(page.locator("#provider")).toHaveCount(0);
+    await expect(page.locator("#repositoryId")).toHaveCount(0);
   });
 
   test("can create a service and see API key on dashboard", async ({
@@ -44,10 +31,7 @@ test.describe("Service Creation", () => {
     // Visit create service page
     await page.goto("/services/new");
 
-    // Select repository
-    await page.locator("#repositoryId").selectOption({ index: 1 }); // First real option
-
-    // Enter service name (use timestamp for uniqueness)
+    // Enter service name (use timestamp for uniqueness) — no repo selection
     const serviceName = `my-api-service-${Date.now()}`;
     await page.locator("#name").fill(serviceName);
 
@@ -64,7 +48,7 @@ test.describe("Service Creation", () => {
     )?.trim();
     expect(apiKeyText).toMatch(/^pk_/); // Key starts with pk_
 
-    // Should see getting started guide
+    // Should see a build-reporting guide (defaults to GitHub for report-only)
     await expect(page.getByText(/add secrets to github/i)).toBeVisible();
   });
 
@@ -75,8 +59,7 @@ test.describe("Service Creation", () => {
     // Visit create service page
     await page.goto("/services/new");
 
-    // Select repository and create service
-    await page.locator("#repositoryId").selectOption({ index: 1 });
+    // Create a service (name only)
     await page.locator("#name").fill(`secure-service-${Date.now()}`);
     await page.getByRole("button", { name: /create service/i }).click();
 
@@ -106,7 +89,6 @@ test.describe("Service Creation", () => {
 
     // Create a service
     await page.goto("/services/new");
-    await page.locator("#repositoryId").selectOption({ index: 1 });
     await page.locator("#name").fill(`one-time-service-${Date.now()}`);
     await page.getByRole("button", { name: /create service/i }).click();
     await expect(page).toHaveURL(/\/dashboard/);
@@ -121,7 +103,7 @@ test.describe("Service Creation", () => {
     await expect(page.locator("#new-api-key")).not.toBeVisible();
   });
 
-  test("requires a name and lets the user choose a provider", async ({
+  test("requires a name (deploy provider is chosen later)", async ({
     page,
   }) => {
     // Authenticate as user with repositories
@@ -136,9 +118,9 @@ test.describe("Service Creation", () => {
     // Service name is required at the form level.
     await expect(page.locator("#name")).toHaveAttribute("required", "");
 
-    // Provider is chosen up front; the repository requirement is enforced
-    // per-provider on the server (GitHub needs a repo, Jenkins needs a job).
-    await expect(page.locator("#provider")).toBeVisible();
+    // No CI/CD provider picker here — deployment is set up after reporting a
+    // build, so creation never assumes a deploy provider.
+    await expect(page.locator("#provider")).toHaveCount(0);
   });
 
   test("unauthenticated user is redirected from create service page", async ({
@@ -147,8 +129,11 @@ test.describe("Service Creation", () => {
     // Visit create service page without authentication
     await page.goto("/services/new");
 
-    // Should be redirected to GitHub OAuth (either /auth/github or github.com)
-    await expect(page).toHaveURL(/github/);
+    // Should be redirected off the create page to log in. In real mode that's
+    // GitHub's OAuth (github.com); in fake-GitHub dev mode the login completes
+    // locally and lands on the dashboard. Either way, not /services/new.
+    await expect(page).not.toHaveURL(/\/services\/new/);
+    await expect(page).toHaveURL(/github|\/dashboard/);
   });
 
   test("cancel link returns to dashboard", async ({ page }) => {
