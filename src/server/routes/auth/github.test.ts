@@ -123,6 +123,27 @@ describe("GitHub OAuth Routes", () => {
       // Then: the redirect URL includes a state parameter
       expect(response.headers.location).toContain("state=");
     });
+
+    it("short-circuits to the local callback in fake mode (no real GitHub)", async () => {
+      const prev = process.env.USE_FAKE_GITHUB;
+      process.env.USE_FAKE_GITHUB = "true";
+      try {
+        const response = await app.inject({
+          method: "GET",
+          url: "/auth/github",
+        });
+
+        // Then: it stays local — a relative callback path, not github.com
+        expect(response.statusCode).toBe(302);
+        expect(response.headers.location).not.toContain("github.com");
+        expect(response.headers.location).toMatch(
+          /^\/auth\/github\/callback\?code=[^&]+&state=[^&]+$/,
+        );
+      } finally {
+        if (prev === undefined) delete process.env.USE_FAKE_GITHUB;
+        else process.env.USE_FAKE_GITHUB = prev;
+      }
+    });
   });
 
   describe("GET /auth/github/callback", () => {

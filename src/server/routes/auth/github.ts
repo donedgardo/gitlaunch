@@ -48,6 +48,17 @@ export function registerGitHubAuthRoutes(
         maxAge: 600, // 10 minutes
       });
 
+      // In fake mode, skip real GitHub entirely: redirect straight to our own
+      // callback with a dummy code. The fake OAuth client returns a dev user,
+      // so login completes without leaving localhost. The relative path keeps
+      // it on whatever host you're on, regardless of PUBLIC_URL / OAuth App
+      // callback config.
+      if (process.env.USE_FAKE_GITHUB === "true") {
+        return reply.redirect(
+          `/auth/github/callback?code=fake-dev-code&state=${state}`,
+        );
+      }
+
       const authUrl = oauthService.getAuthorizationUrl(state);
       return reply.redirect(authUrl);
     },
