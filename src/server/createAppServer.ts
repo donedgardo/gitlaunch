@@ -39,7 +39,10 @@ import { RepositoryRepository } from "../repositories/repositoryRepository";
 import { ServiceRepository } from "../repositories/serviceRepository";
 import { ApiKeyRepository } from "../repositories/apiKeyRepository";
 import { FlagRepository } from "../repositories/flagRepository";
+import { FlagConfigVersionRepository } from "../repositories/flagConfigVersionRepository";
 import { FlagService } from "../services/flag/flagService";
+import { ExperimentResultsService } from "../services/flag/experimentResultsService";
+import { FlagConfigVersionService } from "../services/flag/flagConfigVersionService";
 import { FlagCacheI, InMemoryFlagCache } from "../services/flag/flagCache";
 import { WebhookEventRepository } from "../repositories/webhookEventRepository";
 import { TrialRegistryRepository } from "../repositories/trialRegistryRepository";
@@ -74,6 +77,7 @@ import {
 import { LeadRepository } from "../repositories/leadRepository";
 import { WaitlistService } from "../services/marketing/waitlistService";
 import { WaitlistExperiment } from "../services/marketing/waitlistExperiment";
+import { SignupGate } from "../services/account/signupGate";
 import { registerWaitlistRoutes } from "./routes/marketing/waitlist";
 
 // Minimum time (ms) a real person needs to read and fill the waitlist form.
@@ -133,7 +137,13 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
   const trialRegistryRepository = new TrialRegistryRepository(database);
   const leadRepository = new LeadRepository(database);
   const flagRepository = new FlagRepository(database);
+  const flagConfigVersionRepository = new FlagConfigVersionRepository(database);
   const analyticsQueryService = new AnalyticsQueryService(database);
+  const experimentResultsService = new ExperimentResultsService(database);
+  const flagConfigVersionService = new FlagConfigVersionService(
+    flagRepository,
+    flagConfigVersionRepository,
+  );
 
   // Services
   const apiKeyService = new ApiKeyService(apiKeyRepository, accountRepository);
@@ -183,6 +193,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     flagRepository,
     serviceRepository,
     flagCache,
+    flagConfigVersionService,
   );
 
   // Webhook handler and route
@@ -276,6 +287,16 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     environment: process.env.GITLAUNCH_FLAG_ENV || "prod",
   };
 
+  // Dogfood our own feature flags to control our own front door: whether a
+  // brand-new visitor may create an account (kill switch / gradual alpha
+  // opening / allow-lists, all from the flags page). Fails open.
+  const signupGate = new SignupGate(
+    flagService,
+    serviceRepository,
+    analytics,
+    selfFlagContext,
+  );
+
   // Marketing: dogfood our own feature flags to A/B test the landing-page copy.
   const waitlistExperiment = new WaitlistExperiment(
     flagService,
@@ -325,6 +346,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     accountRepository,
     membershipRepository,
     invitationRepository,
+    signupGate,
     analytics,
   });
 
@@ -373,6 +395,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     flagService,
     apiKeyService,
     analytics,
+    experimentResults: experimentResultsService,
   });
 
   // API v1 routes (API key authenticated)
@@ -402,6 +425,8 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
         serviceRepo: serviceRepository,
         planEnforcementService,
         analytics,
+        experimentResults: experimentResultsService,
+        configVersions: flagConfigVersionService,
       });
     },
     { prefix: "" }, // Routes already have /api/v1 prefix

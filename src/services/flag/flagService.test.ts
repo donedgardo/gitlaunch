@@ -4,6 +4,8 @@ import { MongoClient, Db, ObjectId } from "mongodb";
 import { AccountRepository } from "../../repositories/accountRepository";
 import { ServiceRepository } from "../../repositories/serviceRepository";
 import { FlagRepository } from "../../repositories/flagRepository";
+import { FlagConfigVersionRepository } from "../../repositories/flagConfigVersionRepository";
+import { FlagConfigVersionService } from "./flagConfigVersionService";
 import { FlagService } from "./flagService";
 
 describe("FlagService", () => {
@@ -212,6 +214,205 @@ describe("FlagService", () => {
 
       expect(updated.environments.staging.variants).toHaveLength(2);
     });
+
+    it("should persist valid targeting rules", async () => {
+      const { account, svc } = await makeAccountAndService("acme");
+      await service.createFlag(account._id, svc._id, {
+        key: "beta",
+        description: "",
+      });
+
+      const updated = await service.setEnvConfig(
+        account._id,
+        svc._id,
+        "beta",
+        "staging",
+        {
+          enabled: true,
+          targetingRules: [
+            {
+              conditions: [
+                { attribute: "country", operator: "in", values: ["US", "CA"] },
+              ],
+              serve: null,
+            },
+          ],
+        },
+      );
+
+      expect(updated.environments.staging.targetingRules).toHaveLength(1);
+      expect(
+        updated.environments.staging.targetingRules![0].conditions[0].attribute,
+      ).toBe("country");
+    });
+
+    it("should reject a rule with an empty attribute name", async () => {
+      const { account, svc } = await makeAccountAndService("acme");
+      await service.createFlag(account._id, svc._id, {
+        key: "beta",
+        description: "",
+      });
+
+      await expect(
+        service.setEnvConfig(account._id, svc._id, "beta", "staging", {
+          targetingRules: [
+            {
+              conditions: [{ attribute: "", operator: "eq", values: ["US"] }],
+              serve: null,
+            },
+          ],
+        }),
+      ).rejects.toThrow();
+    });
+
+    it("should reject a rule with no conditions", async () => {
+      const { account, svc } = await makeAccountAndService("acme");
+      await service.createFlag(account._id, svc._id, {
+        key: "beta",
+        description: "",
+      });
+
+      await expect(
+        service.setEnvConfig(account._id, svc._id, "beta", "staging", {
+          targetingRules: [{ conditions: [], serve: null }],
+        }),
+      ).rejects.toThrow();
+    });
+
+    it("should reject a condition with an unknown operator", async () => {
+      const { account, svc } = await makeAccountAndService("acme");
+      await service.createFlag(account._id, svc._id, {
+        key: "beta",
+        description: "",
+      });
+
+      await expect(
+        service.setEnvConfig(account._id, svc._id, "beta", "staging", {
+          targetingRules: [
+            {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              conditions: [
+                {
+                  attribute: "country",
+                  operator: "wat" as any,
+                  values: ["US"],
+                },
+              ],
+              serve: null,
+            },
+          ],
+        }),
+      ).rejects.toThrow();
+    });
+
+    it("should reject a rule that serves an undefined variant", async () => {
+      const { account, svc } = await makeAccountAndService("acme");
+      await service.createFlag(account._id, svc._id, {
+        key: "beta",
+        description: "",
+      });
+
+      await expect(
+        service.setEnvConfig(account._id, svc._id, "beta", "staging", {
+          enabled: true,
+          variants: [
+            { key: "control", weight: 50 },
+            { key: "treatment", weight: 50 },
+          ],
+          targetingRules: [
+            {
+              conditions: [
+                { attribute: "plan", operator: "eq", values: ["pro"] },
+              ],
+              serve: "does-not-exist",
+            },
+          ],
+        }),
+      ).rejects.toThrow();
+    });
+  });
+
+  describe("evaluate", () => {
+    it("should serve a targeting rule based on entity attributes", async () => {
+      const { account, svc } = await makeAccountAndService("acme");
+      await service.createFlag(account._id, svc._id, {
+        key: "beta",
+        description: "",
+      });
+      await service.setEnvConfig(account._id, svc._id, "beta", "prod", {
+        enabled: true,
+        rolloutPercentage: 0,
+        targetingRules: [
+          {
+            conditions: [
+              { attribute: "plan", operator: "eq", values: ["enterprise"] },
+            ],
+            serve: null,
+          },
+        ],
+      });
+
+      const matched = await service.evaluate(
+        account._id,
+        svc._id,
+        "prod",
+        "user-1",
+        {
+          plan: "enterprise",
+        },
+      );
+      expect(matched.find((r) => r.key === "beta")!.reason).toBe(
+        "targeting_rule",
+      );
+
+      const unmatched = await service.evaluate(
+        account._id,
+        svc._id,
+        "prod",
+        "user-1",
+        {
+          plan: "free",
+        },
+      );
+      expect(unmatched.find((r) => r.key === "beta")!.enabled).toBe(false);
+    });
+  });
+
+  describe("evaluateOne with attributes", () => {
+    it("should attribute a conversion to the targeting-rule variant", async () => {
+      const { account, svc } = await makeAccountAndService("acme");
+      await service.createFlag(account._id, svc._id, {
+        key: "exp",
+        description: "",
+      });
+      await service.setEnvConfig(account._id, svc._id, "exp", "prod", {
+        enabled: true,
+        rolloutPercentage: 0,
+        variants: [
+          { key: "control", weight: 50 },
+          { key: "treatment", weight: 50 },
+        ],
+        targetingRules: [
+          {
+            conditions: [
+              { attribute: "country", operator: "eq", values: ["US"] },
+            ],
+            serve: "treatment",
+          },
+        ],
+      });
+
+      const one = await service.evaluateOne(
+        account._id,
+        svc._id,
+        "prod",
+        "exp",
+        "user-1",
+        { country: "US" },
+      );
+      expect(one!.variant).toBe("treatment");
+      expect(one!.reason).toBe("targeting_rule");
+    });
   });
 
   describe("evaluate", () => {
@@ -241,6 +442,54 @@ describe("FlagService", () => {
       expect(byKey["on-flag"].enabled).toBe(true);
       expect(byKey["off-flag"].enabled).toBe(false);
       expect(byKey["off-flag"].reason).toBe("disabled");
+    });
+  });
+
+  describe("evaluateOne", () => {
+    it("should return the same variant as evaluate for a single flag", async () => {
+      const { account, svc } = await makeAccountAndService("acme");
+      await service.createFlag(account._id, svc._id, {
+        key: "exp",
+        description: "",
+      });
+      await service.setEnvConfig(account._id, svc._id, "exp", "prod", {
+        enabled: true,
+        rolloutPercentage: 100,
+        variants: [
+          { key: "control", weight: 50 },
+          { key: "treatment", weight: 50 },
+        ],
+      });
+
+      const all = await service.evaluate(
+        account._id,
+        svc._id,
+        "prod",
+        "user-42",
+      );
+      const one = await service.evaluateOne(
+        account._id,
+        svc._id,
+        "prod",
+        "exp",
+        "user-42",
+      );
+
+      expect(one).not.toBeNull();
+      expect(one!.enabled).toBe(true);
+      expect(one!.variant).toBe(all.find((e) => e.key === "exp")!.variant);
+    });
+
+    it("should return null when the flag does not exist", async () => {
+      const { account, svc } = await makeAccountAndService("acme");
+      const one = await service.evaluateOne(
+        account._id,
+        svc._id,
+        "prod",
+        "missing",
+        "user-1",
+      );
+      expect(one).toBeNull();
     });
   });
 
@@ -301,6 +550,107 @@ describe("FlagService", () => {
       const deleted = await service.deleteFlag(account._id, svc._id, "temp");
       expect(deleted).toBe(true);
       expect(await service.getFlag(account._id, svc._id, "temp")).toBeNull();
+    });
+  });
+
+  describe("config version auto-publish", () => {
+    let versionRepo: FlagConfigVersionRepository;
+    let versionService: FlagConfigVersionService;
+    let versioned: FlagService;
+
+    beforeEach(async () => {
+      await db.collection("flag_config_versions").deleteMany({});
+      versionRepo = new FlagConfigVersionRepository(db);
+      versionService = new FlagConfigVersionService(flagRepo, versionRepo);
+      versioned = new FlagService(
+        flagRepo,
+        serviceRepo,
+        undefined,
+        versionService,
+      );
+    });
+
+    it("should publish an initial config version for each environment when a flag is created", async () => {
+      const { account, svc } = await makeAccountAndService("acme");
+
+      await versioned.createFlag(account._id, svc._id, {
+        key: "new-checkout",
+        description: "",
+      });
+
+      const prod = await versionService.listVersions(
+        account._id,
+        svc._id,
+        "prod",
+      );
+      const staging = await versionService.listVersions(
+        account._id,
+        svc._id,
+        "staging",
+      );
+      expect(prod).toHaveLength(1);
+      expect(staging).toHaveLength(1);
+    });
+
+    it("should publish a new version for the changed environment only", async () => {
+      const { account, svc } = await makeAccountAndService("acme");
+      await versioned.createFlag(account._id, svc._id, {
+        key: "new-checkout",
+        description: "",
+      });
+
+      await versioned.setEnvConfig(
+        account._id,
+        svc._id,
+        "new-checkout",
+        "prod",
+        {
+          enabled: true,
+          rolloutPercentage: 100,
+        },
+      );
+
+      const prod = await versionService.listVersions(
+        account._id,
+        svc._id,
+        "prod",
+      );
+      const staging = await versionService.listVersions(
+        account._id,
+        svc._id,
+        "staging",
+      );
+      expect(prod).toHaveLength(2); // create + change
+      expect(prod[0].bundle.flags[0].config.enabled).toBe(true);
+      expect(staging).toHaveLength(1); // unchanged
+    });
+
+    it("should publish a new version when a flag is deleted", async () => {
+      const { account, svc } = await makeAccountAndService("acme");
+      await versioned.createFlag(account._id, svc._id, {
+        key: "temp",
+        description: "",
+      });
+
+      await versioned.deleteFlag(account._id, svc._id, "temp");
+
+      const prod = await versionService.listVersions(
+        account._id,
+        svc._id,
+        "prod",
+      );
+      expect(prod).toHaveLength(2); // create + delete
+      expect(prod[0].bundle.flags).toHaveLength(0); // empty after delete
+    });
+
+    it("should not break flag writes when versioning has no publisher", async () => {
+      const { account, svc } = await makeAccountAndService("acme");
+      // `service` (the shared instance) has no version publisher configured.
+      const flag = await service.createFlag(account._id, svc._id, {
+        key: "no-versioning",
+        description: "",
+      });
+      expect(flag.key).toBe("no-versioning");
     });
   });
 });

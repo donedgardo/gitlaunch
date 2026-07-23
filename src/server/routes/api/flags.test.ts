@@ -21,6 +21,11 @@ import { MembershipRepository } from "../../../repositories/membershipRepository
 import { FlagRepository } from "../../../repositories/flagRepository";
 import { FlagService } from "../../../services/flag/flagService";
 import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
+import { AnalyticsEventRepository } from "../../../repositories/analyticsEventRepository";
+import { WarehouseAnalytics } from "../../../services/analytics/warehouseAnalytics";
+import { ExperimentResultsService } from "../../../services/flag/experimentResultsService";
+import { FlagConfigVersionRepository } from "../../../repositories/flagConfigVersionRepository";
+import { FlagConfigVersionService } from "../../../services/flag/flagConfigVersionService";
 import { registerFlagsRoutes } from "./flags";
 import { ApiKeyScope } from "../../../repositories/apiKeyRepository";
 
@@ -60,6 +65,9 @@ describe("Flags API Routes", () => {
   let flagRepo: FlagRepository;
   let flagService: FlagService;
   let planEnforcementService: PlanEnforcementService;
+  let analytics: WarehouseAnalytics;
+  let experimentResults: ExperimentResultsService;
+  let configVersions: FlagConfigVersionService;
 
   let testAccountId: ObjectId;
   let testServiceId: ObjectId;
@@ -75,7 +83,18 @@ describe("Flags API Routes", () => {
     serviceRepo = new ServiceRepository(db);
     membershipRepo = new MembershipRepository(db);
     flagRepo = new FlagRepository(db);
-    flagService = new FlagService(flagRepo, serviceRepo);
+    configVersions = new FlagConfigVersionService(
+      flagRepo,
+      new FlagConfigVersionRepository(db),
+    );
+    flagService = new FlagService(
+      flagRepo,
+      serviceRepo,
+      undefined,
+      configVersions,
+    );
+    analytics = new WarehouseAnalytics(new AnalyticsEventRepository(db));
+    experimentResults = new ExperimentResultsService(db);
     planEnforcementService = new PlanEnforcementService(
       accountRepo,
       repoRepo,
@@ -97,6 +116,8 @@ describe("Flags API Routes", () => {
     await db.collection("accounts").deleteMany({});
     await db.collection("services").deleteMany({});
     await db.collection("flags").deleteMany({});
+    await db.collection("analytics_events").deleteMany({});
+    await db.collection("flag_config_versions").deleteMany({});
 
     const account = await accountRepo.create({
       name: "Test Org",
@@ -120,6 +141,9 @@ describe("Flags API Routes", () => {
       flagService,
       serviceRepo,
       planEnforcementService,
+      analytics,
+      experimentResults,
+      configVersions,
     });
     await app.ready();
   });
@@ -221,6 +245,111 @@ describe("Flags API Routes", () => {
     expect(JSON.parse(second.body)).toEqual(firstBody);
   });
 
+  it("should apply targeting rules from attr.* query params on evaluation", async () => {
+    await app.inject({
+      method: "POST",
+      url: `/api/v1/services/${testServiceId}/flags`,
+      headers: auth(),
+      payload: { key: "beta" },
+    });
+
+    // Rollout is 0 — only the targeting rule can turn the flag on.
+    const patch = await app.inject({
+      method: "PATCH",
+      url: `/api/v1/services/${testServiceId}/flags/beta/environments/prod`,
+      headers: auth(),
+      payload: {
+        enabled: true,
+        rolloutPercentage: 0,
+        targetingRules: [
+          {
+            conditions: [
+              { attribute: "country", operator: "in", values: ["US", "CA"] },
+            ],
+            serve: null,
+          },
+        ],
+      },
+    });
+    expect(patch.statusCode).toBe(200);
+
+    const base = `/api/v1/services/${testServiceId}/environments/prod/flags/evaluate?entity=user-1`;
+
+    const matched = await app.inject({
+      method: "GET",
+      url: `${base}&attr.country=US`,
+      headers: auth(),
+    });
+    expect(JSON.parse(matched.body).flags.beta.enabled).toBe(true);
+    expect(JSON.parse(matched.body).flags.beta.reason).toBe("targeting_rule");
+
+    const unmatched = await app.inject({
+      method: "GET",
+      url: `${base}&attr.country=DE`,
+      headers: auth(),
+    });
+    expect(JSON.parse(unmatched.body).flags.beta.enabled).toBe(false);
+  });
+
+  it("should reject an invalid targeting rule on configure", async () => {
+    await app.inject({
+      method: "POST",
+      url: `/api/v1/services/${testServiceId}/flags`,
+      headers: auth(),
+      payload: { key: "beta" },
+    });
+
+    const patch = await app.inject({
+      method: "PATCH",
+      url: `/api/v1/services/${testServiceId}/flags/beta/environments/prod`,
+      headers: auth(),
+      payload: {
+        enabled: true,
+        targetingRules: [{ conditions: [], serve: null }],
+      },
+    });
+    expect(patch.statusCode).toBe(400);
+  });
+
+  it("should attribute a conversion using targeting attributes", async () => {
+    await app.inject({
+      method: "POST",
+      url: `/api/v1/services/${testServiceId}/flags`,
+      headers: auth(),
+      payload: { key: "exp" },
+    });
+    await app.inject({
+      method: "PATCH",
+      url: `/api/v1/services/${testServiceId}/flags/exp/environments/prod`,
+      headers: auth(),
+      payload: {
+        enabled: true,
+        rolloutPercentage: 0,
+        variants: [
+          { key: "control", weight: 50 },
+          { key: "treatment", weight: 50 },
+        ],
+        targetingRules: [
+          {
+            conditions: [
+              { attribute: "country", operator: "eq", values: ["US"] },
+            ],
+            serve: "treatment",
+          },
+        ],
+      },
+    });
+
+    const conv = await app.inject({
+      method: "POST",
+      url: `/api/v1/services/${testServiceId}/environments/prod/flags/exp/conversions`,
+      headers: auth(),
+      payload: { entity: "user-1", attributes: { country: "US" } },
+    });
+    expect(conv.statusCode).toBe(201);
+    expect(JSON.parse(conv.body).variant).toBe("treatment");
+  });
+
   it("should require the entity query parameter for evaluation", async () => {
     const response = await app.inject({
       method: "GET",
@@ -250,5 +379,243 @@ describe("Flags API Routes", () => {
       headers: auth(),
     });
     expect(detail.statusCode).toBe(404);
+  });
+
+  describe("experiment metrics", () => {
+    async function enableExperiment(key: string) {
+      await flagService.createFlag(testAccountId, testServiceId, {
+        key,
+        description: "",
+      });
+      await flagService.setEnvConfig(
+        testAccountId,
+        testServiceId,
+        key,
+        "prod",
+        {
+          enabled: true,
+          rolloutPercentage: 100,
+          variants: [
+            { key: "control", weight: 50 },
+            { key: "treatment", weight: 50 },
+          ],
+        },
+      );
+    }
+
+    function evaluate(entity: string, env = "prod") {
+      const url = `/api/v1/services/${testServiceId}/environments/${env}/flags/evaluate?entity=${entity}`;
+      return app.inject({ method: "GET", url, headers: auth() });
+    }
+
+    function convert(key: string, entity: string, extra: object = {}) {
+      return app.inject({
+        method: "POST",
+        url: `/api/v1/services/${testServiceId}/environments/prod/flags/${key}/conversions`,
+        headers: auth(),
+        payload: { entity, ...extra },
+      });
+    }
+
+    function fetchResults(key: string) {
+      return app.inject({
+        method: "GET",
+        url: `/api/v1/services/${testServiceId}/environments/prod/flags/${key}/results`,
+        headers: auth(),
+      });
+    }
+
+    it("records exposures on evaluation and conversions, then reports per-variant results", async () => {
+      await enableExperiment("exp");
+
+      const entities = ["u1", "u2", "u3", "u4", "u5", "u6"];
+      for (const e of entities) await evaluate(e);
+
+      for (const e of ["u1", "u2", "u3"]) {
+        const c = await convert("exp", e);
+        expect(c.statusCode).toBe(201);
+        const body = JSON.parse(c.body);
+        expect(body.recorded).toBe(true);
+        expect(body).toHaveProperty("variant");
+      }
+      await analytics.flush();
+
+      const res = await fetchResults("exp");
+      expect(res.statusCode).toBe(200);
+      const body = JSON.parse(res.body);
+      expect(body.flagKey).toBe("exp");
+
+      const totalExposures = body.variants.reduce(
+        (s: number, v: any) => s + v.exposures,
+        0,
+      );
+      const totalConversions = body.variants.reduce(
+        (s: number, v: any) => s + v.conversions,
+        0,
+      );
+      expect(totalExposures).toBe(6);
+      expect(totalConversions).toBe(3);
+      expect(body.totals.exposures).toBe(6);
+      // Rates are conversions/exposures per variant.
+      for (const v of body.variants) {
+        expect(v.conversionRate).toBeCloseTo(v.conversions / v.exposures, 5);
+      }
+    });
+
+    it("attributes a conversion to the same variant the entity was assigned", async () => {
+      await enableExperiment("exp");
+
+      const evalRes = await evaluate("stable-user");
+      const assigned = JSON.parse(evalRes.body).flags.exp.variant;
+
+      const c = await convert("exp", "stable-user");
+      expect(JSON.parse(c.body).variant).toBe(assigned);
+    });
+
+    it("does not record exposures for a disabled flag", async () => {
+      await flagService.createFlag(testAccountId, testServiceId, {
+        key: "off",
+        description: "",
+      });
+      await evaluate("u1");
+      await analytics.flush();
+
+      const res = await fetchResults("off");
+      expect(res.statusCode).toBe(200);
+      expect(JSON.parse(res.body).totals.exposures).toBe(0);
+    });
+
+    it("rejects a conversion without an entity", async () => {
+      await enableExperiment("exp");
+      const c = await app.inject({
+        method: "POST",
+        url: `/api/v1/services/${testServiceId}/environments/prod/flags/exp/conversions`,
+        headers: auth(),
+        payload: {},
+      });
+      expect(c.statusCode).toBe(400);
+    });
+
+    it("returns 404 converting or fetching results for an unknown flag", async () => {
+      const c = await convert("ghost", "u1");
+      expect(c.statusCode).toBe(404);
+      const r = await fetchResults("ghost");
+      expect(r.statusCode).toBe(404);
+    });
+
+    it("requires flags:read scope to record a conversion", async () => {
+      await enableExperiment("exp");
+      currentAuthContext = {
+        accountId: testAccountId,
+        scopes: ["flags:write"],
+      };
+      const c = await convert("exp", "u1");
+      expect(c.statusCode).toBe(403);
+    });
+  });
+
+  describe("config versions", () => {
+    async function createFlag(key: string) {
+      return app.inject({
+        method: "POST",
+        url: `/api/v1/services/${testServiceId}/flags`,
+        headers: auth(),
+        payload: { key, description: "" },
+      });
+    }
+
+    async function setProd(
+      key: string,
+      body: { enabled?: boolean; rolloutPercentage?: number },
+    ) {
+      return app.inject({
+        method: "PATCH",
+        url: `/api/v1/services/${testServiceId}/flags/${key}/environments/prod`,
+        headers: auth(),
+        payload: body,
+      });
+    }
+
+    function listVersions(env: string) {
+      return app.inject({
+        method: "GET",
+        url: `/api/v1/services/${testServiceId}/environments/${env}/config/versions`,
+        headers: auth(),
+      });
+    }
+
+    function getVersion(env: string, version: string) {
+      return app.inject({
+        method: "GET",
+        url: `/api/v1/services/${testServiceId}/environments/${env}/config/versions/${version}`,
+        headers: auth(),
+      });
+    }
+
+    it("should list config versions newest-first after config changes", async () => {
+      await createFlag("new-checkout"); // v1 (prod + staging)
+      await setProd("new-checkout", { enabled: true, rolloutPercentage: 100 }); // prod v2
+
+      const res = await listVersions("prod");
+      expect(res.statusCode).toBe(200);
+      const body = JSON.parse(res.body);
+      expect(body.environment).toBe("prod");
+      expect(body.versions.map((v: { version: number }) => v.version)).toEqual([
+        2, 1,
+      ]);
+      // List is metadata only — no full bundle payload.
+      expect(body.versions[0].hash).toMatch(/^[0-9a-f]{64}$/);
+    });
+
+    it("should fetch a specific immutable version artifact", async () => {
+      await createFlag("new-checkout");
+      await setProd("new-checkout", { enabled: true, rolloutPercentage: 100 });
+
+      const res = await getVersion("prod", "1");
+      expect(res.statusCode).toBe(200);
+      const body = JSON.parse(res.body);
+      expect(body.version).toBe(1);
+      // v1 captured the safe-off seed, unaffected by the later change.
+      expect(body.bundle.flags[0].config.enabled).toBe(false);
+    });
+
+    it("should resolve 'latest' to the newest version", async () => {
+      await createFlag("new-checkout");
+      await setProd("new-checkout", { enabled: true, rolloutPercentage: 100 });
+
+      const res = await getVersion("prod", "latest");
+      expect(res.statusCode).toBe(200);
+      expect(JSON.parse(res.body).version).toBe(2);
+    });
+
+    it("should 404 for a version that does not exist", async () => {
+      await createFlag("new-checkout");
+      const res = await getVersion("prod", "999");
+      expect(res.statusCode).toBe(404);
+    });
+
+    it("should require flags:read scope", async () => {
+      await createFlag("new-checkout");
+      currentAuthContext = { accountId: testAccountId, scopes: [] };
+      const res = await listVersions("prod");
+      expect(res.statusCode).toBe(403);
+    });
+
+    it("should not expose another account's config versions", async () => {
+      const other = await accountRepo.create({
+        name: "Other",
+        slug: `other-cv-${Date.now()}`,
+      });
+      const otherService = await serviceRepo.create({
+        accountId: other._id,
+        name: "svc",
+      });
+      const res = await app.inject({
+        method: "GET",
+        url: `/api/v1/services/${otherService._id}/environments/prod/config/versions`,
+        headers: auth(),
+      });
+      expect(res.statusCode).toBe(403);
+    });
   });
 });

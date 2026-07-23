@@ -12,6 +12,7 @@ import { WebhookEventRepository } from "./repositories/webhookEventRepository";
 import { TrialRegistryRepository } from "./repositories/trialRegistryRepository";
 import { LeadRepository } from "./repositories/leadRepository";
 import { FlagRepository } from "./repositories/flagRepository";
+import { FlagConfigVersionRepository } from "./repositories/flagConfigVersionRepository";
 import { createGitHubServices } from "./services/github/createGitHubServices";
 import { createFlagCache } from "./services/flag/createFlagCache";
 import { AnalyticsEventRepository } from "./repositories/analyticsEventRepository";
@@ -80,6 +81,7 @@ async function start() {
   const trialRegistryRepository = new TrialRegistryRepository(database);
   const leadRepository = new LeadRepository(database);
   const flagRepository = new FlagRepository(database);
+  const flagConfigVersionRepository = new FlagConfigVersionRepository(database);
   await buildRepository.ensureIndexes();
   await serviceRepository.ensureIndexes();
   await webhookEventRepository.ensureIndexes();
@@ -87,6 +89,7 @@ async function start() {
   await analyticsEventRepository.ensureIndexes();
   await leadRepository.ensureIndexes();
   await flagRepository.ensureIndexes();
+  await flagConfigVersionRepository.ensureIndexes();
 
   await server.listen({ host: "0.0.0.0", port: PORT });
   console.info(`Server listening on port ${PORT}`);

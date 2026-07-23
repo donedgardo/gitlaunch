@@ -49,7 +49,7 @@ describe("WarehouseAnalytics", () => {
     expect(events[0].properties).toEqual({ environment: "prod" });
   });
 
-  it("should persist an identify event with the user as distinctId", async () => {
+  it("should persist an identify event under a stable event name, keyed on the user", async () => {
     // When: I identify a user
     analytics.identify(
       "user-42",
@@ -58,11 +58,12 @@ describe("WarehouseAnalytics", () => {
     );
     await analytics.flush();
 
-    // Then: an identify event is stored keyed on the user
+    // Then: an identify event is stored under the stable "$identify" name,
+    // with the user carried only in distinctId (not overloaded into `event`)
     const events = await repo.findByAccount(accountId);
     expect(events).toHaveLength(1);
     expect(events[0].type).toBe("identify");
-    expect(events[0].event).toBe("user-42");
+    expect(events[0].event).toBe("$identify");
     expect(events[0].distinctId).toBe("user-42");
     expect(events[0].properties).toEqual({ plan: "pro" });
   });

@@ -13,6 +13,8 @@ import { FlagRepository } from "../../../repositories/flagRepository";
 import { ApiKeyRepository } from "../../../repositories/apiKeyRepository";
 import { FlagService } from "../../../services/flag/flagService";
 import { ApiKeyService } from "../../../services/apiKey/apiKeyService";
+import { AnalyticsEventRepository } from "../../../repositories/analyticsEventRepository";
+import { ExperimentResultsService } from "../../../services/flag/experimentResultsService";
 import { SessionService } from "../../../services/auth/sessionService";
 import { sessionAuthMiddleware } from "../../middleware/sessionAuth";
 import { registerHandlebarsHelpers } from "../../registerHandlebarsHelpers";
@@ -29,6 +31,8 @@ describe("Flags Settings Routes", () => {
   let flagService: FlagService;
   let apiKeyRepo: ApiKeyRepository;
   let apiKeyService: ApiKeyService;
+  let analyticsEventRepo: AnalyticsEventRepository;
+  let experimentResults: ExperimentResultsService;
   let sessionService: SessionService;
 
   let accountId: ObjectId;
@@ -58,6 +62,7 @@ describe("Flags Settings Routes", () => {
     await db.collection("services").deleteMany({});
     await db.collection("flags").deleteMany({});
     await db.collection("apiKeys").deleteMany({});
+    await db.collection("analytics_events").deleteMany({});
 
     accountRepo = new AccountRepository(db);
     serviceRepo = new ServiceRepository(db);
@@ -65,6 +70,8 @@ describe("Flags Settings Routes", () => {
     flagService = new FlagService(flagRepo, serviceRepo);
     apiKeyRepo = new ApiKeyRepository(db);
     apiKeyService = new ApiKeyService(apiKeyRepo, accountRepo);
+    analyticsEventRepo = new AnalyticsEventRepository(db);
+    experimentResults = new ExperimentResultsService(db);
 
     userId = new ObjectId();
     const account = await accountRepo.create({ name: "Acme", slug: "acme" });
@@ -83,6 +90,7 @@ describe("Flags Settings Routes", () => {
           navigation: "/partials/navigation.hbs",
           flagList: "/partials/flagList.hbs",
           flagKeyResult: "/partials/flagKeyResult.hbs",
+          experimentResults: "/partials/experimentResults.hbs",
         },
       },
     });
@@ -91,6 +99,7 @@ describe("Flags Settings Routes", () => {
       serviceRepository: serviceRepo,
       flagService,
       apiKeyService,
+      experimentResults,
     });
     await app.ready();
   });
@@ -161,6 +170,146 @@ describe("Flags Settings Routes", () => {
     expect(response.body.toLowerCase()).toContain("lowercase");
   });
 
+  it("saves A/B variants for an environment via the variants form", async () => {
+    await flagService.createFlag(accountId, serviceId, {
+      key: "checkout",
+      description: "",
+    });
+
+    const response = await app.inject({
+      method: "PUT",
+      url: `/services/${serviceId}/flags/checkout/environments/prod/variants`,
+      cookies: { session: session() },
+      payload: {
+        variantKey: ["control", "treatment"],
+        variantWeight: ["60", "40"],
+      },
+    });
+    expect(response.statusCode).toBe(200);
+
+    const flag = await flagService.getFlag(accountId, serviceId, "checkout");
+    expect(flag?.environments.prod.variants).toEqual([
+      { key: "control", weight: 60 },
+      { key: "treatment", weight: 40 },
+    ]);
+  });
+
+  it("skips blank variant rows when saving", async () => {
+    await flagService.createFlag(accountId, serviceId, {
+      key: "checkout",
+      description: "",
+    });
+
+    const response = await app.inject({
+      method: "PUT",
+      url: `/services/${serviceId}/flags/checkout/environments/prod/variants`,
+      cookies: { session: session() },
+      payload: {
+        variantKey: ["control", "", "treatment"],
+        variantWeight: ["60", "", "40"],
+      },
+    });
+    expect(response.statusCode).toBe(200);
+
+    const flag = await flagService.getFlag(accountId, serviceId, "checkout");
+    expect(flag?.environments.prod.variants).toEqual([
+      { key: "control", weight: 60 },
+      { key: "treatment", weight: 40 },
+    ]);
+  });
+
+  it("surfaces a validation error when variant weights don't sum to 100", async () => {
+    await flagService.createFlag(accountId, serviceId, {
+      key: "checkout",
+      description: "",
+    });
+
+    const response = await app.inject({
+      method: "PUT",
+      url: `/services/${serviceId}/flags/checkout/environments/prod/variants`,
+      cookies: { session: session() },
+      payload: {
+        variantKey: ["control", "treatment"],
+        variantWeight: ["60", "30"],
+      },
+    });
+    // HTMX swaps on 200: partial re-renders with the error message.
+    expect(response.statusCode).toBe(200);
+    expect(response.body.toLowerCase()).toContain("sum to 100");
+
+    const flag = await flagService.getFlag(accountId, serviceId, "checkout");
+    expect(flag?.environments.prod.variants).toEqual([]);
+  });
+
+  it("clears variants back to a boolean flag when submitted empty", async () => {
+    await flagService.createFlag(accountId, serviceId, {
+      key: "checkout",
+      description: "",
+    });
+    await flagService.setEnvConfig(accountId, serviceId, "checkout", "prod", {
+      variants: [
+        { key: "control", weight: 50 },
+        { key: "treatment", weight: 50 },
+      ],
+    });
+
+    const response = await app.inject({
+      method: "PUT",
+      url: `/services/${serviceId}/flags/checkout/environments/prod/variants`,
+      cookies: { session: session() },
+      payload: {},
+    });
+    expect(response.statusCode).toBe(200);
+
+    const flag = await flagService.getFlag(accountId, serviceId, "checkout");
+    expect(flag?.environments.prod.variants).toEqual([]);
+  });
+
+  it("renders an editable variants form for each environment", async () => {
+    await flagService.createFlag(accountId, serviceId, {
+      key: "checkout",
+      description: "",
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/services/${serviceId}/flags`,
+      cookies: { session: session() },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toContain(
+      `/flags/checkout/environments/prod/variants`,
+    );
+    expect(response.body).toContain(`name="variantKey"`);
+    expect(response.body).toContain(`name="variantWeight"`);
+  });
+
+  it("renders a read-only targeting-rule summary on the flag card", async () => {
+    await flagService.createFlag(accountId, serviceId, {
+      key: "beta",
+      description: "",
+    });
+    await flagService.setEnvConfig(accountId, serviceId, "beta", "prod", {
+      enabled: true,
+      targetingRules: [
+        {
+          conditions: [
+            { attribute: "country", operator: "in", values: ["US", "CA"] },
+          ],
+          serve: null,
+        },
+      ],
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/services/${serviceId}/flags`,
+      cookies: { session: session() },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toContain("country in US, CA");
+  });
+
   it("shows a 'Connect an app' panel with the evaluate endpoint for this service", async () => {
     const response = await app.inject({
       method: "GET",
@@ -216,5 +365,63 @@ describe("Flags Settings Routes", () => {
     });
     expect(response.statusCode).toBe(200);
     expect(await flagService.getFlag(accountId, serviceId, "temp")).toBeNull();
+  });
+
+  describe("experiment results", () => {
+    async function seedExposure(
+      variant: string,
+      distinctId: string,
+      event = "flag_exposure",
+    ) {
+      await analyticsEventRepo.insert({
+        type: "track",
+        event,
+        accountId,
+        distinctId,
+        properties: {
+          serviceId: serviceId.toString(),
+          flagKey: "exp",
+          environment: "prod",
+          variant,
+        },
+      });
+    }
+
+    it("renders per-variant conversion rates for a flag", async () => {
+      await flagService.createFlag(accountId, serviceId, {
+        key: "exp",
+        description: "",
+      });
+      // control: 2 exposed, 1 converted => 50%
+      await seedExposure("control", "u1");
+      await seedExposure("control", "u2");
+      await seedExposure("control", "u1", "flag_conversion");
+      // treatment: 2 exposed, 2 converted => 100%
+      await seedExposure("treatment", "u3");
+      await seedExposure("treatment", "u4");
+      await seedExposure("treatment", "u3", "flag_conversion");
+      await seedExposure("treatment", "u4", "flag_conversion");
+
+      const response = await app.inject({
+        method: "GET",
+        url: `/services/${serviceId}/flags/exp/results`,
+        cookies: { session: session() },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain("control");
+      expect(response.body).toContain("treatment");
+      expect(response.body).toContain("50.0%");
+      expect(response.body).toContain("100.0%");
+    });
+
+    it("returns 404 for results of an unknown flag", async () => {
+      const response = await app.inject({
+        method: "GET",
+        url: `/services/${serviceId}/flags/ghost/results`,
+        cookies: { session: session() },
+      });
+      expect(response.statusCode).toBe(404);
+    });
   });
 });

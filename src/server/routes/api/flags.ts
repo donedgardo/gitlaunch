@@ -5,13 +5,26 @@ import { ServiceRepository } from "../../../repositories/serviceRepository";
 import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
 import { requireScope } from "../../middleware/apiKeyAuth";
 import { AnalyticsService } from "../../../services/analytics/analytics";
-import { Flag, FlagVariant } from "../../../repositories/flagRepository";
+import {
+  ExperimentResultsService,
+  EXPOSURE_EVENT,
+  CONVERSION_EVENT,
+} from "../../../services/flag/experimentResultsService";
+import { FlagConfigVersionService } from "../../../services/flag/flagConfigVersionService";
+import {
+  Flag,
+  FlagVariant,
+  TargetingRule,
+} from "../../../repositories/flagRepository";
+import { FlagAttributes } from "../../../services/flag/flagEvaluator";
 
 export type FlagsRoutesDependencies = {
   flagService: FlagServiceI;
   serviceRepo: ServiceRepository;
   planEnforcementService: PlanEnforcementService;
   analytics?: AnalyticsService;
+  experimentResults?: ExperimentResultsService;
+  configVersions?: FlagConfigVersionService;
 };
 
 type ServiceIdParams = { serviceId: string };
@@ -19,12 +32,56 @@ type FlagKeyParams = ServiceIdParams & { key: string };
 type EnvConfigParams = FlagKeyParams & { env: string };
 type EvaluateParams = ServiceIdParams & { env: string };
 
+// Default experiment results window when the caller doesn't specify one: the
+// last 30 days, with a small forward buffer so events written moments ago (the
+// exclusive upper bound is `< to`) are always included.
+const DEFAULT_RESULTS_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+const RESULTS_UPPER_BUFFER_MS = 60 * 1000;
+
+function parseResultsRange(query: { from?: string; to?: string }): {
+  from: Date;
+  to: Date;
+} {
+  const now = Date.now();
+  const to = parseDate(query.to) ?? new Date(now + RESULTS_UPPER_BUFFER_MS);
+  const from =
+    parseDate(query.from) ?? new Date(now - DEFAULT_RESULTS_WINDOW_MS);
+  return { from, to };
+}
+
+function parseDate(value?: string): Date | null {
+  if (!value) return null;
+  const asNumber = Number(value);
+  const date = Number.isFinite(asNumber) ? new Date(asNumber) : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 type CreateFlagBody = { key?: string; description?: string };
 type EnvConfigBody = {
   enabled?: boolean;
   rolloutPercentage?: number;
   variants?: FlagVariant[];
+  targetingRules?: TargetingRule[];
 };
+
+// Extract targeting attributes from `attr.<name>=<value>` evaluate query params
+// (e.g. ?entity=u1&attr.country=US&attr.plan=pro). Repeated params keep the
+// first value. Everything is a string here; the evaluator compares as strings.
+function parseAttributes(
+  query: Record<string, string | string[] | undefined>,
+): FlagAttributes {
+  const attributes: FlagAttributes = {};
+  for (const [rawKey, rawValue] of Object.entries(query)) {
+    if (!rawKey.startsWith("attr.")) continue;
+    const name = rawKey.slice("attr.".length);
+    if (!name) continue;
+    const value = Array.isArray(rawValue) ? rawValue[0] : rawValue;
+    if (value !== undefined) {
+      attributes[name] = value;
+    }
+  }
+  return attributes;
+}
 
 function serializeFlag(flag: Flag) {
   return {
@@ -40,7 +97,14 @@ export function registerFlagsRoutes(
   app: FastifyInstance,
   deps: FlagsRoutesDependencies,
 ) {
-  const { flagService, serviceRepo, planEnforcementService, analytics } = deps;
+  const {
+    flagService,
+    serviceRepo,
+    planEnforcementService,
+    analytics,
+    experimentResults,
+    configVersions,
+  } = deps;
 
   // Resolve + tenant-check a service from the :serviceId param. Returns the
   // ObjectId, or null after sending the appropriate error response.
@@ -219,7 +283,12 @@ export function registerFlagsRoutes(
 
   // GET /api/v1/services/:serviceId/environments/:env/flags/evaluate?entity=...
   // Runtime evaluation surface — the hot path app code calls.
-  app.get<{ Params: EvaluateParams; Querystring: { entity?: string } }>(
+  app.get<{
+    Params: EvaluateParams;
+    Querystring: Record<string, string | string[] | undefined> & {
+      entity?: string;
+    };
+  }>(
     "/api/v1/services/:serviceId/environments/:env/flags/evaluate",
     { preHandler: requireScope("flags:read") },
     async (request, reply) => {
@@ -227,18 +296,21 @@ export function registerFlagsRoutes(
       const serviceId = await resolveServiceId(request, reply);
       if (!serviceId) return;
 
-      const entity = request.query.entity;
+      const entityRaw = request.query.entity;
+      const entity = Array.isArray(entityRaw) ? entityRaw[0] : entityRaw;
       if (!entity) {
         return reply
           .status(400)
           .send({ error: "entity query parameter is required" });
       }
 
+      const attributes = parseAttributes(request.query);
       const evaluations = await flagService.evaluate(
         accountId,
         serviceId,
         request.params.env,
         entity,
+        attributes,
       );
 
       const flags: Record<
@@ -251,8 +323,202 @@ export function registerFlagsRoutes(
           variant: e.variant,
           reason: e.reason,
         };
+
+        // Record an exposure for every live flag (i.e. not fully disabled in
+        // this environment) so experiments can measure who saw which variant.
+        // Fire-and-forget — never blocks the hot evaluation path.
+        if (e.reason !== "disabled") {
+          analytics?.track(
+            EXPOSURE_EVENT,
+            {
+              serviceId: serviceId.toString(),
+              flagKey: e.key,
+              environment: request.params.env,
+              variant: e.variant,
+              reason: e.reason,
+            },
+            { accountId: accountId.toString(), distinctId: entity },
+          );
+        }
       }
       return reply.send({ environment: request.params.env, entity, flags });
+    },
+  );
+
+  // POST /api/v1/services/:serviceId/environments/:env/flags/:key/conversions
+  // Record an experiment conversion for an entity. The variant is attributed
+  // deterministically by re-evaluating the flag, so callers only send the
+  // entity (plus an optional goal/value) — never a variant they could get wrong.
+  app.post<{
+    Params: EnvConfigParams;
+    Body: {
+      entity?: string;
+      goal?: string;
+      value?: number;
+      attributes?: FlagAttributes;
+    };
+  }>(
+    "/api/v1/services/:serviceId/environments/:env/flags/:key/conversions",
+    { preHandler: requireScope("flags:read") },
+    async (request, reply) => {
+      const accountId = request.apiKey!.accountId;
+      const serviceId = await resolveServiceId(request, reply);
+      if (!serviceId) return;
+
+      const entity = request.body?.entity;
+      if (!entity) {
+        return reply.status(400).send({ error: "entity is required" });
+      }
+
+      const { key, env } = request.params;
+      // Pass the same attributes used at exposure so a targeting-rule variant
+      // is attributed consistently between the exposure and this conversion.
+      const evaluation = await flagService.evaluateOne(
+        accountId,
+        serviceId,
+        env,
+        key,
+        entity,
+        request.body?.attributes ?? {},
+      );
+      if (!evaluation) {
+        return reply.status(404).send({ error: "Flag not found" });
+      }
+
+      const { goal, value } = request.body ?? {};
+      analytics?.track(
+        CONVERSION_EVENT,
+        {
+          serviceId: serviceId.toString(),
+          flagKey: key,
+          environment: env,
+          variant: evaluation.variant,
+          reason: evaluation.reason,
+          ...(goal !== undefined ? { goal } : {}),
+          ...(value !== undefined ? { value } : {}),
+        },
+        { accountId: accountId.toString(), distinctId: entity },
+      );
+
+      return reply.status(201).send({
+        recorded: true,
+        variant: evaluation.variant,
+        ...(goal !== undefined ? { goal } : {}),
+      });
+    },
+  );
+
+  // GET /api/v1/services/:serviceId/environments/:env/flags/:key/results
+  // Per-variant exposure/conversion counts and rates over a time window
+  // (defaults to the last 30 days). Optional from/to query params (ISO or epoch).
+  app.get<{
+    Params: EnvConfigParams;
+    Querystring: { from?: string; to?: string };
+  }>(
+    "/api/v1/services/:serviceId/environments/:env/flags/:key/results",
+    { preHandler: requireScope("flags:read") },
+    async (request, reply) => {
+      const accountId = request.apiKey!.accountId;
+      const serviceId = await resolveServiceId(request, reply);
+      if (!serviceId) return;
+
+      const { key, env } = request.params;
+      const flag = await flagService.getFlag(accountId, serviceId, key);
+      if (!flag) {
+        return reply.status(404).send({ error: "Flag not found" });
+      }
+      if (!experimentResults) {
+        return reply
+          .status(503)
+          .send({ error: "Experiment metrics are not enabled" });
+      }
+
+      const { from, to } = parseResultsRange(request.query);
+      const results = await experimentResults.getResults({
+        accountId,
+        serviceId,
+        flagKey: key,
+        environment: env,
+        from,
+        to,
+      });
+      return reply.send(results);
+    },
+  );
+
+  // GET /api/v1/services/:serviceId/environments/:env/config/versions
+  // Immutable version history of this environment's flag config. Newest first.
+  // Returns metadata only (version, hash, createdAt) — fetch a version for its
+  // full bundle.
+  app.get<{ Params: EvaluateParams }>(
+    "/api/v1/services/:serviceId/environments/:env/config/versions",
+    { preHandler: requireScope("flags:read") },
+    async (request, reply) => {
+      const accountId = request.apiKey!.accountId;
+      const serviceId = await resolveServiceId(request, reply);
+      if (!serviceId) return;
+      if (!configVersions) {
+        return reply
+          .status(503)
+          .send({ error: "Config versioning is not enabled" });
+      }
+
+      const { env } = request.params;
+      const versions = await configVersions.listVersions(
+        accountId,
+        serviceId,
+        env,
+      );
+      return reply.send({
+        environment: env,
+        versions: versions.map((v) => ({
+          version: v.version,
+          hash: v.hash,
+          createdAt: v.createdAt,
+        })),
+      });
+    },
+  );
+
+  // GET /api/v1/services/:serviceId/environments/:env/config/versions/:version
+  // The immutable config artifact for one version. `:version` is a number or
+  // the keyword `latest`. This is the payload a customer pins or downloads.
+  app.get<{ Params: EvaluateParams & { version: string } }>(
+    "/api/v1/services/:serviceId/environments/:env/config/versions/:version",
+    { preHandler: requireScope("flags:read") },
+    async (request, reply) => {
+      const accountId = request.apiKey!.accountId;
+      const serviceId = await resolveServiceId(request, reply);
+      if (!serviceId) return;
+      if (!configVersions) {
+        return reply
+          .status(503)
+          .send({ error: "Config versioning is not enabled" });
+      }
+
+      const { env, version } = request.params;
+      const record =
+        version === "latest"
+          ? await configVersions.getLatest(accountId, serviceId, env)
+          : /^\d+$/.test(version)
+            ? await configVersions.getVersion(
+                accountId,
+                serviceId,
+                env,
+                Number(version),
+              )
+            : null;
+
+      if (!record) {
+        return reply.status(404).send({ error: "Config version not found" });
+      }
+      return reply.send({
+        version: record.version,
+        hash: record.hash,
+        environment: record.environment,
+        createdAt: record.createdAt,
+        bundle: record.bundle,
+      });
     },
   );
 }

@@ -4,11 +4,22 @@ import {
   Flag,
   FlagVariant,
   FlagEnvironmentConfig,
+  TargetingRule,
+  TargetingOperator,
   defaultEnvironmentConfig,
 } from "../../repositories/flagRepository";
 import { ServiceRepository } from "../../repositories/serviceRepository";
 import { FlagCacheI, InMemoryFlagCache } from "./flagCache";
-import { evaluateFlag, FlagEvaluation } from "./flagEvaluator";
+import { evaluateFlag, FlagEvaluation, FlagAttributes } from "./flagEvaluator";
+import { FlagConfigVersionPublisherI } from "./flagConfigVersionService";
+
+const TARGETING_OPERATORS: ReadonlySet<TargetingOperator> = new Set([
+  "eq",
+  "neq",
+  "in",
+  "not_in",
+  "contains",
+]);
 
 const FLAG_KEY_REGEX = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
@@ -48,7 +59,16 @@ export interface FlagServiceI {
     serviceId: ObjectId,
     envName: string,
     entityKey: string,
+    attributes?: FlagAttributes,
   ): Promise<FlagEvaluation[]>;
+  evaluateOne(
+    accountId: ObjectId,
+    serviceId: ObjectId,
+    envName: string,
+    key: string,
+    entityKey: string,
+    attributes?: FlagAttributes,
+  ): Promise<FlagEvaluation | null>;
 }
 
 export class FlagService implements FlagServiceI {
@@ -56,10 +76,33 @@ export class FlagService implements FlagServiceI {
     private flagRepo: FlagRepository,
     private serviceRepo: ServiceRepository,
     private cache: FlagCacheI = new InMemoryFlagCache(),
+    // Optional: when provided, every config mutation appends an immutable
+    // version snapshot of the affected environment(s). Absent in contexts that
+    // don't need version history (e.g. lightweight tests).
+    private versionPublisher?: FlagConfigVersionPublisherI,
   ) {}
 
   private cacheKey(accountId: ObjectId, serviceId: ObjectId): string {
     return `${accountId.toString()}:${serviceId.toString()}`;
+  }
+
+  // Append version snapshots for the given environments after a config change.
+  // Best-effort: a versioning failure must never fail the underlying flag write,
+  // which has already been persisted by the time this runs.
+  private async recordVersions(
+    accountId: ObjectId,
+    serviceId: ObjectId,
+    envNames: string[],
+  ): Promise<void> {
+    if (!this.versionPublisher) return;
+    for (const envName of envNames) {
+      try {
+        await this.versionPublisher.publish(accountId, serviceId, envName);
+      } catch {
+        // Swallow: the flag write succeeded; a missed snapshot is recoverable
+        // (the next write re-snapshots current state).
+      }
+    }
   }
 
   async createFlag(
@@ -96,6 +139,13 @@ export class FlagService implements FlagServiceI {
       environments,
     });
     await this.cache.invalidate(this.cacheKey(accountId, serviceId));
+    // A new flag changes every environment's config set (each gains a
+    // safe-off entry), so snapshot them all.
+    await this.recordVersions(
+      accountId,
+      serviceId,
+      service.environments.map((e) => e.name),
+    );
     return flag;
   }
 
@@ -133,6 +183,7 @@ export class FlagService implements FlagServiceI {
       enabled: patch.enabled ?? current.enabled,
       rolloutPercentage: patch.rolloutPercentage ?? current.rolloutPercentage,
       variants: patch.variants ?? current.variants,
+      targetingRules: patch.targetingRules ?? current.targetingRules ?? [],
     };
 
     this.validateEnvConfig(next);
@@ -148,6 +199,7 @@ export class FlagService implements FlagServiceI {
       throw new Error("Failed to update flag");
     }
     await this.cache.invalidate(this.cacheKey(accountId, serviceId));
+    await this.recordVersions(accountId, serviceId, [envName]);
     return updated;
   }
 
@@ -158,6 +210,20 @@ export class FlagService implements FlagServiceI {
   ): Promise<boolean> {
     const deleted = await this.flagRepo.delete(accountId, serviceId, key);
     await this.cache.invalidate(this.cacheKey(accountId, serviceId));
+    if (deleted) {
+      // Removing a flag changes every environment's config set.
+      const service = await this.serviceRepo.findByAccountAndId(
+        accountId,
+        serviceId,
+      );
+      if (service) {
+        await this.recordVersions(
+          accountId,
+          serviceId,
+          service.environments.map((e) => e.name),
+        );
+      }
+    }
     return deleted;
   }
 
@@ -166,12 +232,33 @@ export class FlagService implements FlagServiceI {
     serviceId: ObjectId,
     envName: string,
     entityKey: string,
+    attributes: FlagAttributes = {},
   ): Promise<FlagEvaluation[]> {
     const flags = await this.getServiceFlagsCached(accountId, serviceId);
     return flags.map((flag) => {
       const cfg = flag.environments[envName] ?? defaultEnvironmentConfig();
-      return evaluateFlag(cfg, flag.key, entityKey);
+      return evaluateFlag(cfg, flag.key, entityKey, attributes);
     });
+  }
+
+  // Deterministic single-flag evaluation. Used to attribute an entity to the
+  // variant it was (and will always be) assigned, e.g. when recording an
+  // experiment conversion. Returns null when the flag doesn't exist.
+  async evaluateOne(
+    accountId: ObjectId,
+    serviceId: ObjectId,
+    envName: string,
+    key: string,
+    entityKey: string,
+    attributes: FlagAttributes = {},
+  ): Promise<FlagEvaluation | null> {
+    const flags = await this.getServiceFlagsCached(accountId, serviceId);
+    const flag = flags.find((f) => f.key === key);
+    if (!flag) {
+      return null;
+    }
+    const cfg = flag.environments[envName] ?? defaultEnvironmentConfig();
+    return evaluateFlag(cfg, flag.key, entityKey, attributes);
   }
 
   // Read-through cache: evaluation avoids Mongo on a hit. Writes invalidate.
@@ -203,6 +290,37 @@ export class FlagService implements FlagServiceI {
 
     if (cfg.variants.length > 0) {
       this.validateVariants(cfg.variants);
+    }
+
+    if (cfg.targetingRules && cfg.targetingRules.length > 0) {
+      this.validateTargetingRules(cfg.targetingRules, cfg.variants);
+    }
+  }
+
+  private validateTargetingRules(
+    rules: TargetingRule[],
+    variants: FlagVariant[],
+  ): void {
+    const variantKeys = new Set(variants.map((v) => v.key));
+    for (const rule of rules) {
+      if (!Array.isArray(rule.conditions) || rule.conditions.length === 0) {
+        throw new Error("A targeting rule must have at least one condition");
+      }
+      for (const cond of rule.conditions) {
+        if (!cond.attribute || cond.attribute.trim() === "") {
+          throw new Error("Targeting condition attribute is required");
+        }
+        if (!TARGETING_OPERATORS.has(cond.operator)) {
+          throw new Error(`Unknown targeting operator: ${cond.operator}`);
+        }
+        if (!Array.isArray(cond.values) || cond.values.length === 0) {
+          throw new Error("Targeting condition requires at least one value");
+        }
+      }
+      // A rule may serve a specific variant (must exist) or null (plain "on").
+      if (rule.serve !== null && !variantKeys.has(rule.serve)) {
+        throw new Error(`Targeting rule serves unknown variant: ${rule.serve}`);
+      }
     }
   }
 

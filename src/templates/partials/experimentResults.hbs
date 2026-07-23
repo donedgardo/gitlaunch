@@ -1,0 +1,42 @@
+{{! Experiment results panel — per-variant conversion rates for one flag,
+    loaded on demand via HTMX and swapped into the flag card. }}
+<div class="border-t border-gray-200 dark:border-gray-700 px-6 py-4 bg-gray-50 dark:bg-gray-900/40">
+  <div class="flex items-center justify-between mb-3">
+    <h3 class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+      Experiment results
+      <span class="font-mono normal-case text-gray-400">· {{environment}}</span>
+    </h3>
+  </div>
+
+  {{#if disabled}}
+  <p class="text-sm text-gray-500 dark:text-gray-400 py-2">
+    Experiment metrics are not enabled for this deployment.
+  </p>
+  {{else if hasData}}
+  <div class="mb-3 flex gap-6 text-xs text-gray-500 dark:text-gray-400">
+    <span>Exposures <span class="font-semibold text-gray-700 dark:text-gray-200 tabular-nums">{{totals.exposures}}</span></span>
+    <span>Conversions <span class="font-semibold text-gray-700 dark:text-gray-200 tabular-nums">{{totals.conversions}}</span></span>
+    <span>Overall rate <span class="font-semibold text-gray-700 dark:text-gray-200 tabular-nums">{{totals.conversionRatePct}}%</span></span>
+  </div>
+  <ul class="space-y-3" data-testid="experiment-variants">
+    {{#each variants}}
+    <li>
+      <div class="flex items-center justify-between text-sm mb-1">
+        <span class="font-mono text-gray-700 dark:text-gray-300 truncate mr-2">{{variant}}</span>
+        <span class="text-gray-500 dark:text-gray-400 tabular-nums">
+          {{conversions}}/{{exposures}} · <span class="font-semibold text-gray-700 dark:text-gray-200">{{conversionRatePct}}%</span>
+        </span>
+      </div>
+      <div class="h-2 rounded bg-gray-100 dark:bg-gray-700 overflow-hidden" role="img" aria-label="{{variant}} conversion rate {{conversionRatePct}}%">
+        <div class="h-full bg-emerald-500 dark:bg-emerald-400 rounded" style="width: {{barPct}}%"></div>
+      </div>
+    </li>
+    {{/each}}
+  </ul>
+  {{else}}
+  <p class="text-sm text-gray-500 dark:text-gray-400 py-2">
+    No exposures recorded in the last 30 days. Evaluate this flag in
+    <span class="font-mono">{{environment}}</span> and record conversions to see results.
+  </p>
+  {{/if}}
+</div>
