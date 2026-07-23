@@ -55,6 +55,12 @@
             {{this.variantSummary}}
           </span>
           {{/if}}
+          {{#if this.targetingSummary}}
+          <span class="inline-flex items-center gap-1 text-xs text-indigo-600 dark:text-indigo-400 truncate" title="Targeting rules">
+            <svg class="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/></svg>
+            {{this.targetingSummary}}
+          </span>
+          {{/if}}
         </div>
         <div class="flex items-center gap-4">
           <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
