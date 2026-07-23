@@ -50,6 +50,11 @@ import { registerBillingRoutes } from "./routes/settings/billing";
 import { registerApiKeyRoutes } from "./routes/settings/apiKeys";
 import { registerJenkinsSettingsRoutes } from "./routes/settings/jenkins";
 import { registerGithubSettingsRoutes } from "./routes/settings/github";
+import { registerTeamRoutes } from "./routes/settings/team";
+import { registerInviteRoutes } from "./routes/invite";
+import { InvitationRepository } from "../repositories/invitationRepository";
+import { AccountMembershipService } from "../services/account/accountMembershipService";
+import { TeamManagementService } from "../services/account/teamManagementService";
 import { JenkinsConnectionService } from "../services/jenkins/jenkinsConnectionService";
 import { GithubConnectionService } from "../services/github/githubConnectionService";
 import { assertEncryptionKey } from "../services/crypto/secretBox";
@@ -101,6 +106,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
   const userRepository = new UserRepository(database);
   const accountRepository = new AccountRepository(database);
   const membershipRepository = new MembershipRepository(database);
+  const invitationRepository = new InvitationRepository(database);
   const repositoryRepository = new RepositoryRepository(database);
   const serviceRepository = new ServiceRepository(database);
   const apiKeyRepository = new ApiKeyRepository(database);
@@ -199,6 +205,28 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
   registerJenkinsSettingsRoutes(server, { jenkinsConnectionService });
   registerGithubSettingsRoutes(server, { githubConnectionService });
 
+  // Team: shareable-link invites into a shared workspace
+  const accountMembershipService = new AccountMembershipService(
+    membershipRepository,
+    accountRepository,
+    userRepository,
+  );
+  const teamManagementService = new TeamManagementService(
+    membershipRepository,
+    invitationRepository,
+  );
+  registerTeamRoutes(server, {
+    teamManagementService,
+    accountMembershipService,
+    invitationRepository,
+  });
+  registerInviteRoutes(server, {
+    invitationRepository,
+    membershipRepository,
+    accountRepository,
+    sessionService,
+  });
+
   // Setup wizard routes
   registerSetupRoutes(server, {
     serviceRepo: serviceRepository,
@@ -241,6 +269,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     userRepository,
     accountRepository,
     membershipRepository,
+    invitationRepository,
     analytics,
   });
 
