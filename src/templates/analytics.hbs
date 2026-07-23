@@ -1,0 +1,48 @@
+{{> navigation }}
+<main id="main" class="p-6 max-w-6xl mx-auto">
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-2xl font-semibold text-gray-900 dark:text-gray-100">Product Analytics</h1>
+  </div>
+
+  <form
+    class="flex flex-wrap items-end gap-3 mb-6 p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50"
+    hx-get="/dashboard/analytics/data"
+    hx-target="#analytics-panel"
+    hx-swap="innerHTML"
+    hx-trigger="submit, change from:select, change from:input[type='date']"
+  >
+    <div class="flex flex-col">
+      <label class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">From</label>
+      <input type="date" name="from" value="{{fromValue}}" class="rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 px-2 py-1.5 text-sm" />
+    </div>
+    <div class="flex flex-col">
+      <label class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">To</label>
+      <input type="date" name="to" value="{{toValue}}" class="rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 px-2 py-1.5 text-sm" />
+    </div>
+    <div class="flex flex-col">
+      <label class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Interval</label>
+      <select name="interval" class="rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 px-2 py-1.5 text-sm">
+        <option value="day" {{#if (eq interval "day")}}selected{{/if}}>Day</option>
+        <option value="hour" {{#if (eq interval "hour")}}selected{{/if}}>Hour</option>
+      </select>
+    </div>
+    <div class="flex flex-col">
+      <label class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Event</label>
+      <select name="event" class="rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 px-2 py-1.5 text-sm">
+        <option value="" {{#unless selectedEvent}}selected{{/unless}}>All events</option>
+        {{#each eventOptions}}
+        <option value="{{this}}" {{#if (eq this ../selectedEvent)}}selected{{/if}}>{{this}}</option>
+        {{/each}}
+      </select>
+    </div>
+    <div class="flex flex-col">
+      <label class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Break down by</label>
+      <input type="text" name="property" value="{{property}}" placeholder="property" class="rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 px-2 py-1.5 text-sm w-32" />
+    </div>
+    <button type="submit" class="px-4 py-1.5 text-sm font-medium rounded bg-blue-600 hover:bg-blue-700 text-white transition-colors">Apply</button>
+  </form>
+
+  <div id="analytics-panel">
+    {{> analyticsPanel }}
+  </div>
+</main>

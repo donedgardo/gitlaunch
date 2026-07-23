@@ -165,14 +165,25 @@ export function registerGitHubAuthRoutes(
           maxAge: 7 * 24 * 60 * 60, // 7 days
         });
 
-        analytics?.identify(user._id.toString(), {
-          login: user.githubLogin,
-          email: user.email,
-        });
-        analytics?.track("user_logged_in", {
-          userId: user._id.toString(),
-          isNewUser,
-        });
+        analytics?.identify(
+          user._id.toString(),
+          {
+            login: user.githubLogin,
+            email: user.email,
+          },
+          { accountId: accountId!.toString() },
+        );
+        analytics?.track(
+          "user_logged_in",
+          {
+            userId: user._id.toString(),
+            isNewUser,
+          },
+          {
+            accountId: accountId!.toString(),
+            distinctId: user._id.toString(),
+          },
+        );
 
         // Someone who joined via an invite lands straight in the shared
         // workspace, skipping the new-account onboarding.
@@ -199,7 +210,14 @@ export function registerGitHubAuthRoutes(
   app.get(
     "/auth/logout",
     async (request: FastifyRequest, reply: FastifyReply) => {
-      analytics?.track("user_logged_out");
+      analytics?.track(
+        "user_logged_out",
+        {},
+        {
+          accountId: request.session?.accountId,
+          distinctId: request.session?.userId,
+        },
+      );
       reply.clearCookie("session", { path: "/" });
       return reply.redirect("/");
     },

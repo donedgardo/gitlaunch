@@ -14,7 +14,8 @@ import { LeadRepository } from "./repositories/leadRepository";
 import { FlagRepository } from "./repositories/flagRepository";
 import { createGitHubServices } from "./services/github/createGitHubServices";
 import { createFlagCache } from "./services/flag/createFlagCache";
-import { ConsoleAnalytics } from "./services/analytics/analytics";
+import { AnalyticsEventRepository } from "./repositories/analyticsEventRepository";
+import { createAnalyticsService } from "./services/analytics/createAnalyticsService";
 
 // MongoDB connection
 const mongodb_uri = process.env.MONGODB_URI as string;
@@ -44,8 +45,13 @@ const { githubOAuthService, gitHubAppService, installationTokenService } =
 // Create WebhookEventRepository for webhook idempotency
 const webhookEventRepository = new WebhookEventRepository(database);
 
-// Analytics
-const analytics = new ConsoleAnalytics();
+// Analytics — persists product events into the Mongo warehouse when enabled,
+// otherwise logs to console (dev) or no-ops.
+const analyticsEventRepository = new AnalyticsEventRepository(database);
+const analytics = createAnalyticsService(analyticsEventRepository, {
+  warehouse: process.env.ANALYTICS_WAREHOUSE === "true",
+  dev: process.env.NODE_ENV !== "production",
+});
 
 // Flag evaluation cache (Redis when REDIS_URL is set, in-memory otherwise)
 const flagCache = createFlagCache();
@@ -78,6 +84,7 @@ async function start() {
   await serviceRepository.ensureIndexes();
   await webhookEventRepository.ensureIndexes();
   await trialRegistryRepository.ensureIndexes();
+  await analyticsEventRepository.ensureIndexes();
   await leadRepository.ensureIndexes();
   await flagRepository.ensureIndexes();
 
