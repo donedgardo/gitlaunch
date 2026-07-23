@@ -8,6 +8,8 @@ import {
   MembershipRepository,
   MembershipRole,
 } from "../../../repositories/membershipRepository";
+import { InvitationRepository } from "../../../repositories/invitationRepository";
+import { acceptInvitation } from "../invite/acceptInvitation";
 import { AnalyticsService } from "../../../services/analytics/analytics";
 
 export type GitHubAuthRoutesConfig = {
@@ -16,6 +18,9 @@ export type GitHubAuthRoutesConfig = {
   userRepository: UserRepository;
   accountRepository: AccountRepository;
   membershipRepository: MembershipRepository;
+  // Optional: when present, a pending_invite cookie is redeemed right after
+  // sign-in so a logged-out invitee joins the workspace they were invited to.
+  invitationRepository?: InvitationRepository;
   analytics?: AnalyticsService;
 };
 
@@ -29,6 +34,7 @@ export function registerGitHubAuthRoutes(
     userRepository,
     accountRepository,
     membershipRepository,
+    invitationRepository,
     analytics,
   } = config;
 
@@ -126,6 +132,24 @@ export function registerGitHubAuthRoutes(
           account = await accountRepository.findById(memberships[0].accountId);
         }
 
+        // If they arrived via a shared invite link, redeem it now and make the
+        // invited workspace their active account.
+        let joinedViaInvite = false;
+        const pendingInviteToken = request.cookies?.pending_invite;
+        if (pendingInviteToken && invitationRepository) {
+          const accepted = await acceptInvitation(
+            invitationRepository,
+            membershipRepository,
+            pendingInviteToken,
+            user._id,
+          );
+          reply.clearCookie("pending_invite", { path: "/" });
+          if (accepted.ok) {
+            accountId = accepted.accountId;
+            joinedViaInvite = true;
+          }
+        }
+
         // Create session
         const sessionToken = sessionService.createSession({
           userId: user._id,
@@ -149,6 +173,12 @@ export function registerGitHubAuthRoutes(
           userId: user._id.toString(),
           isNewUser,
         });
+
+        // Someone who joined via an invite lands straight in the shared
+        // workspace, skipping the new-account onboarding.
+        if (joinedViaInvite) {
+          return reply.redirect("/dashboard");
+        }
 
         // New users pick a plan first, then create their first service. GitHub
         // is no longer the onboarding gate (Jenkins/raw shops never connect it),

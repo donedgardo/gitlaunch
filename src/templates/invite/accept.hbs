@@ -1,0 +1,38 @@
+<div class="min-h-screen flex items-center justify-center px-4 bg-gray-50 dark:bg-gray-900">
+  <div class="w-full max-w-md bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-lg p-8 text-center">
+    <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+      Join {{accountName}}
+    </h1>
+    <p class="text-sm text-gray-600 dark:text-gray-400 mb-6">
+      You've been invited to the <b>{{accountName}}</b> workspace on GitLaunch as
+      <b>{{roleLabel}}</b>.
+    </p>
+
+    {{#if loggedIn}}
+      {{#if alreadyMember}}
+      <p class="text-sm text-gray-600 dark:text-gray-400 mb-6">
+        You're already a member of this workspace.
+      </p>
+      <a href="/dashboard"
+         class="inline-flex items-center justify-center w-full px-4 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors text-sm">
+        Go to workspace
+      </a>
+      {{else}}
+      <form method="post" action="/invite/{{token}}/accept">
+        <button type="submit"
+          class="inline-flex items-center justify-center w-full px-4 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors text-sm">
+          Accept invite &amp; join
+        </button>
+      </form>
+      {{/if}}
+    {{else}}
+    <p class="text-sm text-gray-600 dark:text-gray-400 mb-6">
+      Sign in with GitHub to accept — you'll join the moment you're in.
+    </p>
+    <a href="/auth/github"
+       class="inline-flex items-center justify-center w-full px-4 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-medium rounded-lg hover:opacity-90 transition-opacity text-sm">
+      Sign in with GitHub to join
+    </a>
+    {{/if}}
+  </div>
+</div>
