@@ -40,6 +40,7 @@ import { ServiceRepository } from "../repositories/serviceRepository";
 import { ApiKeyRepository } from "../repositories/apiKeyRepository";
 import { FlagRepository } from "../repositories/flagRepository";
 import { FlagService } from "../services/flag/flagService";
+import { ExperimentResultsService } from "../services/flag/experimentResultsService";
 import { FlagCacheI, InMemoryFlagCache } from "../services/flag/flagCache";
 import { WebhookEventRepository } from "../repositories/webhookEventRepository";
 import { TrialRegistryRepository } from "../repositories/trialRegistryRepository";
@@ -126,6 +127,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
   const leadRepository = new LeadRepository(database);
   const flagRepository = new FlagRepository(database);
   const analyticsQueryService = new AnalyticsQueryService(database);
+  const experimentResultsService = new ExperimentResultsService(database);
 
   // Services
   const apiKeyService = new ApiKeyService(apiKeyRepository, accountRepository);
@@ -371,6 +373,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
         serviceRepo: serviceRepository,
         planEnforcementService,
         analytics,
+        experimentResults: experimentResultsService,
       });
     },
     { prefix: "" }, // Routes already have /api/v1 prefix
