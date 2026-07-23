@@ -5,7 +5,8 @@ export type AnalyticsEventType = "track" | "identify" | "navigation";
 export type AnalyticsEvent = {
   _id: ObjectId;
   type: AnalyticsEventType;
-  // Event name for "track", destination for "navigation", userId for "identify"
+  // Event name for "track", destination for "navigation", "$identify" for
+  // "identify" (the identified user is carried in distinctId).
   event: string;
   // Tenant scope. Optional because some events happen pre-login (e.g. navigation).
   accountId?: ObjectId;
