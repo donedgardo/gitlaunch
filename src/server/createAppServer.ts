@@ -39,8 +39,10 @@ import { RepositoryRepository } from "../repositories/repositoryRepository";
 import { ServiceRepository } from "../repositories/serviceRepository";
 import { ApiKeyRepository } from "../repositories/apiKeyRepository";
 import { FlagRepository } from "../repositories/flagRepository";
+import { FlagConfigVersionRepository } from "../repositories/flagConfigVersionRepository";
 import { FlagService } from "../services/flag/flagService";
 import { ExperimentResultsService } from "../services/flag/experimentResultsService";
+import { FlagConfigVersionService } from "../services/flag/flagConfigVersionService";
 import { FlagCacheI, InMemoryFlagCache } from "../services/flag/flagCache";
 import { WebhookEventRepository } from "../repositories/webhookEventRepository";
 import { TrialRegistryRepository } from "../repositories/trialRegistryRepository";
@@ -135,8 +137,13 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
   const trialRegistryRepository = new TrialRegistryRepository(database);
   const leadRepository = new LeadRepository(database);
   const flagRepository = new FlagRepository(database);
+  const flagConfigVersionRepository = new FlagConfigVersionRepository(database);
   const analyticsQueryService = new AnalyticsQueryService(database);
   const experimentResultsService = new ExperimentResultsService(database);
+  const flagConfigVersionService = new FlagConfigVersionService(
+    flagRepository,
+    flagConfigVersionRepository,
+  );
 
   // Services
   const apiKeyService = new ApiKeyService(apiKeyRepository, accountRepository);
@@ -186,6 +193,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     flagRepository,
     serviceRepository,
     flagCache,
+    flagConfigVersionService,
   );
 
   // Webhook handler and route
@@ -417,6 +425,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
         planEnforcementService,
         analytics,
         experimentResults: experimentResultsService,
+        configVersions: flagConfigVersionService,
       });
     },
     { prefix: "" }, // Routes already have /api/v1 prefix

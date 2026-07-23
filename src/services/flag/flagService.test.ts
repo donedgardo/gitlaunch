@@ -4,6 +4,8 @@ import { MongoClient, Db, ObjectId } from "mongodb";
 import { AccountRepository } from "../../repositories/accountRepository";
 import { ServiceRepository } from "../../repositories/serviceRepository";
 import { FlagRepository } from "../../repositories/flagRepository";
+import { FlagConfigVersionRepository } from "../../repositories/flagConfigVersionRepository";
+import { FlagConfigVersionService } from "./flagConfigVersionService";
 import { FlagService } from "./flagService";
 
 describe("FlagService", () => {
@@ -548,6 +550,107 @@ describe("FlagService", () => {
       const deleted = await service.deleteFlag(account._id, svc._id, "temp");
       expect(deleted).toBe(true);
       expect(await service.getFlag(account._id, svc._id, "temp")).toBeNull();
+    });
+  });
+
+  describe("config version auto-publish", () => {
+    let versionRepo: FlagConfigVersionRepository;
+    let versionService: FlagConfigVersionService;
+    let versioned: FlagService;
+
+    beforeEach(async () => {
+      await db.collection("flag_config_versions").deleteMany({});
+      versionRepo = new FlagConfigVersionRepository(db);
+      versionService = new FlagConfigVersionService(flagRepo, versionRepo);
+      versioned = new FlagService(
+        flagRepo,
+        serviceRepo,
+        undefined,
+        versionService,
+      );
+    });
+
+    it("should publish an initial config version for each environment when a flag is created", async () => {
+      const { account, svc } = await makeAccountAndService("acme");
+
+      await versioned.createFlag(account._id, svc._id, {
+        key: "new-checkout",
+        description: "",
+      });
+
+      const prod = await versionService.listVersions(
+        account._id,
+        svc._id,
+        "prod",
+      );
+      const staging = await versionService.listVersions(
+        account._id,
+        svc._id,
+        "staging",
+      );
+      expect(prod).toHaveLength(1);
+      expect(staging).toHaveLength(1);
+    });
+
+    it("should publish a new version for the changed environment only", async () => {
+      const { account, svc } = await makeAccountAndService("acme");
+      await versioned.createFlag(account._id, svc._id, {
+        key: "new-checkout",
+        description: "",
+      });
+
+      await versioned.setEnvConfig(
+        account._id,
+        svc._id,
+        "new-checkout",
+        "prod",
+        {
+          enabled: true,
+          rolloutPercentage: 100,
+        },
+      );
+
+      const prod = await versionService.listVersions(
+        account._id,
+        svc._id,
+        "prod",
+      );
+      const staging = await versionService.listVersions(
+        account._id,
+        svc._id,
+        "staging",
+      );
+      expect(prod).toHaveLength(2); // create + change
+      expect(prod[0].bundle.flags[0].config.enabled).toBe(true);
+      expect(staging).toHaveLength(1); // unchanged
+    });
+
+    it("should publish a new version when a flag is deleted", async () => {
+      const { account, svc } = await makeAccountAndService("acme");
+      await versioned.createFlag(account._id, svc._id, {
+        key: "temp",
+        description: "",
+      });
+
+      await versioned.deleteFlag(account._id, svc._id, "temp");
+
+      const prod = await versionService.listVersions(
+        account._id,
+        svc._id,
+        "prod",
+      );
+      expect(prod).toHaveLength(2); // create + delete
+      expect(prod[0].bundle.flags).toHaveLength(0); // empty after delete
+    });
+
+    it("should not break flag writes when versioning has no publisher", async () => {
+      const { account, svc } = await makeAccountAndService("acme");
+      // `service` (the shared instance) has no version publisher configured.
+      const flag = await service.createFlag(account._id, svc._id, {
+        key: "no-versioning",
+        description: "",
+      });
+      expect(flag.key).toBe("no-versioning");
     });
   });
 });

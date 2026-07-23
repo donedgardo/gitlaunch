@@ -10,6 +10,7 @@ import {
   EXPOSURE_EVENT,
   CONVERSION_EVENT,
 } from "../../../services/flag/experimentResultsService";
+import { FlagConfigVersionService } from "../../../services/flag/flagConfigVersionService";
 import {
   Flag,
   FlagVariant,
@@ -23,6 +24,7 @@ export type FlagsRoutesDependencies = {
   planEnforcementService: PlanEnforcementService;
   analytics?: AnalyticsService;
   experimentResults?: ExperimentResultsService;
+  configVersions?: FlagConfigVersionService;
 };
 
 type ServiceIdParams = { serviceId: string };
@@ -101,6 +103,7 @@ export function registerFlagsRoutes(
     planEnforcementService,
     analytics,
     experimentResults,
+    configVersions,
   } = deps;
 
   // Resolve + tenant-check a service from the :serviceId param. Returns the
@@ -440,6 +443,82 @@ export function registerFlagsRoutes(
         to,
       });
       return reply.send(results);
+    },
+  );
+
+  // GET /api/v1/services/:serviceId/environments/:env/config/versions
+  // Immutable version history of this environment's flag config. Newest first.
+  // Returns metadata only (version, hash, createdAt) — fetch a version for its
+  // full bundle.
+  app.get<{ Params: EvaluateParams }>(
+    "/api/v1/services/:serviceId/environments/:env/config/versions",
+    { preHandler: requireScope("flags:read") },
+    async (request, reply) => {
+      const accountId = request.apiKey!.accountId;
+      const serviceId = await resolveServiceId(request, reply);
+      if (!serviceId) return;
+      if (!configVersions) {
+        return reply
+          .status(503)
+          .send({ error: "Config versioning is not enabled" });
+      }
+
+      const { env } = request.params;
+      const versions = await configVersions.listVersions(
+        accountId,
+        serviceId,
+        env,
+      );
+      return reply.send({
+        environment: env,
+        versions: versions.map((v) => ({
+          version: v.version,
+          hash: v.hash,
+          createdAt: v.createdAt,
+        })),
+      });
+    },
+  );
+
+  // GET /api/v1/services/:serviceId/environments/:env/config/versions/:version
+  // The immutable config artifact for one version. `:version` is a number or
+  // the keyword `latest`. This is the payload a customer pins or downloads.
+  app.get<{ Params: EvaluateParams & { version: string } }>(
+    "/api/v1/services/:serviceId/environments/:env/config/versions/:version",
+    { preHandler: requireScope("flags:read") },
+    async (request, reply) => {
+      const accountId = request.apiKey!.accountId;
+      const serviceId = await resolveServiceId(request, reply);
+      if (!serviceId) return;
+      if (!configVersions) {
+        return reply
+          .status(503)
+          .send({ error: "Config versioning is not enabled" });
+      }
+
+      const { env, version } = request.params;
+      const record =
+        version === "latest"
+          ? await configVersions.getLatest(accountId, serviceId, env)
+          : /^\d+$/.test(version)
+            ? await configVersions.getVersion(
+                accountId,
+                serviceId,
+                env,
+                Number(version),
+              )
+            : null;
+
+      if (!record) {
+        return reply.status(404).send({ error: "Config version not found" });
+      }
+      return reply.send({
+        version: record.version,
+        hash: record.hash,
+        environment: record.environment,
+        createdAt: record.createdAt,
+        bundle: record.bundle,
+      });
     },
   );
 }

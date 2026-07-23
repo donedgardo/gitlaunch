@@ -24,6 +24,8 @@ import { PlanEnforcementService } from "../../../services/billing/planEnforcemen
 import { AnalyticsEventRepository } from "../../../repositories/analyticsEventRepository";
 import { WarehouseAnalytics } from "../../../services/analytics/warehouseAnalytics";
 import { ExperimentResultsService } from "../../../services/flag/experimentResultsService";
+import { FlagConfigVersionRepository } from "../../../repositories/flagConfigVersionRepository";
+import { FlagConfigVersionService } from "../../../services/flag/flagConfigVersionService";
 import { registerFlagsRoutes } from "./flags";
 import { ApiKeyScope } from "../../../repositories/apiKeyRepository";
 
@@ -65,6 +67,7 @@ describe("Flags API Routes", () => {
   let planEnforcementService: PlanEnforcementService;
   let analytics: WarehouseAnalytics;
   let experimentResults: ExperimentResultsService;
+  let configVersions: FlagConfigVersionService;
 
   let testAccountId: ObjectId;
   let testServiceId: ObjectId;
@@ -80,7 +83,16 @@ describe("Flags API Routes", () => {
     serviceRepo = new ServiceRepository(db);
     membershipRepo = new MembershipRepository(db);
     flagRepo = new FlagRepository(db);
-    flagService = new FlagService(flagRepo, serviceRepo);
+    configVersions = new FlagConfigVersionService(
+      flagRepo,
+      new FlagConfigVersionRepository(db),
+    );
+    flagService = new FlagService(
+      flagRepo,
+      serviceRepo,
+      undefined,
+      configVersions,
+    );
     analytics = new WarehouseAnalytics(new AnalyticsEventRepository(db));
     experimentResults = new ExperimentResultsService(db);
     planEnforcementService = new PlanEnforcementService(
@@ -105,6 +117,7 @@ describe("Flags API Routes", () => {
     await db.collection("services").deleteMany({});
     await db.collection("flags").deleteMany({});
     await db.collection("analytics_events").deleteMany({});
+    await db.collection("flag_config_versions").deleteMany({});
 
     const account = await accountRepo.create({
       name: "Test Org",
@@ -130,6 +143,7 @@ describe("Flags API Routes", () => {
       planEnforcementService,
       analytics,
       experimentResults,
+      configVersions,
     });
     await app.ready();
   });
@@ -497,6 +511,111 @@ describe("Flags API Routes", () => {
       };
       const c = await convert("exp", "u1");
       expect(c.statusCode).toBe(403);
+    });
+  });
+
+  describe("config versions", () => {
+    async function createFlag(key: string) {
+      return app.inject({
+        method: "POST",
+        url: `/api/v1/services/${testServiceId}/flags`,
+        headers: auth(),
+        payload: { key, description: "" },
+      });
+    }
+
+    async function setProd(
+      key: string,
+      body: { enabled?: boolean; rolloutPercentage?: number },
+    ) {
+      return app.inject({
+        method: "PATCH",
+        url: `/api/v1/services/${testServiceId}/flags/${key}/environments/prod`,
+        headers: auth(),
+        payload: body,
+      });
+    }
+
+    function listVersions(env: string) {
+      return app.inject({
+        method: "GET",
+        url: `/api/v1/services/${testServiceId}/environments/${env}/config/versions`,
+        headers: auth(),
+      });
+    }
+
+    function getVersion(env: string, version: string) {
+      return app.inject({
+        method: "GET",
+        url: `/api/v1/services/${testServiceId}/environments/${env}/config/versions/${version}`,
+        headers: auth(),
+      });
+    }
+
+    it("should list config versions newest-first after config changes", async () => {
+      await createFlag("new-checkout"); // v1 (prod + staging)
+      await setProd("new-checkout", { enabled: true, rolloutPercentage: 100 }); // prod v2
+
+      const res = await listVersions("prod");
+      expect(res.statusCode).toBe(200);
+      const body = JSON.parse(res.body);
+      expect(body.environment).toBe("prod");
+      expect(body.versions.map((v: { version: number }) => v.version)).toEqual([
+        2, 1,
+      ]);
+      // List is metadata only — no full bundle payload.
+      expect(body.versions[0].hash).toMatch(/^[0-9a-f]{64}$/);
+    });
+
+    it("should fetch a specific immutable version artifact", async () => {
+      await createFlag("new-checkout");
+      await setProd("new-checkout", { enabled: true, rolloutPercentage: 100 });
+
+      const res = await getVersion("prod", "1");
+      expect(res.statusCode).toBe(200);
+      const body = JSON.parse(res.body);
+      expect(body.version).toBe(1);
+      // v1 captured the safe-off seed, unaffected by the later change.
+      expect(body.bundle.flags[0].config.enabled).toBe(false);
+    });
+
+    it("should resolve 'latest' to the newest version", async () => {
+      await createFlag("new-checkout");
+      await setProd("new-checkout", { enabled: true, rolloutPercentage: 100 });
+
+      const res = await getVersion("prod", "latest");
+      expect(res.statusCode).toBe(200);
+      expect(JSON.parse(res.body).version).toBe(2);
+    });
+
+    it("should 404 for a version that does not exist", async () => {
+      await createFlag("new-checkout");
+      const res = await getVersion("prod", "999");
+      expect(res.statusCode).toBe(404);
+    });
+
+    it("should require flags:read scope", async () => {
+      await createFlag("new-checkout");
+      currentAuthContext = { accountId: testAccountId, scopes: [] };
+      const res = await listVersions("prod");
+      expect(res.statusCode).toBe(403);
+    });
+
+    it("should not expose another account's config versions", async () => {
+      const other = await accountRepo.create({
+        name: "Other",
+        slug: `other-cv-${Date.now()}`,
+      });
+      const otherService = await serviceRepo.create({
+        accountId: other._id,
+        name: "svc",
+      });
+      const res = await app.inject({
+        method: "GET",
+        url: `/api/v1/services/${otherService._id}/environments/prod/config/versions`,
+        headers: auth(),
+      });
+      expect(res.statusCode).toBe(403);
     });
   });
 });
