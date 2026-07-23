@@ -4,12 +4,46 @@ import { ServiceRepository } from "../../../repositories/serviceRepository";
 import { FlagServiceI } from "../../../services/flag/flagService";
 import { Flag } from "../../../repositories/flagRepository";
 import { AnalyticsService } from "../../../services/analytics/analytics";
+import {
+  ExperimentResultsService,
+  ExperimentResults,
+} from "../../../services/flag/experimentResultsService";
 
 export type FlagsSettingsDeps = {
   serviceRepository: ServiceRepository;
   flagService: FlagServiceI;
   analytics?: AnalyticsService;
+  experimentResults?: ExperimentResultsService;
 };
+
+// Default experiment results window shown in the UI: the last 30 days.
+const RESULTS_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+
+// Flatten the results into template-friendly rows: a formatted percentage plus
+// a bar width (relative to the best-performing variant) for the inline chart.
+function toResultsView(results: ExperimentResults) {
+  const best = results.variants.reduce(
+    (max, v) => Math.max(max, v.conversionRate),
+    0,
+  );
+  return {
+    flagKey: results.flagKey,
+    environment: results.environment,
+    hasData: results.totals.exposures > 0,
+    totals: {
+      exposures: results.totals.exposures,
+      conversions: results.totals.conversions,
+      conversionRatePct: (results.totals.conversionRate * 100).toFixed(1),
+    },
+    variants: results.variants.map((v) => ({
+      variant: v.variant,
+      exposures: v.exposures,
+      conversions: v.conversions,
+      conversionRatePct: (v.conversionRate * 100).toFixed(1),
+      barPct: best > 0 ? Math.round((v.conversionRate / best) * 100) : 0,
+    })),
+  };
+}
 
 // View model that flattens a flag's per-environment config into rows the
 // template can iterate, ordered to match the service's environment order.
@@ -39,7 +73,7 @@ export function registerFlagsSettingsRoutes(
   app: FastifyInstance,
   deps: FlagsSettingsDeps,
 ): void {
-  const { serviceRepository, flagService, analytics } = deps;
+  const { serviceRepository, flagService, analytics, experimentResults } = deps;
 
   async function loadServiceWithAuth(
     request: FastifyRequest<{ Params: { serviceId: string } }>,
@@ -197,6 +231,48 @@ export function registerFlagsSettingsRoutes(
 
       await flagService.deleteFlag(accountId, service._id, request.params.key);
       return renderList(accountId, service._id, envNames, reply);
+    },
+  );
+
+  // GET /services/:serviceId/flags/:key/results — experiment metrics (HTMX
+  // partial). Shows per-variant exposure/conversion rates over the last 30 days
+  // for the flag's primary (lowest-order, e.g. prod) environment.
+  app.get<{ Params: { serviceId: string; key: string } }>(
+    "/services/:serviceId/flags/:key/results",
+    async (request, reply) => {
+      const result = await loadServiceWithAuth(request, reply);
+      if (!result) return;
+      const { service, accountId } = result;
+      const { key } = request.params;
+
+      const flag = await flagService.getFlag(accountId, service._id, key);
+      if (!flag) {
+        return reply.status(404).send("Flag not found");
+      }
+
+      const envNames = envNamesOf(service);
+      const environment = envNames[envNames.length - 1] ?? "prod";
+
+      if (!experimentResults) {
+        return reply.view("partials/experimentResults", {
+          disabled: true,
+          flagKey: key,
+          environment,
+        });
+      }
+
+      const to = new Date();
+      const from = new Date(to.getTime() - RESULTS_WINDOW_MS);
+      const results = await experimentResults.getResults({
+        accountId,
+        serviceId: service._id,
+        flagKey: key,
+        environment,
+        from,
+        to,
+      });
+
+      return reply.view("partials/experimentResults", toResultsView(results));
     },
   );
 }

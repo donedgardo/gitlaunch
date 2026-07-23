@@ -344,6 +344,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     serviceRepository,
     flagService,
     analytics,
+    experimentResults: experimentResultsService,
   });
 
   // API v1 routes (API key authenticated)
