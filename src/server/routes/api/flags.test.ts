@@ -231,6 +231,111 @@ describe("Flags API Routes", () => {
     expect(JSON.parse(second.body)).toEqual(firstBody);
   });
 
+  it("should apply targeting rules from attr.* query params on evaluation", async () => {
+    await app.inject({
+      method: "POST",
+      url: `/api/v1/services/${testServiceId}/flags`,
+      headers: auth(),
+      payload: { key: "beta" },
+    });
+
+    // Rollout is 0 — only the targeting rule can turn the flag on.
+    const patch = await app.inject({
+      method: "PATCH",
+      url: `/api/v1/services/${testServiceId}/flags/beta/environments/prod`,
+      headers: auth(),
+      payload: {
+        enabled: true,
+        rolloutPercentage: 0,
+        targetingRules: [
+          {
+            conditions: [
+              { attribute: "country", operator: "in", values: ["US", "CA"] },
+            ],
+            serve: null,
+          },
+        ],
+      },
+    });
+    expect(patch.statusCode).toBe(200);
+
+    const base = `/api/v1/services/${testServiceId}/environments/prod/flags/evaluate?entity=user-1`;
+
+    const matched = await app.inject({
+      method: "GET",
+      url: `${base}&attr.country=US`,
+      headers: auth(),
+    });
+    expect(JSON.parse(matched.body).flags.beta.enabled).toBe(true);
+    expect(JSON.parse(matched.body).flags.beta.reason).toBe("targeting_rule");
+
+    const unmatched = await app.inject({
+      method: "GET",
+      url: `${base}&attr.country=DE`,
+      headers: auth(),
+    });
+    expect(JSON.parse(unmatched.body).flags.beta.enabled).toBe(false);
+  });
+
+  it("should reject an invalid targeting rule on configure", async () => {
+    await app.inject({
+      method: "POST",
+      url: `/api/v1/services/${testServiceId}/flags`,
+      headers: auth(),
+      payload: { key: "beta" },
+    });
+
+    const patch = await app.inject({
+      method: "PATCH",
+      url: `/api/v1/services/${testServiceId}/flags/beta/environments/prod`,
+      headers: auth(),
+      payload: {
+        enabled: true,
+        targetingRules: [{ conditions: [], serve: null }],
+      },
+    });
+    expect(patch.statusCode).toBe(400);
+  });
+
+  it("should attribute a conversion using targeting attributes", async () => {
+    await app.inject({
+      method: "POST",
+      url: `/api/v1/services/${testServiceId}/flags`,
+      headers: auth(),
+      payload: { key: "exp" },
+    });
+    await app.inject({
+      method: "PATCH",
+      url: `/api/v1/services/${testServiceId}/flags/exp/environments/prod`,
+      headers: auth(),
+      payload: {
+        enabled: true,
+        rolloutPercentage: 0,
+        variants: [
+          { key: "control", weight: 50 },
+          { key: "treatment", weight: 50 },
+        ],
+        targetingRules: [
+          {
+            conditions: [
+              { attribute: "country", operator: "eq", values: ["US"] },
+            ],
+            serve: "treatment",
+          },
+        ],
+      },
+    });
+
+    const conv = await app.inject({
+      method: "POST",
+      url: `/api/v1/services/${testServiceId}/environments/prod/flags/exp/conversions`,
+      headers: auth(),
+      payload: { entity: "user-1", attributes: { country: "US" } },
+    });
+    expect(conv.statusCode).toBe(201);
+    expect(JSON.parse(conv.body).variant).toBe("treatment");
+  });
+
   it("should require the entity query parameter for evaluation", async () => {
     const response = await app.inject({
       method: "GET",

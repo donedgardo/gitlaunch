@@ -142,4 +142,175 @@ describe("flagEvaluator", () => {
       }
     });
   });
+
+  describe("targeting rules", () => {
+    it("should serve a matched rule's variant regardless of the rollout gate", () => {
+      const cfg: FlagEnvironmentConfig = {
+        enabled: true,
+        rolloutPercentage: 0, // nobody would be in the rollout...
+        variants: [{ key: "treatment", weight: 100 }],
+        targetingRules: [
+          {
+            conditions: [
+              { attribute: "country", operator: "in", values: ["US", "CA"] },
+            ],
+            serve: "treatment",
+          },
+        ],
+      };
+
+      const result = evaluateFlag(cfg, "new-checkout", "user-1", {
+        country: "US",
+      });
+
+      expect(result.enabled).toBe(true);
+      expect(result.variant).toBe("treatment");
+      expect(result.reason).toBe("targeting_rule");
+    });
+
+    it("should fall through to rollout when no rule matches", () => {
+      const cfg: FlagEnvironmentConfig = {
+        enabled: true,
+        rolloutPercentage: 100,
+        variants: [],
+        targetingRules: [
+          {
+            conditions: [
+              { attribute: "country", operator: "eq", values: ["US"] },
+            ],
+            serve: null,
+          },
+        ],
+      };
+
+      const result = evaluateFlag(cfg, "new-checkout", "user-1", {
+        country: "DE",
+      });
+
+      expect(result.enabled).toBe(true);
+      expect(result.reason).toBe("rollout");
+    });
+
+    it("should require all conditions in a rule to match (AND)", () => {
+      const cfg: FlagEnvironmentConfig = {
+        enabled: true,
+        rolloutPercentage: 0,
+        variants: [],
+        targetingRules: [
+          {
+            conditions: [
+              { attribute: "country", operator: "eq", values: ["US"] },
+              { attribute: "plan", operator: "eq", values: ["pro"] },
+            ],
+            serve: null,
+          },
+        ],
+      };
+
+      // Only one of the two conditions holds → rule does not match.
+      const partial = evaluateFlag(cfg, "f", "u", {
+        country: "US",
+        plan: "free",
+      });
+      expect(partial.reason).toBe("not_in_rollout");
+
+      // Both conditions hold → rule matches.
+      const full = evaluateFlag(cfg, "f", "u", { country: "US", plan: "pro" });
+      expect(full.enabled).toBe(true);
+      expect(full.reason).toBe("targeting_rule");
+    });
+
+    it("should use the first matching rule when several match (OR / order)", () => {
+      const cfg: FlagEnvironmentConfig = {
+        enabled: true,
+        rolloutPercentage: 100,
+        variants: [
+          { key: "beta", weight: 50 },
+          { key: "vip", weight: 50 },
+        ],
+        targetingRules: [
+          {
+            conditions: [
+              { attribute: "plan", operator: "eq", values: ["enterprise"] },
+            ],
+            serve: "vip",
+          },
+          {
+            conditions: [
+              { attribute: "beta", operator: "eq", values: ["true"] },
+            ],
+            serve: "beta",
+          },
+        ],
+      };
+
+      const result = evaluateFlag(cfg, "f", "u", {
+        plan: "enterprise",
+        beta: true,
+      });
+      expect(result.variant).toBe("vip");
+    });
+
+    it("should not match when the targeted attribute is absent", () => {
+      const cfg: FlagEnvironmentConfig = {
+        enabled: true,
+        rolloutPercentage: 0,
+        variants: [],
+        targetingRules: [
+          {
+            conditions: [
+              { attribute: "country", operator: "not_in", values: ["US"] },
+            ],
+            serve: null,
+          },
+        ],
+      };
+
+      // No country attribute supplied → rule does not apply (safe default).
+      const result = evaluateFlag(cfg, "f", "u", {});
+      expect(result.reason).toBe("not_in_rollout");
+    });
+
+    it("should support neq, not_in and contains operators", () => {
+      const rule = (
+        attribute: string,
+        operator: "neq" | "not_in" | "contains",
+        values: string[],
+      ): FlagEnvironmentConfig => ({
+        enabled: true,
+        rolloutPercentage: 0,
+        variants: [],
+        targetingRules: [
+          { conditions: [{ attribute, operator, values }], serve: null },
+        ],
+      });
+
+      expect(
+        evaluateFlag(rule("plan", "neq", ["free"]), "f", "u", { plan: "pro" })
+          .reason,
+      ).toBe("targeting_rule");
+      expect(
+        evaluateFlag(rule("plan", "not_in", ["free", "trial"]), "f", "u", {
+          plan: "pro",
+        }).reason,
+      ).toBe("targeting_rule");
+      expect(
+        evaluateFlag(rule("email", "contains", ["@acme.com"]), "f", "u", {
+          email: "jane@acme.com",
+        }).reason,
+      ).toBe("targeting_rule");
+    });
+
+    it("should be a no-op when there are no targeting rules", () => {
+      const cfg: FlagEnvironmentConfig = {
+        enabled: true,
+        rolloutPercentage: 100,
+        variants: [],
+        targetingRules: [],
+      };
+
+      const result = evaluateFlag(cfg, "f", "u", { country: "US" });
+      expect(result.reason).toBe("rollout");
+    });
+  });
 });
