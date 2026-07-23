@@ -1,5 +1,5 @@
 import Fastify, { FastifyInstance } from "fastify";
-import { Db } from "mongodb";
+import { Db, ObjectId } from "mongodb";
 import EventEmitter from "node:events";
 
 import { registerPlugins } from "./registerPlugins";
@@ -76,11 +76,19 @@ import {
 } from "../services/analytics/analytics";
 import { LeadRepository } from "../repositories/leadRepository";
 import { WaitlistService } from "../services/marketing/waitlistService";
+import { WaitlistExperiment } from "../services/marketing/waitlistExperiment";
 import { registerWaitlistRoutes } from "./routes/marketing/waitlist";
 
 // Minimum time (ms) a real person needs to read and fill the waitlist form.
 // Submissions faster than this are treated as bots. See botDetection.ts.
 const WAITLIST_MIN_ELAPSED_MS = 2500;
+
+// Parse an env-provided id into an ObjectId, or undefined when unset/invalid so
+// downstream features degrade gracefully instead of throwing at boot.
+function toObjectId(value: string | undefined): ObjectId | undefined {
+  if (value && ObjectId.isValid(value)) return new ObjectId(value);
+  return undefined;
+}
 
 export type AppServerDeps = {
   database: Db;
@@ -267,10 +275,32 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     minElapsedMs: WAITLIST_MIN_ELAPSED_MS,
   });
 
+  // GitLaunch's own service within its own platform: the service its
+  // self-hosted feature flags live under. GitLaunch is effectively a customer
+  // of its own flag service, so any internal feature that dogfoods flags (today:
+  // the waitlist landing A/B test) shares this scope and differs only by flag
+  // key. The owning account is derived from the service (a service belongs to
+  // one account), so no account id is configured. Absent service => flags inert.
+  const selfFlagContext = {
+    serviceId: toObjectId(process.env.GITLAUNCH_SERVICE_ID),
+    environment: process.env.GITLAUNCH_FLAG_ENV || "prod",
+  };
+
+  // Marketing: dogfood our own feature flags to A/B test the landing-page copy.
+  const waitlistExperiment = new WaitlistExperiment(
+    flagService,
+    serviceRepository,
+    analytics,
+    selfFlagContext,
+  );
+
   // Routes
   server.register(healthRoute(mongoClient));
-  server.register(homeRoute());
-  registerWaitlistRoutes(server, { waitlistService });
+  server.register(homeRoute({ experiment: waitlistExperiment }));
+  registerWaitlistRoutes(server, {
+    waitlistService,
+    experiment: waitlistExperiment,
+  });
   server.register(
     dashboardRoutes({
       serviceRepository,

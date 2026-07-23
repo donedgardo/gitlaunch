@@ -275,6 +275,32 @@ describe("Flags Settings Routes", () => {
     expect(response.body).toContain(`name="variantWeight"`);
   });
 
+  it("renders a read-only targeting-rule summary on the flag card", async () => {
+    await flagService.createFlag(accountId, serviceId, {
+      key: "beta",
+      description: "",
+    });
+    await flagService.setEnvConfig(accountId, serviceId, "beta", "prod", {
+      enabled: true,
+      targetingRules: [
+        {
+          conditions: [
+            { attribute: "country", operator: "in", values: ["US", "CA"] },
+          ],
+          serve: null,
+        },
+      ],
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/services/${serviceId}/flags`,
+      cookies: { session: session() },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toContain("country in US, CA");
+  });
+
   it("deletes a flag", async () => {
     await flagService.createFlag(accountId, serviceId, {
       key: "temp",

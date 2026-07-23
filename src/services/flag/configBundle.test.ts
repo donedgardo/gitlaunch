@@ -1,7 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { ObjectId } from "mongodb";
 import { buildConfigBundle, hashConfigBundle } from "./configBundle";
-import { Flag, FlagEnvironmentConfig } from "../../repositories/flagRepository";
+import {
+  Flag,
+  FlagEnvironmentConfig,
+  defaultEnvironmentConfig,
+} from "../../repositories/flagRepository";
 
 describe("configBundle", () => {
   function makeFlag(
@@ -57,7 +61,7 @@ describe("configBundle", () => {
       expect(bundle.flags).toEqual([
         {
           key: "alpha",
-          config: { enabled: false, rolloutPercentage: 0, variants: [] },
+          config: defaultEnvironmentConfig(),
         },
       ]);
     });
@@ -93,6 +97,33 @@ describe("configBundle", () => {
       );
       const after = buildConfigBundle(
         [makeFlag("alpha", { prod: { ...on, rolloutPercentage: 50 } })],
+        "prod",
+      );
+
+      expect(hashConfigBundle(after)).not.toBe(hashConfigBundle(before));
+    });
+
+    it("should change the hash when a targeting rule changes", () => {
+      const before = buildConfigBundle(
+        [makeFlag("alpha", { prod: on })],
+        "prod",
+      );
+      const after = buildConfigBundle(
+        [
+          makeFlag("alpha", {
+            prod: {
+              ...on,
+              targetingRules: [
+                {
+                  conditions: [
+                    { attribute: "country", operator: "eq", values: ["US"] },
+                  ],
+                  serve: null,
+                },
+              ],
+            },
+          }),
+        ],
         "prod",
       );
 

@@ -58,6 +58,17 @@ function canonicalize(bundle: FlagConfigBundle): string {
           key: v.key,
           weight: v.weight,
         })),
+        // Targeting is evaluated before the rollout gate, so a rule change is a
+        // behaviour change and must mint a new version. Absent => [] so flags
+        // persisted before targeting existed hash the same as explicitly-empty.
+        targetingRules: (f.config.targetingRules ?? []).map((rule) => ({
+          conditions: rule.conditions.map((c) => ({
+            attribute: c.attribute,
+            operator: c.operator,
+            values: c.values,
+          })),
+          serve: rule.serve,
+        })),
       },
     })),
   });

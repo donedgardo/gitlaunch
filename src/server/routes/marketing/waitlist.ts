@@ -1,9 +1,15 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { WaitlistService } from "../../../services/marketing/waitlistService";
 import { LeadAttribution } from "../../../repositories/leadRepository";
+import {
+  WaitlistExperiment,
+  WAITLIST_VISITOR_COOKIE,
+} from "../../../services/marketing/waitlistExperiment";
 
 export type WaitlistRoutesDeps = {
   waitlistService: WaitlistService;
+  // Optional: attributes the signup to the visitor's landing-page A/B variant.
+  experiment?: WaitlistExperiment;
 };
 
 type WaitlistBody = {
@@ -48,7 +54,7 @@ export function registerWaitlistRoutes(
   app: FastifyInstance,
   deps: WaitlistRoutesDeps,
 ): void {
-  const { waitlistService } = deps;
+  const { waitlistService, experiment } = deps;
 
   app.post<{ Body: WaitlistBody }>(
     "/waitlist",
@@ -57,6 +63,8 @@ export function registerWaitlistRoutes(
       reply: FastifyReply,
     ) => {
       const body = request.body ?? {};
+      const visitorId =
+        (request.cookies && request.cookies[WAITLIST_VISITOR_COOKIE]) || "";
 
       const elapsedRaw = body.elapsedMs;
       const elapsedNum =
@@ -71,6 +79,19 @@ export function registerWaitlistRoutes(
         elapsedMs,
         attribution: buildAttribution(body),
       });
+
+      // Attribute a genuinely new signup to the visitor's landing A/B variant.
+      // Re-evaluated server-side from the cookie so it can't be spoofed by the
+      // form, and skipped for bots / idempotent resubmits (no conversion there).
+      if (
+        experiment &&
+        visitorId &&
+        outcome.status === "subscribed" &&
+        !outcome.alreadyOnList
+      ) {
+        const resolved = await experiment.resolve(visitorId);
+        void experiment.recordConversion(visitorId, resolved.variant);
+      }
 
       // A malformed email is the only failure we tell the visitor about — real
       // people mistype. Bot rejections (honeypot / too-fast) render the same

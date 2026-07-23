@@ -1,11 +1,20 @@
 import { createHash } from "node:crypto";
-import type { FlagEnvironmentConfig } from "../../repositories/flagRepository";
+import type {
+  FlagEnvironmentConfig,
+  TargetingCondition,
+  TargetingRule,
+} from "../../repositories/flagRepository";
 
 export type FlagEvaluationReason =
   | "disabled"
   | "not_in_rollout"
   | "rollout"
-  | "variant";
+  | "variant"
+  | "targeting_rule";
+
+// Entity attributes supplied at evaluation time, used to match targeting rules.
+// Values are compared as strings, so scalars are coerced with String().
+export type FlagAttributes = Record<string, string | number | boolean>;
 
 export type FlagEvaluation = {
   key: string;
@@ -40,13 +49,63 @@ function pickVariant(
   return variants[variants.length - 1].key;
 }
 
+// Evaluate a single targeting condition against the entity's attributes. A
+// missing attribute never matches — including for negative operators — so a
+// rule only applies to entities that actually carry the attribute it targets.
+function matchesCondition(
+  cond: TargetingCondition,
+  attributes: FlagAttributes,
+): boolean {
+  const raw = attributes[cond.attribute];
+  if (raw === undefined || raw === null) {
+    return false;
+  }
+  const actual = String(raw);
+  switch (cond.operator) {
+    case "eq":
+      return cond.values.length > 0 && actual === cond.values[0];
+    case "neq":
+      return cond.values.length > 0 && actual !== cond.values[0];
+    case "in":
+      return cond.values.includes(actual);
+    case "not_in":
+      return !cond.values.includes(actual);
+    case "contains":
+      return cond.values.length > 0 && actual.includes(cond.values[0]);
+    default:
+      return false;
+  }
+}
+
+// A rule matches when every one of its conditions matches (AND).
+function matchesRule(rule: TargetingRule, attributes: FlagAttributes): boolean {
+  return (
+    rule.conditions.length > 0 &&
+    rule.conditions.every((c) => matchesCondition(c, attributes))
+  );
+}
+
 export function evaluateFlag(
   cfg: FlagEnvironmentConfig,
   key: string,
   entityKey: string,
+  attributes: FlagAttributes = {},
 ): FlagEvaluation {
   if (!cfg.enabled) {
     return { key, enabled: false, variant: null, reason: "disabled" };
+  }
+
+  // Targeting rules take precedence over the rollout gate: an explicit segment
+  // match always serves its outcome. First matching rule wins.
+  for (const rule of cfg.targetingRules ?? []) {
+    if (matchesRule(rule, attributes)) {
+      return {
+        key,
+        enabled: true,
+        variant: rule.serve ?? null,
+        reason: "targeting_rule",
+      };
+    }
   }
 
   // Rollout gate — independent salt so it doesn't correlate with variant split.

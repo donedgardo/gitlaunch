@@ -11,7 +11,12 @@ import {
   CONVERSION_EVENT,
 } from "../../../services/flag/experimentResultsService";
 import { FlagConfigVersionService } from "../../../services/flag/flagConfigVersionService";
-import { Flag, FlagVariant } from "../../../repositories/flagRepository";
+import {
+  Flag,
+  FlagVariant,
+  TargetingRule,
+} from "../../../repositories/flagRepository";
+import { FlagAttributes } from "../../../services/flag/flagEvaluator";
 
 export type FlagsRoutesDependencies = {
   flagService: FlagServiceI;
@@ -56,7 +61,27 @@ type EnvConfigBody = {
   enabled?: boolean;
   rolloutPercentage?: number;
   variants?: FlagVariant[];
+  targetingRules?: TargetingRule[];
 };
+
+// Extract targeting attributes from `attr.<name>=<value>` evaluate query params
+// (e.g. ?entity=u1&attr.country=US&attr.plan=pro). Repeated params keep the
+// first value. Everything is a string here; the evaluator compares as strings.
+function parseAttributes(
+  query: Record<string, string | string[] | undefined>,
+): FlagAttributes {
+  const attributes: FlagAttributes = {};
+  for (const [rawKey, rawValue] of Object.entries(query)) {
+    if (!rawKey.startsWith("attr.")) continue;
+    const name = rawKey.slice("attr.".length);
+    if (!name) continue;
+    const value = Array.isArray(rawValue) ? rawValue[0] : rawValue;
+    if (value !== undefined) {
+      attributes[name] = value;
+    }
+  }
+  return attributes;
+}
 
 function serializeFlag(flag: Flag) {
   return {
@@ -258,7 +283,12 @@ export function registerFlagsRoutes(
 
   // GET /api/v1/services/:serviceId/environments/:env/flags/evaluate?entity=...
   // Runtime evaluation surface — the hot path app code calls.
-  app.get<{ Params: EvaluateParams; Querystring: { entity?: string } }>(
+  app.get<{
+    Params: EvaluateParams;
+    Querystring: Record<string, string | string[] | undefined> & {
+      entity?: string;
+    };
+  }>(
     "/api/v1/services/:serviceId/environments/:env/flags/evaluate",
     { preHandler: requireScope("flags:read") },
     async (request, reply) => {
@@ -266,18 +296,21 @@ export function registerFlagsRoutes(
       const serviceId = await resolveServiceId(request, reply);
       if (!serviceId) return;
 
-      const entity = request.query.entity;
+      const entityRaw = request.query.entity;
+      const entity = Array.isArray(entityRaw) ? entityRaw[0] : entityRaw;
       if (!entity) {
         return reply
           .status(400)
           .send({ error: "entity query parameter is required" });
       }
 
+      const attributes = parseAttributes(request.query);
       const evaluations = await flagService.evaluate(
         accountId,
         serviceId,
         request.params.env,
         entity,
+        attributes,
       );
 
       const flags: Record<
@@ -318,7 +351,12 @@ export function registerFlagsRoutes(
   // entity (plus an optional goal/value) — never a variant they could get wrong.
   app.post<{
     Params: EnvConfigParams;
-    Body: { entity?: string; goal?: string; value?: number };
+    Body: {
+      entity?: string;
+      goal?: string;
+      value?: number;
+      attributes?: FlagAttributes;
+    };
   }>(
     "/api/v1/services/:serviceId/environments/:env/flags/:key/conversions",
     { preHandler: requireScope("flags:read") },
@@ -333,12 +371,15 @@ export function registerFlagsRoutes(
       }
 
       const { key, env } = request.params;
+      // Pass the same attributes used at exposure so a targeting-rule variant
+      // is attributed consistently between the exposure and this conversion.
       const evaluation = await flagService.evaluateOne(
         accountId,
         serviceId,
         env,
         key,
         entity,
+        request.body?.attributes ?? {},
       );
       if (!evaluation) {
         return reply.status(404).send({ error: "Flag not found" });
