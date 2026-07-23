@@ -1,5 +1,5 @@
 import Fastify, { FastifyInstance } from "fastify";
-import { Db } from "mongodb";
+import { Db, ObjectId } from "mongodb";
 import EventEmitter from "node:events";
 
 import { registerPlugins } from "./registerPlugins";
@@ -73,11 +73,19 @@ import {
 } from "../services/analytics/analytics";
 import { LeadRepository } from "../repositories/leadRepository";
 import { WaitlistService } from "../services/marketing/waitlistService";
+import { WaitlistExperiment } from "../services/marketing/waitlistExperiment";
 import { registerWaitlistRoutes } from "./routes/marketing/waitlist";
 
 // Minimum time (ms) a real person needs to read and fill the waitlist form.
 // Submissions faster than this are treated as bots. See botDetection.ts.
 const WAITLIST_MIN_ELAPSED_MS = 2500;
+
+// Parse an env-provided id into an ObjectId, or undefined when unset/invalid so
+// downstream features degrade gracefully instead of throwing at boot.
+function toObjectId(value: string | undefined): ObjectId | undefined {
+  if (value && ObjectId.isValid(value)) return new ObjectId(value);
+  return undefined;
+}
 
 export type AppServerDeps = {
   database: Db;
@@ -257,10 +265,23 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     minElapsedMs: WAITLIST_MIN_ELAPSED_MS,
   });
 
+  // Marketing: dogfood our own feature flags to A/B test the landing-page copy.
+  // Scope points the experiment at GitLaunch's own account+service+env flag.
+  // Absent account/service => inert (control copy, no exposure) — safe default.
+  const waitlistExperiment = new WaitlistExperiment(flagService, analytics, {
+    accountId: toObjectId(process.env.MARKETING_FLAG_ACCOUNT_ID),
+    serviceId: toObjectId(process.env.MARKETING_FLAG_SERVICE_ID),
+    environment: process.env.MARKETING_FLAG_ENV || "prod",
+    flagKey: process.env.MARKETING_FLAG_KEY || "waitlist-hero-copy",
+  });
+
   // Routes
   server.register(healthRoute(mongoClient));
-  server.register(homeRoute());
-  registerWaitlistRoutes(server, { waitlistService });
+  server.register(homeRoute({ experiment: waitlistExperiment }));
+  registerWaitlistRoutes(server, {
+    waitlistService,
+    experiment: waitlistExperiment,
+  });
   server.register(
     dashboardRoutes({
       serviceRepository,
