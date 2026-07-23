@@ -16,7 +16,7 @@ export default function (deps: HomeRouteDeps = {}) {
   const { experiment } = deps;
 
   return function (server: FastifyInstance, opts: any, done: any) {
-    server.get("/", async (req, res) => {
+    server.get<{ Querystring: { error?: string } }>("/", async (req, res) => {
       // If user is logged in (has session), redirect to dashboard
       if (req.session) {
         return res.redirect("/dashboard");
@@ -46,10 +46,14 @@ export default function (deps: HomeRouteDeps = {}) {
       }
       const copy = resolved ? resolved.copy : WaitlistExperiment.controlCopy();
 
+      // Someone bounced off sign-in because self-serve signups are flagged off:
+      // explain it here rather than leaving them on a silent redirect.
+      const signupsClosed = req.query?.error === "signups_closed";
+
       // Show landing page for non-logged in users
       return res.view(
         "index.hbs",
-        { ...copy, variant: resolved?.variant ?? "control" },
+        { ...copy, variant: resolved?.variant ?? "control", signupsClosed },
         {
           layout: "/layouts/main.hbs",
         },
