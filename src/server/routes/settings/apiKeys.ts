@@ -75,6 +75,8 @@ export function registerApiKeyRoutes(
           "deployments:write",
           "services:read",
           "services:write",
+          "flags:read",
+          "flags:write",
         ],
       });
 
