@@ -1,0 +1,20 @@
+<div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+  <p class="text-sm font-semibold text-amber-800 dark:text-amber-200 mb-1">Save this key — shown once</p>
+  <p class="text-xs text-amber-700 dark:text-amber-300 mb-3">
+    Read-only (<code>flags:read</code>). It can only evaluate flags — store it as a server-side secret in your app.
+  </p>
+
+  <div class="relative mb-3">
+    <div id="flag-new-key" class="bg-gray-900 rounded-lg p-3 pr-16 font-mono text-xs text-green-400 break-all">{{newKey}}</div>
+    <button type="button" onclick="copyFlagSnippet('flag-new-key', this)"
+      class="absolute top-2 right-2 px-2 py-1 text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 rounded">Copy</button>
+  </div>
+
+  <label class="block text-xs font-medium uppercase tracking-wide text-amber-700 dark:text-amber-300 mb-1">Try it</label>
+  <div class="relative">
+    <pre class="bg-gray-900 rounded-lg p-3 pr-16 text-xs text-green-400 overflow-x-auto"><code id="flag-curl">curl -H "Authorization: Bearer {{newKey}}" \
+  "{{apiUrl}}/api/v1/services/{{serviceId}}/environments/{{evaluateEnv}}/flags/evaluate?entity=USER_ID"</code></pre>
+    <button type="button" onclick="copyFlagSnippet('flag-curl', this)"
+      class="absolute top-2 right-2 px-2 py-1 text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 rounded">Copy</button>
+  </div>
+</div>
