@@ -161,6 +161,120 @@ describe("Flags Settings Routes", () => {
     expect(response.body.toLowerCase()).toContain("lowercase");
   });
 
+  it("saves A/B variants for an environment via the variants form", async () => {
+    await flagService.createFlag(accountId, serviceId, {
+      key: "checkout",
+      description: "",
+    });
+
+    const response = await app.inject({
+      method: "PUT",
+      url: `/services/${serviceId}/flags/checkout/environments/prod/variants`,
+      cookies: { session: session() },
+      payload: {
+        variantKey: ["control", "treatment"],
+        variantWeight: ["60", "40"],
+      },
+    });
+    expect(response.statusCode).toBe(200);
+
+    const flag = await flagService.getFlag(accountId, serviceId, "checkout");
+    expect(flag?.environments.prod.variants).toEqual([
+      { key: "control", weight: 60 },
+      { key: "treatment", weight: 40 },
+    ]);
+  });
+
+  it("skips blank variant rows when saving", async () => {
+    await flagService.createFlag(accountId, serviceId, {
+      key: "checkout",
+      description: "",
+    });
+
+    const response = await app.inject({
+      method: "PUT",
+      url: `/services/${serviceId}/flags/checkout/environments/prod/variants`,
+      cookies: { session: session() },
+      payload: {
+        variantKey: ["control", "", "treatment"],
+        variantWeight: ["60", "", "40"],
+      },
+    });
+    expect(response.statusCode).toBe(200);
+
+    const flag = await flagService.getFlag(accountId, serviceId, "checkout");
+    expect(flag?.environments.prod.variants).toEqual([
+      { key: "control", weight: 60 },
+      { key: "treatment", weight: 40 },
+    ]);
+  });
+
+  it("surfaces a validation error when variant weights don't sum to 100", async () => {
+    await flagService.createFlag(accountId, serviceId, {
+      key: "checkout",
+      description: "",
+    });
+
+    const response = await app.inject({
+      method: "PUT",
+      url: `/services/${serviceId}/flags/checkout/environments/prod/variants`,
+      cookies: { session: session() },
+      payload: {
+        variantKey: ["control", "treatment"],
+        variantWeight: ["60", "30"],
+      },
+    });
+    // HTMX swaps on 200: partial re-renders with the error message.
+    expect(response.statusCode).toBe(200);
+    expect(response.body.toLowerCase()).toContain("sum to 100");
+
+    const flag = await flagService.getFlag(accountId, serviceId, "checkout");
+    expect(flag?.environments.prod.variants).toEqual([]);
+  });
+
+  it("clears variants back to a boolean flag when submitted empty", async () => {
+    await flagService.createFlag(accountId, serviceId, {
+      key: "checkout",
+      description: "",
+    });
+    await flagService.setEnvConfig(accountId, serviceId, "checkout", "prod", {
+      variants: [
+        { key: "control", weight: 50 },
+        { key: "treatment", weight: 50 },
+      ],
+    });
+
+    const response = await app.inject({
+      method: "PUT",
+      url: `/services/${serviceId}/flags/checkout/environments/prod/variants`,
+      cookies: { session: session() },
+      payload: {},
+    });
+    expect(response.statusCode).toBe(200);
+
+    const flag = await flagService.getFlag(accountId, serviceId, "checkout");
+    expect(flag?.environments.prod.variants).toEqual([]);
+  });
+
+  it("renders an editable variants form for each environment", async () => {
+    await flagService.createFlag(accountId, serviceId, {
+      key: "checkout",
+      description: "",
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/services/${serviceId}/flags`,
+      cookies: { session: session() },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toContain(
+      `/flags/checkout/environments/prod/variants`,
+    );
+    expect(response.body).toContain(`name="variantKey"`);
+    expect(response.body).toContain(`name="variantWeight"`);
+  });
+
   it("deletes a flag", async () => {
     await flagService.createFlag(accountId, serviceId, {
       key: "temp",

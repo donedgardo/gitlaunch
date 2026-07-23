@@ -38,49 +38,110 @@
 
   <div class="divide-y divide-gray-200 dark:divide-gray-700">
     {{#each this.environments}}
-    <form
-      class="px-6 py-4 flex items-center justify-between gap-4"
-      data-env="{{this.name}}"
-      hx-patch="/services/{{../../serviceId}}/flags/{{../key}}/environments/{{this.name}}"
-      hx-target="#flag-list"
-      hx-swap="innerHTML"
-      hx-trigger="change"
-    >
-      <div class="flex items-center gap-3 min-w-0">
-        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
-          {{this.name}}
-        </span>
-        {{#if this.variantSummary}}
-        <span class="text-xs text-gray-500 dark:text-gray-400 truncate" title="Variants (edit via API)">
-          {{this.variantSummary}}
-        </span>
-        {{/if}}
-      </div>
-      <div class="flex items-center gap-4">
-        <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-          <span>Rollout</span>
-          <input
-            type="number"
-            name="rolloutPercentage"
-            min="0"
-            max="100"
-            value="{{this.rolloutPercentage}}"
-            class="w-20 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm"
-          />
-          <span class="text-gray-400">%</span>
-        </label>
-        <label class="relative inline-flex items-center cursor-pointer">
-          <input
-            type="checkbox"
-            name="enabled"
-            value="true"
-            {{#if this.enabled}}checked{{/if}}
-            class="sr-only peer"
-          />
-          <div class="w-11 h-6 bg-gray-200 dark:bg-gray-600 peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-        </label>
-      </div>
-    </form>
+    <div class="px-6 py-4" data-env="{{this.name}}">
+      <form
+        class="flex items-center justify-between gap-4"
+        hx-patch="/services/{{../../serviceId}}/flags/{{../key}}/environments/{{this.name}}"
+        hx-target="#flag-list"
+        hx-swap="innerHTML"
+        hx-trigger="change"
+      >
+        <div class="flex items-center gap-3 min-w-0">
+          <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
+            {{this.name}}
+          </span>
+          {{#if this.variantSummary}}
+          <span class="text-xs text-gray-500 dark:text-gray-400 truncate" title="A/B variants">
+            {{this.variantSummary}}
+          </span>
+          {{/if}}
+        </div>
+        <div class="flex items-center gap-4">
+          <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+            <span>Rollout</span>
+            <input
+              type="number"
+              name="rolloutPercentage"
+              min="0"
+              max="100"
+              value="{{this.rolloutPercentage}}"
+              class="w-20 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm"
+            />
+            <span class="text-gray-400">%</span>
+          </label>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              name="enabled"
+              value="true"
+              {{#if this.enabled}}checked{{/if}}
+              class="sr-only peer"
+            />
+            <div class="w-11 h-6 bg-gray-200 dark:bg-gray-600 peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+          </label>
+        </div>
+      </form>
+
+      <details class="mt-3" {{#if this.variantSummary}}open{{/if}}>
+        <summary class="cursor-pointer select-none text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
+          A/B variants
+        </summary>
+        <form
+          class="mt-3 variant-form"
+          hx-put="/services/{{../../serviceId}}/flags/{{../key}}/environments/{{this.name}}/variants"
+          hx-target="#flag-list"
+          hx-swap="innerHTML"
+        >
+          <div class="variant-rows flex flex-col gap-2">
+            {{#each this.variants}}
+            <div class="variant-row flex items-center gap-2">
+              <input
+                type="text"
+                name="variantKey"
+                value="{{this.key}}"
+                placeholder="variant-key"
+                pattern="[a-z0-9]+(-[a-z0-9]+)*"
+                title="lowercase alphanumeric with hyphens"
+                class="flex-1 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm font-mono"
+              />
+              <input
+                type="number"
+                name="variantWeight"
+                value="{{this.weight}}"
+                min="0"
+                max="100"
+                class="w-20 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm"
+              />
+              <span class="text-gray-400 text-sm">%</span>
+              <button
+                type="button"
+                data-remove-variant
+                aria-label="Remove variant"
+                class="px-2 py-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 rounded-lg transition-colors"
+              >✕</button>
+            </div>
+            {{/each}}
+          </div>
+          <div class="flex items-center justify-between mt-3">
+            <button
+              type="button"
+              data-add-variant
+              class="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+            >+ Add variant</button>
+            <div class="flex items-center gap-3">
+              <span class="text-xs text-gray-400" data-variant-total></span>
+              <button
+                type="submit"
+                class="px-3 py-1.5 text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+              >Save variants</button>
+            </div>
+          </div>
+          <p class="mt-2 text-xs text-gray-400 dark:text-gray-500">
+            Weights must sum to 100. Leave empty for a plain on/off flag.
+          </p>
+        </form>
+      </details>
+    </div>
     {{/each}}
   </div>
 
