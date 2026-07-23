@@ -11,7 +11,9 @@ import { ServiceRepository } from "./repositories/serviceRepository";
 import { WebhookEventRepository } from "./repositories/webhookEventRepository";
 import { TrialRegistryRepository } from "./repositories/trialRegistryRepository";
 import { LeadRepository } from "./repositories/leadRepository";
+import { FlagRepository } from "./repositories/flagRepository";
 import { createGitHubServices } from "./services/github/createGitHubServices";
+import { createFlagCache } from "./services/flag/createFlagCache";
 import { AnalyticsEventRepository } from "./repositories/analyticsEventRepository";
 import { createAnalyticsService } from "./services/analytics/createAnalyticsService";
 
@@ -51,6 +53,9 @@ const analytics = createAnalyticsService(analyticsEventRepository, {
   dev: process.env.NODE_ENV !== "production",
 });
 
+// Flag evaluation cache (Redis when REDIS_URL is set, in-memory otherwise)
+const flagCache = createFlagCache();
+
 // Create server
 const server = createAppServer({
   database,
@@ -62,6 +67,7 @@ const server = createAppServer({
   installationTokenService,
   webhookEventRepo: webhookEventRepository,
   analytics,
+  flagCache,
 });
 
 const PORT = parseInt(process.env.PORT || "3050");
@@ -73,12 +79,14 @@ async function start() {
   const serviceRepository = new ServiceRepository(database);
   const trialRegistryRepository = new TrialRegistryRepository(database);
   const leadRepository = new LeadRepository(database);
+  const flagRepository = new FlagRepository(database);
   await buildRepository.ensureIndexes();
   await serviceRepository.ensureIndexes();
   await webhookEventRepository.ensureIndexes();
   await trialRegistryRepository.ensureIndexes();
   await analyticsEventRepository.ensureIndexes();
   await leadRepository.ensureIndexes();
+  await flagRepository.ensureIndexes();
 
   await server.listen({ host: "0.0.0.0", port: PORT });
   console.info(`Server listening on port ${PORT}`);

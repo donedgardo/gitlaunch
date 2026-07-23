@@ -1,0 +1,82 @@
+{{#if error}}
+<div class="mb-4 px-4 py-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+  <p class="text-sm text-red-800 dark:text-red-200">{{error}}</p>
+</div>
+{{/if}}
+
+{{#each flags}}
+<div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm mb-4" data-flag="{{this.key}}">
+  <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+    <div>
+      <p class="text-sm font-mono font-semibold text-gray-900 dark:text-white">{{this.key}}</p>
+      {{#if this.description}}
+      <p class="text-sm text-gray-500 dark:text-gray-400">{{this.description}}</p>
+      {{/if}}
+    </div>
+    <button
+      type="button"
+      class="px-3 py-1.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+      hx-delete="/services/{{../serviceId}}/flags/{{this.key}}"
+      hx-target="#flag-list"
+      hx-swap="innerHTML"
+      hx-confirm="Delete flag '{{this.key}}'? This cannot be undone."
+    >
+      Delete
+    </button>
+  </div>
+
+  <div class="divide-y divide-gray-200 dark:divide-gray-700">
+    {{#each this.environments}}
+    <form
+      class="px-6 py-4 flex items-center justify-between gap-4"
+      data-env="{{this.name}}"
+      hx-patch="/services/{{../../serviceId}}/flags/{{../key}}/environments/{{this.name}}"
+      hx-target="#flag-list"
+      hx-swap="innerHTML"
+      hx-trigger="change"
+    >
+      <div class="flex items-center gap-3 min-w-0">
+        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
+          {{this.name}}
+        </span>
+        {{#if this.variantSummary}}
+        <span class="text-xs text-gray-500 dark:text-gray-400 truncate" title="Variants (edit via API)">
+          {{this.variantSummary}}
+        </span>
+        {{/if}}
+      </div>
+      <div class="flex items-center gap-4">
+        <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+          <span>Rollout</span>
+          <input
+            type="number"
+            name="rolloutPercentage"
+            min="0"
+            max="100"
+            value="{{this.rolloutPercentage}}"
+            class="w-20 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm"
+          />
+          <span class="text-gray-400">%</span>
+        </label>
+        <label class="relative inline-flex items-center cursor-pointer">
+          <input
+            type="checkbox"
+            name="enabled"
+            value="true"
+            {{#if this.enabled}}checked{{/if}}
+            class="sr-only peer"
+          />
+          <div class="w-11 h-6 bg-gray-200 dark:bg-gray-600 peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+        </label>
+      </div>
+    </form>
+    {{/each}}
+  </div>
+</div>
+{{/each}}
+
+{{#unless flags}}
+<div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm px-6 py-12 text-center">
+  <p class="text-gray-500 dark:text-gray-400">No feature flags yet. Create one above to get started.</p>
+</div>
+{{/unless}}

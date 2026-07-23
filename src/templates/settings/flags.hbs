@@ -1,0 +1,73 @@
+{{> navigation }}
+
+<!-- Main Content -->
+<div class="min-h-screen bg-gray-50 dark:bg-gray-900" data-page="flags">
+  <div class="max-w-4xl mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="mb-8">
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
+            {{serviceName}} Feature Flags
+          </h1>
+          <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            Gate features, roll out gradually, and run A/B experiments per environment.
+          </p>
+        </div>
+        <a
+          href="/services/{{serviceId}}/settings"
+          class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+        >
+          ← Service Settings
+        </a>
+      </div>
+    </div>
+
+    <!-- Create Flag -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm mb-8">
+      <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">New Flag</h2>
+      </div>
+      <form
+        class="px-6 py-4 flex flex-col sm:flex-row gap-3 sm:items-end"
+        hx-post="/services/{{serviceId}}/flags"
+        hx-target="#flag-list"
+        hx-swap="innerHTML"
+        hx-on::after-request="if(event.detail.successful) this.reset()"
+      >
+        <div class="flex-1">
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Key</label>
+          <input
+            type="text"
+            name="key"
+            required
+            placeholder="new-checkout"
+            pattern="[a-z0-9]+(-[a-z0-9]+)*"
+            title="lowercase alphanumeric with hyphens"
+            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm"
+          />
+        </div>
+        <div class="flex-1">
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+          <input
+            type="text"
+            name="description"
+            placeholder="Optional"
+            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm"
+          />
+        </div>
+        <button
+          type="submit"
+          class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors whitespace-nowrap"
+        >
+          Add Flag
+        </button>
+      </form>
+    </div>
+
+    <!-- Flag List -->
+    <div id="flag-list">
+      {{> flagList flags=flags environments=environments serviceId=serviceId }}
+    </div>
+  </div>
+</div>

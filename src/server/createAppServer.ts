@@ -16,6 +16,8 @@ import { registerServiceRoutes } from "./routes/services";
 import { registerSettingsRoutes } from "./routes/services/settings";
 import { registerBuildsRoutes } from "./routes/api/builds";
 import { registerEnvironmentsRoutes } from "./routes/api/environments";
+import { registerFlagsRoutes } from "./routes/api/flags";
+import { registerFlagsSettingsRoutes } from "./routes/settings/flags";
 import { registerSessionMiddleware } from "./middleware/sessionAuth";
 import { createApiKeyAuthMiddleware } from "./middleware/apiKeyAuth";
 
@@ -36,6 +38,9 @@ import { MembershipRepository } from "../repositories/membershipRepository";
 import { RepositoryRepository } from "../repositories/repositoryRepository";
 import { ServiceRepository } from "../repositories/serviceRepository";
 import { ApiKeyRepository } from "../repositories/apiKeyRepository";
+import { FlagRepository } from "../repositories/flagRepository";
+import { FlagService } from "../services/flag/flagService";
+import { FlagCacheI, InMemoryFlagCache } from "../services/flag/flagCache";
 import { WebhookEventRepository } from "../repositories/webhookEventRepository";
 import { TrialRegistryRepository } from "../repositories/trialRegistryRepository";
 import { GitHubAppService } from "../services/github/githubAppService";
@@ -84,6 +89,9 @@ export type AppServerDeps = {
   installationTokenService: InstallationTokenService;
   webhookEventRepo?: WebhookEventRepository;
   analytics?: AnalyticsService;
+  // Read-through cache for flag evaluation. Defaults to an in-memory cache;
+  // inject a RedisFlagCache to share the cache across instances.
+  flagCache?: FlagCacheI;
 };
 
 export function createAppServer(deps: AppServerDeps): FastifyInstance {
@@ -97,6 +105,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     installationTokenService,
     webhookEventRepo,
     analytics = new NoOpAnalytics(),
+    flagCache = new InMemoryFlagCache(),
   } = deps;
 
   assertEncryptionKey();
@@ -115,6 +124,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
   const buildRepository = new BuildRepository(database);
   const trialRegistryRepository = new TrialRegistryRepository(database);
   const leadRepository = new LeadRepository(database);
+  const flagRepository = new FlagRepository(database);
   const analyticsQueryService = new AnalyticsQueryService(database);
 
   // Services
@@ -161,6 +171,11 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     buildDispatchService,
   );
   const environmentService = new EnvironmentService(serviceRepository);
+  const flagService = new FlagService(
+    flagRepository,
+    serviceRepository,
+    flagCache,
+  );
 
   // Webhook handler and route
   if (webhookEventRepo) {
@@ -322,6 +337,13 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     analytics,
   });
 
+  // Feature flags management UI (per-service)
+  registerFlagsSettingsRoutes(server, {
+    serviceRepository,
+    flagService,
+    analytics,
+  });
+
   // API v1 routes (API key authenticated)
   server.register(
     async (apiServer) => {
@@ -341,6 +363,14 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
       registerEnvironmentsRoutes(apiServer, {
         environmentService,
         planEnforcementService,
+      });
+
+      // Register feature flags API routes (CRUD + evaluation)
+      registerFlagsRoutes(apiServer, {
+        flagService,
+        serviceRepo: serviceRepository,
+        planEnforcementService,
+        analytics,
       });
     },
     { prefix: "" }, // Routes already have /api/v1 prefix

@@ -5,7 +5,9 @@ export type ApiKeyScope =
   | "builds:write"
   | "deployments:write"
   | "services:read"
-  | "services:write";
+  | "services:write"
+  | "flags:read"
+  | "flags:write";
 
 export type ApiKey = {
   _id: ObjectId;
