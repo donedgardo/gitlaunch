@@ -11,6 +11,8 @@ import { AccountRepository } from "../../../repositories/accountRepository";
 import { ServiceRepository } from "../../../repositories/serviceRepository";
 import { FlagRepository } from "../../../repositories/flagRepository";
 import { FlagService } from "../../../services/flag/flagService";
+import { AnalyticsEventRepository } from "../../../repositories/analyticsEventRepository";
+import { ExperimentResultsService } from "../../../services/flag/experimentResultsService";
 import { SessionService } from "../../../services/auth/sessionService";
 import { sessionAuthMiddleware } from "../../middleware/sessionAuth";
 import { registerHandlebarsHelpers } from "../../registerHandlebarsHelpers";
@@ -25,6 +27,8 @@ describe("Flags Settings Routes", () => {
   let serviceRepo: ServiceRepository;
   let flagRepo: FlagRepository;
   let flagService: FlagService;
+  let analyticsEventRepo: AnalyticsEventRepository;
+  let experimentResults: ExperimentResultsService;
   let sessionService: SessionService;
 
   let accountId: ObjectId;
@@ -53,11 +57,14 @@ describe("Flags Settings Routes", () => {
     await db.collection("accounts").deleteMany({});
     await db.collection("services").deleteMany({});
     await db.collection("flags").deleteMany({});
+    await db.collection("analytics_events").deleteMany({});
 
     accountRepo = new AccountRepository(db);
     serviceRepo = new ServiceRepository(db);
     flagRepo = new FlagRepository(db);
     flagService = new FlagService(flagRepo, serviceRepo);
+    analyticsEventRepo = new AnalyticsEventRepository(db);
+    experimentResults = new ExperimentResultsService(db);
 
     userId = new ObjectId();
     const account = await accountRepo.create({ name: "Acme", slug: "acme" });
@@ -75,6 +82,7 @@ describe("Flags Settings Routes", () => {
         partials: {
           navigation: "/partials/navigation.hbs",
           flagList: "/partials/flagList.hbs",
+          experimentResults: "/partials/experimentResults.hbs",
         },
       },
     });
@@ -82,6 +90,7 @@ describe("Flags Settings Routes", () => {
     registerFlagsSettingsRoutes(app, {
       serviceRepository: serviceRepo,
       flagService,
+      experimentResults,
     });
     await app.ready();
   });
@@ -279,5 +288,63 @@ describe("Flags Settings Routes", () => {
     });
     expect(response.statusCode).toBe(200);
     expect(await flagService.getFlag(accountId, serviceId, "temp")).toBeNull();
+  });
+
+  describe("experiment results", () => {
+    async function seedExposure(
+      variant: string,
+      distinctId: string,
+      event = "flag_exposure",
+    ) {
+      await analyticsEventRepo.insert({
+        type: "track",
+        event,
+        accountId,
+        distinctId,
+        properties: {
+          serviceId: serviceId.toString(),
+          flagKey: "exp",
+          environment: "prod",
+          variant,
+        },
+      });
+    }
+
+    it("renders per-variant conversion rates for a flag", async () => {
+      await flagService.createFlag(accountId, serviceId, {
+        key: "exp",
+        description: "",
+      });
+      // control: 2 exposed, 1 converted => 50%
+      await seedExposure("control", "u1");
+      await seedExposure("control", "u2");
+      await seedExposure("control", "u1", "flag_conversion");
+      // treatment: 2 exposed, 2 converted => 100%
+      await seedExposure("treatment", "u3");
+      await seedExposure("treatment", "u4");
+      await seedExposure("treatment", "u3", "flag_conversion");
+      await seedExposure("treatment", "u4", "flag_conversion");
+
+      const response = await app.inject({
+        method: "GET",
+        url: `/services/${serviceId}/flags/exp/results`,
+        cookies: { session: session() },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain("control");
+      expect(response.body).toContain("treatment");
+      expect(response.body).toContain("50.0%");
+      expect(response.body).toContain("100.0%");
+    });
+
+    it("returns 404 for results of an unknown flag", async () => {
+      const response = await app.inject({
+        method: "GET",
+        url: `/services/${serviceId}/flags/ghost/results`,
+        cookies: { session: session() },
+      });
+      expect(response.statusCode).toBe(404);
+    });
   });
 });

@@ -13,16 +13,27 @@
       <p class="text-sm text-gray-500 dark:text-gray-400">{{this.description}}</p>
       {{/if}}
     </div>
-    <button
-      type="button"
-      class="px-3 py-1.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-      hx-delete="/services/{{../serviceId}}/flags/{{this.key}}"
-      hx-target="#flag-list"
-      hx-swap="innerHTML"
-      hx-confirm="Delete flag '{{this.key}}'? This cannot be undone."
-    >
-      Delete
-    </button>
+    <div class="flex items-center gap-1">
+      <button
+        type="button"
+        class="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+        hx-get="/services/{{../serviceId}}/flags/{{this.key}}/results"
+        hx-target="#results-{{this.key}}"
+        hx-swap="innerHTML"
+      >
+        Results
+      </button>
+      <button
+        type="button"
+        class="px-3 py-1.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+        hx-delete="/services/{{../serviceId}}/flags/{{this.key}}"
+        hx-target="#flag-list"
+        hx-swap="innerHTML"
+        hx-confirm="Delete flag '{{this.key}}'? This cannot be undone."
+      >
+        Delete
+      </button>
+    </div>
   </div>
 
   <div class="divide-y divide-gray-200 dark:divide-gray-700">
@@ -133,6 +144,8 @@
     </div>
     {{/each}}
   </div>
+
+  <div id="results-{{this.key}}"></div>
 </div>
 {{/each}}
 

@@ -21,6 +21,9 @@ import { MembershipRepository } from "../../../repositories/membershipRepository
 import { FlagRepository } from "../../../repositories/flagRepository";
 import { FlagService } from "../../../services/flag/flagService";
 import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
+import { AnalyticsEventRepository } from "../../../repositories/analyticsEventRepository";
+import { WarehouseAnalytics } from "../../../services/analytics/warehouseAnalytics";
+import { ExperimentResultsService } from "../../../services/flag/experimentResultsService";
 import { registerFlagsRoutes } from "./flags";
 import { ApiKeyScope } from "../../../repositories/apiKeyRepository";
 
@@ -60,6 +63,8 @@ describe("Flags API Routes", () => {
   let flagRepo: FlagRepository;
   let flagService: FlagService;
   let planEnforcementService: PlanEnforcementService;
+  let analytics: WarehouseAnalytics;
+  let experimentResults: ExperimentResultsService;
 
   let testAccountId: ObjectId;
   let testServiceId: ObjectId;
@@ -76,6 +81,8 @@ describe("Flags API Routes", () => {
     membershipRepo = new MembershipRepository(db);
     flagRepo = new FlagRepository(db);
     flagService = new FlagService(flagRepo, serviceRepo);
+    analytics = new WarehouseAnalytics(new AnalyticsEventRepository(db));
+    experimentResults = new ExperimentResultsService(db);
     planEnforcementService = new PlanEnforcementService(
       accountRepo,
       repoRepo,
@@ -97,6 +104,7 @@ describe("Flags API Routes", () => {
     await db.collection("accounts").deleteMany({});
     await db.collection("services").deleteMany({});
     await db.collection("flags").deleteMany({});
+    await db.collection("analytics_events").deleteMany({});
 
     const account = await accountRepo.create({
       name: "Test Org",
@@ -120,6 +128,8 @@ describe("Flags API Routes", () => {
       flagService,
       serviceRepo,
       planEnforcementService,
+      analytics,
+      experimentResults,
     });
     await app.ready();
   });
@@ -250,5 +260,138 @@ describe("Flags API Routes", () => {
       headers: auth(),
     });
     expect(detail.statusCode).toBe(404);
+  });
+
+  describe("experiment metrics", () => {
+    async function enableExperiment(key: string) {
+      await flagService.createFlag(testAccountId, testServiceId, {
+        key,
+        description: "",
+      });
+      await flagService.setEnvConfig(
+        testAccountId,
+        testServiceId,
+        key,
+        "prod",
+        {
+          enabled: true,
+          rolloutPercentage: 100,
+          variants: [
+            { key: "control", weight: 50 },
+            { key: "treatment", weight: 50 },
+          ],
+        },
+      );
+    }
+
+    function evaluate(entity: string, env = "prod") {
+      const url = `/api/v1/services/${testServiceId}/environments/${env}/flags/evaluate?entity=${entity}`;
+      return app.inject({ method: "GET", url, headers: auth() });
+    }
+
+    function convert(key: string, entity: string, extra: object = {}) {
+      return app.inject({
+        method: "POST",
+        url: `/api/v1/services/${testServiceId}/environments/prod/flags/${key}/conversions`,
+        headers: auth(),
+        payload: { entity, ...extra },
+      });
+    }
+
+    function fetchResults(key: string) {
+      return app.inject({
+        method: "GET",
+        url: `/api/v1/services/${testServiceId}/environments/prod/flags/${key}/results`,
+        headers: auth(),
+      });
+    }
+
+    it("records exposures on evaluation and conversions, then reports per-variant results", async () => {
+      await enableExperiment("exp");
+
+      const entities = ["u1", "u2", "u3", "u4", "u5", "u6"];
+      for (const e of entities) await evaluate(e);
+
+      for (const e of ["u1", "u2", "u3"]) {
+        const c = await convert("exp", e);
+        expect(c.statusCode).toBe(201);
+        const body = JSON.parse(c.body);
+        expect(body.recorded).toBe(true);
+        expect(body).toHaveProperty("variant");
+      }
+      await analytics.flush();
+
+      const res = await fetchResults("exp");
+      expect(res.statusCode).toBe(200);
+      const body = JSON.parse(res.body);
+      expect(body.flagKey).toBe("exp");
+
+      const totalExposures = body.variants.reduce(
+        (s: number, v: any) => s + v.exposures,
+        0,
+      );
+      const totalConversions = body.variants.reduce(
+        (s: number, v: any) => s + v.conversions,
+        0,
+      );
+      expect(totalExposures).toBe(6);
+      expect(totalConversions).toBe(3);
+      expect(body.totals.exposures).toBe(6);
+      // Rates are conversions/exposures per variant.
+      for (const v of body.variants) {
+        expect(v.conversionRate).toBeCloseTo(v.conversions / v.exposures, 5);
+      }
+    });
+
+    it("attributes a conversion to the same variant the entity was assigned", async () => {
+      await enableExperiment("exp");
+
+      const evalRes = await evaluate("stable-user");
+      const assigned = JSON.parse(evalRes.body).flags.exp.variant;
+
+      const c = await convert("exp", "stable-user");
+      expect(JSON.parse(c.body).variant).toBe(assigned);
+    });
+
+    it("does not record exposures for a disabled flag", async () => {
+      await flagService.createFlag(testAccountId, testServiceId, {
+        key: "off",
+        description: "",
+      });
+      await evaluate("u1");
+      await analytics.flush();
+
+      const res = await fetchResults("off");
+      expect(res.statusCode).toBe(200);
+      expect(JSON.parse(res.body).totals.exposures).toBe(0);
+    });
+
+    it("rejects a conversion without an entity", async () => {
+      await enableExperiment("exp");
+      const c = await app.inject({
+        method: "POST",
+        url: `/api/v1/services/${testServiceId}/environments/prod/flags/exp/conversions`,
+        headers: auth(),
+        payload: {},
+      });
+      expect(c.statusCode).toBe(400);
+    });
+
+    it("returns 404 converting or fetching results for an unknown flag", async () => {
+      const c = await convert("ghost", "u1");
+      expect(c.statusCode).toBe(404);
+      const r = await fetchResults("ghost");
+      expect(r.statusCode).toBe(404);
+    });
+
+    it("requires flags:read scope to record a conversion", async () => {
+      await enableExperiment("exp");
+      currentAuthContext = {
+        accountId: testAccountId,
+        scopes: ["flags:write"],
+      };
+      const c = await convert("exp", "u1");
+      expect(c.statusCode).toBe(403);
+    });
   });
 });

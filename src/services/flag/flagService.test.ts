@@ -244,6 +244,54 @@ describe("FlagService", () => {
     });
   });
 
+  describe("evaluateOne", () => {
+    it("should return the same variant as evaluate for a single flag", async () => {
+      const { account, svc } = await makeAccountAndService("acme");
+      await service.createFlag(account._id, svc._id, {
+        key: "exp",
+        description: "",
+      });
+      await service.setEnvConfig(account._id, svc._id, "exp", "prod", {
+        enabled: true,
+        rolloutPercentage: 100,
+        variants: [
+          { key: "control", weight: 50 },
+          { key: "treatment", weight: 50 },
+        ],
+      });
+
+      const all = await service.evaluate(
+        account._id,
+        svc._id,
+        "prod",
+        "user-42",
+      );
+      const one = await service.evaluateOne(
+        account._id,
+        svc._id,
+        "prod",
+        "exp",
+        "user-42",
+      );
+
+      expect(one).not.toBeNull();
+      expect(one!.enabled).toBe(true);
+      expect(one!.variant).toBe(all.find((e) => e.key === "exp")!.variant);
+    });
+
+    it("should return null when the flag does not exist", async () => {
+      const { account, svc } = await makeAccountAndService("acme");
+      const one = await service.evaluateOne(
+        account._id,
+        svc._id,
+        "prod",
+        "missing",
+        "user-1",
+      );
+      expect(one).toBeNull();
+    });
+  });
+
   describe("caching", () => {
     it("should serve evaluation from cache and reflect writes made through the service", async () => {
       const { account, svc } = await makeAccountAndService("acme");

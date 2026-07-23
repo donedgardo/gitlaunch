@@ -5,6 +5,11 @@ import { ServiceRepository } from "../../../repositories/serviceRepository";
 import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
 import { requireScope } from "../../middleware/apiKeyAuth";
 import { AnalyticsService } from "../../../services/analytics/analytics";
+import {
+  ExperimentResultsService,
+  EXPOSURE_EVENT,
+  CONVERSION_EVENT,
+} from "../../../services/flag/experimentResultsService";
 import { Flag, FlagVariant } from "../../../repositories/flagRepository";
 
 export type FlagsRoutesDependencies = {
@@ -12,12 +17,37 @@ export type FlagsRoutesDependencies = {
   serviceRepo: ServiceRepository;
   planEnforcementService: PlanEnforcementService;
   analytics?: AnalyticsService;
+  experimentResults?: ExperimentResultsService;
 };
 
 type ServiceIdParams = { serviceId: string };
 type FlagKeyParams = ServiceIdParams & { key: string };
 type EnvConfigParams = FlagKeyParams & { env: string };
 type EvaluateParams = ServiceIdParams & { env: string };
+
+// Default experiment results window when the caller doesn't specify one: the
+// last 30 days, with a small forward buffer so events written moments ago (the
+// exclusive upper bound is `< to`) are always included.
+const DEFAULT_RESULTS_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+const RESULTS_UPPER_BUFFER_MS = 60 * 1000;
+
+function parseResultsRange(query: { from?: string; to?: string }): {
+  from: Date;
+  to: Date;
+} {
+  const now = Date.now();
+  const to = parseDate(query.to) ?? new Date(now + RESULTS_UPPER_BUFFER_MS);
+  const from =
+    parseDate(query.from) ?? new Date(now - DEFAULT_RESULTS_WINDOW_MS);
+  return { from, to };
+}
+
+function parseDate(value?: string): Date | null {
+  if (!value) return null;
+  const asNumber = Number(value);
+  const date = Number.isFinite(asNumber) ? new Date(asNumber) : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
 
 type CreateFlagBody = { key?: string; description?: string };
 type EnvConfigBody = {
@@ -40,7 +70,13 @@ export function registerFlagsRoutes(
   app: FastifyInstance,
   deps: FlagsRoutesDependencies,
 ) {
-  const { flagService, serviceRepo, planEnforcementService, analytics } = deps;
+  const {
+    flagService,
+    serviceRepo,
+    planEnforcementService,
+    analytics,
+    experimentResults,
+  } = deps;
 
   // Resolve + tenant-check a service from the :serviceId param. Returns the
   // ObjectId, or null after sending the appropriate error response.
@@ -251,8 +287,118 @@ export function registerFlagsRoutes(
           variant: e.variant,
           reason: e.reason,
         };
+
+        // Record an exposure for every live flag (i.e. not fully disabled in
+        // this environment) so experiments can measure who saw which variant.
+        // Fire-and-forget — never blocks the hot evaluation path.
+        if (e.reason !== "disabled") {
+          analytics?.track(
+            EXPOSURE_EVENT,
+            {
+              serviceId: serviceId.toString(),
+              flagKey: e.key,
+              environment: request.params.env,
+              variant: e.variant,
+              reason: e.reason,
+            },
+            { accountId: accountId.toString(), distinctId: entity },
+          );
+        }
       }
       return reply.send({ environment: request.params.env, entity, flags });
+    },
+  );
+
+  // POST /api/v1/services/:serviceId/environments/:env/flags/:key/conversions
+  // Record an experiment conversion for an entity. The variant is attributed
+  // deterministically by re-evaluating the flag, so callers only send the
+  // entity (plus an optional goal/value) — never a variant they could get wrong.
+  app.post<{
+    Params: EnvConfigParams;
+    Body: { entity?: string; goal?: string; value?: number };
+  }>(
+    "/api/v1/services/:serviceId/environments/:env/flags/:key/conversions",
+    { preHandler: requireScope("flags:read") },
+    async (request, reply) => {
+      const accountId = request.apiKey!.accountId;
+      const serviceId = await resolveServiceId(request, reply);
+      if (!serviceId) return;
+
+      const entity = request.body?.entity;
+      if (!entity) {
+        return reply.status(400).send({ error: "entity is required" });
+      }
+
+      const { key, env } = request.params;
+      const evaluation = await flagService.evaluateOne(
+        accountId,
+        serviceId,
+        env,
+        key,
+        entity,
+      );
+      if (!evaluation) {
+        return reply.status(404).send({ error: "Flag not found" });
+      }
+
+      const { goal, value } = request.body ?? {};
+      analytics?.track(
+        CONVERSION_EVENT,
+        {
+          serviceId: serviceId.toString(),
+          flagKey: key,
+          environment: env,
+          variant: evaluation.variant,
+          reason: evaluation.reason,
+          ...(goal !== undefined ? { goal } : {}),
+          ...(value !== undefined ? { value } : {}),
+        },
+        { accountId: accountId.toString(), distinctId: entity },
+      );
+
+      return reply.status(201).send({
+        recorded: true,
+        variant: evaluation.variant,
+        ...(goal !== undefined ? { goal } : {}),
+      });
+    },
+  );
+
+  // GET /api/v1/services/:serviceId/environments/:env/flags/:key/results
+  // Per-variant exposure/conversion counts and rates over a time window
+  // (defaults to the last 30 days). Optional from/to query params (ISO or epoch).
+  app.get<{
+    Params: EnvConfigParams;
+    Querystring: { from?: string; to?: string };
+  }>(
+    "/api/v1/services/:serviceId/environments/:env/flags/:key/results",
+    { preHandler: requireScope("flags:read") },
+    async (request, reply) => {
+      const accountId = request.apiKey!.accountId;
+      const serviceId = await resolveServiceId(request, reply);
+      if (!serviceId) return;
+
+      const { key, env } = request.params;
+      const flag = await flagService.getFlag(accountId, serviceId, key);
+      if (!flag) {
+        return reply.status(404).send({ error: "Flag not found" });
+      }
+      if (!experimentResults) {
+        return reply
+          .status(503)
+          .send({ error: "Experiment metrics are not enabled" });
+      }
+
+      const { from, to } = parseResultsRange(request.query);
+      const results = await experimentResults.getResults({
+        accountId,
+        serviceId,
+        flagKey: key,
+        environment: env,
+        from,
+        to,
+      });
+      return reply.send(results);
     },
   );
 }
