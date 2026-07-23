@@ -71,3 +71,92 @@
     </div>
   </div>
 </div>
+
+<!-- Blank variant row cloned by the "Add variant" button. Kept in the page
+     shell (not the swapped partial) so it survives HTMX list re-renders. -->
+<template id="variant-row-template">
+  <div class="variant-row flex items-center gap-2">
+    <input
+      type="text"
+      name="variantKey"
+      placeholder="variant-key"
+      pattern="[a-z0-9]+(-[a-z0-9]+)*"
+      title="lowercase alphanumeric with hyphens"
+      class="flex-1 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm font-mono"
+    />
+    <input
+      type="number"
+      name="variantWeight"
+      min="0"
+      max="100"
+      class="w-20 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm"
+    />
+    <span class="text-gray-400 text-sm">%</span>
+    <button
+      type="button"
+      data-remove-variant
+      aria-label="Remove variant"
+      class="px-2 py-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 rounded-lg transition-colors"
+    >✕</button>
+  </div>
+</template>
+
+<script>
+  (function () {
+    // Recompute and display the running weight total for one variant form,
+    // flagging it red until the weights sum to exactly 100 (what the server
+    // requires). An empty form shows nothing.
+    function updateTotal(form) {
+      var label = form.querySelector("[data-variant-total]");
+      if (!label) return;
+      var weights = form.querySelectorAll('input[name="variantWeight"]');
+      if (weights.length === 0) {
+        label.textContent = "";
+        return;
+      }
+      var total = 0;
+      weights.forEach(function (input) {
+        total += parseInt(input.value, 10) || 0;
+      });
+      label.textContent = "Total: " + total + "%";
+      label.classList.toggle("text-red-500", total !== 100);
+    }
+
+    function refreshAllTotals() {
+      document.querySelectorAll(".variant-form").forEach(updateTotal);
+    }
+
+    // Delegate on document so handlers keep working after HTMX swaps the list.
+    document.addEventListener("click", function (e) {
+      var addBtn = e.target.closest("[data-add-variant]");
+      if (addBtn) {
+        var form = addBtn.closest("form");
+        var rows = form.querySelector(".variant-rows");
+        var tpl = document.getElementById("variant-row-template");
+        rows.appendChild(tpl.content.cloneNode(true));
+        updateTotal(form);
+        return;
+      }
+      var removeBtn = e.target.closest("[data-remove-variant]");
+      if (removeBtn) {
+        var row = removeBtn.closest(".variant-row");
+        var parentForm = removeBtn.closest("form");
+        if (row) row.remove();
+        if (parentForm) updateTotal(parentForm);
+      }
+    });
+
+    document.addEventListener("input", function (e) {
+      if (
+        e.target.name === "variantKey" ||
+        e.target.name === "variantWeight"
+      ) {
+        var form = e.target.closest("form");
+        if (form) updateTotal(form);
+      }
+    });
+
+    document.addEventListener("DOMContentLoaded", refreshAllTotals);
+    document.body.addEventListener("htmx:afterSwap", refreshAllTotals);
+  })();
+</script>
