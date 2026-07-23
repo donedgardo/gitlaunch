@@ -97,7 +97,7 @@ describe("Settings Routes - Workflow Configuration", () => {
   });
 
   describe("GET /services/:serviceId/settings", () => {
-    it("should render the consolidated single-step deploy workflow snippet", async () => {
+    it("should render the curl-based deploy workflow snippet (no action to maintain)", async () => {
       // Given: a service belonging to the authenticated user
       const account = await accountRepo.create({
         name: "Test Org",
@@ -134,13 +134,14 @@ describe("Settings Routes - Workflow Configuration", () => {
         },
       });
 
-      // Then: it renders the consolidated action reference...
+      // Then: it renders curl-based build + deploy reporting...
       expect(response.statusCode).toBe(200);
-      expect(response.body).toContain("donedgardo/build-reporter");
+      expect(response.body).toContain("--fail-with-body");
+      expect(response.body).toContain('{"status":"deploying"}');
+      expect(response.body).toContain('{"status":"deployed"}');
 
-      // ...and no longer shows the old verbose 4-step status pattern
-      expect(response.body).not.toContain("action: update-status");
-      expect(response.body).not.toContain("status: deployed");
+      // ...and no longer leans on the build-reporter action wrapper
+      expect(response.body).not.toContain("donedgardo/build-reporter");
     });
   });
 
@@ -202,8 +203,8 @@ describe("Settings Routes - Workflow Configuration", () => {
       expect(response.body).toContain(`/api/v1/services/${service._id}/builds`);
       expect(response.body).toContain("credentials('gitlaunch-api-key')");
 
-      // ...and not the GitHub Actions guide
-      expect(response.body).not.toContain("donedgardo/build-reporter");
+      // ...and not the GitHub Actions curl guide
+      expect(response.body).not.toContain("--fail-with-body");
     });
 
     it("should show the GitHub Actions guide for a github-provider service", async () => {
@@ -220,9 +221,9 @@ describe("Settings Routes - Workflow Configuration", () => {
         cookies: { session: sessionToken },
       });
 
-      // Then: it renders the GitHub Actions guide, not the Jenkins pipeline
+      // Then: it renders the GitHub Actions curl guide, not the Jenkins pipeline
       expect(response.statusCode).toBe(200);
-      expect(response.body).toContain("donedgardo/build-reporter");
+      expect(response.body).toContain("--fail-with-body");
       expect(response.body).not.toContain("pipeline {");
     });
 
@@ -244,8 +245,8 @@ describe("Settings Routes - Workflow Configuration", () => {
       expect(response.statusCode).toBe(200);
       expect(response.body).toContain('value="raw"');
       expect(response.body).toContain("https://deploy.acme.com/hook");
-      // ...and neither the GitHub Actions action nor the Jenkins pipeline
-      expect(response.body).not.toContain("donedgardo/build-reporter");
+      // ...and neither the GitHub Actions curl guide nor the Jenkins pipeline
+      expect(response.body).not.toContain("--fail-with-body");
       expect(response.body).not.toContain("pipeline {");
     });
   });
