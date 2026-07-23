@@ -3,6 +3,7 @@ import { ObjectId } from "mongodb";
 import { AnalyticsService, AnalyticsContext } from "../analytics/analytics";
 import { FlagServiceI } from "../flag/flagService";
 import { FlagEvaluation } from "../flag/flagEvaluator";
+import { ServiceRepository } from "../../repositories/serviceRepository";
 import {
   WaitlistExperiment,
   WAITLIST_CONTROL_VARIANT,
@@ -31,18 +32,34 @@ class RecordingAnalytics implements AnalyticsService {
 }
 
 // Fake flag engine: returns whatever evaluation we preload, and remembers the
-// args so we can assert the experiment scopes evaluation to its own flag.
+// args (incl. the account it was called with) so we can assert the experiment
+// derives the account from the service and scopes evaluation to its own flag.
 class FakeFlags implements Partial<FlagServiceI> {
-  calls: { entityKey: string; env: string }[] = [];
+  calls: { accountId: string; entityKey: string; env: string }[] = [];
   constructor(private results: FlagEvaluation[]) {}
   async evaluate(
-    _accountId: ObjectId,
+    accountId: ObjectId,
     _serviceId: ObjectId,
     envName: string,
     entityKey: string,
   ): Promise<FlagEvaluation[]> {
-    this.calls.push({ entityKey, env: envName });
+    this.calls.push({
+      accountId: accountId.toString(),
+      entityKey,
+      env: envName,
+    });
     return this.results;
+  }
+}
+
+// Fake service repo: findById yields a service owned by `accountId` (or null to
+// simulate a missing/unconfigured service).
+class FakeServices {
+  calls: string[] = [];
+  constructor(private accountId: ObjectId | null) {}
+  async findById(id: ObjectId): Promise<any> {
+    this.calls.push(id.toString());
+    return this.accountId ? { _id: id, accountId: this.accountId } : null;
   }
 }
 
@@ -53,18 +70,15 @@ const FLAG_KEY = WAITLIST_FLAG_KEY;
 function makeExperiment(
   flags: Partial<FlagServiceI>,
   analytics: AnalyticsService,
-  overrides: Partial<{
-    accountId?: ObjectId;
-    serviceId?: ObjectId;
-    environment: string;
-  }> = {},
+  overrides: Partial<{ serviceId?: ObjectId; environment: string }> = {},
+  services: FakeServices = new FakeServices(ACCOUNT),
 ) {
-  return new WaitlistExperiment(flags as FlagServiceI, analytics, {
-    accountId: ACCOUNT,
-    serviceId: SERVICE,
-    environment: "prod",
-    ...overrides,
-  });
+  return new WaitlistExperiment(
+    flags as FlagServiceI,
+    services as unknown as ServiceRepository,
+    analytics,
+    { serviceId: SERVICE, environment: "prod", ...overrides },
+  );
 }
 
 describe("WaitlistExperiment", () => {
@@ -93,7 +107,12 @@ describe("WaitlistExperiment", () => {
       const control = experiment.copyFor(WAITLIST_CONTROL_VARIANT);
       expect(resolved.copy.heroCta).not.toBe(control.heroCta);
       expect(resolved.reason).toBe("variant");
-      expect(flags.calls[0]).toEqual({ entityKey: "visitor-1", env: "prod" });
+      // Account was derived from the service, not passed in config.
+      expect(flags.calls[0]).toEqual({
+        accountId: ACCOUNT.toString(),
+        entityKey: "visitor-1",
+        env: "prod",
+      });
     });
 
     it("falls back to control copy when the flag is disabled", async () => {
@@ -129,9 +148,31 @@ describe("WaitlistExperiment", () => {
     it("returns control without evaluating when the experiment is not configured", async () => {
       const flags = new FakeFlags([]);
       const experiment = makeExperiment(flags, analytics, {
-        accountId: undefined,
         serviceId: undefined,
       });
+
+      const resolved = await experiment.resolve("visitor-1");
+
+      expect(resolved.variant).toBe(WAITLIST_CONTROL_VARIANT);
+      expect(flags.calls).toHaveLength(0);
+    });
+
+    it("returns control when the configured service can't be found", async () => {
+      const flags = new FakeFlags([
+        {
+          key: FLAG_KEY,
+          enabled: true,
+          variant: "benefit-led",
+          reason: "variant",
+        },
+      ]);
+      // Service repo yields null => no account to scope by.
+      const experiment = makeExperiment(
+        flags,
+        analytics,
+        {},
+        new FakeServices(null),
+      );
 
       const resolved = await experiment.resolve("visitor-1");
 
@@ -179,7 +220,7 @@ describe("WaitlistExperiment", () => {
       const experiment = makeExperiment(flags, analytics);
       const resolved = await experiment.resolve("visitor-1");
 
-      experiment.recordExposure("visitor-1", resolved);
+      await experiment.recordExposure("visitor-1", resolved);
 
       expect(analytics.tracked).toHaveLength(1);
       const evt = analytics.tracked[0];
@@ -199,22 +240,21 @@ describe("WaitlistExperiment", () => {
 
     it("emits nothing when the experiment is not configured", async () => {
       const experiment = makeExperiment(new FakeFlags([]), analytics, {
-        accountId: undefined,
         serviceId: undefined,
       });
       const resolved = await experiment.resolve("visitor-1");
 
-      experiment.recordExposure("visitor-1", resolved);
+      await experiment.recordExposure("visitor-1", resolved);
 
       expect(analytics.tracked).toHaveLength(0);
     });
   });
 
   describe("recordConversion", () => {
-    it("emits a flag_conversion event attributed to the visitor's variant", () => {
+    it("emits a flag_conversion event attributed to the visitor's variant", async () => {
       const experiment = makeExperiment(new FakeFlags([]), analytics);
 
-      experiment.recordConversion("visitor-1", "benefit-led");
+      await experiment.recordConversion("visitor-1", "benefit-led");
 
       expect(analytics.tracked).toHaveLength(1);
       const evt = analytics.tracked[0];
@@ -231,13 +271,12 @@ describe("WaitlistExperiment", () => {
       });
     });
 
-    it("emits nothing when the experiment is not configured", () => {
+    it("emits nothing when the experiment is not configured", async () => {
       const experiment = makeExperiment(new FakeFlags([]), analytics, {
-        accountId: undefined,
         serviceId: undefined,
       });
 
-      experiment.recordConversion("visitor-1", "benefit-led");
+      await experiment.recordConversion("visitor-1", "benefit-led");
 
       expect(analytics.tracked).toHaveLength(0);
     });

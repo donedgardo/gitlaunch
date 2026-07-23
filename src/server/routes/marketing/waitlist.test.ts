@@ -14,6 +14,7 @@ import { WaitlistService } from "../../../services/marketing/waitlistService";
 import { WaitlistExperiment } from "../../../services/marketing/waitlistExperiment";
 import { FlagServiceI } from "../../../services/flag/flagService";
 import { FlagEvaluation } from "../../../services/flag/flagEvaluator";
+import { ServiceRepository } from "../../../repositories/serviceRepository";
 import { registerWaitlistRoutes } from "./waitlist";
 
 // A flag engine stub that buckets every visitor into one fixed variant.
@@ -23,6 +24,16 @@ function fakeFlags(evaluation: FlagEvaluation): FlagServiceI {
       return [evaluation];
     },
   } as unknown as FlagServiceI;
+}
+
+// A service repo stub whose service is owned by `accountId` — the experiment
+// derives the account from the service, so it needs this to attribute events.
+function fakeServices(accountId: ObjectId): ServiceRepository {
+  return {
+    async findById(id: ObjectId) {
+      return { _id: id, accountId };
+    },
+  } as unknown as ServiceRepository;
 }
 
 // Builds a waitlist app that reads the visitor cookie and runs the A/B
@@ -182,9 +193,9 @@ describe("Waitlist Routes", () => {
         variant: "benefit-led",
         reason: "variant",
       }),
+      fakeServices(new ObjectId()),
       analytics,
       {
-        accountId: new ObjectId(),
         serviceId: new ObjectId(),
         environment: "prod",
       },
@@ -219,9 +230,9 @@ describe("Waitlist Routes", () => {
         variant: "benefit-led",
         reason: "variant",
       }),
+      fakeServices(new ObjectId()),
       analytics,
       {
-        accountId: new ObjectId(),
         serviceId: new ObjectId(),
         environment: "prod",
       },

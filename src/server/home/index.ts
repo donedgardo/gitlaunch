@@ -42,7 +42,7 @@ export default function (deps: HomeRouteDeps = {}) {
         ? await experiment.resolve(visitorId)
         : undefined;
       if (experiment && resolved) {
-        experiment.recordExposure(visitorId, resolved);
+        void experiment.recordExposure(visitorId, resolved);
       }
       const copy = resolved ? resolved.copy : WaitlistExperiment.controlCopy();
 

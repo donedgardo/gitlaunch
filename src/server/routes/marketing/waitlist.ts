@@ -90,7 +90,7 @@ export function registerWaitlistRoutes(
         !outcome.alreadyOnList
       ) {
         const resolved = await experiment.resolve(visitorId);
-        experiment.recordConversion(visitorId, resolved.variant);
+        void experiment.recordConversion(visitorId, resolved.variant);
       }
 
       // A malformed email is the only failure we tell the visitor about — real
