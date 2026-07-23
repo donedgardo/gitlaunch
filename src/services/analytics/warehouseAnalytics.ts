@@ -15,6 +15,10 @@ type ErrorReporter = (error: unknown) => void;
  * analytics can never block or break the request path that emitted the event.
  */
 export class WarehouseAnalytics implements AnalyticsService {
+  // Stable event name for identify rows (PostHog-style). The identified user is
+  // carried in distinctId, not in `event`.
+  static readonly IDENTIFY_EVENT = "$identify";
+
   // In-flight inserts, so callers (graceful shutdown, tests) can drain them.
   private readonly pending = new Set<Promise<unknown>>();
 
@@ -35,7 +39,10 @@ export class WarehouseAnalytics implements AnalyticsService {
     context?: AnalyticsContext,
   ): void {
     // For identify the actor IS the subject, regardless of context.distinctId.
-    this.persist("identify", userId, traits, {
+    // The user lives in distinctId; `event` stays a stable, readable name so
+    // identify rows don't pollute event-name aggregations (topEvents) with one
+    // opaque userId per row.
+    this.persist("identify", WarehouseAnalytics.IDENTIFY_EVENT, traits, {
       ...context,
       distinctId: userId,
     });
