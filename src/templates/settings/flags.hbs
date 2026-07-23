@@ -69,5 +69,61 @@
     <div id="flag-list">
       {{> flagList flags=flags environments=environments serviceId=serviceId }}
     </div>
+
+    <!-- Connect an app -->
+    <div class="mt-8 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
+      <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Connect an app</h2>
+        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+          Evaluate these flags from your service. You need two things: this endpoint and a read-only key.
+        </p>
+      </div>
+      <div class="px-6 py-4 space-y-5">
+        <!-- Endpoint -->
+        <div>
+          <label class="block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">Evaluate endpoint</label>
+          <div class="relative">
+            <pre class="bg-gray-900 rounded-lg p-3 pr-16 text-xs text-green-400 overflow-x-auto"><code id="flag-endpoint">{{apiUrl}}/api/v1/services/{{serviceId}}/environments/{{evaluateEnv}}/flags/evaluate?entity=USER_ID</code></pre>
+            <button type="button" onclick="copyFlagSnippet('flag-endpoint', this)"
+              class="absolute top-2 right-2 px-2 py-1 text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 rounded">Copy</button>
+          </div>
+          <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            Swap <code>USER_ID</code> for a stable identifier so each visitor gets a consistent variant.
+          </p>
+        </div>
+
+        <!-- Auth -->
+        <div>
+          <label class="block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">Authentication</label>
+          <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">
+            Create a <span class="font-medium">read-only</span> key — it can only evaluate flags, nothing else in your account.
+          </p>
+          <button type="button"
+            hx-post="/services/{{serviceId}}/flags/keys"
+            hx-target="#flag-key-result"
+            hx-swap="innerHTML"
+            class="px-4 py-2 bg-gray-900 dark:bg-gray-700 text-white text-sm font-medium rounded-lg hover:bg-gray-800 dark:hover:bg-gray-600 transition-colors">
+            Create read-only flag key
+          </button>
+          <div id="flag-key-result" class="mt-3"></div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
+
+<script>
+  // Shared clipboard helper for the "Connect an app" panel and the minted-key
+  // result (which is swapped in by HTMX and reuses this function).
+  function copyFlagSnippet(id, btn) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    navigator.clipboard.writeText(el.textContent.trim()).then(function () {
+      var prev = btn.textContent;
+      btn.textContent = "Copied";
+      setTimeout(function () {
+        btn.textContent = prev;
+      }, 1500);
+    });
+  }
+</script>

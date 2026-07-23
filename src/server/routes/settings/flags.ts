@@ -4,10 +4,13 @@ import { ServiceRepository } from "../../../repositories/serviceRepository";
 import { FlagServiceI } from "../../../services/flag/flagService";
 import { Flag } from "../../../repositories/flagRepository";
 import { AnalyticsService } from "../../../services/analytics/analytics";
+import { ApiKeyService } from "../../../services/apiKey/apiKeyService";
 
 export type FlagsSettingsDeps = {
   serviceRepository: ServiceRepository;
   flagService: FlagServiceI;
+  // Mints least-privilege (flags:read only) keys for the "Connect an app" panel.
+  apiKeyService: ApiKeyService;
   analytics?: AnalyticsService;
 };
 
@@ -39,7 +42,11 @@ export function registerFlagsSettingsRoutes(
   app: FastifyInstance,
   deps: FlagsSettingsDeps,
 ): void {
-  const { serviceRepository, flagService, analytics } = deps;
+  const { serviceRepository, flagService, apiKeyService, analytics } = deps;
+
+  // Base URL for the copy-paste integration snippets. Empty in dev/tests keeps
+  // the endpoint path (with serviceId) intact — the panel is still useful.
+  const apiUrl = process.env.PUBLIC_URL || "";
 
   async function loadServiceWithAuth(
     request: FastifyRequest<{ Params: { serviceId: string } }>,
@@ -113,8 +120,45 @@ export function registerFlagsSettingsRoutes(
           flags: flags.map((f) => toFlagView(f, envNames)),
           services: services.map((s) => s.name),
           activeService: service.name,
+          // "Connect an app" panel: prefilled evaluate endpoint for this service.
+          apiUrl,
+          evaluateEnv: envNames[0] ?? "prod",
         },
         { layout: "/layouts/main.hbs" },
+      );
+    },
+  );
+
+  // POST /services/:serviceId/flags/keys — mint a least-privilege client key
+  // (flags:read ONLY) for evaluating this service's flags, shown once (HTMX).
+  app.post<{ Params: { serviceId: string } }>(
+    "/services/:serviceId/flags/keys",
+    async (request, reply) => {
+      const result = await loadServiceWithAuth(request, reply);
+      if (!result) return;
+      const { service, accountId } = result;
+      const userId = new ObjectId(request.session!.userId);
+      const envNames = envNamesOf(service);
+
+      const { key } = await apiKeyService.generate({
+        accountId,
+        createdByUserId: userId,
+        name: `Flag reader — ${service.name}`,
+        scopes: ["flags:read"],
+      });
+      analytics?.track("flag_client_key_created", {
+        serviceId: service._id.toString(),
+      });
+
+      return reply.view(
+        "partials/flagKeyResult",
+        {
+          newKey: key,
+          serviceId: service._id.toString(),
+          evaluateEnv: envNames[0] ?? "prod",
+          apiUrl,
+        },
+        { layout: "" },
       );
     },
   );

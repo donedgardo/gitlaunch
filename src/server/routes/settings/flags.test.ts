@@ -10,7 +10,9 @@ import path from "node:path";
 import { AccountRepository } from "../../../repositories/accountRepository";
 import { ServiceRepository } from "../../../repositories/serviceRepository";
 import { FlagRepository } from "../../../repositories/flagRepository";
+import { ApiKeyRepository } from "../../../repositories/apiKeyRepository";
 import { FlagService } from "../../../services/flag/flagService";
+import { ApiKeyService } from "../../../services/apiKey/apiKeyService";
 import { SessionService } from "../../../services/auth/sessionService";
 import { sessionAuthMiddleware } from "../../middleware/sessionAuth";
 import { registerHandlebarsHelpers } from "../../registerHandlebarsHelpers";
@@ -25,6 +27,8 @@ describe("Flags Settings Routes", () => {
   let serviceRepo: ServiceRepository;
   let flagRepo: FlagRepository;
   let flagService: FlagService;
+  let apiKeyRepo: ApiKeyRepository;
+  let apiKeyService: ApiKeyService;
   let sessionService: SessionService;
 
   let accountId: ObjectId;
@@ -53,11 +57,14 @@ describe("Flags Settings Routes", () => {
     await db.collection("accounts").deleteMany({});
     await db.collection("services").deleteMany({});
     await db.collection("flags").deleteMany({});
+    await db.collection("apiKeys").deleteMany({});
 
     accountRepo = new AccountRepository(db);
     serviceRepo = new ServiceRepository(db);
     flagRepo = new FlagRepository(db);
     flagService = new FlagService(flagRepo, serviceRepo);
+    apiKeyRepo = new ApiKeyRepository(db);
+    apiKeyService = new ApiKeyService(apiKeyRepo, accountRepo);
 
     userId = new ObjectId();
     const account = await accountRepo.create({ name: "Acme", slug: "acme" });
@@ -75,6 +82,7 @@ describe("Flags Settings Routes", () => {
         partials: {
           navigation: "/partials/navigation.hbs",
           flagList: "/partials/flagList.hbs",
+          flagKeyResult: "/partials/flagKeyResult.hbs",
         },
       },
     });
@@ -82,6 +90,7 @@ describe("Flags Settings Routes", () => {
     registerFlagsSettingsRoutes(app, {
       serviceRepository: serviceRepo,
       flagService,
+      apiKeyService,
     });
     await app.ready();
   });
@@ -150,6 +159,48 @@ describe("Flags Settings Routes", () => {
     // Partial re-renders with the error rather than 4xx (HTMX swaps on 200).
     expect(response.statusCode).toBe(200);
     expect(response.body.toLowerCase()).toContain("lowercase");
+  });
+
+  it("shows a 'Connect an app' panel with the evaluate endpoint for this service", async () => {
+    const response = await app.inject({
+      method: "GET",
+      url: `/services/${serviceId}/flags`,
+      cookies: { session: session() },
+    });
+    expect(response.statusCode).toBe(200);
+    // The panel surfaces the exact evaluate endpoint, serviceId pre-filled.
+    expect(response.body).toContain(
+      `/api/v1/services/${serviceId}/environments/`,
+    );
+    expect(response.body).toContain("flags/evaluate");
+    // ...and a way to mint a client key without leaving the page.
+    expect(response.body).toContain("/services/" + serviceId + "/flags/keys");
+  });
+
+  it("mints a read-only (flags:read only) key for the service, shown once", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: `/services/${serviceId}/flags/keys`,
+      cookies: { session: session() },
+    });
+    expect(response.statusCode).toBe(200);
+    // The raw key is returned once for the user to copy.
+    expect(response.body).toContain("pk_acme_");
+
+    // Security: the minted key is least-privilege — flags:read and NOTHING else.
+    const keys = await apiKeyService.listByAccount(accountId);
+    expect(keys).toHaveLength(1);
+    expect(keys[0].scopes).toEqual(["flags:read"]);
+    expect(keys[0].isRevoked).toBe(false);
+  });
+
+  it("does not mint a key for an unauthenticated request", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: `/services/${serviceId}/flags/keys`,
+    });
+    expect(response.statusCode).toBe(302);
+    expect(await apiKeyService.listByAccount(accountId)).toHaveLength(0);
   });
 
   it("deletes a flag", async () => {
