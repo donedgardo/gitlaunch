@@ -1,7 +1,28 @@
+// Optional per-event context. Carries the tenant and actor a persistent
+// warehouse needs. Console/NoOp sinks ignore it, so existing call sites that
+// omit it keep working unchanged.
+export type AnalyticsContext = {
+  accountId?: string;
+  distinctId?: string;
+  timestamp?: Date;
+};
+
 export interface AnalyticsService {
-  identify(userId: string, traits: Record<string, any>): void;
-  track(event: string, properties?: Record<string, any>): void;
-  navigation(destination: string, properties?: Record<string, any>): void;
+  identify(
+    userId: string,
+    traits: Record<string, any>,
+    context?: AnalyticsContext,
+  ): void;
+  track(
+    event: string,
+    properties?: Record<string, any>,
+    context?: AnalyticsContext,
+  ): void;
+  navigation(
+    destination: string,
+    properties?: Record<string, any>,
+    context?: AnalyticsContext,
+  ): void;
 }
 
 export class ConsoleAnalytics implements AnalyticsService {
