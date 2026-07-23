@@ -4,9 +4,6 @@ import { MongoClient, Db, ObjectId } from "mongodb";
 import { AnalyticsEventRepository } from "../../repositories/analyticsEventRepository";
 import { WarehouseAnalytics } from "./warehouseAnalytics";
 
-// Let the fire-and-forget insert settle before asserting.
-const settle = () => new Promise((r) => setTimeout(r, 50));
-
 describe("WarehouseAnalytics", () => {
   let mongoServer: MongoMemoryServer;
   let client: MongoClient;
@@ -41,7 +38,7 @@ describe("WarehouseAnalytics", () => {
       { environment: "prod" },
       { accountId: accountId.toString(), distinctId: "user-9" },
     );
-    await settle();
+    await analytics.flush();
 
     // Then: the event is persisted, scoped to the account, with the actor
     const events = await repo.findByAccount(accountId);
@@ -59,7 +56,7 @@ describe("WarehouseAnalytics", () => {
       { plan: "pro" },
       { accountId: accountId.toString() },
     );
-    await settle();
+    await analytics.flush();
 
     // Then: an identify event is stored keyed on the user
     const events = await repo.findByAccount(accountId);
@@ -77,7 +74,7 @@ describe("WarehouseAnalytics", () => {
       { from: "/" },
       { accountId: accountId.toString(), distinctId: "user-1" },
     );
-    await settle();
+    await analytics.flush();
 
     // Then: a navigation event is stored with the destination
     const events = await repo.findByAccount(accountId);
@@ -104,7 +101,7 @@ describe("WarehouseAnalytics", () => {
       resilient.track("x", {}, { accountId: accountId.toString() }),
     ).not.toThrow();
 
-    await settle();
+    await resilient.flush();
 
     // And: the failure was captured, not swallowed silently into an
     // unhandled rejection

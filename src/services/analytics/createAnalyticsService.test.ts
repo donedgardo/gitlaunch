@@ -4,7 +4,22 @@ import { MongoClient, Db, ObjectId } from "mongodb";
 import { AnalyticsEventRepository } from "../../repositories/analyticsEventRepository";
 import { createAnalyticsService } from "./createAnalyticsService";
 
-const settle = () => new Promise((r) => setTimeout(r, 50));
+const tick = () => new Promise((r) => setTimeout(r, 10));
+
+// Poll until the account has at least `min` events, or give up. Robust against
+// the fire-and-forget write completing slightly later under load.
+async function waitForEventCount(
+  repo: AnalyticsEventRepository,
+  accountId: ObjectId,
+  min: number,
+): Promise<number> {
+  for (let i = 0; i < 50; i++) {
+    const events = await repo.findByAccount(accountId);
+    if (events.length >= min) return events.length;
+    await tick();
+  }
+  return (await repo.findByAccount(accountId)).length;
+}
 
 describe("createAnalyticsService", () => {
   let mongoServer: MongoMemoryServer;
@@ -37,11 +52,10 @@ describe("createAnalyticsService", () => {
 
     // When: an event is tracked
     analytics.track("thing_happened", {}, { accountId: accountId.toString() });
-    await settle();
 
     // Then: it lands in the warehouse
-    const events = await repo.findByAccount(accountId);
-    expect(events).toHaveLength(1);
+    const count = await waitForEventCount(repo, accountId, 1);
+    expect(count).toBe(1);
   });
 
   it("should not persist events when the warehouse is disabled", async () => {
@@ -53,7 +67,7 @@ describe("createAnalyticsService", () => {
 
     // When: an event is tracked
     analytics.track("thing_happened", {}, { accountId: accountId.toString() });
-    await settle();
+    await tick();
 
     // Then: nothing is written to the warehouse
     const events = await repo.findByAccount(accountId);

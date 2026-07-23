@@ -15,11 +15,19 @@ type ErrorReporter = (error: unknown) => void;
  * analytics can never block or break the request path that emitted the event.
  */
 export class WarehouseAnalytics implements AnalyticsService {
+  // In-flight inserts, so callers (graceful shutdown, tests) can drain them.
+  private readonly pending = new Set<Promise<unknown>>();
+
   constructor(
     private readonly repo: AnalyticsEventRepository,
     private readonly onError: ErrorReporter = (e) =>
       console.error("[analytics] failed to persist event", e),
   ) {}
+
+  /** Wait for all in-flight writes to complete (e.g. on shutdown). */
+  async flush(): Promise<void> {
+    await Promise.allSettled([...this.pending]);
+  }
 
   identify(
     userId: string,
@@ -55,7 +63,7 @@ export class WarehouseAnalytics implements AnalyticsService {
     properties?: Record<string, any>,
     context?: AnalyticsContext,
   ): void {
-    void this.repo
+    const write = this.repo
       .insert({
         type,
         event,
@@ -64,7 +72,9 @@ export class WarehouseAnalytics implements AnalyticsService {
         distinctId: context?.distinctId,
         timestamp: context?.timestamp,
       })
-      .catch(this.onError);
+      .catch(this.onError)
+      .finally(() => this.pending.delete(write));
+    this.pending.add(write);
   }
 
   private toObjectId(id?: string): ObjectId | undefined {
