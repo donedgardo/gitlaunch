@@ -48,11 +48,11 @@ export class InMemoryFlagCache implements FlagCacheI {
 
 // Always-miss cache — disables caching without branching in the service.
 export class NoOpFlagCache implements FlagCacheI {
-  async get(): Promise<Flag[] | null> {
+  async get(_key: string): Promise<Flag[] | null> {
     return null;
   }
-  async set(): Promise<void> {}
-  async invalidate(): Promise<void> {}
+  async set(_key: string, _flags: Flag[]): Promise<void> {}
+  async invalidate(_key: string): Promise<void> {}
 }
 
 // Minimal Redis surface (ioredis-compatible) so we depend on an interface, not
