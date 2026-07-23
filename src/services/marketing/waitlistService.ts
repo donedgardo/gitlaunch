@@ -16,7 +16,7 @@ export type WaitlistOutcome =
   | { status: "subscribed"; alreadyOnList: boolean }
   | { status: "rejected"; reason: BotReason };
 
-// Orchestrates the alpha waitlist capture: filter out bots, persist real
+// Orchestrates the waitlist capture: filter out bots, persist real
 // leads, and stream the marketing signal into the analytics framework so
 // campaigns can be compared by source/campaign.
 export class WaitlistService {

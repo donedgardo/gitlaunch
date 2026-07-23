@@ -80,7 +80,7 @@ describe("Waitlist Routes", () => {
 
     // Then: they get a confirmation
     expect(response.statusCode).toBe(200);
-    expect(response.body).toContain("alpha list");
+    expect(response.body).toContain("waitlist");
 
     // And: the lead is stored with attribution
     const lead = await repo.findByEmail("maria@acme.dev");
@@ -108,7 +108,7 @@ describe("Waitlist Routes", () => {
 
     // Then: the bot sees an ordinary success page (no tell)
     expect(response.statusCode).toBe(200);
-    expect(response.body).toContain("alpha list");
+    expect(response.body).toContain("waitlist");
 
     // But: nothing is stored and no signup is counted
     expect(await repo.count()).toBe(0);
