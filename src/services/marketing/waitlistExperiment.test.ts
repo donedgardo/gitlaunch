@@ -8,6 +8,7 @@ import {
   WAITLIST_CONTROL_VARIANT,
   WAITLIST_EXPOSURE_EVENT,
   WAITLIST_CONVERSION_EVENT,
+  WAITLIST_FLAG_KEY,
 } from "./waitlistExperiment";
 
 // Records analytics calls (including the warehouse context arg) so we can assert
@@ -47,7 +48,7 @@ class FakeFlags implements Partial<FlagServiceI> {
 
 const ACCOUNT = new ObjectId();
 const SERVICE = new ObjectId();
-const FLAG_KEY = "waitlist-hero-copy";
+const FLAG_KEY = WAITLIST_FLAG_KEY;
 
 function makeExperiment(
   flags: Partial<FlagServiceI>,
@@ -56,14 +57,12 @@ function makeExperiment(
     accountId?: ObjectId;
     serviceId?: ObjectId;
     environment: string;
-    flagKey: string;
   }> = {},
 ) {
   return new WaitlistExperiment(flags as FlagServiceI, analytics, {
     accountId: ACCOUNT,
     serviceId: SERVICE,
     environment: "prod",
-    flagKey: FLAG_KEY,
     ...overrides,
   });
 }

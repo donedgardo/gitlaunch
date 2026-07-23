@@ -187,7 +187,6 @@ describe("Waitlist Routes", () => {
         accountId: new ObjectId(),
         serviceId: new ObjectId(),
         environment: "prod",
-        flagKey: "waitlist-hero-copy",
       },
     );
     const app2 = await buildExperimentApp(repo, analytics, experiment);
@@ -225,7 +224,6 @@ describe("Waitlist Routes", () => {
         accountId: new ObjectId(),
         serviceId: new ObjectId(),
         environment: "prod",
-        flagKey: "waitlist-hero-copy",
       },
     );
     const app2 = await buildExperimentApp(repo, analytics, experiment);

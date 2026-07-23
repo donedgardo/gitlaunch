@@ -15,6 +15,11 @@ export const WAITLIST_CONVERSION_EVENT = "flag_conversion";
 export const WAITLIST_CONVERSION_GOAL = "waitlist_signup";
 export const WAITLIST_CONTROL_VARIANT = "control";
 
+// Fixed contract between the code (variant->copy map below) and the flag stored
+// in the flags UI. Not a per-deploy knob — the copy map only makes sense for
+// this one flag, so it's hardcoded rather than env-configurable.
+export const WAITLIST_FLAG_KEY = "waitlist-hero-copy";
+
 // Stable anonymous visitor id. Deterministic bucketing needs the same entity on
 // the page view (exposure) and the form submit (conversion), so both routes read
 // this cookie; the landing route mints it on first visit.
@@ -59,11 +64,11 @@ const VARIANT_COPY: Record<string, WaitlistCopy> = {
 
 export type WaitlistExperimentConfig = {
   // Which tenant + service + environment the marketing flag lives under. When
-  // account/service are absent the experiment is inert (always control).
+  // account/service are absent the experiment is inert (always control). The
+  // flag key is fixed (WAITLIST_FLAG_KEY), not part of this config.
   accountId?: ObjectId;
   serviceId?: ObjectId;
   environment: string;
-  flagKey: string;
 };
 
 export type ResolvedVariant = {
@@ -106,7 +111,7 @@ export class WaitlistExperiment {
         this.config.environment,
         entityKey,
       );
-      const mine = evaluations.find((e) => e.key === this.config.flagKey);
+      const mine = evaluations.find((e) => e.key === WAITLIST_FLAG_KEY);
       if (!mine) return this.control("missing");
       const variant = mine.variant ?? WAITLIST_CONTROL_VARIANT;
       return { variant, reason: mine.reason, copy: this.copyFor(variant) };
@@ -130,7 +135,7 @@ export class WaitlistExperiment {
       WAITLIST_EXPOSURE_EVENT,
       {
         serviceId: this.config.serviceId!.toString(),
-        flagKey: this.config.flagKey,
+        flagKey: WAITLIST_FLAG_KEY,
         environment: this.config.environment,
         variant: resolved.variant,
         reason: resolved.reason,
@@ -152,7 +157,7 @@ export class WaitlistExperiment {
       WAITLIST_CONVERSION_EVENT,
       {
         serviceId: this.config.serviceId!.toString(),
-        flagKey: this.config.flagKey,
+        flagKey: WAITLIST_FLAG_KEY,
         environment: this.config.environment,
         variant,
         goal,

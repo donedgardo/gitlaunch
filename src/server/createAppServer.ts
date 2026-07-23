@@ -272,7 +272,6 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     accountId: toObjectId(process.env.MARKETING_FLAG_ACCOUNT_ID),
     serviceId: toObjectId(process.env.MARKETING_FLAG_SERVICE_ID),
     environment: process.env.MARKETING_FLAG_ENV || "prod",
-    flagKey: process.env.MARKETING_FLAG_KEY || "waitlist-hero-copy",
   });
 
   // Routes
