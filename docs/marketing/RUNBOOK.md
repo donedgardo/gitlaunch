@@ -80,22 +80,29 @@ yarn vitest --run \
   src/server/routes/settings/flags.test.ts
 ```
 
-34 tests covering variant resolution, every control fallback, exposure/conversion payloads, cookie-based conversion attribution, and the results panel.
+35 tests covering variant resolution, every control fallback, exposure/conversion payloads, cookie-based conversion attribution, and the results panel.
 
-> Running the full `yarn test` in a fresh git worktree fails one unrelated test (`reporterContractDrift`) because `github-action` is a git submodule that isn't initialized there. Run `git submodule update --init` or ignore it.
+> Running the full `yarn test` in a fresh git worktree fails one unrelated test (`reporterContractDrift`) because `github-action` is a git submodule that isn't initialized there. Run `git submodule update --init` first.
+
+### 2.5 Targeting rules don't apply here
+
+Flag targeting rules (attribute/segment matching) take precedence over the rollout gate and can pin a segment to a specific variant — but **not for this experiment**. `WaitlistExperiment` calls `flags.evaluate(...)` without an attributes argument, so it evaluates with `{}`; a rule only matches an entity that actually carries the attribute it targets, so no rule can ever match an anonymous landing-page visitor.
+
+Practically: you cannot use a targeting rule to force yourself into `benefit-led` for manual QA. Clear the `gl_vid` cookie and reload until you land in the arm you want, or temporarily set that variant's weight to 100.
 
 ---
 
 ## 3. Gotchas that will waste your afternoon
 
-| Symptom                                      | Cause                                                                                                                                                                                      |
-| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Signup "succeeds" but no lead, no conversion | You submitted in under **2500 ms**. Bot detection blocks it and — deliberately, to avoid giving bots an oracle — still renders the **success** partial. Honeypot hits behave the same way. |
-| Never see the `benefit-led` variant          | You're logged in (redirected to `/dashboard`), or the flag is disabled, or `GITLAUNCH_SERVICE_ID` is blank/invalid. All fail open to control, silently.                                    |
-| Results panel is empty forever               | `ANALYTICS_WAREHOUSE` isn't `"true"`. Off + production = **NoOp; events are silently dropped**. Off + dev = console only. It must be the literal string `"true"`.                          |
-| Results panel shows the wrong environment    | The panel reads `envNames[envNames.length - 1]` — the **last** environment on the service — not `GITLAUNCH_FLAG_ENV`. Make them agree.                                                     |
-| Second signup from same email does nothing   | Dedupe is idempotent by lowercased email, and attribution is **first-touch** — it is never overwritten. No events emitted on resubmit.                                                     |
-| Unknown variant key renders control          | `VARIANT_COPY[variant] ?? CONTROL_COPY`. Adding an arm in the flag UI without adding its copy in code silently serves control.                                                             |
+| Symptom                                          | Cause                                                                                                                                                                                      |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Signup "succeeds" but no lead, no conversion     | You submitted in under **2500 ms**. Bot detection blocks it and — deliberately, to avoid giving bots an oracle — still renders the **success** partial. Honeypot hits behave the same way. |
+| Never see the `benefit-led` variant              | You're logged in (redirected to `/dashboard`), or the flag is disabled, or `GITLAUNCH_SERVICE_ID` is blank/invalid. All fail open to control, silently.                                    |
+| Results panel is empty forever                   | `ANALYTICS_WAREHOUSE` isn't `"true"`. Off + production = **NoOp; events are silently dropped**. Off + dev = console only. It must be the literal string `"true"`.                          |
+| Results panel shows the wrong environment        | The panel reads `envNames[envNames.length - 1]` — the **last** environment on the service — not `GITLAUNCH_FLAG_ENV`. Make them agree.                                                     |
+| Second signup from same email does nothing       | Dedupe is idempotent by lowercased email, and attribution is **first-touch** — it is never overwritten. No events emitted on resubmit.                                                     |
+| Unknown variant key renders control              | `VARIANT_COPY[variant] ?? CONTROL_COPY`. Adding an arm in the flag UI without adding its copy in code silently serves control.                                                             |
+| Targeting rule has no effect on the landing page | The experiment evaluates with empty attributes, so no rule can match. See §2.5.                                                                                                            |
 
 **Adding a third arm** requires a code change: add the copy object to `VARIANT_COPY` in `waitlistExperiment.ts` _and_ the variant key + weight in the flags UI. The flag alone can't introduce new copy.
 
