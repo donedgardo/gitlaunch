@@ -193,10 +193,10 @@
     <div class="wrap hero-grid">
       <div class="hero-copy">
         <span class="eyebrow rise d1">Deployment control · not another CI/CD tool</span>
-        <h1 class="rise d2">Know exactly what's deployed where.<br><span class="u">Roll it back in one click.</span></h1>
+        <h1 class="rise d2">{{{heroHeadlineHtml}}}</h1>
         <p class="subhead rise d3">GitLaunch shows every build across every environment — and lets anyone on the team promote or roll back safely. No YAML. No hero. No deploy-day dread.</p>
         <div class="cta-row rise d4">
-          <a href="#start" class="btn primary">Join the waitlist →</a>
+          <a href="#start" class="btn primary">{{heroCta}}</a>
           <a href="#how" class="btn ghost">See it live</a>
         </div>
         <div class="trust rise d4">
@@ -334,8 +334,8 @@
   <!-- FINAL CTA — waitlist -->
   <section class="final" id="start">
     <div class="wrap">
-      <span class="kicker">Join the waitlist · limited early spots</span>
-      <h2 class="h2">Get early access.</h2>
+      <span class="kicker">{{ctaKicker}}</span>
+      <h2 class="h2">{{ctaHeading}}</h2>
       <p class="subhead2">GitLaunch is almost ready. Join the waitlist and we'll send your invite when your spot opens — see every build across every environment and give your whole team a safe button to ship and roll back.</p>
 
       <form class="wl-form" id="waitlist-form"
@@ -347,7 +347,7 @@
           Company website<input type="text" name="company_website" tabindex="-1" autocomplete="off" />
         </label>
         <input type="email" name="email" required placeholder="you@team.dev" aria-label="Work email" />
-        <button type="submit" class="btn primary">Request access →</button>
+        <button type="submit" class="btn primary">{{ctaSubmit}}</button>
         <input type="hidden" name="elapsedMs" value="" />
         <input type="hidden" name="utm_source" value="" />
         <input type="hidden" name="utm_medium" value="" />
