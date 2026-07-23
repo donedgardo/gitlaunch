@@ -265,14 +265,23 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     minElapsedMs: WAITLIST_MIN_ELAPSED_MS,
   });
 
+  // GitLaunch's own tenant identity within its own platform: the account +
+  // service its self-hosted feature flags live under. GitLaunch is effectively
+  // a customer of its own flag service, so any internal feature that dogfoods
+  // flags (today: the waitlist landing A/B test) shares this scope and differs
+  // only by flag key. Absent account/service => flags inert (safe default).
+  const selfFlagContext = {
+    accountId: toObjectId(process.env.GITLAUNCH_ACCOUNT_ID),
+    serviceId: toObjectId(process.env.GITLAUNCH_SERVICE_ID),
+    environment: process.env.GITLAUNCH_FLAG_ENV || "prod",
+  };
+
   // Marketing: dogfood our own feature flags to A/B test the landing-page copy.
-  // Scope points the experiment at GitLaunch's own account+service+env flag.
-  // Absent account/service => inert (control copy, no exposure) — safe default.
-  const waitlistExperiment = new WaitlistExperiment(flagService, analytics, {
-    accountId: toObjectId(process.env.MARKETING_FLAG_ACCOUNT_ID),
-    serviceId: toObjectId(process.env.MARKETING_FLAG_SERVICE_ID),
-    environment: process.env.MARKETING_FLAG_ENV || "prod",
-  });
+  const waitlistExperiment = new WaitlistExperiment(
+    flagService,
+    analytics,
+    selfFlagContext,
+  );
 
   // Routes
   server.register(healthRoute(mongoClient));
