@@ -41,20 +41,19 @@ jobs:
     env:
       ENVIRONMENT: ${{ inputs.environment }}
       BUILD_ID: ${{ inputs.buildId || github.sha }}
+      # Dogfoods the same curl guidance we give users (deploymentSetupGuide.hbs).
+      DEPLOY_URL: "https://gitlaunch.dev/api/v1/services/${{ vars.GITLAUNCH_SERVICE_ID }}/builds/${{ inputs.buildId || github.sha }}/deploy/${{ inputs.environment }}"
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ env.BUILD_ID }}
 
       - name: Report deploying
-        uses: donedgardo/build-reporter@v2
-        with:
-          api-key: ${{ secrets.GITLAUNCH_API_KEY }}
-          service-id: ${{ vars.GITLAUNCH_SERVICE_ID }}
-          environment: ${{ env.ENVIRONMENT }}
-          build-id: ${{ env.BUILD_ID }}
-          action: update-status
-          status: deploying
+        run: |
+          curl --fail-with-body -sS -X PATCH "$DEPLOY_URL" \
+            -H "Authorization: Bearer ${{ secrets.GITLAUNCH_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{"status":"deploying"}'
 
       - name: Install Railway CLI
         run: npm install -g @railway/cli
@@ -69,36 +68,27 @@ jobs:
       # is reliable, unlike the post-hook which can't read the job outcome.
       - name: Report deployed
         if: success()
-        uses: donedgardo/build-reporter@v2
-        with:
-          api-key: ${{ secrets.GITLAUNCH_API_KEY }}
-          service-id: ${{ vars.GITLAUNCH_SERVICE_ID }}
-          environment: ${{ env.ENVIRONMENT }}
-          build-id: ${{ env.BUILD_ID }}
-          action: update-status
-          status: deployed
+        run: |
+          curl --fail-with-body -sS -X PATCH "$DEPLOY_URL" \
+            -H "Authorization: Bearer ${{ secrets.GITLAUNCH_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{"status":"deployed"}'
 
       - name: Report error
         if: failure()
-        uses: donedgardo/build-reporter@v2
-        with:
-          api-key: ${{ secrets.GITLAUNCH_API_KEY }}
-          service-id: ${{ vars.GITLAUNCH_SERVICE_ID }}
-          environment: ${{ env.ENVIRONMENT }}
-          build-id: ${{ env.BUILD_ID }}
-          action: update-status
-          status: error
+        run: |
+          curl --fail-with-body -sS -X PATCH "$DEPLOY_URL" \
+            -H "Authorization: Bearer ${{ secrets.GITLAUNCH_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{"status":"error"}'
 
       - name: Report cancelled
         if: cancelled()
-        uses: donedgardo/build-reporter@v2
-        with:
-          api-key: ${{ secrets.GITLAUNCH_API_KEY }}
-          service-id: ${{ vars.GITLAUNCH_SERVICE_ID }}
-          environment: ${{ env.ENVIRONMENT }}
-          build-id: ${{ env.BUILD_ID }}
-          action: update-status
-          status: cancelled
+        run: |
+          curl --fail-with-body -sS -X PATCH "$DEPLOY_URL" \
+            -H "Authorization: Bearer ${{ secrets.GITLAUNCH_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{"status":"cancelled"}'
 
       - name: Deployment Summary
         if: success()

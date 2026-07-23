@@ -1,0 +1,114 @@
+{{> navigation }}
+
+<div class="max-w-3xl mx-auto px-4 py-10">
+  <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Team</h1>
+  <p class="text-sm text-gray-600 dark:text-gray-400 mb-6">
+    Invite testers, developers, and managers into this workspace. Everyone here
+    sees the same services and deployments, with the role you give them.
+  </p>
+
+  {{#if error}}
+  <div class="mb-6 rounded-lg border border-red-300 bg-red-50 dark:bg-red-900/20 dark:border-red-800 px-4 py-3 text-sm text-red-800 dark:text-red-300">
+    {{error}}
+  </div>
+  {{/if}}
+  {{#if success}}
+  <div class="mb-6 rounded-lg border border-green-300 bg-green-50 dark:bg-green-900/20 dark:border-green-800 px-4 py-3 text-sm text-green-800 dark:text-green-300">
+    {{success}}
+  </div>
+  {{/if}}
+
+  <!-- Members -->
+  <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-lg overflow-hidden mb-8">
+    <div class="p-6">
+      <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Members</h2>
+      <ul class="divide-y divide-gray-100 dark:divide-gray-700">
+        {{#each members}}
+        <li class="flex items-center justify-between py-3">
+          <div>
+            <span class="text-sm font-medium text-gray-900 dark:text-white">{{this.name}}</span>
+            {{#if this.isYou}}<span class="ml-2 text-xs text-gray-400">(you)</span>{{/if}}
+            {{#if this.email}}<div class="text-xs text-gray-500 dark:text-gray-400">{{this.email}}</div>{{/if}}
+          </div>
+          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200">
+            {{this.role}}
+          </span>
+        </li>
+        {{/each}}
+      </ul>
+    </div>
+  </div>
+
+  {{#if canInvite}}
+  <!-- Invite form -->
+  <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-lg overflow-hidden mb-8">
+    <div class="p-6">
+      <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-1">Invite by link</h2>
+      <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+        Create a link, then send it to the person. They sign in with GitHub and
+        join this workspace automatically. Links expire in 7 days.
+      </p>
+      <form
+        hx-post="/settings/team/invite"
+        hx-target="body"
+        hx-swap="innerHTML"
+        class="flex flex-col sm:flex-row gap-3">
+        <input
+          type="email"
+          name="email"
+          required
+          placeholder="teammate@company.com"
+          class="flex-1 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-white" />
+        <select
+          name="role"
+          class="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-white">
+          <option value="member">Member — can view &amp; deploy</option>
+          <option value="admin">Admin — can also manage the team</option>
+          {{#if canInviteOwner}}<option value="owner">Owner — full control</option>{{/if}}
+        </select>
+        <button
+          type="submit"
+          class="px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors text-sm whitespace-nowrap">
+          Create invite link
+        </button>
+      </form>
+    </div>
+  </div>
+  {{/if}}
+
+  <!-- Pending invites -->
+  <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-lg overflow-hidden">
+    <div class="p-6">
+      <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Pending invites</h2>
+      {{#if invites.length}}
+      <ul class="space-y-4">
+        {{#each invites}}
+        <li class="border border-gray-100 dark:border-gray-700 rounded-lg p-4">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-sm font-medium text-gray-900 dark:text-white">{{this.email}}</span>
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200">{{this.role}}</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <input
+              type="text"
+              readonly
+              value="{{this.link}}"
+              onclick="this.select()"
+              class="flex-1 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-xs font-mono text-gray-700 dark:text-gray-300" />
+            <button
+              type="button"
+              onclick="navigator.clipboard.writeText('{{this.link}}'); this.textContent='Copied'; setTimeout(()=>this.textContent='Copy',1500);"
+              class="px-3 py-2 text-xs font-medium rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+              Copy
+            </button>
+          </div>
+          <div class="text-xs text-gray-400 mt-2">Expires {{this.expiresAt}}</div>
+        </li>
+        {{/each}}
+      </ul>
+      {{else}}
+      <p class="text-sm text-gray-500 dark:text-gray-400">No pending invites.</p>
+      {{/if}}
+    </div>
+  </div>
+</div>

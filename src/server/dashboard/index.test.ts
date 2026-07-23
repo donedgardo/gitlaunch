@@ -360,7 +360,7 @@ describe("Dashboard Routes", () => {
       });
 
       expect(response.statusCode).toBe(200);
-      expect(response.body).toContain("donedgardo/build-reporter");
+      expect(response.body).toContain("--fail-with-body");
       // not the Jenkins or raw guide
       expect(response.body).not.toContain("credentials('gitlaunch-api-key')");
     });
@@ -392,7 +392,7 @@ describe("Dashboard Routes", () => {
       expect(response.statusCode).toBe(200);
       expect(response.body).toContain("credentials('gitlaunch-api-key')");
       // not the GitHub Actions guide
-      expect(response.body).not.toContain("donedgardo/build-reporter");
+      expect(response.body).not.toContain("--fail-with-body");
     });
 
     it("shows the raw reporting guide for a fresh raw service (not GitHub Actions)", async () => {
@@ -421,7 +421,7 @@ describe("Dashboard Routes", () => {
 
       expect(response.statusCode).toBe(200);
       expect(response.body).toContain("COMMIT_SHA");
-      expect(response.body).not.toContain("donedgardo/build-reporter");
+      expect(response.body).not.toContain("--fail-with-body");
     });
 
     it("shows a finish-deploy-setup CTA for a report-only service (no CD)", async () => {

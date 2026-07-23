@@ -5,6 +5,8 @@ import { SessionService } from "../../../services/auth/sessionService";
 import { UserRepository } from "../../../repositories/userRepository";
 import { AccountRepository } from "../../../repositories/accountRepository";
 import { MembershipRepository } from "../../../repositories/membershipRepository";
+import { InvitationRepository } from "../../../repositories/invitationRepository";
+import { acceptInvitation } from "../invite/acceptInvitation";
 import { AnalyticsService } from "../../../services/analytics/analytics";
 import { ensureAccountForUser } from "../../../services/auth/accountBootstrap";
 
@@ -14,6 +16,9 @@ export type GitHubAuthRoutesConfig = {
   userRepository: UserRepository;
   accountRepository: AccountRepository;
   membershipRepository: MembershipRepository;
+  // Optional: when present, a pending_invite cookie is redeemed right after
+  // sign-in so a logged-out invitee joins the workspace they were invited to.
+  invitationRepository?: InvitationRepository;
   analytics?: AnalyticsService;
 };
 
@@ -27,6 +32,7 @@ export function registerGitHubAuthRoutes(
     userRepository,
     accountRepository,
     membershipRepository,
+    invitationRepository,
     analytics,
   } = config;
 
@@ -97,13 +103,35 @@ export function registerGitHubAuthRoutes(
 
         // Ensure the user has an account + Owner membership (bootstrap on first
         // login). Shared with the Google and email/password login paths.
-        const { accountId, isNewUser } = await ensureAccountForUser({
+        // accountId is `let` because a pending invite (below) can redirect the
+        // session to the invited workspace instead.
+        const bootstrap = await ensureAccountForUser({
           userId: user._id,
           accountName: `${githubUser.login}'s Account`,
           slugSeed: githubUser.login,
           accountRepository,
           membershipRepository,
         });
+        let accountId = bootstrap.accountId;
+        const isNewUser = bootstrap.isNewUser;
+
+        // If they arrived via a shared invite link, redeem it now and make the
+        // invited workspace their active account.
+        let joinedViaInvite = false;
+        const pendingInviteToken = request.cookies?.pending_invite;
+        if (pendingInviteToken && invitationRepository) {
+          const accepted = await acceptInvitation(
+            invitationRepository,
+            membershipRepository,
+            pendingInviteToken,
+            user._id,
+          );
+          reply.clearCookie("pending_invite", { path: "/" });
+          if (accepted.ok) {
+            accountId = accepted.accountId;
+            joinedViaInvite = true;
+          }
+        }
 
         // Create session
         const sessionToken = sessionService.createSession({
@@ -128,6 +156,12 @@ export function registerGitHubAuthRoutes(
           userId: user._id.toString(),
           isNewUser,
         });
+
+        // Someone who joined via an invite lands straight in the shared
+        // workspace, skipping the new-account onboarding.
+        if (joinedViaInvite) {
+          return reply.redirect("/dashboard");
+        }
 
         // New users pick a plan first, then create their first service. GitHub
         // is no longer the onboarding gate (Jenkins/raw shops never connect it),

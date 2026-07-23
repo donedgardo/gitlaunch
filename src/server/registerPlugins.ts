@@ -50,6 +50,7 @@ export function registerPlugins(server: FastifyInstance) {
         htmxDashboard: "/partials/htmxDashboard.hbs",
         paginationControls: "/partials/paginationControls.hbs",
         setupStep: "/partials/setupStep.hbs",
+        waitlistResult: "/partials/waitlistResult.hbs",
       },
     },
   });

@@ -10,6 +10,7 @@ import { BuildRepository } from "./repositories/buildRepository";
 import { ServiceRepository } from "./repositories/serviceRepository";
 import { WebhookEventRepository } from "./repositories/webhookEventRepository";
 import { TrialRegistryRepository } from "./repositories/trialRegistryRepository";
+import { LeadRepository } from "./repositories/leadRepository";
 import { createGitHubServices } from "./services/github/createGitHubServices";
 import { createGoogleOAuthService } from "./services/auth/googleOAuthService";
 import { ConsoleAnalytics } from "./services/analytics/analytics";
@@ -81,10 +82,12 @@ async function start() {
   const buildRepository = new BuildRepository(database);
   const serviceRepository = new ServiceRepository(database);
   const trialRegistryRepository = new TrialRegistryRepository(database);
+  const leadRepository = new LeadRepository(database);
   await buildRepository.ensureIndexes();
   await serviceRepository.ensureIndexes();
   await webhookEventRepository.ensureIndexes();
   await trialRegistryRepository.ensureIndexes();
+  await leadRepository.ensureIndexes();
 
   await server.listen({ host: "0.0.0.0", port: PORT });
   console.info(`Server listening on port ${PORT}`);

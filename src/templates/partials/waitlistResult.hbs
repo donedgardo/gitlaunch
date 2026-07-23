@@ -1,0 +1,15 @@
+{{#if error}}
+  <div class="wl-result wl-error" role="alert">
+    That doesn't look like a valid email — mind checking it?
+  </div>
+{{else}}
+  {{#if alreadyOnList}}
+    <div class="wl-result wl-ok" role="status">
+      You're already on the list — we'll be in touch. 👋
+    </div>
+  {{else}}
+    <div class="wl-result wl-ok" role="status">
+      You're on the waitlist. We'll email your invite soon. 🚀
+    </div>
+  {{/if}}
+{{/if}}

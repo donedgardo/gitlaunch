@@ -92,13 +92,14 @@ jobs:
     needs: [quality, integration, docker-build]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
+      # Dogfoods the same curl guidance we give users (buildReportingInstructions.hbs).
       - name: Report build to GitLaunch
-        uses: donedgardo/build-reporter@v2
-        with:
-          api-key: ${{ secrets.GITLAUNCH_API_KEY }}
-          service-id: ${{ vars.GITLAUNCH_SERVICE_ID }}
-          action: report-build
-          build-id: ${{ github.sha }}
+        run: |
+          curl --fail-with-body -sS -X POST \
+            "https://gitlaunch.dev/api/v1/services/${{ vars.GITLAUNCH_SERVICE_ID }}/builds" \
+            -H "Authorization: Bearer ${{ secrets.GITLAUNCH_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{"buildId":"${{ github.sha }}"}'
 
   deploy-dev:
     name: Deploy to Dev

@@ -55,6 +55,11 @@ import { registerBillingRoutes } from "./routes/settings/billing";
 import { registerApiKeyRoutes } from "./routes/settings/apiKeys";
 import { registerJenkinsSettingsRoutes } from "./routes/settings/jenkins";
 import { registerGithubSettingsRoutes } from "./routes/settings/github";
+import { registerTeamRoutes } from "./routes/settings/team";
+import { registerInviteRoutes } from "./routes/invite";
+import { InvitationRepository } from "../repositories/invitationRepository";
+import { AccountMembershipService } from "../services/account/accountMembershipService";
+import { TeamManagementService } from "../services/account/teamManagementService";
 import { JenkinsConnectionService } from "../services/jenkins/jenkinsConnectionService";
 import { GithubConnectionService } from "../services/github/githubConnectionService";
 import { assertEncryptionKey } from "../services/crypto/secretBox";
@@ -64,6 +69,13 @@ import {
   AnalyticsService,
   NoOpAnalytics,
 } from "../services/analytics/analytics";
+import { LeadRepository } from "../repositories/leadRepository";
+import { WaitlistService } from "../services/marketing/waitlistService";
+import { registerWaitlistRoutes } from "./routes/marketing/waitlist";
+
+// Minimum time (ms) a real person needs to read and fill the waitlist form.
+// Submissions faster than this are treated as bots. See botDetection.ts.
+const WAITLIST_MIN_ELAPSED_MS = 2500;
 
 export type AppServerDeps = {
   database: Db;
@@ -103,11 +115,13 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
   const userRepository = new UserRepository(database);
   const accountRepository = new AccountRepository(database);
   const membershipRepository = new MembershipRepository(database);
+  const invitationRepository = new InvitationRepository(database);
   const repositoryRepository = new RepositoryRepository(database);
   const serviceRepository = new ServiceRepository(database);
   const apiKeyRepository = new ApiKeyRepository(database);
   const buildRepository = new BuildRepository(database);
   const trialRegistryRepository = new TrialRegistryRepository(database);
+  const leadRepository = new LeadRepository(database);
 
   // Services
   const apiKeyService = new ApiKeyService(apiKeyRepository, accountRepository);
@@ -201,6 +215,28 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
   registerJenkinsSettingsRoutes(server, { jenkinsConnectionService });
   registerGithubSettingsRoutes(server, { githubConnectionService });
 
+  // Team: shareable-link invites into a shared workspace
+  const accountMembershipService = new AccountMembershipService(
+    membershipRepository,
+    accountRepository,
+    userRepository,
+  );
+  const teamManagementService = new TeamManagementService(
+    membershipRepository,
+    invitationRepository,
+  );
+  registerTeamRoutes(server, {
+    teamManagementService,
+    accountMembershipService,
+    invitationRepository,
+  });
+  registerInviteRoutes(server, {
+    invitationRepository,
+    membershipRepository,
+    accountRepository,
+    sessionService,
+  });
+
   // Setup wizard routes
   registerSetupRoutes(server, {
     serviceRepo: serviceRepository,
@@ -208,9 +244,15 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     analytics,
   });
 
+  // Marketing: waitlist capture (bot-filtered, campaign-attributed)
+  const waitlistService = new WaitlistService(leadRepository, analytics, {
+    minElapsedMs: WAITLIST_MIN_ELAPSED_MS,
+  });
+
   // Routes
   server.register(healthRoute(mongoClient));
   server.register(homeRoute());
+  registerWaitlistRoutes(server, { waitlistService });
   server.register(
     dashboardRoutes({
       serviceRepository,
@@ -237,6 +279,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     userRepository,
     accountRepository,
     membershipRepository,
+    invitationRepository,
     analytics,
   });
 
