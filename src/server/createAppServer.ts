@@ -75,6 +75,7 @@ import {
 import { LeadRepository } from "../repositories/leadRepository";
 import { WaitlistService } from "../services/marketing/waitlistService";
 import { WaitlistExperiment } from "../services/marketing/waitlistExperiment";
+import { SignupGate } from "../services/account/signupGate";
 import { registerWaitlistRoutes } from "./routes/marketing/waitlist";
 
 // Minimum time (ms) a real person needs to read and fill the waitlist form.
@@ -278,6 +279,16 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     environment: process.env.GITLAUNCH_FLAG_ENV || "prod",
   };
 
+  // Dogfood our own feature flags to control our own front door: whether a
+  // brand-new visitor may create an account (kill switch / gradual alpha
+  // opening / allow-lists, all from the flags page). Fails open.
+  const signupGate = new SignupGate(
+    flagService,
+    serviceRepository,
+    analytics,
+    selfFlagContext,
+  );
+
   // Marketing: dogfood our own feature flags to A/B test the landing-page copy.
   const waitlistExperiment = new WaitlistExperiment(
     flagService,
@@ -327,6 +338,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     accountRepository,
     membershipRepository,
     invitationRepository,
+    signupGate,
     analytics,
   });
 

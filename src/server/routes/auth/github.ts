@@ -11,6 +11,10 @@ import {
 import { InvitationRepository } from "../../../repositories/invitationRepository";
 import { acceptInvitation } from "../invite/acceptInvitation";
 import { AnalyticsService } from "../../../services/analytics/analytics";
+import {
+  SignupGate,
+  signupEntityKey,
+} from "../../../services/account/signupGate";
 
 export type GitHubAuthRoutesConfig = {
   oauthService: GitHubOAuthService;
@@ -21,6 +25,9 @@ export type GitHubAuthRoutesConfig = {
   // Optional: when present, a pending_invite cookie is redeemed right after
   // sign-in so a logged-out invitee joins the workspace they were invited to.
   invitationRepository?: InvitationRepository;
+  // Optional: when present, creating a *new* account is gated by GitLaunch's
+  // own feature flag (dogfooding). Absent => signups always open.
+  signupGate?: SignupGate;
   analytics?: AnalyticsService;
 };
 
@@ -35,6 +42,7 @@ export function registerGitHubAuthRoutes(
     accountRepository,
     membershipRepository,
     invitationRepository,
+    signupGate,
     analytics,
   } = config;
 
@@ -94,6 +102,39 @@ export function registerGitHubAuthRoutes(
           tokenResponse.access_token,
         );
 
+        // Who is signing in, and do they already belong somewhere? Answer this
+        // *before* touching the database so a refused signup leaves no trace.
+        const existingUser = await userRepository.findByGitHubId(githubUser.id);
+        const memberships = existingUser
+          ? await membershipRepository.findByUserId(existingUser._id)
+          : [];
+
+        // An invitee is vouched for by an existing customer, so they join their
+        // workspace even while the public front door is shut.
+        const hasPendingInvite = !!(
+          request.cookies?.pending_invite && invitationRepository
+        );
+
+        // Dogfooding our own feature flags: a visitor with no membership is a
+        // brand-new account, which is exactly what the flag gates. The gate
+        // fails open, so this only ever refuses when someone deliberately
+        // turned self-serve signups off.
+        if (memberships.length === 0 && !hasPendingInvite && signupGate) {
+          const entityKey = signupEntityKey(githubUser.id);
+          const decision = await signupGate.allows(entityKey, {
+            githubLogin: githubUser.login,
+            githubId: githubUser.id,
+          });
+          void signupGate.recordExposure(entityKey, decision);
+          if (!decision.allowed) {
+            analytics?.track("signup_blocked", {
+              githubLogin: githubUser.login,
+              reason: decision.reason,
+            });
+            return reply.redirect("/?error=signups_closed");
+          }
+        }
+
         // Find or create user
         const user = await userRepository.findOrCreateByGitHubId({
           githubId: githubUser.id,
@@ -102,9 +143,6 @@ export function registerGitHubAuthRoutes(
           name: githubUser.name,
           avatarUrl: githubUser.avatar_url,
         });
-
-        // Check if user has any account membership
-        const memberships = await membershipRepository.findByUserId(user._id);
 
         let accountId = memberships[0]?.accountId;
 
