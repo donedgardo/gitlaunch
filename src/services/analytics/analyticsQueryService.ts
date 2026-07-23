@@ -74,7 +74,12 @@ export class AnalyticsQueryService {
       .aggregate<{
         _id: string;
         count: number;
-      }>([{ $match: this.rangeMatch(params) }, { $group: { _id: "$event", count: { $sum: 1 } } }, { $sort: { count: -1, _id: 1 } }, { $limit: params.limit }])
+      }>([
+        { $match: this.rangeMatch(params) },
+        { $group: { _id: "$event", count: { $sum: 1 } } },
+        { $sort: { count: -1, _id: 1 } },
+        { $limit: params.limit },
+      ])
       .toArray();
 
     return results.map((r) => ({ event: r._id, count: r.count }));
