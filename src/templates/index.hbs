@@ -139,6 +139,20 @@
   .final .cta-row { justify-content: center; }
   .final .subhead2 { color: var(--muted); font-size: 17px; margin: 16px auto 0; max-width: 46ch; }
 
+  /* Alpha waitlist capture */
+  .wl-form { display: flex; gap: 10px; margin: 26px auto 0; max-width: 460px; flex-wrap: wrap; justify-content: center; }
+  .wl-form input[type="email"] { flex: 1 1 240px; min-width: 0; font-family: var(--sans); font-size: 15px; color: var(--ink); background: var(--surface); border: 1px solid var(--line-strong); border-radius: 9px; padding: 13px 15px; transition: border-color .12s ease, box-shadow .12s ease; }
+  .wl-form input[type="email"]::placeholder { color: var(--faint); }
+  .wl-form input[type="email"]:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .wl-form .btn { padding: 13px 22px; font-size: 15px; }
+  /* Honeypot — kept in the layout but visually and semantically hidden from humans */
+  .wl-hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; opacity: 0; }
+  .wl-note { font-family: var(--mono); font-size: 12px; color: var(--faint); margin: 14px auto 0; }
+  .wl-result { margin: 18px auto 0; font-size: 15px; font-weight: 600; max-width: 460px; padding: 12px 16px; border-radius: 10px; }
+  .wl-result.wl-ok { color: var(--ok); background: color-mix(in srgb, var(--ok) 14%, transparent); border: 1px solid color-mix(in srgb, var(--ok) 30%, transparent); }
+  .wl-result.wl-error { color: var(--accent-ink); background: var(--accent-soft); border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent); }
+  .wl-form.htmx-request .btn { opacity: .7; pointer-events: none; }
+
   footer { border-top: 1px solid var(--line); padding: 30px 0; }
   .foot-in { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; font-family: var(--mono); font-size: 12px; color: var(--faint); }
   .foot-legal { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
@@ -169,7 +183,7 @@
         <a href="#how">How it works</a>
         <a href="#why">Why GitLaunch</a>
         <a href="/auth/github">Login</a>
-        <a href="/auth/github" class="btn primary">Start free</a>
+        <a href="#start" class="btn primary">Join the alpha</a>
       </div>
     </div>
   </nav>
@@ -182,7 +196,7 @@
         <h1 class="rise d2">Know exactly what's deployed where.<br><span class="u">Roll it back in one click.</span></h1>
         <p class="subhead rise d3">GitLaunch shows every build across every environment — and lets anyone on the team promote or roll back safely. No YAML. No hero. No deploy-day dread.</p>
         <div class="cta-row rise d4">
-          <a href="/auth/github" class="btn primary">Start free →</a>
+          <a href="#start" class="btn primary">Join the alpha →</a>
           <a href="#how" class="btn ghost">See it live</a>
         </div>
         <div class="trust rise d4">
@@ -317,16 +331,33 @@
     </div>
   </section>
 
-  <!-- FINAL CTA -->
+  <!-- FINAL CTA — alpha waitlist -->
   <section class="final" id="start">
     <div class="wrap">
-      <span class="kicker">Start free</span>
-      <h2 class="h2">Make deploy day boring.</h2>
-      <p class="subhead2">Connect your CI, see every build across every environment, and give your whole team a safe button to ship and roll back.</p>
-      <div class="cta-row">
-        <a href="/auth/github" class="btn primary">Start free →</a>
-        <a href="mailto:support@gitlaunch.dev?subject=GitLaunch%20demo" class="btn ghost">Book a 15-min demo</a>
-      </div>
+      <span class="kicker">Private alpha · limited spots</span>
+      <h2 class="h2">Get early access.</h2>
+      <p class="subhead2">GitLaunch is in private alpha. Leave your email and we'll send your invite — see every build across every environment and give your whole team a safe button to ship and roll back.</p>
+
+      <form class="wl-form" id="waitlist-form"
+            hx-post="/waitlist"
+            hx-target="#waitlist-result"
+            hx-swap="outerHTML"
+            hx-disabled-elt="find button">
+        <label class="wl-hp" aria-hidden="true">
+          Company website<input type="text" name="company_website" tabindex="-1" autocomplete="off" />
+        </label>
+        <input type="email" name="email" required placeholder="you@team.dev" aria-label="Work email" />
+        <button type="submit" class="btn primary">Request access →</button>
+        <input type="hidden" name="elapsedMs" value="" />
+        <input type="hidden" name="utm_source" value="" />
+        <input type="hidden" name="utm_medium" value="" />
+        <input type="hidden" name="utm_campaign" value="" />
+        <input type="hidden" name="utm_term" value="" />
+        <input type="hidden" name="utm_content" value="" />
+        <input type="hidden" name="referrer" value="" />
+      </form>
+      <div id="waitlist-result"></div>
+      <p class="wl-note">No spam. Just your invite and the occasional alpha update.</p>
     </div>
   </section>
 
@@ -411,5 +442,39 @@
     // One-time auto-demo so first-time visitors see the aha before they click.
     var auto = document.getElementById('autoCell');
     if (auto) setTimeout(function () { deploy(auto); }, 1400);
+  })();
+
+  // Waitlist: stamp campaign attribution + fill-time so the server can
+  // attribute the lead and filter bots. Bots that skip the page never run this.
+  (function () {
+    var form = document.getElementById('waitlist-form');
+    if (!form) return;
+
+    var loadedAt = Date.now();
+    var params = new URLSearchParams(window.location.search);
+
+    function setField(name, value) {
+      var el = form.querySelector('[name="' + name + '"]');
+      if (el && value != null) el.value = value;
+    }
+
+    ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'].forEach(function (k) {
+      if (params.has(k)) setField(k, params.get(k));
+    });
+    if (document.referrer) setField('referrer', document.referrer);
+
+    // Persist attribution across an in-session bounce so a later signup keeps
+    // its original campaign even after the UTM params leave the URL.
+    try {
+      ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'].forEach(function (k) {
+        if (params.has(k)) sessionStorage.setItem('gl_' + k, params.get(k));
+        else if (sessionStorage.getItem('gl_' + k)) setField(k, sessionStorage.getItem('gl_' + k));
+      });
+    } catch (e) { /* private mode — attribution still works within the page */ }
+
+    // Inject fill-time at request build (canonical HTMX hook — order-safe).
+    form.addEventListener('htmx:configRequest', function (evt) {
+      evt.detail.parameters['elapsedMs'] = String(Date.now() - loadedAt);
+    });
   })();
 </script>

@@ -59,6 +59,13 @@ import {
   AnalyticsService,
   NoOpAnalytics,
 } from "../services/analytics/analytics";
+import { LeadRepository } from "../repositories/leadRepository";
+import { WaitlistService } from "../services/marketing/waitlistService";
+import { registerWaitlistRoutes } from "./routes/marketing/waitlist";
+
+// Minimum time (ms) a real person needs to read and fill the waitlist form.
+// Submissions faster than this are treated as bots. See botDetection.ts.
+const WAITLIST_MIN_ELAPSED_MS = 2500;
 
 export type AppServerDeps = {
   database: Db;
@@ -99,6 +106,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
   const apiKeyRepository = new ApiKeyRepository(database);
   const buildRepository = new BuildRepository(database);
   const trialRegistryRepository = new TrialRegistryRepository(database);
+  const leadRepository = new LeadRepository(database);
 
   // Services
   const apiKeyService = new ApiKeyService(apiKeyRepository, accountRepository);
@@ -198,9 +206,15 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     analytics,
   });
 
+  // Marketing: alpha waitlist capture (bot-filtered, campaign-attributed)
+  const waitlistService = new WaitlistService(leadRepository, analytics, {
+    minElapsedMs: WAITLIST_MIN_ELAPSED_MS,
+  });
+
   // Routes
   server.register(healthRoute(mongoClient));
   server.register(homeRoute());
+  registerWaitlistRoutes(server, { waitlistService });
   server.register(
     dashboardRoutes({
       serviceRepository,
