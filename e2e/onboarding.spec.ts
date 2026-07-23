@@ -5,7 +5,7 @@ import { authenticateTestUser, TEST_USERS } from "./helpers/auth";
  * Onboarding Flow - GitHub App Installation
  *
  * This acceptance test describes the expected user journey:
- * 1. Landing page primary CTA joins the alpha waitlist; Login reaches auth
+ * 1. Landing page primary CTA joins the waitlist; Login reaches auth
  * 2. Authenticated user without GitHub App sees onboarding
  * 3. Onboarding prompts user to install GitHub App
  * 4. After installation, user sees repository selection
@@ -14,9 +14,7 @@ import { authenticateTestUser, TEST_USERS } from "./helpers/auth";
  */
 
 test.describe("Onboarding - GitHub App Installation", () => {
-  test("landing page primary CTA joins the alpha waitlist", async ({
-    page,
-  }) => {
+  test("landing page primary CTA joins the waitlist", async ({ page }) => {
     // Visit the landing page
     await page.goto("/");
 
@@ -25,9 +23,10 @@ test.describe("Onboarding - GitHub App Installation", () => {
       page.getByRole("heading", { name: /roll it back in one click/i }),
     ).toBeVisible();
 
-    // During the private alpha, the primary CTA drives to the waitlist
-    // capture, not straight to signup.
-    const joinCta = page.getByRole("link", { name: /join the alpha/i }).first();
+    // The primary CTA drives to the waitlist capture, not straight to signup.
+    const joinCta = page
+      .getByRole("link", { name: /join the waitlist/i })
+      .first();
     await expect(joinCta).toBeVisible();
     await expect(joinCta).toHaveAttribute("href", "#start");
 

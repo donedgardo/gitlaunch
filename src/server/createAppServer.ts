@@ -234,7 +234,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     analytics,
   });
 
-  // Marketing: alpha waitlist capture (bot-filtered, campaign-attributed)
+  // Marketing: waitlist capture (bot-filtered, campaign-attributed)
   const waitlistService = new WaitlistService(leadRepository, analytics, {
     minElapsedMs: WAITLIST_MIN_ELAPSED_MS,
   });

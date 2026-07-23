@@ -1,4 +1,4 @@
-// Lightweight, dependency-free bot detection for the alpha waitlist capture.
+// Lightweight, dependency-free bot detection for the waitlist capture.
 // We don't want a captcha in front of early adopters, so we lean on three
 // cheap, high-signal heuristics instead: a honeypot field, a submit-timing
 // floor, and email validity. Kept pure so it is trivial to test and reason

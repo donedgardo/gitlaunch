@@ -139,7 +139,7 @@
   .final .cta-row { justify-content: center; }
   .final .subhead2 { color: var(--muted); font-size: 17px; margin: 16px auto 0; max-width: 46ch; }
 
-  /* Alpha waitlist capture */
+  /* Waitlist capture */
   .wl-form { display: flex; gap: 10px; margin: 26px auto 0; max-width: 460px; flex-wrap: wrap; justify-content: center; }
   .wl-form input[type="email"] { flex: 1 1 240px; min-width: 0; font-family: var(--sans); font-size: 15px; color: var(--ink); background: var(--surface); border: 1px solid var(--line-strong); border-radius: 9px; padding: 13px 15px; transition: border-color .12s ease, box-shadow .12s ease; }
   .wl-form input[type="email"]::placeholder { color: var(--faint); }
@@ -183,7 +183,7 @@
         <a href="#how">How it works</a>
         <a href="#why">Why GitLaunch</a>
         <a href="/auth/github">Login</a>
-        <a href="#start" class="btn primary">Join the alpha</a>
+        <a href="#start" class="btn primary">Join the waitlist</a>
       </div>
     </div>
   </nav>
@@ -196,7 +196,7 @@
         <h1 class="rise d2">Know exactly what's deployed where.<br><span class="u">Roll it back in one click.</span></h1>
         <p class="subhead rise d3">GitLaunch shows every build across every environment — and lets anyone on the team promote or roll back safely. No YAML. No hero. No deploy-day dread.</p>
         <div class="cta-row rise d4">
-          <a href="#start" class="btn primary">Join the alpha →</a>
+          <a href="#start" class="btn primary">Join the waitlist →</a>
           <a href="#how" class="btn ghost">See it live</a>
         </div>
         <div class="trust rise d4">
@@ -331,12 +331,12 @@
     </div>
   </section>
 
-  <!-- FINAL CTA — alpha waitlist -->
+  <!-- FINAL CTA — waitlist -->
   <section class="final" id="start">
     <div class="wrap">
-      <span class="kicker">Private alpha · limited spots</span>
+      <span class="kicker">Join the waitlist · limited early spots</span>
       <h2 class="h2">Get early access.</h2>
-      <p class="subhead2">GitLaunch is in private alpha. Leave your email and we'll send your invite — see every build across every environment and give your whole team a safe button to ship and roll back.</p>
+      <p class="subhead2">GitLaunch is almost ready. Join the waitlist and we'll send your invite when your spot opens — see every build across every environment and give your whole team a safe button to ship and roll back.</p>
 
       <form class="wl-form" id="waitlist-form"
             hx-post="/waitlist"
@@ -357,7 +357,7 @@
         <input type="hidden" name="referrer" value="" />
       </form>
       <div id="waitlist-result"></div>
-      <p class="wl-note">No spam. Just your invite and the occasional alpha update.</p>
+      <p class="wl-note">No spam. Just your invite and the occasional product update.</p>
     </div>
   </section>
 
