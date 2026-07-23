@@ -49,6 +49,13 @@ export interface FlagServiceI {
     envName: string,
     entityKey: string,
   ): Promise<FlagEvaluation[]>;
+  evaluateOne(
+    accountId: ObjectId,
+    serviceId: ObjectId,
+    envName: string,
+    key: string,
+    entityKey: string,
+  ): Promise<FlagEvaluation | null>;
 }
 
 export class FlagService implements FlagServiceI {
@@ -172,6 +179,25 @@ export class FlagService implements FlagServiceI {
       const cfg = flag.environments[envName] ?? defaultEnvironmentConfig();
       return evaluateFlag(cfg, flag.key, entityKey);
     });
+  }
+
+  // Deterministic single-flag evaluation. Used to attribute an entity to the
+  // variant it was (and will always be) assigned, e.g. when recording an
+  // experiment conversion. Returns null when the flag doesn't exist.
+  async evaluateOne(
+    accountId: ObjectId,
+    serviceId: ObjectId,
+    envName: string,
+    key: string,
+    entityKey: string,
+  ): Promise<FlagEvaluation | null> {
+    const flags = await this.getServiceFlagsCached(accountId, serviceId);
+    const flag = flags.find((f) => f.key === key);
+    if (!flag) {
+      return null;
+    }
+    const cfg = flag.environments[envName] ?? defaultEnvironmentConfig();
+    return evaluateFlag(cfg, flag.key, entityKey);
   }
 
   // Read-through cache: evaluation avoids Mongo on a hit. Writes invalidate.
