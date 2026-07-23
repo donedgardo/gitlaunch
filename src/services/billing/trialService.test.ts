@@ -42,12 +42,12 @@ describe("TrialService", () => {
         name: "Free User",
         slug: "free-user",
       });
-      const githubId = 12345;
+      const subject = "github:12345";
 
       // When: I try to start a trial for Free plan
       const result = await trialService.startTrial(
         account._id,
-        githubId,
+        subject,
         Plan.Free,
       );
 
@@ -64,12 +64,12 @@ describe("TrialService", () => {
         name: "Pro User",
         slug: "pro-user",
       });
-      const githubId = 67890;
+      const subject = "github:67890";
 
       // When: I start a trial for Pro plan
       const result = await trialService.startTrial(
         account._id,
-        githubId,
+        subject,
         Plan.Pro,
       );
 
@@ -94,12 +94,12 @@ describe("TrialService", () => {
         name: "Team User",
         slug: "team-user",
       });
-      const githubId = 11111;
+      const subject = "github:11111";
 
       // When: I start a trial for Team plan
       const result = await trialService.startTrial(
         account._id,
-        githubId,
+        subject,
         Plan.Team,
       );
 
@@ -121,13 +121,13 @@ describe("TrialService", () => {
         name: "Date Check",
         slug: "date-check",
       });
-      const githubId = 22222;
+      const subject = "github:22222";
 
       // When: I start a trial
       const beforeStart = Date.now();
       const result = await trialService.startTrial(
         account._id,
-        githubId,
+        subject,
         Plan.Pro,
       );
       const afterStart = Date.now();
@@ -151,13 +151,13 @@ describe("TrialService", () => {
         name: "Same Account",
         slug: "same-account",
       });
-      const githubId = 33333;
-      await trialService.startTrial(account._id, githubId, Plan.Pro);
+      const subject = "github:33333";
+      await trialService.startTrial(account._id, subject, Plan.Pro);
 
       // When: the same user tries to start another trial on the same account
       const result = await trialService.startTrial(
         account._id,
-        githubId,
+        subject,
         Plan.Pro,
       );
 
@@ -174,8 +174,8 @@ describe("TrialService", () => {
         name: "First Account",
         slug: "first-account",
       });
-      const githubId = 44444;
-      await trialService.startTrial(account1._id, githubId, Plan.Pro);
+      const subject = "github:44444";
+      await trialService.startTrial(account1._id, subject, Plan.Pro);
 
       // When: the same user tries to start a trial on a different account
       const account2 = await accountRepo.create({
@@ -184,7 +184,7 @@ describe("TrialService", () => {
       });
       const result = await trialService.startTrial(
         account2._id,
-        githubId,
+        subject,
         Plan.Pro,
       );
 

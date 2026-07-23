@@ -2,7 +2,10 @@ import { Db, ObjectId, Collection } from "mongodb";
 
 export type TrialRegistryEntry = {
   _id: ObjectId;
-  githubId: number;
+  // Stable per-person identity so a single person can't farm multiple free
+  // trials across accounts. Prefixed by auth method, e.g. "github:123" or
+  // "user:<objectId>" for Google/email signups.
+  subject: string;
   accountId: ObjectId;
   claimedAt: Date;
 };
@@ -14,10 +17,10 @@ export class TrialRegistryRepository {
     this.collection = db.collection<TrialRegistryEntry>("trialRegistry");
   }
 
-  async claimTrial(githubId: number, accountId: ObjectId): Promise<boolean> {
+  async claimTrial(subject: string, accountId: ObjectId): Promise<boolean> {
     try {
       await this.collection.insertOne({
-        githubId,
+        subject,
         accountId,
         claimedAt: new Date(),
       } as TrialRegistryEntry);
@@ -31,12 +34,12 @@ export class TrialRegistryRepository {
     }
   }
 
-  async hasUsedTrial(githubId: number): Promise<boolean> {
-    const entry = await this.collection.findOne({ githubId });
+  async hasUsedTrial(subject: string): Promise<boolean> {
+    const entry = await this.collection.findOne({ subject });
     return entry !== null;
   }
 
   async ensureIndexes(): Promise<void> {
-    await this.collection.createIndex({ githubId: 1 }, { unique: true });
+    await this.collection.createIndex({ subject: 1 }, { unique: true });
   }
 }

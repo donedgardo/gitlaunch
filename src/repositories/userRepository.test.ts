@@ -151,4 +151,97 @@ describe("UserRepository", () => {
       );
     });
   });
+
+  describe("findOrCreateByGoogleId", () => {
+    it("should create a verified user when Google ID does not exist", async () => {
+      // When: a Google user signs in for the first time
+      const user = await repo.findOrCreateByGoogleId({
+        googleId: "google-sub-1",
+        email: "person@gmail.com",
+        name: "Person",
+        avatarUrl: "https://example.com/p.png",
+      });
+
+      // Then: the user is created and treated as email-verified
+      expect(user._id).toBeDefined();
+      expect(user.googleId).toBe("google-sub-1");
+      expect(user.email).toBe("person@gmail.com");
+      expect(user.emailVerified).toBe(true);
+      expect(user.githubId).toBeUndefined();
+    });
+
+    it("should return the existing user on repeat Google sign-in", async () => {
+      // Given: a Google user already exists
+      const first = await repo.findOrCreateByGoogleId({
+        googleId: "google-sub-2",
+        email: "repeat@gmail.com",
+        name: "Repeat",
+        avatarUrl: null,
+      });
+
+      // When: they sign in again
+      const again = await repo.findOrCreateByGoogleId({
+        googleId: "google-sub-2",
+        email: "repeat@gmail.com",
+        name: "Repeat",
+        avatarUrl: null,
+      });
+
+      // Then: it's the same user, not a duplicate
+      expect(again._id.toString()).toBe(first._id.toString());
+      const all = await db.collection("users").find({}).toArray();
+      expect(all.length).toBe(1);
+    });
+  });
+
+  describe("email/password users", () => {
+    it("should create an unverified password user with a stored hash", async () => {
+      // When: someone signs up with email + password
+      const user = await repo.createPasswordUser({
+        email: "Signup@Example.com",
+        passwordHash: "hashed-value",
+        name: "Signup",
+      });
+
+      // Then: the account starts unverified and stores the hash + lowercased email
+      expect(user.emailVerified).toBe(false);
+      expect(user.passwordHash).toBe("hashed-value");
+      expect(user.email).toBe("signup@example.com");
+    });
+
+    it("should look up a user by email case-insensitively", async () => {
+      await repo.createPasswordUser({
+        email: "case@example.com",
+        passwordHash: "h",
+        name: null,
+      });
+
+      const found = await repo.findByEmail("CASE@example.com");
+      expect(found).not.toBeNull();
+      expect(found!.email).toBe("case@example.com");
+    });
+
+    it("should verify an email via its confirmation token", async () => {
+      // Given: an unverified user with a confirmation token
+      const user = await repo.createPasswordUser({
+        email: "verify@example.com",
+        passwordHash: "h",
+        name: null,
+      });
+      const expiresAt = new Date(Date.now() + 60_000);
+      await repo.setEmailVerificationToken(user._id, "tok-123", expiresAt);
+
+      // When: I find the user by the token and mark them verified
+      const byToken = await repo.findByEmailVerificationToken("tok-123");
+      expect(byToken!._id.toString()).toBe(user._id.toString());
+
+      await repo.markEmailVerified(user._id);
+
+      // Then: they are verified and the token is cleared
+      const after = await repo.findById(user._id);
+      expect(after!.emailVerified).toBe(true);
+      expect(after!.emailVerificationToken ?? null).toBeNull();
+      expect(await repo.findByEmailVerificationToken("tok-123")).toBeNull();
+    });
+  });
 });

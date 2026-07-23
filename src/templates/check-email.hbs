@@ -1,0 +1,38 @@
+<style>
+  /* Auth pages reuse the global design tokens defined in src/styles/input.css. */
+  .auth-page { background: var(--bg); color: var(--ink); font-family: var(--sans); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 40px 20px; }
+  .auth-card { width: 100%; max-width: 420px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow-lg); padding: 36px 32px; text-align: center; }
+  .auth-brand { display: flex; align-items: center; gap: 9px; font-weight: 800; font-size: 20px; letter-spacing: -.02em; justify-content: center; margin-bottom: 18px; }
+  .auth-brand .mk { color: var(--accent); }
+  .auth-mail-icon { width: 56px; height: 56px; border-radius: 14px; background: var(--accent-soft); color: var(--accent); display: inline-grid; place-items: center; margin-bottom: 16px; }
+  .auth-mail-icon svg { width: 28px; height: 28px; }
+  .auth-title { font-size: 21px; font-weight: 700; margin: 0 0 8px; letter-spacing: -.02em; }
+  .auth-sub { color: var(--muted); font-size: 14.5px; line-height: 1.6; margin: 0 0 6px; }
+  .auth-email { color: var(--ink); font-weight: 600; }
+  .auth-hint { color: var(--faint); font-size: 13px; margin: 18px 0 0; }
+  .auth-resend { margin-top: 20px; }
+  .auth-resend button { background: none; border: none; color: var(--accent-ink); font-weight: 600; font-size: 13.5px; cursor: pointer; font-family: var(--sans); text-decoration: underline; padding: 0; }
+  .auth-back { display: block; margin-top: 20px; font-size: 12.5px; color: var(--faint); text-decoration: none; }
+</style>
+
+<div class="auth-page">
+  <div class="auth-card">
+    <div class="auth-brand">Git<span class="mk">Launch</span></div>
+    <div class="auth-mail-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+    </div>
+    <h1 class="auth-title">Check your email</h1>
+    <p class="auth-sub">We sent a confirmation link to</p>
+    <p class="auth-sub auth-email">{{email}}</p>
+    <p class="auth-hint">Click the link in that email to activate your account. The link expires in 24 hours.</p>
+
+    <div class="auth-resend">
+      <form method="POST" action="/auth/resend-verification">
+        <input type="hidden" name="email" value="{{email}}" />
+        Didn't get it? <button type="submit">Resend the email</button>
+      </form>
+    </div>
+
+    <a href="/login" class="auth-back">← Back to login</a>
+  </div>
+</div>

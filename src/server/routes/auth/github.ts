@@ -4,11 +4,9 @@ import { GitHubOAuthService } from "../../../services/auth/githubOAuthService";
 import { SessionService } from "../../../services/auth/sessionService";
 import { UserRepository } from "../../../repositories/userRepository";
 import { AccountRepository } from "../../../repositories/accountRepository";
-import {
-  MembershipRepository,
-  MembershipRole,
-} from "../../../repositories/membershipRepository";
+import { MembershipRepository } from "../../../repositories/membershipRepository";
 import { AnalyticsService } from "../../../services/analytics/analytics";
+import { ensureAccountForUser } from "../../../services/auth/accountBootstrap";
 
 export type GitHubAuthRoutesConfig = {
   oauthService: GitHubOAuthService;
@@ -97,39 +95,20 @@ export function registerGitHubAuthRoutes(
           avatarUrl: githubUser.avatar_url,
         });
 
-        // Check if user has any account membership
-        const memberships = await membershipRepository.findByUserId(user._id);
-
-        let accountId = memberships[0]?.accountId;
-
-        // Track if this is a new user for onboarding redirect
-        let isNewUser = false;
-        let account = null;
-
-        // If no account, create default account and membership (Phase 1.18)
-        if (memberships.length === 0) {
-          isNewUser = true;
-          account = await accountRepository.create({
-            name: `${githubUser.login}'s Account`,
-            slug: githubUser.login.toLowerCase().replace(/[^a-z0-9-]/g, "-"),
-          });
-
-          await membershipRepository.create({
-            userId: user._id,
-            accountId: account._id,
-            role: MembershipRole.Owner,
-          });
-
-          accountId = account._id;
-        } else {
-          // Fetch existing account to check installation status
-          account = await accountRepository.findById(memberships[0].accountId);
-        }
+        // Ensure the user has an account + Owner membership (bootstrap on first
+        // login). Shared with the Google and email/password login paths.
+        const { accountId, isNewUser } = await ensureAccountForUser({
+          userId: user._id,
+          accountName: `${githubUser.login}'s Account`,
+          slugSeed: githubUser.login,
+          accountRepository,
+          membershipRepository,
+        });
 
         // Create session
         const sessionToken = sessionService.createSession({
           userId: user._id,
-          accountId: accountId!,
+          accountId,
         });
 
         // Set session cookie
