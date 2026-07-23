@@ -312,12 +312,19 @@ export function registerBuildsRoutes(
           environment: env,
           status: status as DeploymentStatus,
         });
-        analytics?.track("deployment_status_updated", {
-          serviceId,
-          buildId,
-          environment: env,
-          status,
-        });
+        analytics?.track(
+          "deployment_status_updated",
+          {
+            serviceId,
+            buildId,
+            environment: env,
+            status,
+          },
+          {
+            accountId: accountId.toString(),
+            distinctId: `apikey:${request.apiKey!.apiKeyId.toString()}`,
+          },
+        );
 
         return reply.send({
           _id: build._id.toString(),
