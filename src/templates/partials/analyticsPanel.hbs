@@ -1,0 +1,71 @@
+{{! Metrics panel — re-rendered on its own for HTMX partial updates }}
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
+    <div class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Total events</div>
+    <div data-testid="kpi-total-events" class="mt-1 text-3xl font-semibold text-gray-900 dark:text-gray-100">{{totalEvents}}</div>
+  </div>
+  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
+    <div class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Unique users</div>
+    <div data-testid="kpi-unique-users" class="mt-1 text-3xl font-semibold text-gray-900 dark:text-gray-100">{{uniqueUsers}}</div>
+  </div>
+</div>
+
+<div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 mb-6">
+  <h2 class="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-4">Event volume over time</h2>
+  {{#if hasVolume}}
+  <div class="flex items-end gap-1 h-48" role="img" aria-label="Event volume over time">
+    {{#each volume}}
+    <div class="flex-1 flex flex-col items-center justify-end h-full group">
+      <div class="w-full rounded-t bg-blue-500 dark:bg-blue-400 transition-all" style="height: {{barPct}}%" title="{{label}}: {{count}}"></div>
+      <div class="mt-1 text-[10px] leading-tight text-gray-500 dark:text-gray-400 text-center truncate w-full">{{label}}</div>
+    </div>
+    {{/each}}
+  </div>
+  {{else}}
+  <p class="text-sm text-gray-500 dark:text-gray-400 py-8 text-center">No events in this range yet.</p>
+  {{/if}}
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
+    <h2 class="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-4">Top events</h2>
+    {{#if topEvents.length}}
+    <ul data-testid="top-events" class="space-y-2">
+      {{#each topEvents}}
+      <li>
+        <div class="flex items-center justify-between text-sm mb-0.5">
+          <span class="font-mono text-gray-700 dark:text-gray-300 truncate mr-2">{{event}}</span>
+          <span class="text-gray-500 dark:text-gray-400 tabular-nums">{{count}}</span>
+        </div>
+        <div class="h-2 rounded bg-gray-100 dark:bg-gray-700 overflow-hidden">
+          <div class="h-full bg-indigo-500 dark:bg-indigo-400 rounded" style="width: {{barPct}}%"></div>
+        </div>
+      </li>
+      {{/each}}
+    </ul>
+    {{else}}
+    <p data-testid="top-events" class="text-sm text-gray-500 dark:text-gray-400 py-4">No events yet.</p>
+    {{/if}}
+  </div>
+
+  <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
+    <h2 class="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-4">Breakdown by <span class="font-mono">{{property}}</span></h2>
+    {{#if hasBreakdown}}
+    <ul class="space-y-2">
+      {{#each breakdown}}
+      <li>
+        <div class="flex items-center justify-between text-sm mb-0.5">
+          <span class="text-gray-700 dark:text-gray-300 truncate mr-2">{{value}}</span>
+          <span class="text-gray-500 dark:text-gray-400 tabular-nums">{{count}}</span>
+        </div>
+        <div class="h-2 rounded bg-gray-100 dark:bg-gray-700 overflow-hidden">
+          <div class="h-full bg-emerald-500 dark:bg-emerald-400 rounded" style="width: {{barPct}}%"></div>
+        </div>
+      </li>
+      {{/each}}
+    </ul>
+    {{else}}
+    <p class="text-sm text-gray-500 dark:text-gray-400 py-4">No <span class="font-mono">{{property}}</span> values in this range.</p>
+    {{/if}}
+  </div>
+</div>

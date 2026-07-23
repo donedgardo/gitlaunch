@@ -357,11 +357,18 @@ export default function (deps: DashboardRoutesDeps) {
             environment: env,
             status: DeploymentStatus.DISPATCHING,
           });
-          analytics?.track("deployment_triggered", {
-            serviceName: service.name,
-            buildId,
-            environment: env,
-          });
+          analytics?.track(
+            "deployment_triggered",
+            {
+              serviceName: service.name,
+              buildId,
+              environment: env,
+            },
+            {
+              accountId: accountId.toString(),
+              distinctId: req.session!.userId,
+            },
+          );
 
           // Return the partial for HTMX swap
           return reply.view(

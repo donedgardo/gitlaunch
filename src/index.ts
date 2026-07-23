@@ -12,7 +12,8 @@ import { WebhookEventRepository } from "./repositories/webhookEventRepository";
 import { TrialRegistryRepository } from "./repositories/trialRegistryRepository";
 import { LeadRepository } from "./repositories/leadRepository";
 import { createGitHubServices } from "./services/github/createGitHubServices";
-import { ConsoleAnalytics } from "./services/analytics/analytics";
+import { AnalyticsEventRepository } from "./repositories/analyticsEventRepository";
+import { createAnalyticsService } from "./services/analytics/createAnalyticsService";
 
 // MongoDB connection
 const mongodb_uri = process.env.MONGODB_URI as string;
@@ -42,8 +43,13 @@ const { githubOAuthService, gitHubAppService, installationTokenService } =
 // Create WebhookEventRepository for webhook idempotency
 const webhookEventRepository = new WebhookEventRepository(database);
 
-// Analytics
-const analytics = new ConsoleAnalytics();
+// Analytics — persists product events into the Mongo warehouse when enabled,
+// otherwise logs to console (dev) or no-ops.
+const analyticsEventRepository = new AnalyticsEventRepository(database);
+const analytics = createAnalyticsService(analyticsEventRepository, {
+  warehouse: process.env.ANALYTICS_WAREHOUSE === "true",
+  dev: process.env.NODE_ENV !== "production",
+});
 
 // Create server
 const server = createAppServer({
@@ -71,6 +77,7 @@ async function start() {
   await serviceRepository.ensureIndexes();
   await webhookEventRepository.ensureIndexes();
   await trialRegistryRepository.ensureIndexes();
+  await analyticsEventRepository.ensureIndexes();
   await leadRepository.ensureIndexes();
 
   await server.listen({ host: "0.0.0.0", port: PORT });

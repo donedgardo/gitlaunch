@@ -6,7 +6,9 @@ import { registerPlugins } from "./registerPlugins";
 import healthRoute from "./health";
 import homeRoute from "./home";
 import dashboardRoutes from "./dashboard";
+import analyticsRoutes from "./analytics";
 import buildRoutes from "./build";
+import { AnalyticsQueryService } from "../services/analytics/analyticsQueryService";
 import { registerGitHubAuthRoutes } from "./routes/auth/github";
 import { registerInstallationRoutes } from "./routes/github/installation";
 import { registerOnboardingRoutes } from "./routes/onboarding";
@@ -113,6 +115,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
   const buildRepository = new BuildRepository(database);
   const trialRegistryRepository = new TrialRegistryRepository(database);
   const leadRepository = new LeadRepository(database);
+  const analyticsQueryService = new AnalyticsQueryService(database);
 
   // Services
   const apiKeyService = new ApiKeyService(apiKeyRepository, accountRepository);
@@ -253,6 +256,13 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
       trialService,
       planEnforcementService,
       analytics,
+    }),
+  );
+  server.register(
+    analyticsRoutes({
+      analyticsQueryService,
+      accountRepository,
+      serviceRepository,
     }),
   );
   server.register(
