@@ -2,7 +2,7 @@ import { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { ObjectId } from "mongodb";
 import { ServiceRepository } from "../../../repositories/serviceRepository";
 import { FlagServiceI } from "../../../services/flag/flagService";
-import { Flag } from "../../../repositories/flagRepository";
+import { Flag, FlagVariant } from "../../../repositories/flagRepository";
 import { AnalyticsService } from "../../../services/analytics/analytics";
 
 export type FlagsSettingsDeps = {
@@ -10,6 +10,33 @@ export type FlagsSettingsDeps = {
   flagService: FlagServiceI;
   analytics?: AnalyticsService;
 };
+
+// Normalizes a form field that fast-querystring returns as a string (single
+// value), an array (repeated), or undefined (absent) into a plain array.
+function toArray(value: string | string[] | undefined): string[] {
+  if (value === undefined) return [];
+  return Array.isArray(value) ? value : [value];
+}
+
+// Zips the parallel variantKey/variantWeight form fields back into variants,
+// dropping blank rows (a cleared key means the user removed that variant, and
+// the "add variant" affordance can leave a trailing empty row). Weights are
+// left for FlagService to validate (a blank weight becomes NaN → rejected).
+function parseVariants(
+  rawKeys: string | string[] | undefined,
+  rawWeights: string | string[] | undefined,
+): FlagVariant[] {
+  const keys = toArray(rawKeys);
+  const weights = toArray(rawWeights);
+  const variants: FlagVariant[] = [];
+  for (let i = 0; i < keys.length; i++) {
+    const key = (keys[i] ?? "").trim();
+    if (!key) continue;
+    const rawWeight = (weights[i] ?? "").trim();
+    variants.push({ key, weight: rawWeight === "" ? NaN : Number(rawWeight) });
+  }
+  return variants;
+}
 
 // View model that flattens a flag's per-environment config into rows the
 // template can iterate, ordered to match the service's environment order.
@@ -27,6 +54,7 @@ function toFlagView(flag: Flag, envNames: string[]) {
         name,
         enabled: cfg.enabled,
         rolloutPercentage: cfg.rolloutPercentage,
+        variants: cfg.variants,
         variantSummary: cfg.variants.length
           ? cfg.variants.map((v) => `${v.key} ${v.weight}%`).join(" / ")
           : null,
@@ -181,6 +209,47 @@ export function registerFlagsSettingsRoutes(
       } catch (error) {
         const message =
           error instanceof Error ? error.message : "Failed to update flag";
+        return renderList(accountId, service._id, envNames, reply, message);
+      }
+    },
+  );
+
+  // PUT /services/:serviceId/flags/:key/environments/:env/variants — edit the
+  // A/B variant split for one environment (HTMX). Submitting no rows clears the
+  // variants, turning the flag back into a plain boolean/rollout flag.
+  app.put<{
+    Params: { serviceId: string; key: string; env: string };
+    Body: {
+      variantKey?: string | string[];
+      variantWeight?: string | string[];
+    };
+  }>(
+    "/services/:serviceId/flags/:key/environments/:env/variants",
+    async (request, reply) => {
+      const result = await loadServiceWithAuth(request, reply);
+      if (!result) return;
+      const { service, accountId } = result;
+      const envNames = envNamesOf(service);
+      const { key, env } = request.params;
+
+      const variants = parseVariants(
+        request.body?.variantKey,
+        request.body?.variantWeight,
+      );
+
+      try {
+        await flagService.setEnvConfig(accountId, service._id, key, env, {
+          variants,
+        });
+        analytics?.track("flag_updated", {
+          serviceId: service._id.toString(),
+          key,
+          environment: env,
+        });
+        return renderList(accountId, service._id, envNames, reply);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Failed to update variants";
         return renderList(accountId, service._id, envNames, reply, message);
       }
     },
