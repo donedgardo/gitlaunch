@@ -9,6 +9,7 @@ import {
 import { ServiceRepository } from "../../repositories/serviceRepository";
 import { FlagCacheI, InMemoryFlagCache } from "./flagCache";
 import { evaluateFlag, FlagEvaluation } from "./flagEvaluator";
+import { FlagConfigVersionPublisherI } from "./flagConfigVersionService";
 
 const FLAG_KEY_REGEX = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
@@ -63,10 +64,33 @@ export class FlagService implements FlagServiceI {
     private flagRepo: FlagRepository,
     private serviceRepo: ServiceRepository,
     private cache: FlagCacheI = new InMemoryFlagCache(),
+    // Optional: when provided, every config mutation appends an immutable
+    // version snapshot of the affected environment(s). Absent in contexts that
+    // don't need version history (e.g. lightweight tests).
+    private versionPublisher?: FlagConfigVersionPublisherI,
   ) {}
 
   private cacheKey(accountId: ObjectId, serviceId: ObjectId): string {
     return `${accountId.toString()}:${serviceId.toString()}`;
+  }
+
+  // Append version snapshots for the given environments after a config change.
+  // Best-effort: a versioning failure must never fail the underlying flag write,
+  // which has already been persisted by the time this runs.
+  private async recordVersions(
+    accountId: ObjectId,
+    serviceId: ObjectId,
+    envNames: string[],
+  ): Promise<void> {
+    if (!this.versionPublisher) return;
+    for (const envName of envNames) {
+      try {
+        await this.versionPublisher.publish(accountId, serviceId, envName);
+      } catch {
+        // Swallow: the flag write succeeded; a missed snapshot is recoverable
+        // (the next write re-snapshots current state).
+      }
+    }
   }
 
   async createFlag(
@@ -103,6 +127,13 @@ export class FlagService implements FlagServiceI {
       environments,
     });
     await this.cache.invalidate(this.cacheKey(accountId, serviceId));
+    // A new flag changes every environment's config set (each gains a
+    // safe-off entry), so snapshot them all.
+    await this.recordVersions(
+      accountId,
+      serviceId,
+      service.environments.map((e) => e.name),
+    );
     return flag;
   }
 
@@ -155,6 +186,7 @@ export class FlagService implements FlagServiceI {
       throw new Error("Failed to update flag");
     }
     await this.cache.invalidate(this.cacheKey(accountId, serviceId));
+    await this.recordVersions(accountId, serviceId, [envName]);
     return updated;
   }
 
@@ -165,6 +197,20 @@ export class FlagService implements FlagServiceI {
   ): Promise<boolean> {
     const deleted = await this.flagRepo.delete(accountId, serviceId, key);
     await this.cache.invalidate(this.cacheKey(accountId, serviceId));
+    if (deleted) {
+      // Removing a flag changes every environment's config set.
+      const service = await this.serviceRepo.findByAccountAndId(
+        accountId,
+        serviceId,
+      );
+      if (service) {
+        await this.recordVersions(
+          accountId,
+          serviceId,
+          service.environments.map((e) => e.name),
+        );
+      }
+    }
     return deleted;
   }
 
