@@ -1,6 +1,6 @@
-import { ObjectId } from "mongodb";
 import { AnalyticsService } from "../analytics/analytics";
 import { FlagServiceI } from "../flag/flagService";
+import { SelfFlagAccount, SelfFlagContext } from "../flag/selfFlagContext";
 import { ServiceRepository } from "../../repositories/serviceRepository";
 
 // Dogfooding: GitLaunch runs an A/B test on its own alpha-waitlist landing page
@@ -63,15 +63,9 @@ const VARIANT_COPY: Record<string, WaitlistCopy> = {
   "benefit-led": BENEFIT_LED_COPY,
 };
 
-export type WaitlistExperimentConfig = {
-  // The service the marketing flag lives under, plus which flag environment to
-  // read. The account is NOT configured here — a service already belongs to one
-  // account, so we derive it from serviceId (same as the HTTP flag API, which
-  // never asks a caller for an account id). serviceId absent => inert (control).
-  // The flag key is fixed (WAITLIST_FLAG_KEY), not part of this config.
-  serviceId?: ObjectId;
-  environment: string;
-};
+// Shared self-flag scope (service + environment); the flag key is fixed
+// (WAITLIST_FLAG_KEY), not part of this config.
+export type WaitlistExperimentConfig = SelfFlagContext;
 
 export type ResolvedVariant = {
   variant: string;
@@ -80,35 +74,23 @@ export type ResolvedVariant = {
 };
 
 export class WaitlistExperiment {
-  // The account owning the configured service. A service's account never
-  // changes, so resolve it once (from serviceId) and memoize. Populated by
-  // resolve(); read synchronously by recordExposure/recordConversion, which
-  // always run after a resolve() in the request.
-  private accountId: ObjectId | null = null;
+  // The account owning the configured service — derived from serviceId, since a
+  // service belongs to exactly one account. Returns null when unconfigured or
+  // the service can't be found, and callers then fall back to control.
+  private account: SelfFlagAccount;
 
   constructor(
     private flags: FlagServiceI,
-    private services: ServiceRepository,
+    services: ServiceRepository,
     private analytics: AnalyticsService,
     private config: WaitlistExperimentConfig,
-  ) {}
+  ) {
+    this.account = new SelfFlagAccount(services, config);
+  }
 
   // Whether the experiment is wired to a service. Off => always control.
   get configured(): boolean {
-    return !!this.config.serviceId;
-  }
-
-  // Derive (and cache) the account that owns the configured service. Returns
-  // null when unconfigured or the service can't be found — callers fall to
-  // control. Only a successful lookup is memoized, so a transient miss retries.
-  private async resolveAccountId(): Promise<ObjectId | null> {
-    if (this.accountId) return this.accountId;
-    if (!this.config.serviceId) return null;
-    const service = await this.services
-      .findById(this.config.serviceId)
-      .catch(() => null);
-    if (service?.accountId) this.accountId = service.accountId;
-    return this.accountId;
+    return this.account.configured;
   }
 
   copyFor(variant: string): WaitlistCopy {
@@ -126,7 +108,7 @@ export class WaitlistExperiment {
     if (!this.configured || !entityKey) {
       return this.control("unconfigured");
     }
-    const accountId = await this.resolveAccountId();
+    const accountId = await this.account.resolve();
     if (!accountId) {
       // Configured service doesn't exist (yet) — behave as if flag is off.
       return this.control("unconfigured");
@@ -160,7 +142,7 @@ export class WaitlistExperiment {
     entityKey: string,
     resolved: ResolvedVariant,
   ): Promise<void> {
-    const accountId = await this.resolveAccountId();
+    const accountId = await this.account.resolve();
     if (!accountId || !this.config.serviceId || !entityKey) return;
     this.analytics.track(
       WAITLIST_EXPOSURE_EVENT,
@@ -183,7 +165,7 @@ export class WaitlistExperiment {
     variant: string,
     goal: string = WAITLIST_CONVERSION_GOAL,
   ): Promise<void> {
-    const accountId = await this.resolveAccountId();
+    const accountId = await this.account.resolve();
     if (!accountId || !this.config.serviceId || !entityKey) return;
     this.analytics.track(
       WAITLIST_CONVERSION_EVENT,
