@@ -212,6 +212,205 @@ describe("FlagService", () => {
 
       expect(updated.environments.staging.variants).toHaveLength(2);
     });
+
+    it("should persist valid targeting rules", async () => {
+      const { account, svc } = await makeAccountAndService("acme");
+      await service.createFlag(account._id, svc._id, {
+        key: "beta",
+        description: "",
+      });
+
+      const updated = await service.setEnvConfig(
+        account._id,
+        svc._id,
+        "beta",
+        "staging",
+        {
+          enabled: true,
+          targetingRules: [
+            {
+              conditions: [
+                { attribute: "country", operator: "in", values: ["US", "CA"] },
+              ],
+              serve: null,
+            },
+          ],
+        },
+      );
+
+      expect(updated.environments.staging.targetingRules).toHaveLength(1);
+      expect(
+        updated.environments.staging.targetingRules![0].conditions[0].attribute,
+      ).toBe("country");
+    });
+
+    it("should reject a rule with an empty attribute name", async () => {
+      const { account, svc } = await makeAccountAndService("acme");
+      await service.createFlag(account._id, svc._id, {
+        key: "beta",
+        description: "",
+      });
+
+      await expect(
+        service.setEnvConfig(account._id, svc._id, "beta", "staging", {
+          targetingRules: [
+            {
+              conditions: [{ attribute: "", operator: "eq", values: ["US"] }],
+              serve: null,
+            },
+          ],
+        }),
+      ).rejects.toThrow();
+    });
+
+    it("should reject a rule with no conditions", async () => {
+      const { account, svc } = await makeAccountAndService("acme");
+      await service.createFlag(account._id, svc._id, {
+        key: "beta",
+        description: "",
+      });
+
+      await expect(
+        service.setEnvConfig(account._id, svc._id, "beta", "staging", {
+          targetingRules: [{ conditions: [], serve: null }],
+        }),
+      ).rejects.toThrow();
+    });
+
+    it("should reject a condition with an unknown operator", async () => {
+      const { account, svc } = await makeAccountAndService("acme");
+      await service.createFlag(account._id, svc._id, {
+        key: "beta",
+        description: "",
+      });
+
+      await expect(
+        service.setEnvConfig(account._id, svc._id, "beta", "staging", {
+          targetingRules: [
+            {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              conditions: [
+                {
+                  attribute: "country",
+                  operator: "wat" as any,
+                  values: ["US"],
+                },
+              ],
+              serve: null,
+            },
+          ],
+        }),
+      ).rejects.toThrow();
+    });
+
+    it("should reject a rule that serves an undefined variant", async () => {
+      const { account, svc } = await makeAccountAndService("acme");
+      await service.createFlag(account._id, svc._id, {
+        key: "beta",
+        description: "",
+      });
+
+      await expect(
+        service.setEnvConfig(account._id, svc._id, "beta", "staging", {
+          enabled: true,
+          variants: [
+            { key: "control", weight: 50 },
+            { key: "treatment", weight: 50 },
+          ],
+          targetingRules: [
+            {
+              conditions: [
+                { attribute: "plan", operator: "eq", values: ["pro"] },
+              ],
+              serve: "does-not-exist",
+            },
+          ],
+        }),
+      ).rejects.toThrow();
+    });
+  });
+
+  describe("evaluate", () => {
+    it("should serve a targeting rule based on entity attributes", async () => {
+      const { account, svc } = await makeAccountAndService("acme");
+      await service.createFlag(account._id, svc._id, {
+        key: "beta",
+        description: "",
+      });
+      await service.setEnvConfig(account._id, svc._id, "beta", "prod", {
+        enabled: true,
+        rolloutPercentage: 0,
+        targetingRules: [
+          {
+            conditions: [
+              { attribute: "plan", operator: "eq", values: ["enterprise"] },
+            ],
+            serve: null,
+          },
+        ],
+      });
+
+      const matched = await service.evaluate(
+        account._id,
+        svc._id,
+        "prod",
+        "user-1",
+        {
+          plan: "enterprise",
+        },
+      );
+      expect(matched.find((r) => r.key === "beta")!.reason).toBe(
+        "targeting_rule",
+      );
+
+      const unmatched = await service.evaluate(
+        account._id,
+        svc._id,
+        "prod",
+        "user-1",
+        {
+          plan: "free",
+        },
+      );
+      expect(unmatched.find((r) => r.key === "beta")!.enabled).toBe(false);
+    });
+  });
+
+  describe("evaluateOne with attributes", () => {
+    it("should attribute a conversion to the targeting-rule variant", async () => {
+      const { account, svc } = await makeAccountAndService("acme");
+      await service.createFlag(account._id, svc._id, {
+        key: "exp",
+        description: "",
+      });
+      await service.setEnvConfig(account._id, svc._id, "exp", "prod", {
+        enabled: true,
+        rolloutPercentage: 0,
+        variants: [
+          { key: "control", weight: 50 },
+          { key: "treatment", weight: 50 },
+        ],
+        targetingRules: [
+          {
+            conditions: [
+              { attribute: "country", operator: "eq", values: ["US"] },
+            ],
+            serve: "treatment",
+          },
+        ],
+      });
+
+      const one = await service.evaluateOne(
+        account._id,
+        svc._id,
+        "prod",
+        "exp",
+        "user-1",
+        { country: "US" },
+      );
+      expect(one!.variant).toBe("treatment");
+      expect(one!.reason).toBe("targeting_rule");
+    });
   });
 
   describe("evaluate", () => {

@@ -4,11 +4,21 @@ import {
   Flag,
   FlagVariant,
   FlagEnvironmentConfig,
+  TargetingRule,
+  TargetingOperator,
   defaultEnvironmentConfig,
 } from "../../repositories/flagRepository";
 import { ServiceRepository } from "../../repositories/serviceRepository";
 import { FlagCacheI, InMemoryFlagCache } from "./flagCache";
-import { evaluateFlag, FlagEvaluation } from "./flagEvaluator";
+import { evaluateFlag, FlagEvaluation, FlagAttributes } from "./flagEvaluator";
+
+const TARGETING_OPERATORS: ReadonlySet<TargetingOperator> = new Set([
+  "eq",
+  "neq",
+  "in",
+  "not_in",
+  "contains",
+]);
 
 const FLAG_KEY_REGEX = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
@@ -48,6 +58,7 @@ export interface FlagServiceI {
     serviceId: ObjectId,
     envName: string,
     entityKey: string,
+    attributes?: FlagAttributes,
   ): Promise<FlagEvaluation[]>;
   evaluateOne(
     accountId: ObjectId,
@@ -55,6 +66,7 @@ export interface FlagServiceI {
     envName: string,
     key: string,
     entityKey: string,
+    attributes?: FlagAttributes,
   ): Promise<FlagEvaluation | null>;
 }
 
@@ -140,6 +152,7 @@ export class FlagService implements FlagServiceI {
       enabled: patch.enabled ?? current.enabled,
       rolloutPercentage: patch.rolloutPercentage ?? current.rolloutPercentage,
       variants: patch.variants ?? current.variants,
+      targetingRules: patch.targetingRules ?? current.targetingRules ?? [],
     };
 
     this.validateEnvConfig(next);
@@ -173,11 +186,12 @@ export class FlagService implements FlagServiceI {
     serviceId: ObjectId,
     envName: string,
     entityKey: string,
+    attributes: FlagAttributes = {},
   ): Promise<FlagEvaluation[]> {
     const flags = await this.getServiceFlagsCached(accountId, serviceId);
     return flags.map((flag) => {
       const cfg = flag.environments[envName] ?? defaultEnvironmentConfig();
-      return evaluateFlag(cfg, flag.key, entityKey);
+      return evaluateFlag(cfg, flag.key, entityKey, attributes);
     });
   }
 
@@ -190,6 +204,7 @@ export class FlagService implements FlagServiceI {
     envName: string,
     key: string,
     entityKey: string,
+    attributes: FlagAttributes = {},
   ): Promise<FlagEvaluation | null> {
     const flags = await this.getServiceFlagsCached(accountId, serviceId);
     const flag = flags.find((f) => f.key === key);
@@ -197,7 +212,7 @@ export class FlagService implements FlagServiceI {
       return null;
     }
     const cfg = flag.environments[envName] ?? defaultEnvironmentConfig();
-    return evaluateFlag(cfg, flag.key, entityKey);
+    return evaluateFlag(cfg, flag.key, entityKey, attributes);
   }
 
   // Read-through cache: evaluation avoids Mongo on a hit. Writes invalidate.
@@ -229,6 +244,37 @@ export class FlagService implements FlagServiceI {
 
     if (cfg.variants.length > 0) {
       this.validateVariants(cfg.variants);
+    }
+
+    if (cfg.targetingRules && cfg.targetingRules.length > 0) {
+      this.validateTargetingRules(cfg.targetingRules, cfg.variants);
+    }
+  }
+
+  private validateTargetingRules(
+    rules: TargetingRule[],
+    variants: FlagVariant[],
+  ): void {
+    const variantKeys = new Set(variants.map((v) => v.key));
+    for (const rule of rules) {
+      if (!Array.isArray(rule.conditions) || rule.conditions.length === 0) {
+        throw new Error("A targeting rule must have at least one condition");
+      }
+      for (const cond of rule.conditions) {
+        if (!cond.attribute || cond.attribute.trim() === "") {
+          throw new Error("Targeting condition attribute is required");
+        }
+        if (!TARGETING_OPERATORS.has(cond.operator)) {
+          throw new Error(`Unknown targeting operator: ${cond.operator}`);
+        }
+        if (!Array.isArray(cond.values) || cond.values.length === 0) {
+          throw new Error("Targeting condition requires at least one value");
+        }
+      }
+      // A rule may serve a specific variant (must exist) or null (plain "on").
+      if (rule.serve !== null && !variantKeys.has(rule.serve)) {
+        throw new Error(`Targeting rule serves unknown variant: ${rule.serve}`);
+      }
     }
   }
 

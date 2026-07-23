@@ -2,7 +2,11 @@ import { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { ObjectId } from "mongodb";
 import { ServiceRepository } from "../../../repositories/serviceRepository";
 import { FlagServiceI } from "../../../services/flag/flagService";
-import { Flag, FlagVariant } from "../../../repositories/flagRepository";
+import {
+  Flag,
+  FlagVariant,
+  TargetingRule,
+} from "../../../repositories/flagRepository";
 import { AnalyticsService } from "../../../services/analytics/analytics";
 import {
   ExperimentResultsService,
@@ -72,6 +76,34 @@ function parseVariants(
   return variants;
 }
 
+// Human-readable one-liner for a targeting rule, e.g.
+// "country in US, CA → treatment". Multiple rules are joined with "; ".
+const OPERATOR_LABELS: Record<
+  TargetingRule["conditions"][number]["operator"],
+  string
+> = {
+  eq: "=",
+  neq: "≠",
+  in: "in",
+  not_in: "not in",
+  contains: "contains",
+};
+
+function summarizeTargetingRules(rules: TargetingRule[]): string | null {
+  if (!rules.length) return null;
+  return rules
+    .map((rule) => {
+      const conditions = rule.conditions
+        .map(
+          (c) =>
+            `${c.attribute} ${OPERATOR_LABELS[c.operator]} ${c.values.join(", ")}`,
+        )
+        .join(" and ");
+      return `${conditions} → ${rule.serve ?? "on"}`;
+    })
+    .join("; ");
+}
+
 // View model that flattens a flag's per-environment config into rows the
 // template can iterate, ordered to match the service's environment order.
 function toFlagView(flag: Flag, envNames: string[]) {
@@ -83,6 +115,7 @@ function toFlagView(flag: Flag, envNames: string[]) {
         enabled: false,
         rolloutPercentage: 0,
         variants: [],
+        targetingRules: [],
       };
       return {
         name,
@@ -92,6 +125,7 @@ function toFlagView(flag: Flag, envNames: string[]) {
         variantSummary: cfg.variants.length
           ? cfg.variants.map((v) => `${v.key} ${v.weight}%`).join(" / ")
           : null,
+        targetingSummary: summarizeTargetingRules(cfg.targetingRules ?? []),
       };
     }),
   };
