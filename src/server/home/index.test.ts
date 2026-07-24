@@ -55,4 +55,55 @@ describe("home route", () => {
     expect(response.statusCode).toBe(200);
     expect(rendered?.data.signupsClosed).toBeFalsy();
   });
+
+  describe("login call-to-action", () => {
+    // A door that answers however the test wants, standing in for the flag.
+    const doorThatSays = (allowed: boolean) => ({
+      allows: async () => ({ allowed, reason: "test", variant: null }),
+    });
+
+    const start = async (deps: Parameters<typeof homeRoute>[0]) => {
+      await app.close();
+      rendered = null;
+      app = Fastify();
+      await app.register(cookie, { secret: "cookie-secret" });
+      await app.register(capturingViewPlugin);
+      await app.register(homeRoute(deps));
+      await app.ready();
+    };
+
+    it("should offer an ordinary login when signups are open", async () => {
+      // Given the front door is open
+      await start({ signupDoor: doorThatSays(true) });
+
+      // When a visitor lands on the marketing page
+      await app.inject({ method: "GET", url: "/" });
+
+      // Then the page invites them to log in as usual
+      expect(rendered?.data.signupsOpen).toBe(true);
+    });
+
+    it("should mark login as existing-accounts-only when signups are closed", async () => {
+      // Given the front door is shut to new accounts
+      await start({ signupDoor: doorThatSays(false) });
+
+      // When a visitor lands on the marketing page
+      await app.inject({ method: "GET", url: "/" });
+
+      // Then the page still shows a way in, but says who it is for — an
+      // existing customer must never lose their route to sign in.
+      expect(rendered?.data.signupsOpen).toBe(false);
+    });
+
+    it("should invite login when no door is configured", async () => {
+      // Given nothing is wired up to answer (the self-flag setup is inert)
+      await start({});
+
+      // When a visitor lands on the marketing page
+      await app.inject({ method: "GET", url: "/" });
+
+      // Then we fail open, exactly as the signup gate itself does
+      expect(rendered?.data.signupsOpen).toBe(true);
+    });
+  });
 });
