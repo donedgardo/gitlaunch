@@ -329,7 +329,9 @@ describe("Email/Password Auth Routes", () => {
 
       // And: nothing was created and no confirmation email went out — the check
       // runs before any write, so a refused signup leaves no orphan user.
-      expect(await userRepository.findByEmail("stranger@example.com")).toBeNull();
+      expect(
+        await userRepository.findByEmail("stranger@example.com"),
+      ).toBeNull();
       expect(sender.sent).toHaveLength(0);
     });
 

@@ -89,7 +89,9 @@ export function registerGoogleAuthRoutes(
 
         // Who is signing in, and do they already belong somewhere? Answer this
         // *before* touching the database so a refused signup leaves no trace.
-        const existingUser = await userRepository.findByGoogleId(googleUser.sub);
+        const existingUser = await userRepository.findByGoogleId(
+          googleUser.sub,
+        );
         const memberships = existingUser
           ? await membershipRepository.findByUserId(existingUser._id)
           : [];
