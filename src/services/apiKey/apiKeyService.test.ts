@@ -53,10 +53,11 @@ describe("ApiKeyService", { sequential: true }, () => {
         scopes: ["builds:read", "builds:write"],
       });
 
-      // Then: the key starts with pk_{slug}_
-      expect(result.key).toMatch(new RegExp(`^pk_${slug}_[A-Za-z0-9_-]+$`));
+      // Then: the key starts with sk_{slug}_ — "sk" for secret, so a full-power
+      // key never reads as browser-safe the way a "pk_" (publishable) one does.
+      expect(result.key).toMatch(new RegExp(`^sk_${slug}_[A-Za-z0-9_-]+$`));
       expect(result.apiKey.keyPrefix).toMatch(
-        new RegExp(`^pk_${slug}_[A-Za-z0-9_-]{8}$`),
+        new RegExp(`^sk_${slug}_[A-Za-z0-9_-]{8}$`),
       );
     });
 
@@ -106,6 +107,131 @@ describe("ApiKeyService", { sequential: true }, () => {
       // Then: validation passes
       expect(isValid).not.toBeNull();
       expect(isValid!.name).toBe("Validate Key");
+    });
+  });
+
+  // A publishable key is the one key we expect to ship inside a browser bundle,
+  // so it is deliberately the weakest thing we can mint: one service, one
+  // environment, evaluate-only, and usable only from origins you name.
+  describe("generate (publishable)", () => {
+    it("should mint a pk_ key bound to one service, environment and origin", async () => {
+      // Given: an account and the service whose flags a web app will read
+      const slug = uniqueSlug("web-org");
+      const account = await accountRepo.create({ name: "Web Org", slug });
+      const serviceId = new ObjectId();
+
+      // When: I mint a publishable key for that service's prod flags
+      const result = await service.generate({
+        accountId: account._id,
+        createdByUserId: new ObjectId(),
+        name: "Web app",
+        scopes: ["flags:evaluate"],
+        kind: "publishable",
+        serviceId,
+        environment: "prod",
+        allowedOrigins: ["https://example.com"],
+      });
+
+      // Then: it is publishable, and carries the binding that limits it
+      expect(result.key).toMatch(new RegExp(`^pk_${slug}_[A-Za-z0-9_-]+$`));
+      expect(result.apiKey.kind).toBe("publishable");
+      expect(result.apiKey.serviceId?.toString()).toBe(serviceId.toString());
+      expect(result.apiKey.environment).toBe("prod");
+      expect(result.apiKey.allowedOrigins).toEqual(["https://example.com"]);
+    });
+
+    it("should refuse to mint a publishable key that is not bound to a service", async () => {
+      // Given: an account
+      const account = await accountRepo.create({
+        name: "Web Org",
+        slug: uniqueSlug("web-org"),
+      });
+
+      // When: I try to mint a publishable key with no service binding
+      const attempt = service.generate({
+        accountId: account._id,
+        createdByUserId: new ObjectId(),
+        name: "Unbound",
+        scopes: ["flags:evaluate"],
+        kind: "publishable",
+        environment: "prod",
+        allowedOrigins: ["https://example.com"],
+      });
+
+      // Then: it is rejected rather than minted account-wide
+      await expect(attempt).rejects.toThrow(/service/i);
+    });
+
+    it("should refuse to mint a publishable key with powers beyond evaluating flags", async () => {
+      // Given: an account
+      const account = await accountRepo.create({
+        name: "Web Org",
+        slug: uniqueSlug("web-org"),
+      });
+
+      // When: I try to smuggle a write scope into a browser-visible key
+      const attempt = service.generate({
+        accountId: account._id,
+        createdByUserId: new ObjectId(),
+        name: "Too much",
+        scopes: ["flags:evaluate", "flags:write"],
+        kind: "publishable",
+        serviceId: new ObjectId(),
+        environment: "prod",
+        allowedOrigins: ["https://example.com"],
+      });
+
+      // Then: it is rejected
+      await expect(attempt).rejects.toThrow(/scope/i);
+    });
+
+    it("should validate a publishable key and report it as publishable", async () => {
+      // Given: a minted publishable key
+      const account = await accountRepo.create({
+        name: "Web Org",
+        slug: uniqueSlug("web-org"),
+      });
+      const minted = await service.generate({
+        accountId: account._id,
+        createdByUserId: new ObjectId(),
+        name: "Web app",
+        scopes: ["flags:evaluate"],
+        kind: "publishable",
+        serviceId: new ObjectId(),
+        environment: "prod",
+        allowedOrigins: ["https://example.com"],
+      });
+
+      // When: it is presented for validation
+      const validated = await service.validate(minted.key);
+
+      // Then: it resolves, still marked publishable
+      expect(validated).not.toBeNull();
+      expect(validated!.kind).toBe("publishable");
+    });
+
+    it("should still honour legacy pk_ keys as secret keys", async () => {
+      // Given: a key minted before the sk_/pk_ split — pk_ prefix, no kind
+      const slug = uniqueSlug("legacy-org");
+      const account = await accountRepo.create({ name: "Legacy", slug });
+      const fullKey = `pk_${slug}_legacyrandom123456`;
+      await apiKeyRepo.create({
+        accountId: account._id,
+        createdByUserId: new ObjectId(),
+        name: "legacy key",
+        keyPrefix: `pk_${slug}_legacyra`,
+        keyHash: await bcrypt.hash(fullKey, 10),
+        scopes: ["flags:read"],
+        expiresAt: null,
+      });
+
+      // When: the old key is presented
+      const validated = await service.validate(fullKey);
+
+      // Then: it still works, and is treated as a secret key (full privileges),
+      // not silently downgraded or upgraded by its prefix alone
+      expect(validated).not.toBeNull();
+      expect(validated!.kind).not.toBe("publishable");
     });
   });
 
