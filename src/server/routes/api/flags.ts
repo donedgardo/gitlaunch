@@ -3,7 +3,10 @@ import { ObjectId } from "mongodb";
 import { FlagServiceI } from "../../../services/flag/flagService";
 import { ServiceRepository } from "../../../repositories/serviceRepository";
 import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
-import { requireScope } from "../../middleware/apiKeyAuth";
+import {
+  requireScope,
+  requireFlagEvaluateAccess,
+} from "../../middleware/apiKeyAuth";
 import { AnalyticsService } from "../../../services/analytics/analytics";
 import {
   ExperimentResultsService,
@@ -283,6 +286,28 @@ export function registerFlagsRoutes(
 
   // GET /api/v1/services/:serviceId/environments/:env/flags/evaluate?entity=...
   // Runtime evaluation surface — the hot path app code calls.
+  // CORS preflight for the one endpoint a browser may call. Browsers send this
+  // without credentials, so it cannot identify the key and deliberately answers
+  // permissively; the key's service, environment and origin allow-list are all
+  // enforced on the GET itself, which is the request that returns data.
+  app.options<{ Params: EvaluateParams }>(
+    "/api/v1/services/:serviceId/environments/:env/flags/evaluate",
+    async (request, reply) => {
+      const origin = request.headers.origin;
+      if (origin) {
+        reply.header("Access-Control-Allow-Origin", origin);
+        reply.header("Vary", "Origin");
+      }
+      reply.header("Access-Control-Allow-Methods", "GET, OPTIONS");
+      reply.header(
+        "Access-Control-Allow-Headers",
+        "Authorization, X-API-Key, Content-Type",
+      );
+      reply.header("Access-Control-Max-Age", "600");
+      return reply.status(204).send();
+    },
+  );
+
   app.get<{
     Params: EvaluateParams;
     Querystring: Record<string, string | string[] | undefined> & {
@@ -290,7 +315,7 @@ export function registerFlagsRoutes(
     };
   }>(
     "/api/v1/services/:serviceId/environments/:env/flags/evaluate",
-    { preHandler: requireScope("flags:read") },
+    { preHandler: requireFlagEvaluateAccess() },
     async (request, reply) => {
       const accountId = request.apiKey!.accountId;
       const serviceId = await resolveServiceId(request, reply);

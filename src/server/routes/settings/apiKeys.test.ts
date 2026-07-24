@@ -96,7 +96,7 @@ describe("API Key Routes", () => {
       // Then: response contains the key name and prefix
       expect(response.statusCode).toBe(200);
       expect(response.body).toContain("CI Key");
-      expect(response.body).toContain("pk_test-org_");
+      expect(response.body).toContain("sk_test-org_");
     });
 
     it("should redirect unauthenticated users", async () => {
@@ -133,7 +133,7 @@ describe("API Key Routes", () => {
 
       // Then: response contains the full key (shown once)
       expect(response.statusCode).toBe(200);
-      expect(response.body).toContain("pk_test-org_");
+      expect(response.body).toContain("sk_test-org_");
       expect(response.body).toContain("Deploy Key");
     });
 

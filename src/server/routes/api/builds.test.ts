@@ -52,6 +52,8 @@ function createMockApiKeyAuth(
       accountId: context.accountId,
       apiKeyId: new ObjectId(),
       scopes: context.scopes,
+      kind: "secret",
+      allowedOrigins: [],
     };
   };
 }

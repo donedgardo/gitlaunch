@@ -13,7 +13,11 @@ import Fastify, { FastifyInstance } from "fastify";
 import { AccountRepository } from "../../repositories/accountRepository";
 import { ApiKeyRepository } from "../../repositories/apiKeyRepository";
 import { ApiKeyService } from "../../services/apiKey/apiKeyService";
-import { createApiKeyAuthMiddleware } from "./apiKeyAuth";
+import {
+  createApiKeyAuthMiddleware,
+  requireScope,
+  requireFlagEvaluateAccess,
+} from "./apiKeyAuth";
 
 describe("API Key Auth Middleware", { sequential: true, retry: 2 }, () => {
   let mongoServer: MongoMemoryServer;
@@ -167,6 +171,195 @@ describe("API Key Auth Middleware", { sequential: true, retry: 2 }, () => {
       });
 
       // Then: request succeeds
+      expect(response.statusCode).toBe(200);
+    });
+  });
+
+  // A publishable key lives in a browser bundle, so anyone who wants it has it.
+  // Its value is not secrecy but confinement: one service, one environment,
+  // evaluate-only, from origins you named.
+  describe("publishable keys", () => {
+    const BOUND_SERVICE = new ObjectId();
+    const ORIGIN = "https://app.example.com";
+
+    // A route pair mirroring the real API: the evaluate endpoint a browser may
+    // reach, and a flags:read endpoint it must never reach.
+    async function appWithFlagRoutes(): Promise<FastifyInstance> {
+      const local = Fastify();
+      const auth = createApiKeyAuthMiddleware(apiKeyService);
+      local.get(
+        "/api/v1/services/:serviceId/environments/:env/flags/evaluate",
+        { preHandler: [auth, requireFlagEvaluateAccess()] },
+        async () => ({ ok: true }),
+      );
+      local.get(
+        "/api/v1/services/:serviceId/flags",
+        { preHandler: [auth, requireScope("flags:read")] },
+        async () => ({ ok: true }),
+      );
+      await local.ready();
+      return local;
+    }
+
+    async function publishableKey(): Promise<string> {
+      const minted = await apiKeyService.generate({
+        accountId: testAccountId,
+        createdByUserId: new ObjectId(),
+        name: "Web app",
+        scopes: ["flags:evaluate"],
+        kind: "publishable",
+        serviceId: BOUND_SERVICE,
+        environment: "prod",
+        allowedOrigins: [ORIGIN],
+      });
+      return minted.key;
+    }
+
+    let flagApp: FastifyInstance;
+
+    beforeEach(async () => {
+      flagApp = await appWithFlagRoutes();
+    });
+
+    afterEach(async () => {
+      await flagApp.close();
+    });
+
+    it("should evaluate flags for the service and environment it is bound to", async () => {
+      // Given: a publishable key for one service's prod flags
+      const key = await publishableKey();
+
+      // When: a browser on the allow-listed origin evaluates that exact scope
+      const response = await flagApp.inject({
+        method: "GET",
+        url: `/api/v1/services/${BOUND_SERVICE}/environments/prod/flags/evaluate?entity=u1`,
+        headers: { Authorization: `Bearer ${key}`, Origin: ORIGIN },
+      });
+
+      // Then: it is allowed
+      expect(response.statusCode).toBe(200);
+    });
+
+    it("should refuse to evaluate a service it is not bound to", async () => {
+      // Given: a publishable key bound to one service
+      const key = await publishableKey();
+
+      // When: it is pointed at a different service in the same account
+      const response = await flagApp.inject({
+        method: "GET",
+        url: `/api/v1/services/${new ObjectId()}/environments/prod/flags/evaluate?entity=u1`,
+        headers: { Authorization: `Bearer ${key}`, Origin: ORIGIN },
+      });
+
+      // Then: it is refused — this is the account-wide leak we are closing
+      expect(response.statusCode).toBe(403);
+    });
+
+    it("should refuse to evaluate an environment it is not bound to", async () => {
+      // Given: a prod-bound publishable key
+      const key = await publishableKey();
+
+      // When: it is pointed at staging
+      const response = await flagApp.inject({
+        method: "GET",
+        url: `/api/v1/services/${BOUND_SERVICE}/environments/staging/flags/evaluate?entity=u1`,
+        headers: { Authorization: `Bearer ${key}`, Origin: ORIGIN },
+      });
+
+      // Then: it is refused
+      expect(response.statusCode).toBe(403);
+    });
+
+    it("should refuse a request from an origin that was not allow-listed", async () => {
+      // Given: a publishable key allowed only from app.example.com
+      const key = await publishableKey();
+
+      // When: someone uses it from their own site
+      const response = await flagApp.inject({
+        method: "GET",
+        url: `/api/v1/services/${BOUND_SERVICE}/environments/prod/flags/evaluate?entity=u1`,
+        headers: {
+          Authorization: `Bearer ${key}`,
+          Origin: "https://attacker.example",
+        },
+      });
+
+      // Then: it is refused
+      expect(response.statusCode).toBe(403);
+    });
+
+    it("should refuse to read flag configuration, only evaluate", async () => {
+      // Given: a publishable key
+      const key = await publishableKey();
+
+      // When: it is used against the flags:read endpoint, which would expose
+      // rule config and targeting rules
+      const response = await flagApp.inject({
+        method: "GET",
+        url: `/api/v1/services/${BOUND_SERVICE}/flags`,
+        headers: { Authorization: `Bearer ${key}`, Origin: ORIGIN },
+      });
+
+      // Then: it is refused regardless of scope arithmetic
+      expect(response.statusCode).toBe(403);
+    });
+
+    it("should let the browser read the response by echoing its origin", async () => {
+      // Given: a publishable key allow-listing one origin
+      const key = await publishableKey();
+
+      // When: the browser on that origin evaluates flags
+      const response = await flagApp.inject({
+        method: "GET",
+        url: `/api/v1/services/${BOUND_SERVICE}/environments/prod/flags/evaluate?entity=u1`,
+        headers: { Authorization: `Bearer ${key}`, Origin: ORIGIN },
+      });
+
+      // Then: CORS lets the page actually read the result, and the response is
+      // marked as varying by origin so a shared cache cannot cross-serve it
+      expect(response.headers["access-control-allow-origin"]).toBe(ORIGIN);
+      expect(String(response.headers["vary"])).toContain("Origin");
+    });
+
+    it("should let the browser read the refusal when the origin is not allowed", async () => {
+      // Given: a publishable key used from somewhere it shouldn't be
+      const key = await publishableKey();
+
+      // When: the request is refused
+      const response = await flagApp.inject({
+        method: "GET",
+        url: `/api/v1/services/${BOUND_SERVICE}/environments/prod/flags/evaluate?entity=u1`,
+        headers: {
+          Authorization: `Bearer ${key}`,
+          Origin: "https://attacker.example",
+        },
+      });
+
+      // Then: the developer sees our 403 rather than an opaque CORS error.
+      // Echoing the origin on an error body leaks nothing.
+      expect(response.statusCode).toBe(403);
+      expect(response.headers["access-control-allow-origin"]).toBe(
+        "https://attacker.example",
+      );
+    });
+
+    it("should still let an existing secret flags:read key evaluate flags", async () => {
+      // Given: a server-side key of the kind customers already hold
+      const secret = await apiKeyService.generate({
+        accountId: testAccountId,
+        createdByUserId: new ObjectId(),
+        name: "Server key",
+        scopes: ["flags:read"],
+      });
+
+      // When: it evaluates flags, with no Origin (it is not a browser)
+      const response = await flagApp.inject({
+        method: "GET",
+        url: `/api/v1/services/${new ObjectId()}/environments/prod/flags/evaluate?entity=u1`,
+        headers: { Authorization: `Bearer ${secret.key}` },
+      });
+
+      // Then: nothing changes for it
       expect(response.statusCode).toBe(200);
     });
   });

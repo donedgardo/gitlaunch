@@ -33,6 +33,8 @@ function createMockApiKeyAuth(
   getContext: () => { accountId: ObjectId; scopes: ApiKeyScope[] } | null,
 ) {
   return async (request: FastifyRequest, reply: FastifyReply) => {
+    // Mirrors the real middleware: a CORS preflight carries no credentials.
+    if (request.method === "OPTIONS") return;
     const authHeader = request.headers.authorization;
     const xApiKey = request.headers["x-api-key"] as string | undefined;
     const hasAuth = authHeader?.startsWith("Bearer ") || xApiKey;
@@ -47,6 +49,8 @@ function createMockApiKeyAuth(
       accountId: context.accountId,
       apiKeyId: new ObjectId(),
       scopes: context.scopes,
+      kind: "secret",
+      allowedOrigins: [],
     };
   };
 }
@@ -209,6 +213,34 @@ describe("Flags API Routes", () => {
       headers: auth(),
     });
     expect(response.statusCode).toBe(403);
+  });
+
+  it("should answer a CORS preflight for evaluate so a browser can call it", async () => {
+    // Given: a browser about to send an authorized cross-origin GET. It sends
+    // the preflight first, with no credentials of any kind.
+    const response = await app.inject({
+      method: "OPTIONS",
+      url: `/api/v1/services/${testServiceId}/environments/prod/flags/evaluate`,
+      headers: {
+        Origin: "https://app.example.com",
+        "Access-Control-Request-Method": "GET",
+        "Access-Control-Request-Headers": "authorization",
+      },
+    });
+
+    // Then: it is answered rather than 401'd, and permits the Authorization
+    // header the real request will carry. The preflight is not a security
+    // boundary — the key's own origin allow-list is enforced on the GET.
+    expect(response.statusCode).toBe(204);
+    expect(response.headers["access-control-allow-origin"]).toBe(
+      "https://app.example.com",
+    );
+    expect(
+      String(response.headers["access-control-allow-headers"]).toLowerCase(),
+    ).toContain("authorization");
+    expect(String(response.headers["access-control-allow-methods"])).toContain(
+      "GET",
+    );
   });
 
   it("should configure an environment and evaluate deterministically", async () => {
