@@ -58,7 +58,7 @@ https://gitlaunch.dev/?utm_source=newsletter&utm_medium=referral&utm_campaign=al
 >
 > I'm opening a small alpha and inviting people in waves. If you ship software regularly and you've ever felt that "wait, what's actually live?" dread, I'd love to have you in early.
 >
-> **→ [Join the alpha waitlist]({{tagged-link}})**
+> **→ [Join the alpha waitlist](https://gitlaunch.dev/?utm_source=newsletter&utm_medium=referral&utm_campaign=alpha-launch&utm_content=founder-network)**
 >
 > _Reply to this email if you'd rather just tell me how your team handles deploys today — those conversations are shaping what I build next._
 
