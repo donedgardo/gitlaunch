@@ -219,6 +219,7 @@ export default function (deps: BuildRoutesDeps) {
               const buildData = {
                 build: {
                   id: event.buildId,
+                  message: event.message,
                   serviceName,
                   serviceId: service._id.toString(),
                   createdAt: new Date(),

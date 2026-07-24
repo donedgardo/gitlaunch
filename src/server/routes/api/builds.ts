@@ -16,6 +16,8 @@ export type BuildsRoutesDependencies = {
 
 type CreateBuildBody = {
   buildId: string;
+  // Optional commit message; surfaced on the dashboard next to the SHA.
+  message?: string;
 };
 
 type UpdateDeploymentStatusBody = {
@@ -52,7 +54,7 @@ export function registerBuildsRoutes(
       reply: FastifyReply,
     ) => {
       const { serviceId: serviceIdParam } = request.params;
-      const { buildId } = request.body;
+      const { buildId, message } = request.body;
       const accountId = request.apiKey!.accountId;
 
       if (!ObjectId.isValid(serviceIdParam)) {
@@ -91,6 +93,7 @@ export function registerBuildsRoutes(
           accountId,
           serviceId,
           buildId,
+          message,
         });
         analytics?.track("build_reported", { serviceId, buildId });
 
@@ -99,6 +102,7 @@ export function registerBuildsRoutes(
           accountId: build.accountId.toString(),
           serviceId: build.serviceId.toString(),
           buildId: build.buildId,
+          message: build.message,
           deployments: build.deployments,
           createdAt: build.createdAt,
           updatedAt: build.updatedAt,

@@ -1,5 +1,7 @@
-<nav id="main-navigation" class="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900" hx-swap-oob="true">
-  <ul class="flex flex-row flex-wrap">
+<nav id="main-navigation" class="flex items-center justify-between border-b border-line bg-surface" hx-swap-oob="true">
+  <div class="flex items-center">
+    <a href="/dashboard" class="gl-brand" aria-label="GitLaunch dashboard"><span class="gl-glyph"></span>Git<span class="gl-mk">Launch</span></a>
+    <ul class="flex flex-row flex-wrap">
     {{#each services as |serviceName|}}
       <li class="flex items-center">
         <a
@@ -50,7 +52,8 @@
         </svg>
       </a>
     </li>
-  </ul>
+    </ul>
+  </div>
   <div class="flex items-center gap-2 mr-4">
     <a
       href="/dashboard/analytics"
