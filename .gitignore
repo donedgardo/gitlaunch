@@ -1,5 +1,7 @@
 # Dependencies
-node_modules/
+# No trailing slash: worktrees symlink node_modules, and `node_modules/`
+# does not match a symlink, so it would get committed and break CI's install.
+node_modules
 
 # Build output
 dist/
