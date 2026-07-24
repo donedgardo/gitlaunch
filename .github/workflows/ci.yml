@@ -92,14 +92,18 @@ jobs:
     needs: [quality, integration, docker-build]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
-      # Dogfoods the same curl guidance we give users (buildReportingInstructions.hbs).
+      # Dogfoods the same curl guidance we give users (buildReportingInstructions.hbs):
+      # send the commit message too, built with jq so arbitrary commit text can't
+      # break the JSON.
       - name: Report build to GitLaunch
+        env:
+          GITLAUNCH_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
         run: |
           curl --fail-with-body -sS -X POST \
             "https://gitlaunch.dev/api/v1/services/${{ vars.GITLAUNCH_SERVICE_ID }}/builds" \
             -H "Authorization: Bearer ${{ secrets.GITLAUNCH_API_KEY }}" \
             -H "Content-Type: application/json" \
-            -d '{"buildId":"${{ github.sha }}"}'
+            -d "$(jq -nc --arg buildId "${{ github.sha }}" --arg message "$GITLAUNCH_COMMIT_MESSAGE" '{buildId:$buildId,message:$message}')"
 
   deploy-dev:
     name: Deploy to Dev
