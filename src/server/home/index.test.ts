@@ -56,6 +56,22 @@ describe("home route", () => {
     expect(rendered?.data.signupsClosed).toBeFalsy();
   });
 
+  it("should give the landing page rich sharing metadata", async () => {
+    // When the public marketing page renders
+    await app.inject({ method: "GET", url: "/" });
+
+    // Then it carries OpenGraph metadata so the URL unfurls into a card when
+    // shared, rather than showing a bare link
+    const meta = rendered?.data.meta as Record<string, string> | undefined;
+    expect(meta).toBeTruthy();
+    expect(meta?.ogTitle).toContain("GitLaunch");
+    expect(meta?.ogDescription?.length ?? 0).toBeGreaterThan(0);
+    expect(meta?.ogImage).toContain("og-image");
+    expect(meta?.twitterCard).toBe("summary_large_image");
+    // The landing page is the canonical site root
+    expect(meta?.canonical).toBeTruthy();
+  });
+
   describe("login call-to-action", () => {
     // A door that answers however the test wants, standing in for the flag.
     const doorThatSays = (allowed: boolean) => ({

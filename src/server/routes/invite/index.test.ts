@@ -124,6 +124,23 @@ describe("Invite Routes", () => {
     expect(response.body).toContain(`/invite/${invite.token}/accept`);
   });
 
+  it("unfurls the invite link with the workspace name but keeps it out of search", async () => {
+    const invite = await makeInvite();
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/invite/${invite.token}`,
+    });
+
+    // The shared link renders an OpenGraph card naming the workspace, so it
+    // previews richly when pasted into Slack / iMessage instead of a bare URL
+    expect(response.body).toContain('property="og:title"');
+    expect(response.body).toContain("Acme");
+    // But an invite token must never be indexed by search engines
+    expect(response.body).toContain('name="robots"');
+    expect(response.body).toContain("noindex");
+  });
+
   it("adds the visitor to the workspace on accept and lands them in it", async () => {
     const invite = await makeInvite(MembershipRole.Member);
     const { user, session } = await makeVisitor();
