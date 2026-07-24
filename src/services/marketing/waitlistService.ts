@@ -1,8 +1,9 @@
+import { ObjectId } from "mongodb";
 import {
   LeadRepository,
   LeadAttribution,
 } from "../../repositories/leadRepository";
-import { AnalyticsService } from "../analytics/analytics";
+import { AnalyticsContext, AnalyticsService } from "../analytics/analytics";
 import { evaluateSubmission, BotConfig, BotReason } from "./botDetection";
 
 export type WaitlistSubmission = {
@@ -10,7 +11,17 @@ export type WaitlistSubmission = {
   honeypot?: string;
   elapsedMs?: number;
   attribution?: LeadAttribution;
+  // Stable anonymous visitor id (the landing page's gl_vid cookie). Becomes the
+  // event's distinctId so a signup joins the same visitor's A/B exposure.
+  visitorId?: string;
 };
+
+// The GitLaunch account these marketing events belong to. Every analytics query
+// is scoped to a tenant, so events written without one are invisible on
+// /dashboard/analytics. SelfFlagAccount satisfies this shape.
+export interface OwningAccount {
+  resolve(): Promise<ObjectId | null>;
+}
 
 export type WaitlistOutcome =
   | { status: "subscribed"; alreadyOnList: boolean }
@@ -24,10 +35,14 @@ export class WaitlistService {
     private leads: LeadRepository,
     private analytics: AnalyticsService,
     private config: BotConfig,
+    // Absent (or unresolvable) => events are still emitted, just untenanted, so
+    // capturing the lead never depends on the analytics dashboard being wired.
+    private ownAccount?: OwningAccount,
   ) {}
 
   async submit(submission: WaitlistSubmission): Promise<WaitlistOutcome> {
     const attribution = submission.attribution ?? {};
+    const context = await this.analyticsContext(submission.visitorId);
 
     const verdict = evaluateSubmission(
       {
@@ -41,11 +56,15 @@ export class WaitlistService {
     if (!verdict.human) {
       // Track the block (not the email) so we can see bot pressure per campaign
       // without polluting the lead list.
-      this.analytics.track("waitlist_bot_blocked", {
-        reason: verdict.reason,
-        campaign: attribution.campaign,
-        source: attribution.source,
-      });
+      this.analytics.track(
+        "waitlist_bot_blocked",
+        {
+          reason: verdict.reason,
+          campaign: attribution.campaign,
+          source: attribution.source,
+        },
+        context,
+      );
       return { status: "rejected", reason: verdict.reason };
     }
 
@@ -59,19 +78,40 @@ export class WaitlistService {
       return { status: "subscribed", alreadyOnList: true };
     }
 
-    this.analytics.identify(lead.email, {
-      email: lead.email,
-      campaign: attribution.campaign,
-      source: attribution.source,
-    });
-    this.analytics.track("waitlist_signup", {
-      campaign: attribution.campaign,
-      source: attribution.source,
-      medium: attribution.medium,
-      content: attribution.content,
-      term: attribution.term,
-    });
+    this.analytics.identify(
+      lead.email,
+      {
+        email: lead.email,
+        campaign: attribution.campaign,
+        source: attribution.source,
+      },
+      context,
+    );
+    this.analytics.track(
+      "waitlist_signup",
+      {
+        campaign: attribution.campaign,
+        source: attribution.source,
+        medium: attribution.medium,
+        content: attribution.content,
+        term: attribution.term,
+      },
+      context,
+    );
 
     return { status: "subscribed", alreadyOnList: false };
+  }
+
+  // Tenant + visitor for the warehouse. Resolving the account must never cost
+  // us a lead, so a failure degrades to the previous untenanted behaviour.
+  private async analyticsContext(
+    visitorId?: string,
+  ): Promise<AnalyticsContext | undefined> {
+    const accountId = await this.ownAccount?.resolve().catch(() => null);
+    if (!accountId) return visitorId ? { distinctId: visitorId } : undefined;
+    return {
+      accountId: accountId.toString(),
+      distinctId: visitorId || undefined,
+    };
   }
 }
