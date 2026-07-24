@@ -330,7 +330,9 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
 
   // Routes
   server.register(healthRoute(mongoClient));
-  server.register(homeRoute({ experiment: waitlistExperiment }));
+  server.register(
+    homeRoute({ experiment: waitlistExperiment, signupDoor: signupGate }),
+  );
   registerWaitlistRoutes(server, {
     waitlistService,
     experiment: waitlistExperiment,
