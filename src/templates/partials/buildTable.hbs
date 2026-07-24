@@ -42,26 +42,29 @@
 {{> setupStep step=4 totalSteps=5 serviceId=serviceId serviceName=serviceName environments=environments }}
 </div>
 {{else if builds.length}}
-<div id="build-table" class="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700" data-service-name="{{serviceName}}">
-  <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-    <thead class="bg-gray-50 dark:bg-gray-800">
-    <tr>
-      <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
-        Commit
-      </th>
-      {{#each environments as |env|}}
-        <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
-          {{env.name}}
-        </th>
+<div id="build-table" class="gl-board" data-service-name="{{serviceName}}">
+  <div class="gl-board-bar">
+    <span class="gl-dots"><span></span><span></span><span></span></span>
+    <span class="gl-path">{{serviceName}} · release board</span>
+    <span class="gl-rel">#{{shortSha builds.[0].id}}</span>
+  </div>
+  <div class="gl-board-scroll">
+    <table>
+      <thead>
+      <tr>
+        <th>Commit</th>
+        {{#each environments as |env|}}
+          <th class="gl-env-col">{{env.name}}</th>
+        {{/each}}
+      </tr>
+      </thead>
+      <tbody id="build-table-body">
+      {{#each builds as |build| }}
+        {{> buildRow build=build environments=../environments serviceName=../serviceName repoUrl=../repoUrl serviceId=../serviceId canDispatch=../canDispatch }}
       {{/each}}
-    </tr>
-    </thead>
-    <tbody id="build-table-body" class="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
-    {{#each builds as |build| }}
-      {{> buildRow build=build environments=../environments serviceName=../serviceName repoUrl=../repoUrl serviceId=../serviceId canDispatch=../canDispatch }}
-    {{/each}}
-    </tbody>
-  </table>
+      </tbody>
+    </table>
+  </div>
   {{> paginationControls pagination=pagination serviceName=serviceName}}
 </div>
 <script>

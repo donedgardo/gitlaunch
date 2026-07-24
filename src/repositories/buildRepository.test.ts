@@ -53,6 +53,22 @@ describe("BuildRepository", () => {
       expect(build.updatedAt).toBeInstanceOf(Date);
     });
 
+    it("should persist a commit message when one is reported", async () => {
+      // Given: build details that include the commit message
+      const input = {
+        accountId: testAccountId,
+        serviceId: testServiceId,
+        buildId: "with-message",
+        message: "Fix session cookie expiry",
+      };
+
+      // When: I create the build
+      const build = await repo.create(input);
+
+      // Then: the commit message is stored on the build
+      expect(build.message).toBe("Fix session cookie expiry");
+    });
+
     it("should return existing build if buildId already exists for account/repo", async () => {
       // Given: a build already exists
       const input = {

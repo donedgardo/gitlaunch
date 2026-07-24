@@ -7,6 +7,10 @@ export type Build = {
   accountId: ObjectId;
   serviceId: ObjectId;
   buildId: string;
+  // Commit message reported alongside the build, shown on the dashboard.
+  // Optional: builds reported before this existed (or by reporters that don't
+  // send it) simply show the SHA on its own.
+  message?: string;
   deployments: Record<string, DeploymentStatus>;
   deploymentLogs: DeploymentLogRecord[];
   createdAt: Date;
@@ -17,6 +21,7 @@ export type CreateBuildInput = {
   accountId: ObjectId;
   serviceId: ObjectId;
   buildId: string;
+  message?: string;
 };
 
 export type PaginatedResult = {
@@ -62,6 +67,9 @@ export class BuildRepository {
       accountId: input.accountId,
       serviceId: input.serviceId,
       buildId: input.buildId,
+      // Only persist a message when the reporter sent one, so we don't write
+      // empty strings for the SHA-only case.
+      ...(input.message ? { message: input.message } : {}),
       deployments: {},
       deploymentLogs: [],
       createdAt: now,

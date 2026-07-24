@@ -112,7 +112,7 @@
       fetch('/api/v1/services/{{serviceId}}/builds', {
         method: 'POST',
         headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ buildId: buildId })
+        body: JSON.stringify({ buildId: buildId, message: 'Simulated build from GitLaunch' })
       })
       .then(function(res) { if (!res.ok) throw new Error(res.status); return res.json(); })
       .then(function(data) { status.textContent = 'Build ' + (data.buildId || buildId) + ' reported! Advancing…'; status.style.display = 'block'; })

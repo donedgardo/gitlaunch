@@ -99,6 +99,78 @@ describe("BuildService", () => {
       expect(build.serviceId.toString()).toBe(svc._id.toString());
     });
 
+    it("should carry the commit message through to the created build", async () => {
+      // Given: an account with a repository and service
+      const account = await accountRepo.create({
+        name: "My Org",
+        slug: "my-org-msg",
+      });
+      const repository = await repoRepo.create({
+        accountId: account._id,
+        githubRepoId: 555,
+        githubFullName: "org/repo-msg",
+        githubOwner: "org",
+        githubRepoName: "repo-msg",
+        isPrivate: false,
+      });
+      const svc = await serviceRepo.create({
+        accountId: account._id,
+        repositoryId: repository._id,
+        name: "backend-msg",
+      });
+
+      // When: I create a build with a commit message
+      const build = await service.createBuild({
+        accountId: account._id,
+        serviceId: svc._id,
+        buildId: "abc123",
+        message: "Add shareable team invite links",
+      });
+
+      // Then: the message is stored on the build
+      expect(build.message).toBe("Add shareable team invite links");
+    });
+
+    it("should include the commit message on the build:created event", async () => {
+      // Given: an account with a repository and service
+      const account = await accountRepo.create({
+        name: "My Org",
+        slug: "my-org-msg-event",
+      });
+      const repository = await repoRepo.create({
+        accountId: account._id,
+        githubRepoId: 556,
+        githubFullName: "org/repo-msg-event",
+        githubOwner: "org",
+        githubRepoName: "repo-msg-event",
+        isPrivate: false,
+      });
+      const svc = await serviceRepo.create({
+        accountId: account._id,
+        repositoryId: repository._id,
+        name: "backend-msg-event",
+      });
+
+      const eventReceived = vi.fn();
+      eventEmitter.on("build:created", eventReceived);
+
+      // When: I create a build with a commit message
+      await service.createBuild({
+        accountId: account._id,
+        serviceId: svc._id,
+        buildId: "msg-event-1",
+        message: "Fix session cookie expiry",
+      });
+
+      // Then: the event carries the message so a live-inserted row can show it
+      expect(eventReceived).toHaveBeenCalledWith(
+        expect.objectContaining({
+          buildId: "msg-event-1",
+          message: "Fix session cookie expiry",
+        }),
+      );
+    });
+
     it("should reject when service does not exist", async () => {
       // Given: an account but no service
       const account = await accountRepo.create({

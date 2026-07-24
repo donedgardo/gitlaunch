@@ -66,6 +66,8 @@ export default function (deps: DashboardRoutesDeps) {
     ) => {
       return builds.map((build) => ({
         id: build.buildId,
+        message: build.message, // Commit message shown next to the SHA
+        createdAt: build.createdAt, // Report time, rendered as "how long ago"
         environments, // Include environments in each build for Handlebars partial scope
         serviceName, // Include serviceName in each build for Handlebars partial scope
         serviceId, // Include serviceId for deploy button URLs
