@@ -9,6 +9,10 @@ import { PasswordService } from "../../../services/auth/passwordService";
 import { EmailSender } from "../../../services/email/emailSender";
 import { AnalyticsService } from "../../../services/analytics/analytics";
 import { ensureAccountForUser } from "../../../services/auth/accountBootstrap";
+import {
+  SignupGate,
+  emailSignupEntityKey,
+} from "../../../services/account/signupGate";
 
 export type EmailPasswordAuthRoutesConfig = {
   sessionService: SessionService;
@@ -19,6 +23,10 @@ export type EmailPasswordAuthRoutesConfig = {
   emailSender: EmailSender;
   publicUrl: string;
   googleEnabled?: boolean;
+  // Optional: when present, creating a *new* account via email/password is gated
+  // by GitLaunch's own self-serve-signups flag (same kill switch as GitHub and
+  // Google). Absent => signups always open.
+  signupGate?: SignupGate;
   analytics?: AnalyticsService;
 };
 
@@ -50,6 +58,7 @@ export function registerEmailPasswordAuthRoutes(
     emailSender,
     publicUrl,
     googleEnabled = false,
+    signupGate,
     analytics,
   } = config;
 
@@ -115,6 +124,24 @@ export function registerEmailPasswordAuthRoutes(
       if (existing) {
         // Don't reveal whether the address is registered — send them to login.
         return reply.redirect("/signup?error=email_taken");
+      }
+
+      // Dogfooding our own feature flags: creating a brand-new account is
+      // exactly what the self-serve-signups flag gates. Run the check *before*
+      // any write, so a refused signup leaves no orphan user and sends no email.
+      // The gate fails open, so this only refuses when signups were deliberately
+      // turned off. Existing customers (handled above) and logins are untouched.
+      if (signupGate) {
+        const entityKey = emailSignupEntityKey(email);
+        const decision = await signupGate.allows(entityKey);
+        void signupGate.recordExposure(entityKey, decision);
+        if (!decision.allowed) {
+          analytics?.track("signup_blocked", {
+            method: "password",
+            reason: decision.reason,
+          });
+          return reply.redirect("/?error=signups_closed");
+        }
       }
 
       const passwordHash = await passwordService.hash(password);

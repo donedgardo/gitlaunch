@@ -396,6 +396,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     emailSender,
     publicUrl: process.env.PUBLIC_URL || "",
     googleEnabled: !!googleOAuthService,
+    signupGate,
     analytics,
   });
 
