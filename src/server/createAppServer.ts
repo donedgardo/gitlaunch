@@ -382,6 +382,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
       userRepository,
       accountRepository,
       membershipRepository,
+      signupGate,
       analytics,
     });
   }

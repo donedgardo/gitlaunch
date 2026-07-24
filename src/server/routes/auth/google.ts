@@ -7,6 +7,10 @@ import { AccountRepository } from "../../../repositories/accountRepository";
 import { MembershipRepository } from "../../../repositories/membershipRepository";
 import { AnalyticsService } from "../../../services/analytics/analytics";
 import { ensureAccountForUser } from "../../../services/auth/accountBootstrap";
+import {
+  SignupGate,
+  googleSignupEntityKey,
+} from "../../../services/account/signupGate";
 
 export type GoogleAuthRoutesConfig = {
   oauthService: GoogleOAuthService;
@@ -14,6 +18,10 @@ export type GoogleAuthRoutesConfig = {
   userRepository: UserRepository;
   accountRepository: AccountRepository;
   membershipRepository: MembershipRepository;
+  // Optional: when present, creating a *new* account via Google is gated by
+  // GitLaunch's own self-serve-signups flag (same kill switch as GitHub and
+  // email/password). Absent => signups always open.
+  signupGate?: SignupGate;
   analytics?: AnalyticsService;
 };
 
@@ -27,6 +35,7 @@ export function registerGoogleAuthRoutes(
     userRepository,
     accountRepository,
     membershipRepository,
+    signupGate,
     analytics,
   } = config;
 
@@ -77,6 +86,31 @@ export function registerGoogleAuthRoutes(
         const googleUser = await oauthService.getUserInfo(
           tokenResponse.access_token,
         );
+
+        // Who is signing in, and do they already belong somewhere? Answer this
+        // *before* touching the database so a refused signup leaves no trace.
+        const existingUser = await userRepository.findByGoogleId(googleUser.sub);
+        const memberships = existingUser
+          ? await membershipRepository.findByUserId(existingUser._id)
+          : [];
+
+        // Dogfooding our own feature flags: a visitor with no membership is a
+        // brand-new account, which is exactly what the flag gates. The gate
+        // fails open, so this only refuses when someone deliberately turned
+        // self-serve signups off. No githubLogin here, so allow-list rules
+        // never match a Google signup — only the kill switch and rollout do.
+        if (memberships.length === 0 && signupGate) {
+          const entityKey = googleSignupEntityKey(googleUser.sub);
+          const decision = await signupGate.allows(entityKey);
+          void signupGate.recordExposure(entityKey, decision);
+          if (!decision.allowed) {
+            analytics?.track("signup_blocked", {
+              method: "google",
+              reason: decision.reason,
+            });
+            return reply.redirect("/?error=signups_closed");
+          }
+        }
 
         const user = await userRepository.findOrCreateByGoogleId({
           googleId: googleUser.sub,
