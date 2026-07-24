@@ -67,8 +67,17 @@ Two places to look, one for people and one for trends:
 - **Leads** land in the `leads` MongoDB collection, each row carrying its full UTM attribution. This is the invite list and the raw record of who signed up and where they came from.
 - **`waitlist_signup` analytics events** let you slice by `utm_source` and `utm_campaign` to compare channels and campaigns — which ones convert clicks into real emails. Watch `waitlist_bot_blocked` alongside it to gauge how much spam a channel attracts.
 
+> **Caveat:** these two events are currently emitted without an analytics context, so their rows carry no `accountId` and do **not** show up on `/dashboard/analytics`. Until that's fixed, query the `leads` collection directly. See [RUNBOOK.md](./RUNBOOK.md#5-reading-the-data).
+
 The question every campaign answers: _which source and which angle produced qualified signups?_ Tagged links are what make that answerable.
+
+## Landing-page A/B test
+
+Separately from campaign attribution, the landing hero copy is itself A/B tested through GitLaunch's own feature-flag engine (flag `waitlist-hero-copy`, variants `control` and `benefit-led`), with waitlist signups as the conversion goal. Visitors are bucketed by a `gl_vid` cookie; exposures and conversions are tracked as `flag_exposure` / `flag_conversion`.
+
+Keep this axis distinct from `utm_content`: UTM content is the _outbound creative you sent_, the flag variant is the _landing copy the visitor was served_. Setup, testing, and how to read per-variant results are in **[RUNBOOK.md](./RUNBOOK.md)**.
 
 ## Files
 
 - **[CAMPAIGNS.md](./CAMPAIGNS.md)** — the live campaign register. Every planned and running alpha campaign, its UTM codes, its tagged URL, and its signup count. Add a row before you send a link.
+- **[RUNBOOK.md](./RUNBOOK.md)** — the operating runbook: how to configure and test the landing-page A/B test, launch a campaign, read both sets of results, and the production checklist.
