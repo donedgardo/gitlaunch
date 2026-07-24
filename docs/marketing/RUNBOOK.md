@@ -147,9 +147,13 @@ Two separate systems. This is the part most likely to confuse.
 
 **No statistical significance is computed** anywhere in the codebase — the rate is plain `conversions / exposures`. Judge significance yourself before calling a winner; with alpha-scale traffic, small differences are noise.
 
-### Campaign performance → direct Mongo query
+### Campaign performance → the analytics dashboard, or a direct Mongo query
 
-Leads land in the `leads` collection (db `gitlaunch`) with full attribution, indexed on `attribution.campaign`:
+`waitlist_signup` and `waitlist_bot_blocked` are filed under the account that owns `GITLAUNCH_SERVICE_ID`, with the visitor's `gl_vid` as the distinct id — the same tenant and the same visitor as the flag exposures above. So campaign events show up on **`/dashboard/analytics`** and a signup can be lined up against that visitor's A/B exposure.
+
+**This depends on `GITLAUNCH_SERVICE_ID` being set and resolvable.** Every `AnalyticsQueryService` query is account-scoped, so if it's unset or points at a service that doesn't exist, the events are still written but belong to no tenant and no dashboard query returns them. That's the same misconfiguration that makes our own flags inert, and it's logged at boot — check the startup line before you conclude a campaign underperformed. Lead capture is unaffected either way.
+
+For a breakdown the dashboard doesn't offer, leads land in the `leads` collection (db `gitlaunch`) with full attribution, indexed on `attribution.campaign`:
 
 ```js
 db.leads.aggregate([
@@ -163,8 +167,6 @@ db.leads.aggregate([
 ]);
 ```
 
-> **Known gap:** `waitlist_signup` and `waitlist_bot_blocked` are tracked **without an analytics context**, so those rows are written with no `accountId`. Every query in `AnalyticsQueryService` requires `accountId`, which means **campaign events do not appear on `/dashboard/analytics`**. Until that's fixed, the `leads` collection is the only way to read campaign performance. Flag exposures/conversions are unaffected — `WaitlistExperiment` does pass context.
-
 ---
 
 ## 6. Production checklist
@@ -173,6 +175,6 @@ db.leads.aggregate([
 - [ ] `GITLAUNCH_SERVICE_ID` set to GitLaunch's own service id.
 - [ ] `GITLAUNCH_FLAG_ENV` matches the **last** environment on that service (so the results panel reads the same env you're writing).
 - [ ] Flag `waitlist-hero-copy` created, variants weighted, **enabled** for that environment.
-- [ ] Verified in incognito on `https://gitlaunch.dev` that a `gl_vid` cookie is set and a real signup lands in `leads`.
+- [ ] Verified in incognito on `https://gitlaunch.dev` that a `gl_vid` cookie is set, a real signup lands in `leads`, and that same signup appears on `/dashboard/analytics` (if it doesn't, `GITLAUNCH_SERVICE_ID` is wrong).
 - [ ] Campaign rows added to `CAMPAIGNS.md` with tagged URLs before any link goes out.
 - [ ] Decide the stopping rule (sample size / duration) **before** launching, since the panel won't tell you when to stop.

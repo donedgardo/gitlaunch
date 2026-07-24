@@ -67,7 +67,7 @@ Two places to look, one for people and one for trends:
 - **Leads** land in the `leads` MongoDB collection, each row carrying its full UTM attribution. This is the invite list and the raw record of who signed up and where they came from.
 - **`waitlist_signup` analytics events** let you slice by `utm_source` and `utm_campaign` to compare channels and campaigns — which ones convert clicks into real emails. Watch `waitlist_bot_blocked` alongside it to gauge how much spam a channel attracts.
 
-> **Caveat:** these two events are currently emitted without an analytics context, so their rows carry no `accountId` and do **not** show up on `/dashboard/analytics`. Until that's fixed, query the `leads` collection directly. See [RUNBOOK.md](./RUNBOOK.md#5-reading-the-data).
+Both events are filed under the account that owns `GITLAUNCH_SERVICE_ID` — the same service our own feature flags live under — and carry the visitor's `gl_vid` as their distinct id, so a campaign signup sits next to that visitor's landing-page A/B exposure. **`GITLAUNCH_SERVICE_ID` must be set** for them to appear on `/dashboard/analytics`: every dashboard query is account-scoped, so without it the events are still written but belong to no tenant and no query returns them. Leads are captured either way — a misconfigured id costs you the chart, never the email. See [RUNBOOK.md](./RUNBOOK.md#5-reading-the-data).
 
 The question every campaign answers: _which source and which angle produced qualified signups?_ Tagged links are what make that answerable.
 

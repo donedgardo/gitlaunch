@@ -9,7 +9,10 @@ import * as handlebars from "handlebars";
 import path from "node:path";
 import { ObjectId } from "mongodb";
 import { LeadRepository } from "../../../repositories/leadRepository";
-import { AnalyticsService } from "../../../services/analytics/analytics";
+import {
+  AnalyticsContext,
+  AnalyticsService,
+} from "../../../services/analytics/analytics";
 import { WaitlistService } from "../../../services/marketing/waitlistService";
 import { WaitlistExperiment } from "../../../services/marketing/waitlistExperiment";
 import { FlagServiceI } from "../../../services/flag/flagService";
@@ -42,6 +45,7 @@ async function buildExperimentApp(
   repo: LeadRepository,
   analytics: AnalyticsService,
   experiment: WaitlistExperiment,
+  ownAccountId?: ObjectId,
 ): Promise<FastifyInstance> {
   const app = Fastify();
   await app.register(formbody);
@@ -54,9 +58,12 @@ async function buildExperimentApp(
     },
   });
   registerWaitlistRoutes(app, {
-    waitlistService: new WaitlistService(repo, analytics, {
-      minElapsedMs: 2000,
-    }),
+    waitlistService: new WaitlistService(
+      repo,
+      analytics,
+      { minElapsedMs: 2000 },
+      ownAccountId ? { resolve: async () => ownAccountId } : undefined,
+    ),
     experiment,
   });
   await app.ready();
@@ -64,10 +71,18 @@ async function buildExperimentApp(
 }
 
 class RecordingAnalytics implements AnalyticsService {
-  tracked: { event: string; properties?: Record<string, any> }[] = [];
+  tracked: {
+    event: string;
+    properties?: Record<string, any>;
+    context?: AnalyticsContext;
+  }[] = [];
   identify(): void {}
-  track(event: string, properties?: Record<string, any>): void {
-    this.tracked.push({ event, properties });
+  track(
+    event: string,
+    properties?: Record<string, any>,
+    context?: AnalyticsContext,
+  ): void {
+    this.tracked.push({ event, properties, context });
   }
   navigation(): void {}
 }
@@ -220,6 +235,50 @@ describe("Waitlist Routes", () => {
     );
     expect(conversion?.properties?.variant).toBe("benefit-led");
     expect(conversion?.properties?.goal).toBe("waitlist_signup");
+  });
+
+  it("files the signup under the owning account and the same visitor as the exposure", async () => {
+    const ownAccountId = new ObjectId();
+    const experiment = new WaitlistExperiment(
+      fakeFlags({
+        key: "waitlist-hero-copy",
+        enabled: true,
+        variant: "benefit-led",
+        reason: "variant",
+      }),
+      fakeServices(ownAccountId),
+      analytics,
+      { serviceId: new ObjectId(), environment: "prod" },
+    );
+    const app2 = await buildExperimentApp(
+      repo,
+      analytics,
+      experiment,
+      ownAccountId,
+    );
+
+    await app2.inject({
+      method: "POST",
+      url: "/waitlist",
+      cookies: { gl_vid: "visitor-xyz" },
+      payload: {
+        email: "tenanted@acme.dev",
+        company_website: "",
+        elapsedMs: "9000",
+        utm_campaign: "alpha-launch",
+      },
+    });
+
+    // The campaign signup and the A/B conversion now agree on both tenant and
+    // visitor, so the dashboard can show them side by side.
+    const signup = analytics.tracked.find((t) => t.event === "waitlist_signup");
+    const conversion = analytics.tracked.find(
+      (t) => t.event === "flag_conversion",
+    );
+    expect(signup?.context?.accountId).toBe(ownAccountId.toString());
+    expect(signup?.context?.distinctId).toBe("visitor-xyz");
+    expect(conversion?.context?.accountId).toBe(ownAccountId.toString());
+    expect(conversion?.context?.distinctId).toBe("visitor-xyz");
   });
 
   it("records no conversion when the visitor has no experiment cookie", async () => {
