@@ -265,6 +265,69 @@ export function registerFlagsSettingsRoutes(
     },
   );
 
+  // POST /services/:serviceId/flags/keys/browser — mint a publishable key for a
+  // web app that evaluates flags client-side. Unlike the server-side key above,
+  // this one is expected to be readable by anyone who loads the page, so it is
+  // confined to a single service + environment, evaluate-only, and usable only
+  // from the origins named here.
+  app.post<{
+    Params: { serviceId: string };
+    Body: { environment?: string; origins?: string };
+  }>("/services/:serviceId/flags/keys/browser", async (request, reply) => {
+    const result = await loadServiceWithAuth(request, reply);
+    if (!result) return;
+    const { service, accountId } = result;
+    const userId = new ObjectId(request.session!.userId);
+    const envNames = envNamesOf(service);
+
+    const environment = (request.body?.environment ?? "").trim() || envNames[0];
+    // Accept a comma- or newline-separated list, the way people paste origins.
+    const origins = (request.body?.origins ?? "")
+      .split(/[\s,]+/)
+      .map((o) => o.trim())
+      .filter(Boolean);
+
+    if (!origins.length) {
+      return reply
+        .status(400)
+        .send("Name at least one origin this key may be used from.");
+    }
+    if (!environment) {
+      return reply
+        .status(400)
+        .send("Pick the environment this key should evaluate.");
+    }
+
+    const { key } = await apiKeyService.generate({
+      accountId,
+      createdByUserId: userId,
+      name: `Browser key — ${service.name} (${environment})`,
+      scopes: ["flags:evaluate"],
+      kind: "publishable",
+      serviceId: service._id,
+      environment,
+      allowedOrigins: origins,
+    });
+    analytics?.track("flag_browser_key_created", {
+      serviceId: service._id.toString(),
+      environment,
+      originCount: origins.length,
+    });
+
+    return reply.view(
+      "partials/flagKeyResult",
+      {
+        newKey: key,
+        serviceId: service._id.toString(),
+        evaluateEnv: environment,
+        apiUrl,
+        publishable: true,
+        allowedOrigins: origins.join(", "),
+      },
+      { layout: "" },
+    );
+  });
+
   // POST /services/:serviceId/flags — create (HTMX → flagList partial)
   app.post<{
     Params: { serviceId: string };

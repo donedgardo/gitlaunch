@@ -333,14 +333,55 @@ describe("Flags Settings Routes", () => {
       cookies: { session: session() },
     });
     expect(response.statusCode).toBe(200);
-    // The raw key is returned once for the user to copy.
-    expect(response.body).toContain("pk_acme_");
+    // The raw key is returned once for the user to copy. It is a secret key —
+    // sk_, not pk_ — because flags:read exposes rule config and results.
+    expect(response.body).toContain("sk_acme_");
 
     // Security: the minted key is least-privilege — flags:read and NOTHING else.
     const keys = await apiKeyService.listByAccount(accountId);
     expect(keys).toHaveLength(1);
     expect(keys[0].scopes).toEqual(["flags:read"]);
     expect(keys[0].isRevoked).toBe(false);
+  });
+
+  it("mints a browser key confined to one service, environment and origin", async () => {
+    // Given: a web app that will evaluate flags from the browser
+    // When: I mint a browser key for it
+    const response = await app.inject({
+      method: "POST",
+      url: `/services/${serviceId}/flags/keys/browser`,
+      cookies: { session: session() },
+      payload: { environment: "prod", origins: "https://app.example.com" },
+    });
+
+    // Then: I get a publishable key back, once
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toContain("pk_acme_");
+
+    // And: it can do nothing but evaluate this one service's prod flags, from
+    // the origin I named — which is what makes it safe to ship in a bundle.
+    const keys = await apiKeyService.listByAccount(accountId);
+    expect(keys).toHaveLength(1);
+    expect(keys[0].kind).toBe("publishable");
+    expect(keys[0].scopes).toEqual(["flags:evaluate"]);
+    expect(keys[0].serviceId?.toString()).toBe(serviceId.toString());
+    expect(keys[0].environment).toBe("prod");
+    expect(keys[0].allowedOrigins).toEqual(["https://app.example.com"]);
+  });
+
+  it("refuses to mint a browser key with no allowed origin", async () => {
+    // Given: a request that names no origin
+    // When: I try to mint a browser key
+    const response = await app.inject({
+      method: "POST",
+      url: `/services/${serviceId}/flags/keys/browser`,
+      cookies: { session: session() },
+      payload: { environment: "prod", origins: "" },
+    });
+
+    // Then: nothing is minted — an origin-less browser key is usable anywhere
+    expect(response.statusCode).toBe(400);
+    expect(await apiKeyService.listByAccount(accountId)).toHaveLength(0);
   });
 
   it("does not mint a key for an unauthenticated request", async () => {
