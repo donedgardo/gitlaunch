@@ -10,9 +10,9 @@
 const SITE_NAME = "GitLaunch";
 
 // The site-wide fallbacks, used for any page that does not describe itself.
-const DEFAULT_TITLE = "GitLaunch — Trigger deployments with confidence";
+const DEFAULT_TITLE = "GitLaunch — Know exactly what's deployed where";
 const DEFAULT_DESCRIPTION =
-  "GitLaunch is a simple dashboard to trigger and track deployments. Works with GitHub Actions, Jenkins, and more. Deploy with confidence.";
+  "GitLaunch shows every build across every environment and gives your whole team a safe button to ship and roll back. Deployment control, not another CI/CD tool.";
 // A pre-rendered 1200×630 branded card, served from /public. Regenerate with
 // scripts/generate-og-image.mjs.
 const DEFAULT_IMAGE = "/public/og-image.png";

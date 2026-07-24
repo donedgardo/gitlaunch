@@ -46,9 +46,9 @@ const html = `<!doctype html>
   .wordmark { font-size: 44px; font-weight: 800; letter-spacing: -.02em; }
   .wordmark .mk { color: #FF8A3D; }
 
-  .headline { font-size: 82px; font-weight: 820; line-height: 1.02; letter-spacing: -.035em; max-width: 20ch; }
+  .headline { font-size: 74px; font-weight: 820; line-height: 1.04; letter-spacing: -.035em; max-width: 17ch; }
   .headline .u { color: #FF7A3C; }
-  .sub { margin-top: 26px; font-size: 30px; line-height: 1.4; color: #aab4bf; max-width: 30ch; }
+  .sub { margin-top: 24px; font-size: 29px; line-height: 1.4; color: #aab4bf; max-width: 34ch; }
 
   .foot { display: flex; align-items: center; gap: 16px; font-size: 22px; color: #8b97a3; }
   .pill {
@@ -71,16 +71,14 @@ const html = `<!doctype html>
   </div>
 
   <div>
-    <div class="headline">Trigger deployments with <span class="u">confidence</span></div>
-    <div class="sub">One dashboard to ship and track releases across staging and production.</div>
+    <div class="headline">Know exactly what's deployed where. <span class="u">Roll it back in one click.</span></div>
+    <div class="sub">Every build, across every environment — and a safe button for the whole team to ship or roll back.</div>
   </div>
 
   <div class="foot">
-    <span class="pill">GitHub Actions</span>
+    <span class="pill">Deployment control</span>
     <span class="dot"></span>
-    <span class="pill">Jenkins</span>
-    <span class="dot"></span>
-    <span>staging → production</span>
+    <span>not another CI/CD tool</span>
   </div>
 </body>
 </html>`;

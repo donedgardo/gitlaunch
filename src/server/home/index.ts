@@ -81,9 +81,9 @@ export default function (deps: HomeRouteDeps = {}) {
       // landing page. Kept stable and independent of the A/B copy arm so search
       // engines and link unfurlers see consistent content across visitors.
       const meta = buildPageMeta({
-        title: "GitLaunch — Trigger deployments with confidence",
+        title: "GitLaunch — Know exactly what's deployed where",
         description:
-          "GitLaunch is a simple dashboard to trigger and track deployments across staging and production. Works with GitHub Actions, Jenkins, and more.",
+          "See every build across every environment, and give your whole team a safe button to ship and roll back. Deployment control, not another CI/CD tool.",
         path: "/",
         publicUrl: process.env.PUBLIC_URL,
       });
