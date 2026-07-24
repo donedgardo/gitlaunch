@@ -46,7 +46,7 @@ test.describe("Service Creation", () => {
     const apiKeyText = (
       await page.locator("#new-api-key").textContent()
     )?.trim();
-    expect(apiKeyText).toMatch(/^pk_/); // Key starts with pk_
+    expect(apiKeyText).toMatch(/^sk_/); // Service keys are secret keys
 
     // Should see a build-reporting guide (defaults to GitHub for report-only)
     await expect(page.getByText(/add secrets to github/i)).toBeVisible();
@@ -69,13 +69,13 @@ test.describe("Service Creation", () => {
     // SECURITY CHECK: URL must NOT contain the API key
     const currentUrl = page.url();
     expect(currentUrl).not.toContain("key=");
-    expect(currentUrl).not.toContain("pk_");
+    expect(currentUrl).not.toContain("sk_");
 
     // Verify the API key IS displayed on the page
     const apiKeyElement = page.locator("#new-api-key");
     await expect(apiKeyElement).toBeVisible();
     const apiKeyText = (await apiKeyElement.textContent())?.trim();
-    expect(apiKeyText).toMatch(/^pk_/);
+    expect(apiKeyText).toMatch(/^sk_/);
 
     // Double-check: the displayed key is NOT in the URL
     expect(currentUrl).not.toContain(apiKeyText!);

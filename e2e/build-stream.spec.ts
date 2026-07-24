@@ -25,7 +25,7 @@ test.describe("Build Streaming", () => {
 
     // Extract API key from the dashboard banner
     const apiKey = (await page.locator("#new-api-key").textContent())?.trim();
-    expect(apiKey).toMatch(/^pk_/);
+    expect(apiKey).toMatch(/^sk_/);
 
     // Get service ID from settings link
     const settingsLink = page.locator(`a[href*="/settings"][title="Settings"]`);
