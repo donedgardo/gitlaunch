@@ -4,6 +4,7 @@ import {
   WaitlistExperiment,
   WAITLIST_VISITOR_COOKIE,
 } from "../../services/marketing/waitlistExperiment";
+import { buildPageMeta } from "../seo/meta";
 
 // Just enough of SignupGate to ask "is the front door open?". The landing page
 // has no business with the rest of the gate, and a narrow type keeps the test
@@ -76,6 +77,17 @@ export default function (deps: HomeRouteDeps = {}) {
         ? (await signupDoor.allows(visitorId)).allowed
         : true;
 
+      // Sharing metadata for the one page that actually gets shared: the public
+      // landing page. Kept stable and independent of the A/B copy arm so search
+      // engines and link unfurlers see consistent content across visitors.
+      const meta = buildPageMeta({
+        title: "GitLaunch — Know exactly what's deployed where",
+        description:
+          "See every build across every environment, and give your whole team a safe button to ship and roll back. Deployment control, not another CI/CD tool.",
+        path: "/",
+        publicUrl: process.env.PUBLIC_URL,
+      });
+
       // Show landing page for non-logged in users
       return res.view(
         "index.hbs",
@@ -84,6 +96,7 @@ export default function (deps: HomeRouteDeps = {}) {
           variant: resolved?.variant ?? "control",
           signupsClosed,
           signupsOpen,
+          meta,
         },
         {
           layout: "/layouts/main.hbs",

@@ -8,6 +8,7 @@ import {
 import { AccountRepository } from "../../../repositories/accountRepository";
 import { SessionService } from "../../../services/auth/sessionService";
 import { acceptInvitation } from "./acceptInvitation";
+import { buildPageMeta } from "../../seo/meta";
 
 export type InviteRoutesDeps = {
   invitationRepository: InvitationRepository;
@@ -51,14 +52,33 @@ export function registerInviteRoutes(
     sessionService,
   } = deps;
 
+  // Invite links carry a secret token, so they must never be indexed — but they
+  // should still unfurl into a friendly card when shared in Slack / iMessage.
+  function inviteMeta(accountName: string, token: string) {
+    return buildPageMeta({
+      title: `Join ${accountName} on GitLaunch`,
+      description: `You've been invited to collaborate on deployments in ${accountName} on GitLaunch.`,
+      path: `/invite/${token}`,
+      robots: "noindex, nofollow",
+      publicUrl: process.env.PUBLIC_URL,
+    });
+  }
+
   function renderInvalid(reply: FastifyReply, reason: string) {
-    return reply
-      .status(410)
-      .view(
-        "invite/invalid",
-        { title: "Invitation", reason },
-        { layout: "/layouts/main.hbs" },
-      );
+    return reply.status(410).view(
+      "invite/invalid",
+      {
+        title: "Invitation",
+        reason,
+        meta: buildPageMeta({
+          title: "Invitation — GitLaunch",
+          path: "/invite",
+          robots: "noindex, nofollow",
+          publicUrl: process.env.PUBLIC_URL,
+        }),
+      },
+      { layout: "/layouts/main.hbs" },
+    );
   }
 
   // GET /invite/:token — landing page for a shared invite link
@@ -97,6 +117,7 @@ export function registerInviteRoutes(
             token,
             loggedIn: true,
             alreadyMember: existing !== null,
+            meta: inviteMeta(accountName, token),
           },
           { layout: "/layouts/main.hbs" },
         );
@@ -120,6 +141,7 @@ export function registerInviteRoutes(
           token,
           loggedIn: false,
           alreadyMember: false,
+          meta: inviteMeta(accountName, token),
         },
         { layout: "/layouts/main.hbs" },
       );
