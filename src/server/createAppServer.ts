@@ -407,6 +407,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
   registerFlagsSettingsRoutes(server, {
     serviceRepository,
     flagService,
+    apiKeyService,
     analytics,
     experimentResults: experimentResultsService,
   });

@@ -44,6 +44,7 @@ export function registerPlugins(server: FastifyInstance) {
         deploymentSetupGuide: "/partials/deploymentSetupGuide.hbs",
         environmentList: "/partials/environmentList.hbs",
         flagList: "/partials/flagList.hbs",
+        flagKeyResult: "/partials/flagKeyResult.hbs",
         githubSecretsSetup: "/partials/githubSecretsSetup.hbs",
         jenkinsBuildReportingGuide: "/partials/jenkinsBuildReportingGuide.hbs",
         jenkinsDeploymentGuide: "/partials/jenkinsDeploymentGuide.hbs",
