@@ -13,8 +13,48 @@ import { ConsoleEmailSender } from "../../../services/email/emailSender";
 import { UserRepository } from "../../../repositories/userRepository";
 import { AccountRepository } from "../../../repositories/accountRepository";
 import { MembershipRepository } from "../../../repositories/membershipRepository";
+import { SignupGate } from "../../../services/account/signupGate";
+import { FlagServiceI } from "../../../services/flag/flagService";
+import { FlagEvaluation } from "../../../services/flag/flagEvaluator";
+import { ServiceRepository } from "../../../repositories/serviceRepository";
+import { AnalyticsService } from "../../../services/analytics/analytics";
 import { MongoMemoryServer } from "mongodb-memory-server";
-import { MongoClient, Db } from "mongodb";
+import { MongoClient, Db, ObjectId } from "mongodb";
+
+// A real SignupGate wired to a stubbed flag engine: the gate's own behaviour is
+// covered in signupGate.test.ts, here we only need it to answer on/off. Mirrors
+// the helper in github.test.ts so every front door is tested the same way.
+const SELF_SERVICE_ID = new ObjectId();
+const SELF_ACCOUNT_ID = new ObjectId();
+
+function gateThatSays(enabled: boolean): SignupGate {
+  const flags: Partial<FlagServiceI> = {
+    async evaluateOne(): Promise<FlagEvaluation | null> {
+      return {
+        key: "self-serve-signups",
+        enabled,
+        variant: null,
+        reason: enabled ? "rollout" : "disabled",
+      };
+    },
+  };
+  const services = {
+    async findById() {
+      return { _id: SELF_SERVICE_ID, accountId: SELF_ACCOUNT_ID };
+    },
+  };
+  const analytics: AnalyticsService = {
+    identify() {},
+    track() {},
+    navigation() {},
+  };
+  return new SignupGate(
+    flags as FlagServiceI,
+    services as unknown as ServiceRepository,
+    analytics,
+    { serviceId: SELF_SERVICE_ID, environment: "prod" },
+  );
+}
 
 describe("Email/Password Auth Routes", () => {
   let app: FastifyInstance;
@@ -225,6 +265,126 @@ describe("Email/Password Auth Routes", () => {
       const response = await app.inject({ method: "GET", url: "/signup" });
       expect(response.statusCode).toBe(200);
       expect(response.body).toContain('action="/auth/signup"');
+    });
+  });
+
+  // GitLaunch gates its own front door with its own feature-flag engine. The
+  // email/password door must honour the same kill switch as GitHub OAuth: a
+  // brand-new signup is refused when self-serve-signups is off, but existing
+  // customers can still log in.
+  describe("signup gate", () => {
+    const gatedApps: FastifyInstance[] = [];
+
+    async function appWithGate(gate: SignupGate): Promise<{
+      gated: FastifyInstance;
+      sender: ConsoleEmailSender;
+    }> {
+      const sender = new ConsoleEmailSender();
+      const gated = Fastify();
+      await gated.register(cookie, { secret: "cookie-secret" });
+      await gated.register(formbody);
+      await gated.register(fastifyView, {
+        engine: { handlebars },
+        root: path.join(__dirname, "../../../templates"),
+        options: { compileOptions: { preventIndent: true } },
+      });
+      registerEmailPasswordAuthRoutes(gated, {
+        sessionService: new SessionService("test-secret"),
+        userRepository,
+        accountRepository: new AccountRepository(db),
+        membershipRepository: new MembershipRepository(db),
+        passwordService: new PasswordService(4),
+        emailSender: sender,
+        publicUrl: "http://localhost:3050",
+        googleEnabled: true,
+        signupGate: gate,
+      });
+      await gated.ready();
+      gatedApps.push(gated);
+      return { gated, sender };
+    }
+
+    afterEach(async () => {
+      await Promise.all(gatedApps.splice(0).map((a) => a.close()));
+    });
+
+    it("should refuse a brand-new signup when signups are closed", async () => {
+      // Given: signups are flagged off
+      const { gated, sender } = await appWithGate(gateThatSays(false));
+
+      // When: a stranger tries to sign up
+      const response = await gated.inject({
+        method: "POST",
+        url: "/auth/signup",
+        payload: {
+          name: "Stranger",
+          email: "stranger@example.com",
+          password: "longenough1",
+        },
+      });
+
+      // Then: they're sent back to the landing page, told signups are closed
+      expect(response.statusCode).toBe(302);
+      expect(response.headers.location).toBe("/?error=signups_closed");
+
+      // And: nothing was created and no confirmation email went out — the check
+      // runs before any write, so a refused signup leaves no orphan user.
+      expect(await userRepository.findByEmail("stranger@example.com")).toBeNull();
+      expect(sender.sent).toHaveLength(0);
+    });
+
+    it("should create the signup as usual when signups are open", async () => {
+      // Given: signups are flagged on
+      const { gated, sender } = await appWithGate(gateThatSays(true));
+
+      // When: a new person signs up
+      const response = await gated.inject({
+        method: "POST",
+        url: "/auth/signup",
+        payload: {
+          name: "Newcomer",
+          email: "newcomer@example.com",
+          password: "longenough1",
+        },
+      });
+
+      // Then: the usual check-your-email flow runs, unverified user created
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain("Check your email");
+      const user = await userRepository.findByEmail("newcomer@example.com");
+      expect(user).not.toBeNull();
+      expect(user!.emailVerified).toBe(false);
+      expect(sender.sent).toHaveLength(1);
+    });
+
+    it("should still log in an existing verified customer when signups are closed", async () => {
+      // Given: a verified password customer already exists
+      const seed = await appWithGate(gateThatSays(true));
+      await seed.gated.inject({
+        method: "POST",
+        url: "/auth/signup",
+        payload: {
+          name: "Returning",
+          email: "returning@example.com",
+          password: "longenough1",
+        },
+      });
+      const user = await userRepository.findByEmail("returning@example.com");
+      await userRepository.markEmailVerified(user!._id);
+
+      // And: signups have since been closed
+      const { gated } = await appWithGate(gateThatSays(false));
+
+      // When: they log in (not a new account — an existing customer)
+      const response = await gated.inject({
+        method: "POST",
+        url: "/auth/login",
+        payload: { email: "returning@example.com", password: "longenough1" },
+      });
+
+      // Then: the gate never touches them — they reach their dashboard
+      expect(response.statusCode).toBe(302);
+      expect(response.headers.location).toBe("/dashboard");
     });
   });
 });
