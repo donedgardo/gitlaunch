@@ -29,13 +29,13 @@ describe("TrialRegistryRepository", () => {
   });
 
   describe("claimTrial", () => {
-    it("should claim trial for first-time GitHub user and return true", async () => {
-      // Given: a GitHub user who has never claimed a trial
-      const githubId = 12345;
+    it("should claim trial for first-time user and return true", async () => {
+      // Given: a user who has never claimed a trial
+      const subject = "github:12345";
       const accountId = new ObjectId();
 
       // When: I claim the trial
-      const result = await repo.claimTrial(githubId, accountId);
+      const result = await repo.claimTrial(subject, accountId);
 
       // Then: the trial is claimed successfully
       expect(result).toBe(true);
@@ -43,79 +43,79 @@ describe("TrialRegistryRepository", () => {
 
     it("should persist the trial claim with timestamp", async () => {
       // Given: I claim a trial
-      const githubId = 67890;
+      const subject = "github:67890";
       const accountId = new ObjectId();
-      await repo.claimTrial(githubId, accountId);
+      await repo.claimTrial(subject, accountId);
 
       // When: I check if the trial was used
-      const hasUsed = await repo.hasUsedTrial(githubId);
+      const hasUsed = await repo.hasUsedTrial(subject);
 
       // Then: the trial registry shows it was used
       expect(hasUsed).toBe(true);
     });
 
-    it("should return false when GitHub user already claimed trial on same account", async () => {
-      // Given: a GitHub user already claimed a trial
-      const githubId = 11111;
+    it("should return false when user already claimed trial on same account", async () => {
+      // Given: a user already claimed a trial
+      const subject = "github:11111";
       const accountId = new ObjectId();
-      await repo.claimTrial(githubId, accountId);
+      await repo.claimTrial(subject, accountId);
 
       // When: the same user tries to claim again on the same account
-      const result = await repo.claimTrial(githubId, accountId);
+      const result = await repo.claimTrial(subject, accountId);
 
       // Then: the claim is rejected (duplicate)
       expect(result).toBe(false);
     });
 
-    it("should return false when GitHub user already claimed trial on different account", async () => {
-      // Given: a GitHub user already claimed a trial on one account
-      const githubId = 22222;
+    it("should return false when user already claimed trial on different account", async () => {
+      // Given: a user already claimed a trial on one account
+      const subject = "github:22222";
       const accountId1 = new ObjectId();
-      await repo.claimTrial(githubId, accountId1);
+      await repo.claimTrial(subject, accountId1);
 
       // When: the same user tries to claim on a different account
       const accountId2 = new ObjectId();
-      const result = await repo.claimTrial(githubId, accountId2);
+      const result = await repo.claimTrial(subject, accountId2);
 
-      // Then: the claim is rejected (one trial per GitHub user)
+      // Then: the claim is rejected (one trial per person)
       expect(result).toBe(false);
     });
 
-    it("should allow different GitHub users to claim trials on the same account", async () => {
-      // Given: one GitHub user claimed a trial on an account
+    it("should allow different users to claim trials on the same account", async () => {
+      // Given: one user claimed a trial on an account
       const accountId = new ObjectId();
-      const githubId1 = 33333;
-      await repo.claimTrial(githubId1, accountId);
+      const subject1 = "github:33333";
+      await repo.claimTrial(subject1, accountId);
 
-      // When: a different GitHub user tries to claim on the same account
-      const githubId2 = 44444;
-      const result = await repo.claimTrial(githubId2, accountId);
+      // When: a different user tries to claim on the same account
+      const subject2 = "user:44444";
+      const result = await repo.claimTrial(subject2, accountId);
 
-      // Then: the claim succeeds (limit is per GitHub user, not account)
+      // Then: the claim succeeds (limit is per person, not account)
       expect(result).toBe(true);
     });
   });
 
   describe("hasUsedTrial", () => {
-    it("should return true when GitHub user has claimed a trial", async () => {
-      // Given: a GitHub user claimed a trial
-      const githubId = 55555;
+    it("should return true when user has claimed a trial", async () => {
+      // Given: a user claimed a trial
+      const subject = "github:55555";
       const accountId = new ObjectId();
-      await repo.claimTrial(githubId, accountId);
+      await repo.claimTrial(subject, accountId);
 
       // When: I check if they used their trial
-      const result = await repo.hasUsedTrial(githubId);
+      const result = await repo.hasUsedTrial(subject);
 
       // Then: it returns true
       expect(result).toBe(true);
     });
 
-    it("should return false when GitHub user has not claimed a trial", async () => {
-      // Given: a GitHub user who never claimed a trial
-      const githubId = 66666;
+    it("should return false when user has not claimed a trial", async () => {
+      // Given: a user who never claimed a trial
+      const subject = "github:66666";
 
       // When: I check if they used their trial
-      const result = await repo.hasUsedTrial(githubId);
+      const result = await repo.hasUsedTrial(subject);
 
       // Then: it returns false
       expect(result).toBe(false);
