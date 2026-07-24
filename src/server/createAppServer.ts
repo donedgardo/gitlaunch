@@ -78,6 +78,7 @@ import { LeadRepository } from "../repositories/leadRepository";
 import { WaitlistService } from "../services/marketing/waitlistService";
 import { WaitlistExperiment } from "../services/marketing/waitlistExperiment";
 import { SignupGate } from "../services/account/signupGate";
+import { describeSelfFlagStatus } from "../services/flag/selfFlagContext";
 import { registerWaitlistRoutes } from "./routes/marketing/waitlist";
 
 // Minimum time (ms) a real person needs to read and fill the waitlist form.
@@ -286,6 +287,19 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     serviceId: toObjectId(process.env.GITLAUNCH_SERVICE_ID),
     environment: process.env.GITLAUNCH_FLAG_ENV || "prod",
   };
+
+  // Every self-flag fails open, so a missing or malformed GITLAUNCH_SERVICE_ID
+  // silently disables the signup gate and the landing A/B test — you create the
+  // flag, flip it, and nothing happens, with nothing to see. Say so at boot.
+  const selfFlagStatus = describeSelfFlagStatus(
+    process.env.GITLAUNCH_SERVICE_ID,
+    selfFlagContext.environment,
+  );
+  if (selfFlagStatus.live) {
+    console.log(selfFlagStatus.message);
+  } else {
+    console.warn(selfFlagStatus.message);
+  }
 
   // Dogfood our own feature flags to control our own front door: whether a
   // brand-new visitor may create an account (kill switch / gradual alpha

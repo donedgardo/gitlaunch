@@ -17,6 +17,25 @@ The owning account is derived from the service — a service belongs to exactly
 one account — so there is no account id to configure. If `GITLAUNCH_SERVICE_ID`
 is unset or points at a missing service, every self-flag is **inert**.
 
+> **These must be set on the running app, not just in CI.** `GITLAUNCH_SERVICE_ID`
+> also exists as a GitHub Actions repo variable (`vars.GITLAUNCH_SERVICE_ID`),
+> where it only builds the curl URL our workflows report builds to. That does
+> **not** reach the server process. Deploys run `railway up`, so the app reads
+> its environment from the Railway service's variables — set it there too, or
+> every self-flag stays inert no matter what you configure in the flags UI.
+
+Because self-flags fail open, an incomplete setup is invisible at runtime. The
+server therefore reports the state on boot, so a look at the logs settles it:
+
+```
+GitLaunch's own feature flags are live: reading service 6712… in the "prod" flag environment.
+GitLaunch's own feature flags are INERT (…). GITLAUNCH_SERVICE_ID is not set — …
+GitLaunch's own feature flags are INERT: no service found for GITLAUNCH_SERVICE_ID=…
+```
+
+The three inert cases are unset, malformed (a slug or a pasted dashboard URL
+rather than the 24-character id), and a well-formed id with no such service.
+
 ## Flags we run on ourselves
 
 | Key                  | What it controls                                  | Off/absent behaviour        |
