@@ -443,7 +443,7 @@ describe("Flags API Routes", () => {
         description: "",
       });
       await app.inject({
-        method: "PUT",
+        method: "PATCH",
         url: `/api/v1/services/${testServiceId}/flags/updatable/environments/prod`,
         headers: auth(),
         payload: { enabled: true, rolloutPercentage: 50 },

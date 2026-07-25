@@ -10,6 +10,8 @@
  * applies to events captured before this existed.
  */
 
+import { AnalyticsContext } from "./analytics";
+
 export type ActorKind = "user" | "machine" | "visitor" | "unknown";
 
 // Prefix marking an id as an API key rather than a person.
@@ -25,6 +27,21 @@ const VISITOR_ID_PATTERN =
 /** Actor id for an API key, so machine traffic never reads as a person. */
 export function machineActor(apiKeyId: string): string {
   return `${MACHINE_ACTOR_PREFIX}${apiKeyId}`;
+}
+
+/**
+ * Analytics context for an event someone deliberately caused. Every mutating
+ * route should pass one: an event with no tenant is invisible to the
+ * dashboard, and an event with no actor cannot appear in a funnel.
+ */
+export function actor(
+  accountId: { toString(): string },
+  actorId: { toString(): string },
+): AnalyticsContext {
+  return {
+    accountId: accountId.toString(),
+    distinctId: actorId.toString(),
+  };
 }
 
 export function classifyActor(

@@ -6,6 +6,7 @@ import { PlanEnforcementService } from "../../../services/billing/planEnforcemen
 import { requireScope } from "../../middleware/apiKeyAuth";
 import { DeploymentStatus } from "../../../services/service/deploymentStatus";
 import { AnalyticsService } from "../../../services/analytics/analytics";
+import { machineActor } from "../../../services/analytics/actorIdentity";
 
 export type BuildsRoutesDependencies = {
   buildService: BuildService;
@@ -95,7 +96,14 @@ export function registerBuildsRoutes(
           buildId,
           message,
         });
-        analytics?.track("build_reported", { serviceId, buildId });
+        analytics?.track(
+          "build_reported",
+          { serviceId, buildId },
+          {
+            accountId: accountId.toString(),
+            distinctId: machineActor(request.apiKey!.apiKeyId.toString()),
+          },
+        );
 
         return reply.status(201).send({
           _id: build._id.toString(),
@@ -326,7 +334,7 @@ export function registerBuildsRoutes(
           },
           {
             accountId: accountId.toString(),
-            distinctId: `apikey:${request.apiKey!.apiKeyId.toString()}`,
+            distinctId: machineActor(request.apiKey!.apiKeyId.toString()),
           },
         );
 

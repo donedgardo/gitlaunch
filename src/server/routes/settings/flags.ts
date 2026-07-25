@@ -8,6 +8,7 @@ import {
   TargetingRule,
 } from "../../../repositories/flagRepository";
 import { AnalyticsService } from "../../../services/analytics/analytics";
+import { actor } from "../../../services/analytics/actorIdentity";
 import { ApiKeyService } from "../../../services/apiKey/apiKeyService";
 import {
   ExperimentResultsService,
@@ -174,7 +175,7 @@ export function registerFlagsSettingsRoutes(
       reply.status(404).send("Service not found");
       return null;
     }
-    return { service, accountId };
+    return { service, accountId, userId: new ObjectId(request.session.userId) };
   }
 
   function envNamesOf(service: {
@@ -207,7 +208,7 @@ export function registerFlagsSettingsRoutes(
     async (request, reply) => {
       const result = await loadServiceWithAuth(request, reply);
       if (!result) return;
-      const { service, accountId } = result;
+      const { service, accountId, userId } = result;
       const envNames = envNamesOf(service);
       const flags = await flagService.listFlags(accountId, service._id);
       const services = await serviceRepository.findByAccountId(accountId);
@@ -238,8 +239,7 @@ export function registerFlagsSettingsRoutes(
     async (request, reply) => {
       const result = await loadServiceWithAuth(request, reply);
       if (!result) return;
-      const { service, accountId } = result;
-      const userId = new ObjectId(request.session!.userId);
+      const { service, accountId, userId } = result;
       const envNames = envNamesOf(service);
 
       const { key } = await apiKeyService.generate({
@@ -248,9 +248,11 @@ export function registerFlagsSettingsRoutes(
         name: `Flag reader — ${service.name}`,
         scopes: ["flags:read"],
       });
-      analytics?.track("flag_client_key_created", {
-        serviceId: service._id.toString(),
-      });
+      analytics?.track(
+        "flag_client_key_created",
+        { serviceId: service._id.toString() },
+        actor(accountId, userId),
+      );
 
       return reply.view(
         "partials/flagKeyResult",
@@ -276,8 +278,7 @@ export function registerFlagsSettingsRoutes(
   }>("/services/:serviceId/flags/keys/browser", async (request, reply) => {
     const result = await loadServiceWithAuth(request, reply);
     if (!result) return;
-    const { service, accountId } = result;
-    const userId = new ObjectId(request.session!.userId);
+    const { service, accountId, userId } = result;
     const envNames = envNamesOf(service);
 
     const environment = (request.body?.environment ?? "").trim() || envNames[0];
@@ -308,11 +309,15 @@ export function registerFlagsSettingsRoutes(
       environment,
       allowedOrigins: origins,
     });
-    analytics?.track("flag_browser_key_created", {
-      serviceId: service._id.toString(),
-      environment,
-      originCount: origins.length,
-    });
+    analytics?.track(
+      "flag_browser_key_created",
+      {
+        serviceId: service._id.toString(),
+        environment,
+        originCount: origins.length,
+      },
+      actor(accountId, userId),
+    );
 
     return reply.view(
       "partials/flagKeyResult",
@@ -335,7 +340,7 @@ export function registerFlagsSettingsRoutes(
   }>("/services/:serviceId/flags", async (request, reply) => {
     const result = await loadServiceWithAuth(request, reply);
     if (!result) return;
-    const { service, accountId } = result;
+    const { service, accountId, userId } = result;
     const envNames = envNamesOf(service);
     const key = (request.body?.key ?? "").trim();
 
@@ -344,10 +349,11 @@ export function registerFlagsSettingsRoutes(
         key,
         description: (request.body?.description ?? "").trim(),
       });
-      analytics?.track("flag_created", {
-        serviceId: service._id.toString(),
-        key,
-      });
+      analytics?.track(
+        "flag_created",
+        { serviceId: service._id.toString(), key },
+        actor(accountId, userId),
+      );
       return renderList(accountId, service._id, envNames, reply);
     } catch (error) {
       const message =
@@ -365,7 +371,7 @@ export function registerFlagsSettingsRoutes(
     async (request, reply) => {
       const result = await loadServiceWithAuth(request, reply);
       if (!result) return;
-      const { service, accountId } = result;
+      const { service, accountId, userId } = result;
       const envNames = envNamesOf(service);
       const { key, env } = request.params;
 
@@ -381,11 +387,11 @@ export function registerFlagsSettingsRoutes(
           enabled,
           ...(rolloutPercentage !== undefined ? { rolloutPercentage } : {}),
         });
-        analytics?.track("flag_updated", {
-          serviceId: service._id.toString(),
-          key,
-          environment: env,
-        });
+        analytics?.track(
+          "flag_updated",
+          { serviceId: service._id.toString(), key, environment: env },
+          actor(accountId, userId),
+        );
         return renderList(accountId, service._id, envNames, reply);
       } catch (error) {
         const message =
@@ -409,7 +415,7 @@ export function registerFlagsSettingsRoutes(
     async (request, reply) => {
       const result = await loadServiceWithAuth(request, reply);
       if (!result) return;
-      const { service, accountId } = result;
+      const { service, accountId, userId } = result;
       const envNames = envNamesOf(service);
       const { key, env } = request.params;
 
@@ -422,11 +428,11 @@ export function registerFlagsSettingsRoutes(
         await flagService.setEnvConfig(accountId, service._id, key, env, {
           variants,
         });
-        analytics?.track("flag_updated", {
-          serviceId: service._id.toString(),
-          key,
-          environment: env,
-        });
+        analytics?.track(
+          "flag_updated",
+          { serviceId: service._id.toString(), key, environment: env },
+          actor(accountId, userId),
+        );
         return renderList(accountId, service._id, envNames, reply);
       } catch (error) {
         const message =
@@ -442,7 +448,7 @@ export function registerFlagsSettingsRoutes(
     async (request, reply) => {
       const result = await loadServiceWithAuth(request, reply);
       if (!result) return;
-      const { service, accountId } = result;
+      const { service, accountId, userId } = result;
       const envNames = envNamesOf(service);
 
       await flagService.deleteFlag(accountId, service._id, request.params.key);
@@ -458,7 +464,7 @@ export function registerFlagsSettingsRoutes(
     async (request, reply) => {
       const result = await loadServiceWithAuth(request, reply);
       if (!result) return;
-      const { service, accountId } = result;
+      const { service, accountId, userId } = result;
       const { key } = request.params;
 
       const flag = await flagService.getFlag(accountId, service._id, key);
