@@ -211,13 +211,53 @@ describe("InsightsService", () => {
       expect(report.to).toEqual(to);
     });
 
+    it("should headline product users only, and account for other actors", async () => {
+      // Given a logged-in user, an anonymous landing visitor and an API key
+      await repo.insert({
+        type: "track",
+        event: "user_logged_in",
+        timestamp: new Date("2026-07-02T09:00:00Z"),
+        distinctId: "6a5ee3c88892169df80ea18a",
+        accountId,
+        properties: {},
+      });
+      await repo.insert({
+        type: "track",
+        event: "flag_exposure",
+        timestamp: new Date("2026-07-02T10:00:00Z"),
+        distinctId: "6953af16-c997-4c9e-ad84-0c21ce8d5cef",
+        accountId,
+        properties: {},
+      });
+      await repo.insert({
+        type: "track",
+        event: "deployment_status_updated",
+        timestamp: new Date("2026-07-02T11:00:00Z"),
+        distinctId: "apikey:6a5ee3d78892169df80ea18e",
+        accountId,
+        properties: {},
+      });
+
+      // When I build the report
+      const report = await insights.build({ from, to });
+
+      // Then the headline counts only the person, and the rest are itemised
+      expect(report.usage.activeUsers[0].users).toBe(1);
+      expect(report.usage.audience).toEqual({
+        user: 1,
+        visitor: 1,
+        machine: 1,
+        unknown: 0,
+      });
+    });
+
     it("should report product usage over the window", async () => {
-      // Given someone using the product
+      // Given a logged-in person using the product
       await repo.insert({
         type: "track",
         event: "build_reported",
         timestamp: new Date("2026-07-02T10:00:00Z"),
-        distinctId: "alice",
+        distinctId: "6a5ee3c88892169df80ea18a",
         accountId,
         properties: {},
       });
