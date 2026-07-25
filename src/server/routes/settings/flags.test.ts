@@ -19,6 +19,7 @@ import { SessionService } from "../../../services/auth/sessionService";
 import { sessionAuthMiddleware } from "../../middleware/sessionAuth";
 import { registerHandlebarsHelpers } from "../../registerHandlebarsHelpers";
 import { registerFlagsSettingsRoutes } from "./flags";
+import { WarehouseAnalytics } from "../../../services/analytics/warehouseAnalytics";
 
 describe("Flags Settings Routes", () => {
   let mongoServer: MongoMemoryServer;
@@ -32,6 +33,7 @@ describe("Flags Settings Routes", () => {
   let apiKeyRepo: ApiKeyRepository;
   let apiKeyService: ApiKeyService;
   let analyticsEventRepo: AnalyticsEventRepository;
+  let analytics: WarehouseAnalytics;
   let experimentResults: ExperimentResultsService;
   let sessionService: SessionService;
 
@@ -95,11 +97,13 @@ describe("Flags Settings Routes", () => {
       },
     });
     sessionAuthMiddleware(app, sessionService);
+    analytics = new WarehouseAnalytics(analyticsEventRepo);
     registerFlagsSettingsRoutes(app, {
       serviceRepository: serviceRepo,
       flagService,
       apiKeyService,
       experimentResults,
+      analytics,
     });
     await app.ready();
   });
@@ -111,6 +115,46 @@ describe("Flags Settings Routes", () => {
     });
     expect(response.statusCode).toBe(302);
     expect(response.headers.location).toBe("/auth/github");
+  });
+
+  describe("analytics attribution", () => {
+    async function capturedEvent(name: string) {
+      await analytics.flush();
+      return db.collection("analytics_events").findOne({ event: name });
+    }
+
+    it("should record which account and which person created a flag", async () => {
+      // Given someone creating a flag from the settings page
+      await app.inject({
+        method: "POST",
+        url: `/services/${serviceId}/flags`,
+        cookies: { session: session() },
+        payload: { key: "ui-created-flag", description: "" },
+      });
+
+      // When I look at what the warehouse captured
+      const event = await capturedEvent("flag_created");
+
+      // Then the change is attributed to the tenant and to the person
+      expect(event?.accountId?.toString()).toBe(accountId.toString());
+      expect(event?.distinctId).toBe(userId.toString());
+    });
+
+    it("should record who minted a flag reader key", async () => {
+      // Given someone minting a server key from the settings page
+      await app.inject({
+        method: "POST",
+        url: `/services/${serviceId}/flags/keys`,
+        cookies: { session: session() },
+      });
+
+      // When I look at what the warehouse captured
+      const event = await capturedEvent("flag_client_key_created");
+
+      // Then the key mint is attributed to the tenant and to the person
+      expect(event?.accountId?.toString()).toBe(accountId.toString());
+      expect(event?.distinctId).toBe(userId.toString());
+    });
   });
 
   it("renders the flags page with the create form", async () => {
