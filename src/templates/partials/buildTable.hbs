@@ -54,7 +54,21 @@
       <tr>
         <th>Commit</th>
         {{#each environments as |env|}}
-          <th class="gl-env-col">{{env.name}}</th>
+          <th class="gl-env-col">
+            {{env.name}}
+            {{#if env.flags.hasFlags}}
+              <a
+                class="gl-env-flags"
+                href="/services/{{../serviceId}}/flags"
+                title="{{env.flags.label}} in {{env.name}}{{#if env.flags.detail}} — {{env.flags.detail}}{{/if}}"
+              >
+                <span class="gl-env-flags-count">{{env.flags.label}}</span>
+                {{#if env.flags.detail}}
+                  <span class="gl-env-flags-detail">{{env.flags.detail}}</span>
+                {{/if}}
+              </a>
+            {{/if}}
+          </th>
         {{/each}}
       </tr>
       </thead>
