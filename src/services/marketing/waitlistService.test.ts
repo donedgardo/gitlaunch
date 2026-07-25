@@ -192,6 +192,25 @@ describe("WaitlistService", () => {
       expect(blocked?.context?.accountId).toBe(ownAccountId.toString());
     });
 
+    it("should stamp the signup with the lead it created", async () => {
+      // Given someone joining the waitlist
+      const result = await service.submit({
+        email: "jo@startup.io",
+        elapsedMs: 9000,
+      });
+
+      // When I look at the signup event
+      const signup = analytics.tracked.find(
+        (t) => t.event === "waitlist_signup",
+      );
+
+      // Then it names the lead, so the warehouse and the leads table can
+      // always be reconciled without guessing by timestamp
+      const lead = await repo.findByEmail("jo@startup.io");
+      expect(signup?.properties?.leadId).toBe(lead?._id.toString());
+      expect(result.status).toBe("subscribed");
+    });
+
     it("should record the visitor id so a signup can be joined to the landing-page exposure", async () => {
       await service.submit({
         email: "sam@startup.io",
