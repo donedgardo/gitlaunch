@@ -189,6 +189,15 @@ export class InsightsService {
       );
     }
 
+    const unattributed = await this.eventsWithoutAnActor(query);
+    if (unattributed.length > 0) {
+      warnings.push(
+        `These events never record a distinctId, so they cannot appear in funnels or per-user usage: ${unattributed
+          .map((e) => `\`${e.event}\` (${e.occurrences}×)`)
+          .join(", ")}.`,
+      );
+    }
+
     const leads = await this.countLeads(query);
     if (leads > signupsTotal) {
       warnings.push(
@@ -197,6 +206,41 @@ export class InsightsService {
     }
 
     return warnings;
+  }
+
+  /**
+   * Tracked events that fired in the window without ever carrying a
+   * distinctId. They inflate volume charts while contributing nothing to
+   * funnels, retention or per-user usage — an instrumentation gap, not a
+   * quiet zero.
+   */
+  private async eventsWithoutAnActor(
+    query: InsightsQuery,
+  ): Promise<Array<{ event: string; occurrences: number }>> {
+    return this.db
+      .collection("analytics_events")
+      .aggregate<{ event: string; occurrences: number }>([
+        {
+          $match: {
+            type: "track",
+            timestamp: { $gte: query.from, $lt: query.to },
+            ...(query.accountId ? { accountId: query.accountId } : {}),
+          },
+        },
+        {
+          $group: {
+            _id: "$event",
+            occurrences: { $sum: 1 },
+            identified: {
+              $sum: { $cond: [{ $ifNull: ["$distinctId", false] }, 1, 0] },
+            },
+          },
+        },
+        { $match: { identified: 0 } },
+        { $project: { _id: 0, event: "$_id", occurrences: 1 } },
+        { $sort: { occurrences: -1, event: 1 } },
+      ])
+      .toArray();
   }
 
   private async countLeads(query: InsightsQuery): Promise<number> {
