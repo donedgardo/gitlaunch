@@ -26,7 +26,7 @@ export class TrialService {
 
   async startTrial(
     accountId: ObjectId,
-    githubId: number,
+    subject: string,
     plan: Plan,
   ): Promise<TrialStartResult> {
     // Validate plan is Pro or Team (not Free)
@@ -35,10 +35,7 @@ export class TrialService {
     }
 
     // Try to claim trial in registry (atomic duplicate check)
-    const claimed = await this.trialRegistryRepo.claimTrial(
-      githubId,
-      accountId,
-    );
+    const claimed = await this.trialRegistryRepo.claimTrial(subject, accountId);
 
     if (!claimed) {
       return { started: false, reason: "Trial already used" };

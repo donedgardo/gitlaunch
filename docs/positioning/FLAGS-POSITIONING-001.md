@@ -22,17 +22,17 @@ The instinct in the prompt is right — flags reach past operations into product
 
 Worth saying plainly, because the scale of it is the whole problem. Across nine branches the flag engine now has:
 
-| Capability                     | Where                                                       | Which shelf it serves    |
-| ------------------------------ | ----------------------------------------------------------- | ------------------------ |
-| Deterministic % rollout        | `flagEvaluator.ts` (sha256 bucketing)                       | Delivery control         |
-| Kill switch / enable per env   | `flagService.ts`, per-env `FlagEnvironmentConfig`           | Delivery control         |
-| Targeting rules / allow-lists  | `targetingRules` on env config, 5 operators                 | Delivery control         |
-| Immutable config versions      | `configBundle.ts`, `flag_config_versions`                   | Delivery control / audit |
+| Capability                      | Where                                                       | Which shelf it serves    |
+| ------------------------------- | ----------------------------------------------------------- | ------------------------ |
+| Deterministic % rollout         | `flagEvaluator.ts` (sha256 bucketing)                       | Delivery control         |
+| Kill switch / enable per env    | `flagService.ts`, per-env `FlagEnvironmentConfig`           | Delivery control         |
+| Targeting rules / allow-lists   | `targetingRules` on env config, 5 operators                 | Delivery control         |
+| Immutable config versions       | `configBundle.ts`, `flag_config_versions`                   | Delivery control / audit |
 | Read-through cache, Redis-ready | `flagCache.ts`, `RedisFlagCache`                            | Delivery control         |
-| Weighted A/B variants          | `variants[]` + weights                                      | **Product engineering**  |
-| Exposure + conversion capture  | `flag_exposure` / `flag_conversion` → analytics warehouse   | **Product engineering**  |
-| Experiment results + stats     | `ExperimentResultsService`, `significance.ts` (z-test, MDE) | **Product engineering**  |
-| Publishable browser keys, CORS | `pk_`/`sk_` split, `flags:evaluate`, origin allow-list      | **Product engineering**  |
+| Weighted A/B variants           | `variants[]` + weights                                      | **Product engineering**  |
+| Exposure + conversion capture   | `flag_exposure` / `flag_conversion` → analytics warehouse   | **Product engineering**  |
+| Experiment results + stats      | `ExperimentResultsService`, `significance.ts` (z-test, MDE) | **Product engineering**  |
+| Publishable browser keys, CORS  | `pk_`/`sk_` split, `flags:evaluate`, origin allow-list      | **Product engineering**  |
 
 And it appears in **zero** market-facing surfaces. Not in the canvas. Not on `index.hbs`. Not in `MARKETING_RESEARCH.md`. Not in the pricing table. The only public trace is a nav icon at `/services/:id/flags`.
 
@@ -100,15 +100,15 @@ That is a stronger sentence than the current A1, and it's only sayable because w
 
 ## What changes in the canvas (and what doesn't)
 
-| Component                        | Change                                                                                                                                                                                                                                            |
-| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 01 · Competitive alternatives    | **Add one:** _"hardcode it, redeploy to change it, redeploy again to undo it."_ That — not LaunchDarkly — is what our segment actually does today. Note deliberately that we do **not** list flag vendors here; that's an inventory we don't compete in. |
-| 02 · Unique attributes           | **Add:** _deploy state and flag state in one model, one screen, one audit trail._ This is the only genuinely uncopyable item on the list. Rollout/kill-switch are supporting bullets under it, not headline attributes.                             |
-| 03 · Value & proof               | **Sharpen MTTR:** undo now has two speeds — roll back the build, or switch the feature off without deploying. The second is seconds and needs no CI run. Strengthens the existing DORA proof rather than adding a new claim.                        |
-| 04 · Who cares a lot             | **No change.** Same segment, extended rationale: a team with no platform team also has no growth team. The connective tissue of the whole company is _"no specialist required."_                                                                    |
-| 05 · Market category             | **No change.** Still not a CI/CD tool. Also **not a feature-management platform.**                                                                                                                                                                 |
-| 06 · Trend                       | **Strengthened, still under-evidenced.** "You shouldn't need a platform team to deploy safely" now extends to "you shouldn't need a growth team to ship safely and learn." Same anti-specialist thesis. Still our weakest component; don't lean on it. |
-| Lead hook                        | **Candidate A4** (above). Do not promote it over A1/A3 until interviews say roll-forward dominates.                                                                                                                                                |
+| Component                     | Change                                                                                                                                                                                                                                                   |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 01 · Competitive alternatives | **Add one:** _"hardcode it, redeploy to change it, redeploy again to undo it."_ That — not LaunchDarkly — is what our segment actually does today. Note deliberately that we do **not** list flag vendors here; that's an inventory we don't compete in. |
+| 02 · Unique attributes        | **Add:** _deploy state and flag state in one model, one screen, one audit trail._ This is the only genuinely uncopyable item on the list. Rollout/kill-switch are supporting bullets under it, not headline attributes.                                  |
+| 03 · Value & proof            | **Sharpen MTTR:** undo now has two speeds — roll back the build, or switch the feature off without deploying. The second is seconds and needs no CI run. Strengthens the existing DORA proof rather than adding a new claim.                             |
+| 04 · Who cares a lot          | **No change.** Same segment, extended rationale: a team with no platform team also has no growth team. The connective tissue of the whole company is _"no specialist required."_                                                                         |
+| 05 · Market category          | **No change.** Still not a CI/CD tool. Also **not a feature-management platform.**                                                                                                                                                                       |
+| 06 · Trend                    | **Strengthened, still under-evidenced.** "You shouldn't need a platform team to deploy safely" now extends to "you shouldn't need a growth team to ship safely and learn." Same anti-specialist thesis. Still our weakest component; don't lean on it.   |
+| Lead hook                     | **Candidate A4** (above). Do not promote it over A1/A3 until interviews say roll-forward dominates.                                                                                                                                                      |
 
 ## Words to be found by vs. words to be framed by
 

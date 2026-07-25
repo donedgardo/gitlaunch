@@ -17,6 +17,7 @@ import { createGitHubServices } from "./services/github/createGitHubServices";
 import { createFlagCache } from "./services/flag/createFlagCache";
 import { AnalyticsEventRepository } from "./repositories/analyticsEventRepository";
 import { createAnalyticsService } from "./services/analytics/createAnalyticsService";
+import { createGoogleOAuthService } from "./services/auth/googleOAuthService";
 
 // MongoDB connection
 const mongodb_uri = process.env.MONGODB_URI as string;
@@ -43,6 +44,20 @@ const { githubOAuthService, gitHubAppService, installationTokenService } =
     publicUrl: process.env.PUBLIC_URL,
   });
 
+// Google OAuth (optional — enabled when a client id is configured, or in fake
+// mode for local dev). Left undefined otherwise so the button stays hidden.
+const useFakeGoogle = process.env.USE_FAKE_GOOGLE === "true";
+const googleClientId = process.env.GOOGLE_CLIENT_ID;
+const googleOAuthService =
+  googleClientId || useFakeGoogle
+    ? createGoogleOAuthService({
+        useFakes: useFakeGoogle,
+        clientId: googleClientId,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+        publicUrl: process.env.PUBLIC_URL,
+      })
+    : undefined;
+
 // Create WebhookEventRepository for webhook idempotency
 const webhookEventRepository = new WebhookEventRepository(database);
 
@@ -63,6 +78,7 @@ const server = createAppServer({
   mongoClient: new MongoDbClient(client),
   eventEmitter,
   githubOAuthService,
+  googleOAuthService,
   sessionService,
   gitHubAppService,
   installationTokenService,

@@ -116,3 +116,16 @@ export class SignupGate {
 export function signupEntityKey(githubId: number): string {
   return `github:${githubId}`;
 }
+
+// Same idea for the other front doors, so every signup decision keys off a
+// stable per-person identity and lands in the same rollout bucket on retry.
+// Google's `sub` is its immutable account id; for email/password the normalized
+// address is the only stable identity a not-yet-created user has. Namespaced by
+// provider so the three key spaces can never collide.
+export function googleSignupEntityKey(sub: string): string {
+  return `google:${sub}`;
+}
+
+export function emailSignupEntityKey(email: string): string {
+  return `email:${email}`;
+}

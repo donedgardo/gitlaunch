@@ -10,6 +10,8 @@ import analyticsRoutes from "./analytics";
 import buildRoutes from "./build";
 import { AnalyticsQueryService } from "../services/analytics/analyticsQueryService";
 import { registerGitHubAuthRoutes } from "./routes/auth/github";
+import { registerGoogleAuthRoutes } from "./routes/auth/google";
+import { registerEmailPasswordAuthRoutes } from "./routes/auth/emailPassword";
 import { registerInstallationRoutes } from "./routes/github/installation";
 import { registerOnboardingRoutes } from "./routes/onboarding";
 import { registerServiceRoutes } from "./routes/services";
@@ -22,6 +24,9 @@ import { registerSessionMiddleware } from "./middleware/sessionAuth";
 import { createApiKeyAuthMiddleware } from "./middleware/apiKeyAuth";
 
 import { GitHubOAuthService } from "../services/auth/githubOAuthService";
+import { GoogleOAuthService } from "../services/auth/googleOAuthService";
+import { PasswordService } from "../services/auth/passwordService";
+import { EmailSender, createEmailSender } from "../services/email/emailSender";
 import { BuildRepository } from "../repositories/buildRepository";
 import { BuildService } from "../services/build/buildService";
 import { BuildDispatchService } from "../services/build/buildDispatchService";
@@ -100,10 +105,12 @@ export type AppServerDeps = {
   mongoClient: DbClientI;
   eventEmitter: EventEmitter;
   githubOAuthService: GitHubOAuthService;
+  googleOAuthService?: GoogleOAuthService;
   sessionService: SessionService;
   gitHubAppService: GitHubAppService;
   installationTokenService: InstallationTokenService;
   webhookEventRepo?: WebhookEventRepository;
+  emailSender?: EmailSender;
   analytics?: AnalyticsService;
   // Read-through cache for flag evaluation. Defaults to an in-memory cache;
   // inject a RedisFlagCache to share the cache across instances.
@@ -116,10 +123,12 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     mongoClient,
     eventEmitter,
     githubOAuthService,
+    googleOAuthService,
     sessionService,
     gitHubAppService,
     installationTokenService,
     webhookEventRepo,
+    emailSender = createEmailSender(),
     analytics = new NoOpAnalytics(),
     flagCache = new InMemoryFlagCache(),
   } = deps;
@@ -151,6 +160,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
 
   // Services
   const apiKeyService = new ApiKeyService(apiKeyRepository, accountRepository);
+  const passwordService = new PasswordService();
   const jenkinsConnectionService = new JenkinsConnectionService(
     accountRepository,
   );
@@ -372,6 +382,33 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     accountRepository,
     membershipRepository,
     invitationRepository,
+    signupGate,
+    analytics,
+  });
+
+  // Google OAuth routes (only when a Google client is configured)
+  if (googleOAuthService) {
+    registerGoogleAuthRoutes(server, {
+      oauthService: googleOAuthService,
+      sessionService,
+      userRepository,
+      accountRepository,
+      membershipRepository,
+      signupGate,
+      analytics,
+    });
+  }
+
+  // Email/password auth routes (login/signup pages, confirmation flow)
+  registerEmailPasswordAuthRoutes(server, {
+    sessionService,
+    userRepository,
+    accountRepository,
+    membershipRepository,
+    passwordService,
+    emailSender,
+    publicUrl: process.env.PUBLIC_URL || "",
+    googleEnabled: !!googleOAuthService,
     signupGate,
     analytics,
   });

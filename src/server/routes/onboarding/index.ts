@@ -130,9 +130,15 @@ export function registerOnboardingRoutes(
           new ObjectId(request.session.userId),
         );
         if (user) {
+          // Per-person trial dedup key. GitHub users keep their historical
+          // github:<id> key; Google/email users dedup on their user id.
+          const subject =
+            user.githubId != null
+              ? `github:${user.githubId}`
+              : `user:${user._id.toHexString()}`;
           const trialResult = await trialService.startTrial(
             account._id,
-            user.githubId,
+            subject,
             selectedPlan,
           );
 

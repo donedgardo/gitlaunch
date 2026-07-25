@@ -37,10 +37,11 @@ test.describe("Onboarding - GitHub App Installation", () => {
       form.getByRole("textbox", { name: /work email/i }),
     ).toBeVisible();
 
-    // Existing users can still reach auth via the Login link
+    // Existing users can still reach auth via the Login link, which now leads
+    // to the multi-method login page (GitHub, Google, and email/password).
     await expect(page.getByRole("link", { name: /login/i })).toHaveAttribute(
       "href",
-      "/auth/github",
+      "/login",
     );
   });
 
