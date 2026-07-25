@@ -146,6 +146,31 @@
 .gl-board thead th.gl-env-col {
   text-align: center;
 }
+
+/* Flag state under each environment name. A deploy says which code is here;
+   this says what that code is doing. Quiet by default — it only earns
+   attention (amber) when a flag is mid-rollout or running an experiment,
+   because that's when the environment behaves differently per user. */
+.gl-board thead th.gl-env-col .gl-env-flags {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  margin-top: 4px;
+  text-transform: none;
+  letter-spacing: 0.01em;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--faint);
+  text-decoration: none;
+  transition: color 0.12s ease;
+}
+.gl-board thead th.gl-env-col .gl-env-flags:hover {
+  color: var(--accent-ink, var(--accent));
+}
+.gl-board thead th.gl-env-col .gl-env-flags-detail {
+  color: var(--amber);
+}
 .gl-board tbody td {
   padding: 13px 16px;
   border-bottom: 1px solid var(--line);

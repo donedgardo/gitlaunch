@@ -347,6 +347,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
       trialService,
       planEnforcementService,
       analytics,
+      flagService,
     }),
   );
   server.register(
