@@ -189,7 +189,10 @@ describe("renderInsightsReport", () => {
     // Then the headline is explicitly product users, and the other actors are
     // shown separately so the totals are never mistaken for DAU
     expect(output.toLowerCase()).toContain("product users");
-    expect(output).toMatch(/44[^\n]*visitor/i);
-    expect(output).toMatch(/1[^\n]*(machine|api key)/i);
+
+    const lineAbout = (subject: RegExp) =>
+      output.split("\n").find((line) => subject.test(line)) ?? "";
+    expect(lineAbout(/visitor/i)).toContain("44");
+    expect(lineAbout(/machine|api key/i)).toContain("1");
   });
 });

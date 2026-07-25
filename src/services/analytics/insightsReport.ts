@@ -2,6 +2,7 @@ import { CampaignRow } from "./campaignAnalyticsService";
 import { ExperimentAnalysis, Recommendation } from "./experimentAnalysis";
 import {
   ActiveUsersPoint,
+  AudienceBreakdown,
   FeatureAdoptionRow,
   FunnelStep,
 } from "./productUsageService";
@@ -12,7 +13,9 @@ export type InsightsReport = {
   campaigns: CampaignRow[];
   experiments: ExperimentAnalysis[];
   usage: {
+    // Logged-in people only — see `audience` for everyone else who was active.
     activeUsers: ActiveUsersPoint[];
+    audience: AudienceBreakdown;
     features: FeatureAdoptionRow[];
     funnel: FunnelStep[];
   };
@@ -136,9 +139,9 @@ function renderUsage(usage: InsightsReport["usage"]): string {
   if (usage.activeUsers.length > 0) {
     const peak = Math.max(...usage.activeUsers.map((p) => p.users));
     lines.push(
-      `**Active users** (peak ${count(peak)} in a bucket)`,
+      `**Active product users** (peak ${count(peak)} in a bucket) — logged-in people only`,
       ``,
-      `| Bucket | Users |`,
+      `| Bucket | Product users |`,
       `| --- | ---: |`,
       ...usage.activeUsers.map(
         (p) => `| ${day(p.bucket)} | ${count(p.users)} |`,
@@ -146,6 +149,8 @@ function renderUsage(usage: InsightsReport["usage"]): string {
       ``,
     );
   }
+
+  lines.push(renderAudience(usage.audience));
 
   if (usage.features.length > 0) {
     lines.push(
@@ -175,6 +180,28 @@ function renderUsage(usage: InsightsReport["usage"]): string {
   }
 
   return lines.join("\n");
+}
+
+/**
+ * Everyone who showed up, split by what they are. Rendered next to the
+ * headline so a landing-page traffic spike is never read as product growth.
+ */
+function renderAudience(audience: AudienceBreakdown): string {
+  const total =
+    audience.user + audience.visitor + audience.machine + audience.unknown;
+  if (total === 0) return "";
+
+  return [
+    `**Who was active** (${count(total)} distinct actors)`,
+    ``,
+    `| Actor | Count | What it is |`,
+    `| --- | ---: | --- |`,
+    `| product users | ${count(audience.user)} | logged-in people |`,
+    `| anonymous visitors | ${count(audience.visitor)} | landing-page \`gl_vid\` cookies, not users |`,
+    `| machines | ${count(audience.machine)} | API keys (CI reporting builds) |`,
+    `| unidentified | ${count(audience.unknown)} | leads and anything else |`,
+    ``,
+  ].join("\n");
 }
 
 function day(date: Date): string {
