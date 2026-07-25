@@ -1,0 +1,96 @@
+{{!-- Shared chrome for the public legal pages (/privacy, /terms).
+
+     Design tokens (--bg, --surface, --accent, …) come from src/styles/input.css,
+     the same ones the landing page uses, so the legal pages read as part of the
+     product rather than a pasted-in generator template.
+
+     Deliberately typographic and narrow: these documents exist to be *read*,
+     and a 68ch measure with generous leading is what makes a wall of legal text
+     survivable. Nothing here is decorative. --}}
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+  /* min-height matters: the shared layout puts `bg-white` on <body>, so without
+     it a short viewport shows a white band under the document in dark mode. */
+  .legal { background: var(--bg); color: var(--ink); font-family: var(--sans); line-height: 1.7; -webkit-font-smoothing: antialiased; min-height: 100vh; }
+  .legal .wrap { max-width: 1160px; margin: 0 auto; padding: 0 clamp(16px, 4vw, 40px); }
+  .legal a { color: var(--accent-ink); }
+
+  /* Nav — same sticky bar as the landing page, so a reader never feels
+     stranded on a page that lost the site around it. */
+  .legal nav { position: sticky; top: 0; z-index: 20; backdrop-filter: saturate(1.4) blur(10px); background: color-mix(in srgb, var(--bg) 82%, transparent); border-bottom: 1px solid var(--line); }
+  .legal .nav-in { display: flex; align-items: center; justify-content: space-between; height: 62px; }
+  .legal .brand { font-weight: 800; font-size: 19px; letter-spacing: -.02em; display: flex; align-items: center; gap: 9px; text-decoration: none; color: var(--ink); }
+  .legal .brand .glyph { width: 22px; height: 22px; border-radius: 6px; background: linear-gradient(145deg, var(--accent), var(--accent-2)); display: inline-grid; place-items: center; color: #fff; font-size: 12px; box-shadow: 0 2px 8px rgba(255,90,31,.4); }
+  .legal .brand .glyph::before { content: "◮"; }
+  .legal .brand .mk { color: var(--accent); }
+  .legal .nav-back { font-size: 14px; color: var(--muted); text-decoration: none; }
+  .legal .nav-back:hover { color: var(--ink); }
+
+  /* Document header */
+  .legal .doc-head { padding: clamp(40px, 6vw, 72px) 0 clamp(20px, 3vw, 32px); border-bottom: 1px solid var(--line); }
+  .legal .doc-head h1 { font-size: clamp(32px, 4.4vw, 46px); line-height: 1.08; letter-spacing: -.028em; font-weight: 820; margin: 0; }
+  .legal .eff { font-family: var(--mono); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--accent-ink); background: var(--accent-soft); border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent); padding: 6px 12px; border-radius: 999px; display: inline-block; margin-bottom: 18px; }
+  .legal .lede { font-size: 17px; color: var(--muted); max-width: 68ch; margin: 16px 0 0; }
+
+  /* The plain-language summary. Not a substitute for the terms below it —
+     labelled as such — but the part most people will actually read, so it
+     gets to be legible rather than buried. */
+  .legal .tldr { margin: 28px 0 0; padding: 20px 22px; background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 10px; max-width: 78ch; }
+  .legal .tldr h2 { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 12px; font-weight: 700; }
+  .legal .tldr ul { margin: 0; padding-left: 20px; }
+  .legal .tldr li { margin: 7px 0; font-size: 15px; }
+  .legal .tldr .caveat { font-size: 13px; color: var(--muted); margin: 14px 0 0; }
+
+  /* Body */
+  .legal .doc { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: clamp(28px, 5vw, 64px); padding: clamp(32px, 5vw, 56px) 0 96px; align-items: start; }
+  .legal .toc { position: sticky; top: 84px; font-size: 14px; }
+  .legal .toc h2 { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 12px; font-weight: 700; }
+  .legal .toc ol { list-style: none; margin: 0; padding: 0; counter-reset: toc; }
+  .legal .toc li { counter-increment: toc; margin: 0; }
+  .legal .toc a { display: block; padding: 5px 0; color: var(--muted); text-decoration: none; border-left: 2px solid transparent; padding-left: 12px; margin-left: -14px; }
+  .legal .toc a::before { content: counter(toc) ". "; font-family: var(--mono); font-size: 12px; opacity: .6; }
+  .legal .toc a:hover { color: var(--ink); border-left-color: var(--accent); }
+
+  .legal .body { max-width: 72ch; }
+  .legal .body section { scroll-margin-top: 84px; padding-top: 8px; }
+  .legal .body h2 { font-size: clamp(20px, 2.4vw, 25px); letter-spacing: -.02em; font-weight: 760; margin: 44px 0 14px; }
+  .legal .body section:first-child h2 { margin-top: 0; }
+  .legal .body h3 { font-size: 16px; font-weight: 700; margin: 26px 0 8px; }
+  .legal .body p { margin: 0 0 14px; }
+  .legal .body ul, .legal .body ol { margin: 0 0 16px; padding-left: 22px; }
+  .legal .body li { margin: 7px 0; }
+  .legal .body strong { font-weight: 680; color: var(--ink); }
+
+  /* Clauses that shift risk onto the reader. Consumer-protection law across
+     several jurisdictions asks that these be conspicuous — not buried in an
+     undifferentiated wall of text — so they are visually distinct rather than
+     merely present. */
+  .legal .body .conspicuous { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; margin: 0 0 16px; }
+  .legal .body .conspicuous p:last-child { margin-bottom: 0; }
+  .legal .body .conspicuous .caps { text-transform: uppercase; font-size: 13px; letter-spacing: .02em; font-weight: 680; }
+
+  .legal table { width: 100%; border-collapse: collapse; margin: 0 0 18px; font-size: 14px; display: block; overflow-x: auto; }
+  .legal table thead th { text-align: left; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 700; padding: 0 14px 8px 0; border-bottom: 1px solid var(--line-strong); white-space: nowrap; }
+  .legal table td { padding: 11px 14px 11px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .legal table code { font-family: var(--mono); font-size: 12.5px; background: var(--surface); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; white-space: nowrap; }
+
+  .legal footer { border-top: 1px solid var(--line); padding: 26px 0 44px; font-size: 13px; color: var(--muted); }
+  .legal .foot-in { display: flex; flex-wrap: wrap; gap: 10px 22px; align-items: center; justify-content: space-between; }
+  .legal .foot-legal { display: flex; flex-wrap: wrap; gap: 18px; align-items: center; }
+  .legal footer a { color: var(--muted); text-decoration: none; }
+  .legal footer a:hover { color: var(--ink); }
+
+  @media (max-width: 860px) {
+    .legal .doc { grid-template-columns: minmax(0, 1fr); }
+    /* The sticky sidebar becomes a plain block on narrow screens — a sticky
+       ToC would eat most of a phone viewport. */
+    .legal .toc { position: static; padding-bottom: 20px; border-bottom: 1px solid var(--line); }
+  }
+
+  @media print {
+    .legal nav, .legal .toc, .legal .nav-back { display: none; }
+    .legal .doc { grid-template-columns: minmax(0, 1fr); }
+    .legal { background: #fff; color: #000; }
+  }
+</style>

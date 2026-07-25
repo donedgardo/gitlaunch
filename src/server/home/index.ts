@@ -18,8 +18,19 @@ export type HomeRouteDeps = {
   signupDoor?: SignupDoor;
 };
 
-// A year — long enough that a returning visitor keeps the same A/B arm.
-const VISITOR_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
+// 30 days — long enough that a returning visitor keeps the same A/B arm across
+// the life of a landing-page test, short enough that we are not retaining an
+// anonymous identifier for a year to support an experiment that concluded in
+// weeks.
+//
+// This is a data-protection boundary, not a tuning knob. `gl_vid` is the only
+// cookie we set that is not strictly necessary to deliver the page, and
+// ePrivacy Art. 5(3) asks for consent for exactly that. We have chosen not to
+// put a consent banner in front of the landing page, so the trade we make
+// instead is proportionality: keep it first-party, keep it httpOnly, keep it
+// contentless, and keep it short. Lengthening this undoes that argument — and
+// the claim in /privacy that it expires in 30 days.
+const VISITOR_COOKIE_MAX_AGE = 60 * 60 * 24 * 30;
 
 export default function (deps: HomeRouteDeps = {}) {
   const { experiment, signupDoor } = deps;

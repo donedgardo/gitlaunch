@@ -54,6 +54,7 @@ export function registerPlugins(server: FastifyInstance) {
         setupStep: "/partials/setupStep.hbs",
         waitlistResult: "/partials/waitlistResult.hbs",
         analyticsPanel: "/partials/analyticsPanel.hbs",
+        legalStyles: "/partials/legalStyles.hbs",
       },
     },
   });

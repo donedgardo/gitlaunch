@@ -1,0 +1,495 @@
+{{> legalStyles}}
+
+{{!-- BEFORE PUBLISHING, a human must confirm:
+       1. The exact registered legal name of the entity (used throughout).
+       2. A real mailing address for the notices clause (section 19).
+       3. The liability cap in section 15 — the figure below is a starting
+          position, not advice about what your insurance actually supports.
+     Search for "TODO(legal)" to find each spot. --}}
+
+<div class="legal">
+  <nav>
+    <div class="wrap nav-in">
+      <a class="brand" href="/"><span class="glyph"></span>Git<span class="mk">Launch</span></a>
+      <a class="nav-back" href="/">← Back to GitLaunch</a>
+    </div>
+  </nav>
+
+  <header class="doc-head">
+    <div class="wrap">
+      <span class="eff">Effective {{lastUpdated}}</span>
+      <h1>Terms of Service</h1>
+      <p class="lede">
+        These terms are the agreement between you and GitLaunch. They are written to be read
+        rather than endured, but they are a binding contract — please read them, particularly
+        sections 6, 14 and 15.
+      </p>
+
+      <div class="tldr">
+        <h2>The short version</h2>
+        <ul>
+          <li><strong>GitLaunch is a button, not a deployer.</strong> We trigger the pipeline you configured. What that pipeline does to your systems remains yours.</li>
+          <li><strong>We are pre-launch.</strong> The service is provided as a beta, without a service level guarantee.</li>
+          <li><strong>Your data stays yours.</strong> We claim no ownership of it and use it only to run the service.</li>
+          <li><strong>Our liability is capped</strong> — see section 15, which is deliberately hard to miss.</li>
+          <li><strong>Either of us can walk away.</strong> Cancel any time; we will not hold your data hostage.</li>
+        </ul>
+        <p class="caveat">This summary is for orientation only. The numbered sections below are the binding agreement.</p>
+      </div>
+    </div>
+  </header>
+
+  <div class="wrap doc">
+    <aside class="toc">
+      <h2>Contents</h2>
+      <ol>
+        <li><a href="#agreement">This agreement</a></li>
+        <li><a href="#eligibility">Who may use GitLaunch</a></li>
+        <li><a href="#account">Your account</a></li>
+        <li><a href="#beta">Beta service</a></li>
+        <li><a href="#service">What GitLaunch does</a></li>
+        <li><a href="#responsibility">What deploying means</a></li>
+        <li><a href="#your-data">Your data</a></li>
+        <li><a href="#acceptable-use">Acceptable use</a></li>
+        <li><a href="#third-party">Third-party services</a></li>
+        <li><a href="#fees">Plans, fees and taxes</a></li>
+        <li><a href="#term">Term and termination</a></li>
+        <li><a href="#confidentiality">Confidentiality</a></li>
+        <li><a href="#ip">Intellectual property</a></li>
+        <li><a href="#warranty">Disclaimer of warranties</a></li>
+        <li><a href="#liability">Limitation of liability</a></li>
+        <li><a href="#indemnity">Indemnification</a></li>
+        <li><a href="#changes">Changes</a></li>
+        <li><a href="#law">Governing law and disputes</a></li>
+        <li><a href="#general">General</a></li>
+      </ol>
+    </aside>
+
+    <main class="body">
+      <section id="agreement">
+        <h2>1. This agreement</h2>
+        {{!-- TODO(legal): confirm registered name. --}}
+        <p>
+          These Terms of Service (the "Terms") are a binding agreement between you and
+          <strong>GitLaunch LLC</strong>, a limited liability company organized under the laws of
+          the Commonwealth of Puerto Rico, United States ("GitLaunch", "we", "us").
+        </p>
+        <p>
+          By creating an account, joining the waitlist, or using the GitLaunch service (the
+          "Service"), you agree to these Terms. If you do not agree, do not use the Service.
+        </p>
+        <p>
+          Our <a href="/privacy">Privacy Policy</a> is incorporated into these Terms and explains
+          how we handle personal information.
+        </p>
+        <p>
+          If you are agreeing on behalf of a company or other organization, you represent that you
+          have authority to bind it, and "you" means that organization.
+        </p>
+      </section>
+
+      <section id="eligibility">
+        <h2>2. Who may use GitLaunch</h2>
+        <p>
+          You must be at least 18 years old and legally able to enter into a contract. You must not
+          be located in, or ordinarily resident in, a country subject to US embargo, and you must
+          not appear on any US government restricted-party list. GitLaunch is a US service and is
+          subject to US export control and sanctions law.
+        </p>
+      </section>
+
+      <section id="account">
+        <h2>3. Your account</h2>
+        <p>
+          You sign in through GitHub. You are responsible for everything that happens under your
+          account and for the security of the credentials that reach it — including any API keys
+          you generate.
+        </p>
+        <p>
+          <strong>API keys are shown once.</strong> We store only a one-way hash and cannot recover
+          a lost key; we can only issue a new one. Treat a key as you would a production password:
+          anyone holding it can act as your account. Tell us promptly at
+          <a href="mailto:security@gitlaunch.dev">security@gitlaunch.dev</a> if you believe a key
+          or account has been compromised, and revoke it in your settings.
+        </p>
+        <p>
+          If you add teammates to your account, you are responsible for their use of the Service
+          and for the permissions you grant them.
+        </p>
+      </section>
+
+      <section id="beta">
+        <h2>4. Beta service</h2>
+        <p>
+          GitLaunch has not reached general availability. The Service is offered as a
+          <strong>beta</strong>: features may change or be withdrawn, interfaces may break, and
+          availability is not guaranteed.
+        </p>
+        <p>
+          <strong>We offer no service level agreement during beta</strong>, and no uptime,
+          performance, or support-response commitment. If we later offer an SLA, it will be a
+          separate written document; nothing in these Terms creates one.
+        </p>
+        <p>
+          Please do not make GitLaunch the only path to deploying a system you cannot afford to
+          have unavailable. Keep the ability to run your pipeline directly.
+        </p>
+      </section>
+
+      <section id="service">
+        <h2>5. What GitLaunch does</h2>
+        <p>
+          GitLaunch gives your team visibility into what is deployed where, and a controlled way to
+          trigger a deployment or rollback. Concretely, it:
+        </p>
+        <ul>
+          <li>records the status of builds and deployments you or your systems report to it;</li>
+          <li>triggers workflows you have already configured — a GitHub Actions workflow, or a job on a Jenkins server you operate; and</li>
+          <li>shows your team the resulting history and current state.</li>
+        </ul>
+        <p>
+          Subject to these Terms, we grant you a non-exclusive, non-transferable, revocable right to
+          use the Service for your internal business purposes during your subscription.
+        </p>
+      </section>
+
+      <section id="responsibility">
+        <h2>6. What deploying means</h2>
+        <p>
+          This section matters more than any other in these Terms, so it is stated plainly.
+        </p>
+        <div class="conspicuous">
+          <p class="caps">GitLaunch triggers your deployment pipeline. It does not write, review, test, or validate what that pipeline ships.</p>
+          <p>
+            When you press deploy, GitLaunch asks GitHub or Jenkins to run a workflow that
+            <strong>you</strong> wrote and configured, against infrastructure that
+            <strong>you</strong> control. We do not inspect your code, evaluate whether a release
+            is safe, or verify that a rollback target is one you can actually roll back to.
+          </p>
+          <p>
+            <strong>You are solely responsible for the consequences of the deployments you
+            trigger</strong>, including any outage, data loss, corruption, cost, or breach that
+            results from what your pipeline does. This is true whether the deployment was triggered
+            deliberately, mistakenly, or by someone you gave access to.
+          </p>
+        </div>
+        <p>
+          You are responsible for configuring appropriate permissions, environment protections, and
+          approval requirements in GitHub, Jenkins, and your own infrastructure. GitLaunch respects
+          the controls you have set; it cannot substitute for controls you have not set.
+        </p>
+      </section>
+
+      <section id="your-data">
+        <h2>7. Your data</h2>
+        <p>
+          You keep all rights in the data you put into GitLaunch and the data your systems report to
+          it ("Your Data"). We claim no ownership of it.
+        </p>
+        <p>
+          You grant us a limited licence to host, process, transmit, and display Your Data solely to
+          operate and support the Service for you, and to comply with the law. That licence ends when
+          the data is deleted. We do not use Your Data to train machine learning models, and we do
+          not sell it.
+        </p>
+        <p>
+          You are responsible for having the right to give us Your Data, and for not putting things
+          into GitLaunch that do not belong there — production secrets in a build label, or personal
+          data you have no basis to share. Where Your Data includes personal data subject to the
+          GDPR, we act as your processor and process it only on your instructions.
+        </p>
+        <p>
+          You can export your data at any time through the API. On request within 30 days of
+          termination we will provide a machine-readable export.
+        </p>
+      </section>
+
+      <section id="acceptable-use">
+        <h2>8. Acceptable use</h2>
+        <p>You agree not to:</p>
+        <ul>
+          <li>use the Service to deploy, host, or distribute malware, or to attack any system;</li>
+          <li>access any account, data, or part of the Service that is not yours;</li>
+          <li>probe, scan, or test the vulnerability of the Service without our prior written consent — but see the note below;</li>
+          <li>interfere with the Service or place a disproportionate load on it, including through automated request volume beyond documented rate limits;</li>
+          <li>reverse engineer, decompile, or attempt to derive the source code of the Service, except where that restriction is unenforceable by law;</li>
+          <li>resell, sublicense, or offer the Service to third parties as your own; or</li>
+          <li>use the Service in violation of any applicable law, or to infringe anyone's rights.</li>
+        </ul>
+        <p>
+          <strong>Security research is welcome.</strong> If you find a vulnerability, tell us at
+          <a href="mailto:security@gitlaunch.dev">security@gitlaunch.dev</a>. We will not pursue
+          legal action against good-faith research that respects other users' data, avoids
+          degrading the Service, and gives us a reasonable chance to fix the issue before you
+          publish.
+        </p>
+        <p>
+          We may suspend an account that is causing harm to the Service or to others. Where the
+          circumstances allow it, we will warn you first and give you a chance to fix it.
+        </p>
+      </section>
+
+      <section id="third-party">
+        <h2>9. Third-party services</h2>
+        <p>
+          GitLaunch works by talking to systems that are not ours: GitHub, a Jenkins server you run,
+          and Stripe for payments. Your use of those systems is governed by their terms, not ours.
+        </p>
+        <p>
+          <strong>We are not responsible for third-party outages, changes, or decisions.</strong>
+          If GitHub is down, rate-limits us, changes an API, or suspends your organization,
+          GitLaunch may be unable to trigger your deployments, and that is not a breach of these
+          Terms by us. We will tell you what we know when it happens.
+        </p>
+      </section>
+
+      <section id="fees">
+        <h2>10. Plans, fees and taxes</h2>
+        <p>
+          Paid plans are billed in advance through Stripe on the cycle shown at checkout, and renew
+          automatically until cancelled. Prices are in US dollars.
+        </p>
+        <p>
+          <strong>Free trials.</strong> Where we offer a trial, we will tell you its length and what
+          happens at the end. Cancel before it ends and you will not be charged.
+        </p>
+        <p>
+          <strong>Cancellation.</strong> You may cancel at any time, effective at the end of the
+          current billing period. You keep access until then.
+          <strong>Fees already paid are non-refundable except where the law requires otherwise</strong>,
+          or where we have materially failed to provide the Service and cannot put it right in a
+          reasonable time.
+        </p>
+        <p>
+          <strong>Price changes.</strong> We will give you at least 30 days' notice before a price
+          increase takes effect on your plan. If you do not want to pay the new price, cancel before
+          it applies.
+        </p>
+        <p>
+          <strong>Failed payments.</strong> If a payment fails we may suspend the account after
+          notifying you and allowing a reasonable time to fix it.
+        </p>
+        <p>
+          <strong>Taxes.</strong> Fees are exclusive of taxes. You are responsible for any sales,
+          use, value-added, or similar taxes on your purchase, including Puerto Rico sales and use
+          tax (IVU) where it applies, other than taxes on our net income. If you are exempt, send us
+          valid documentation before we invoice you.
+        </p>
+      </section>
+
+      <section id="term">
+        <h2>11. Term and termination</h2>
+        <p>These Terms apply for as long as you have an account or use the Service.</p>
+        <p><strong>You</strong> may stop using the Service and close your account at any time.</p>
+        <p>
+          <strong>We</strong> may terminate or suspend your account if you materially breach these
+          Terms and do not cure the breach within 30 days of our notice; immediately if you use the
+          Service unlawfully or in a way that endangers the Service or other users; or on 30 days'
+          notice if we discontinue the Service, in which case we will refund any prepaid fees
+          covering the period after termination.
+        </p>
+        <p>
+          On termination your right to use the Service ends. We will delete Your Data as described
+          in the <a href="/privacy">Privacy Policy</a>. Request an export within 30 days if you want
+          one.
+        </p>
+        <p>
+          Sections 7, 12, 13, 14, 15, 16, 18 and 19 survive termination, along with any obligation
+          to pay fees already incurred.
+        </p>
+      </section>
+
+      <section id="confidentiality">
+        <h2>12. Confidentiality</h2>
+        <p>
+          Each of us may learn confidential information of the other. Each of us agrees to protect
+          the other's confidential information with at least reasonable care, to use it only to
+          perform under these Terms, and not to disclose it except to people who need it and are
+          bound by similar obligations.
+        </p>
+        <p>
+          This does not cover information that is public through no fault of the recipient, was
+          already known to the recipient, or is independently developed. If disclosure is legally
+          compelled, the recipient will give notice where lawfully able, so the other can seek
+          protection.
+        </p>
+      </section>
+
+      <section id="ip">
+        <h2>13. Intellectual property</h2>
+        <p>
+          The Service, including its software, design, and documentation, belongs to GitLaunch. These
+          Terms grant you a right to use it, and transfer no ownership. Our name and logo are ours;
+          please do not use them to suggest an endorsement we have not given.
+        </p>
+        <p>
+          <strong>Feedback.</strong> If you send us ideas or suggestions, we may use them freely and
+          without obligation or compensation to you. We will not identify you as the source without
+          your permission.
+        </p>
+      </section>
+
+      <section id="warranty">
+        <h2>14. Disclaimer of warranties</h2>
+        <div class="conspicuous">
+          <p class="caps">
+            The service is provided "as is" and "as available", without warranties of any kind,
+            whether express, implied, or statutory. To the fullest extent permitted by law, we
+            disclaim all implied warranties, including merchantability, fitness for a particular
+            purpose, title, and non-infringement.
+          </p>
+          <p>
+            In plain terms: we do not promise the Service will be uninterrupted, error-free, or
+            secure against every attack; that it will meet your requirements; or that every
+            deployment you trigger will succeed. This is a beta product and we are telling you so
+            in advance.
+          </p>
+          <p>
+            Some jurisdictions do not allow the exclusion of implied warranties, so parts of this
+            section may not apply to you, and nothing here limits any right you have that cannot
+            be waived by contract.
+          </p>
+        </div>
+      </section>
+
+      <section id="liability">
+        <h2>15. Limitation of liability</h2>
+        <div class="conspicuous">
+          {{!-- TODO(legal): confirm the cap figure against actual insurance coverage. --}}
+          <p class="caps">
+            To the fullest extent permitted by law, neither party will be liable for indirect,
+            incidental, special, consequential, exemplary, or punitive damages, or for lost
+            profits, lost revenue, lost data, or business interruption, even if advised such
+            damages were possible.
+          </p>
+          <p class="caps">
+            Our total aggregate liability arising out of or relating to these Terms or the Service
+            will not exceed the greater of (a) the fees you paid us in the twelve months before the
+            event giving rise to the claim, or (b) one hundred US dollars (US$100).
+          </p>
+          <p>
+            <strong>This cap is central to the bargain.</strong> GitLaunch triggers deployments to
+            systems whose value we cannot know and whose failure modes we do not control. We could
+            not offer the Service at this price while accepting unlimited exposure to the
+            consequences of a deployment you configured. If that allocation of risk does not suit
+            your circumstances, please do not use the Service.
+          </p>
+          <p>
+            These limits do not apply to either party's liability for fraud, willful misconduct,
+            gross negligence, death or personal injury caused by negligence, or any other liability
+            that cannot be limited by law. They also do not limit your obligation to pay fees.
+          </p>
+        </div>
+      </section>
+
+      <section id="indemnity">
+        <h2>16. Indemnification</h2>
+        <p>
+          You will defend and indemnify GitLaunch against third-party claims, and reasonable legal
+          costs, arising from your use of the Service in breach of these Terms, from Your Data, or
+          from the consequences of deployments triggered through your account.
+        </p>
+        <p>
+          We will defend and indemnify you against third-party claims that the Service, used as
+          permitted, infringes that party's intellectual property rights.
+        </p>
+        <p>
+          In each case the indemnified party must give prompt notice, let the indemnifying party
+          control the defence, and cooperate reasonably. No settlement that admits fault or imposes
+          an obligation on the indemnified party may be made without its consent.
+        </p>
+      </section>
+
+      <section id="changes">
+        <h2>17. Changes</h2>
+        <p>
+          <strong>To the Service.</strong> We are actively building GitLaunch and will add, change,
+          and remove features. We will give reasonable advance notice before removing functionality
+          you materially rely on, where we can.
+        </p>
+        <p>
+          <strong>To these Terms.</strong> We may update these Terms. For material changes we will
+          give at least <strong>30 days' notice</strong> by email or in the application before they
+          take effect. If you keep using the Service after that, you accept the new Terms; if you do
+          not accept them, cancel before they take effect and we will refund any prepaid fees
+          covering the period after your cancellation. Changes will not apply retroactively to a
+          dispute that already exists.
+        </p>
+      </section>
+
+      <section id="law">
+        <h2>18. Governing law and disputes</h2>
+        <p>
+          These Terms are governed by the laws of the <strong>Commonwealth of Puerto Rico</strong>
+          and applicable United States federal law, without regard to conflict of law rules. The UN
+          Convention on Contracts for the International Sale of Goods does not apply.
+        </p>
+        <p>
+          <strong>Talk to us first.</strong> If something goes wrong, email
+          <a href="mailto:legal@gitlaunch.dev">legal@gitlaunch.dev</a> with the details. Both of us
+          agree to try in good faith to resolve it informally for <strong>30 days</strong> before
+          filing anything. Most disputes end here, faster and cheaper than they would otherwise.
+        </p>
+        <p>
+          If that does not resolve it, the courts sitting in <strong>San Juan, Puerto Rico</strong>
+          have exclusive jurisdiction, and both of us consent to venue there. Either of us may still
+          seek injunctive relief in any competent court to protect intellectual property or
+          confidential information.
+        </p>
+        <p>
+          Nothing in this section deprives a consumer of the protection of mandatory law in their
+          country of residence, or of the right to bring proceedings in their local courts where
+          that right cannot be excluded by contract.
+        </p>
+      </section>
+
+      <section id="general">
+        <h2>19. General</h2>
+        <p>
+          <strong>Entire agreement.</strong> These Terms and the Privacy Policy are the whole
+          agreement between us about the Service, and replace anything said before. If we sign a
+          separate written agreement with you, that one controls where they conflict.
+        </p>
+        <p>
+          <strong>Severability.</strong> If a provision is unenforceable, it is modified to the
+          minimum extent needed to make it enforceable, or severed, and the rest stays in force.
+        </p>
+        <p>
+          <strong>No waiver.</strong> Not enforcing a provision once does not waive it later.
+        </p>
+        <p>
+          <strong>Assignment.</strong> You may not assign these Terms without our written consent.
+          We may assign them to an affiliate or in connection with a merger or sale of
+          substantially all our assets, on notice to you.
+        </p>
+        <p>
+          <strong>Force majeure.</strong> Neither party is liable for a delay or failure caused by
+          events beyond its reasonable control, excluding the obligation to pay.
+        </p>
+        <p>
+          <strong>Independent parties.</strong> Nothing here creates a partnership, agency, or
+          employment relationship.
+        </p>
+        {{!-- TODO(legal): add the registered mailing address for legal notices. --}}
+        <p>
+          <strong>Notices.</strong> We will send notices to the email on your account; keep it
+          current. Send legal notices to us at
+          <a href="mailto:legal@gitlaunch.dev">legal@gitlaunch.dev</a>, and at our registered
+          address in Puerto Rico.
+        </p>
+      </section>
+    </main>
+  </div>
+
+  <footer>
+    <div class="wrap foot-in">
+      <span>GitLaunch · deployment control your whole team can drive</span>
+      <span class="foot-legal">
+        <a href="/privacy">Privacy</a>
+        <a href="/terms">Terms</a>
+        <a href="mailto:support@gitlaunch.dev">Contact</a>
+        <span>© GitLaunch</span>
+      </span>
+    </div>
+  </footer>
+</div>
