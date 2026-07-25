@@ -165,6 +165,42 @@ describe("InsightsService", () => {
       expect(report.warnings).toEqual([]);
     });
 
+    it("should warn when an event is never attributed to anyone", async () => {
+      // Given a feature that fires without ever recording who did it
+      await repo.insert({
+        type: "track",
+        event: "build_reported",
+        timestamp: new Date("2026-07-02T10:00:00Z"),
+        accountId,
+        properties: {},
+      });
+
+      // When I build the report
+      const report = await insights.build({ from, to });
+
+      // Then the report warns that the event cannot carry funnels or usage
+      expect(report.warnings.join(" ")).toContain("build_reported");
+      expect(report.warnings.join(" ")).toMatch(/distinctId/i);
+    });
+
+    it("should not warn about events that do identify their actor", async () => {
+      // Given a feature that always records who did it
+      await repo.insert({
+        type: "track",
+        event: "build_reported",
+        timestamp: new Date("2026-07-02T10:00:00Z"),
+        distinctId: "alice",
+        accountId,
+        properties: {},
+      });
+
+      // When I build the report
+      const report = await insights.build({ from, to });
+
+      // Then nothing is flagged about it
+      expect(report.warnings.join(" ")).not.toContain("build_reported");
+    });
+
     it("should carry the requested window into the report", async () => {
       // Given any data
       // When I build the report
