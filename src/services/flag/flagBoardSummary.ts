@@ -24,8 +24,9 @@ const configFor = (
   environment: string,
 ): FlagEnvironmentConfig | undefined => flag.environments?.[environment];
 
-const isOn = (config: FlagEnvironmentConfig | undefined): boolean =>
-  config?.enabled === true;
+const isOn = (
+  config: FlagEnvironmentConfig | undefined,
+): config is FlagEnvironmentConfig => config?.enabled === true;
 
 const plural = (count: number, singular: string): string =>
   `${count} ${singular}${count === 1 ? "" : "s"}`;
@@ -33,7 +34,7 @@ const plural = (count: number, singular: string): string =>
 function summarizeOne(flags: Flag[], environment: string): EnvFlagSummary {
   const enabled = flags
     .map((flag) => configFor(flag, environment))
-    .filter(isOn) as FlagEnvironmentConfig[];
+    .filter(isOn);
 
   // A partial rollout means some users have the feature and some don't, so
   // "what's live here" genuinely differs per user — worth surfacing.
