@@ -38,6 +38,349 @@
     sans-serif;
 }
 
+/* ------------------------------------------------------------------ *
+ * Release board — dashboard components.
+ *
+ * The landing-page hero "toy" (the interactive release board in
+ * src/templates/index.hbs) set the brand's instrument-panel look, and it
+ * reads better than the plain table the real dashboard shipped with. These
+ * classes port that exact language — board frame, mono commit rows, ignition
+ * `.cbtn`, and pulsing status pills — onto the live dashboard.
+ *
+ * Everything is scoped under `.gl-board` so it never touches the hero's own
+ * inline copy of these styles. Tokens (--surface, --accent, --ok, …) come
+ * from :root above, so the board follows light/dark for free.
+ * ------------------------------------------------------------------ */
+/* Dashboard nav brand mark — the same wordmark + ignition glyph the hero uses. */
+.gl-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 18px;
+  font-family: var(--sans);
+  font-weight: 800;
+  font-size: 17px;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.gl-brand .gl-glyph {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: linear-gradient(145deg, var(--accent), var(--accent-2));
+  display: inline-grid;
+  place-items: center;
+  color: #fff;
+  font-size: 12px;
+  box-shadow: 0 2px 8px rgba(255, 90, 31, 0.4);
+}
+.gl-brand .gl-glyph::before {
+  content: "◮";
+}
+.gl-brand .gl-mk {
+  color: var(--accent);
+}
+
+.gl-board {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+.gl-board-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 16px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--line);
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+}
+.gl-board-bar .gl-dots {
+  display: flex;
+  gap: 6px;
+}
+.gl-board-bar .gl-dots span {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--line-strong);
+}
+.gl-board-bar .gl-path {
+  color: var(--faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.gl-board-bar .gl-rel {
+  margin-left: auto;
+  color: var(--accent-ink);
+}
+
+.gl-board-scroll {
+  overflow-x: auto;
+}
+.gl-board table {
+  width: 100%;
+  min-width: 100%;
+  border-collapse: collapse;
+}
+.gl-board thead th {
+  padding: 11px 16px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--line);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-align: left;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.gl-board thead th.gl-env-col {
+  text-align: center;
+}
+
+/* Flag state under each environment name. A deploy says which code is here;
+   this says what that code is doing. Quiet by default — it only earns
+   attention (amber) when a flag is mid-rollout or running an experiment,
+   because that's when the environment behaves differently per user. */
+.gl-board thead th.gl-env-col .gl-env-flags {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  margin-top: 4px;
+  text-transform: none;
+  letter-spacing: 0.01em;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--faint);
+  text-decoration: none;
+  transition: color 0.12s ease;
+}
+.gl-board thead th.gl-env-col .gl-env-flags:hover {
+  color: var(--accent-ink, var(--accent));
+}
+.gl-board thead th.gl-env-col .gl-env-flags-detail {
+  color: var(--amber);
+}
+.gl-board tbody td {
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+  transition: background 0.3s ease;
+}
+.gl-board tbody tr:last-child td {
+  border-bottom: none;
+}
+.gl-board tbody tr {
+  transition: background 0.12s ease;
+}
+.gl-board tbody tr:hover {
+  background: color-mix(in srgb, var(--surface-2) 55%, transparent);
+}
+.gl-board .gl-env-cell {
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* Commit cell — SHA · message on top, "how long ago" beneath (the hero's
+   .build / .build-sub stack). */
+.gl-board .gl-commit {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  max-width: 46ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gl-board .gl-sha {
+  color: var(--accent-ink);
+  text-decoration: none;
+}
+.gl-board .gl-sha:hover {
+  text-decoration: underline;
+}
+.gl-board .gl-msg {
+  color: var(--ink);
+  font-weight: 500;
+}
+.gl-board .gl-when {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--faint);
+  margin-top: 3px;
+}
+
+/* "How long ago it went live", sitting beside a Live pill — the hero toy's
+   .when, inline instead of stacked. */
+.gl-board .gl-when-env {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--faint);
+  white-space: nowrap;
+}
+
+/* One-click deploy button — outline that fills with ignition on hover */
+.gl-board .cbtn {
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--accent-ink);
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease,
+    transform 0.08s ease;
+}
+.gl-board .cbtn:hover {
+  background: var(--accent);
+  color: #fff;
+}
+.gl-board .cbtn:active {
+  transform: translateY(1px);
+}
+.gl-board .cbtn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.gl-board .cbtn:disabled {
+  cursor: default;
+  opacity: 0.65;
+}
+
+/* Icon action buttons (cancel / redeploy) sitting next to a status pill */
+.gl-board .gl-icon-btn {
+  color: var(--faint);
+  padding: 4px;
+  border-radius: 6px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: color 0.12s ease;
+  display: inline-flex;
+}
+.gl-board .gl-icon-btn:hover {
+  color: var(--accent-ink);
+}
+
+/* Status pill — one style per DeploymentStatus, with a pulsing dot for the
+   states that are live or in motion (matches the hero's .pill.live). */
+.gl-board .pill {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.gl-board .pill .gl-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.gl-board .pill-live {
+  color: var(--ok);
+  background: color-mix(in srgb, var(--ok) 16%, transparent);
+}
+/* Only the cell that just changed replays the hero toy's flash: the cell tints
+   and its pill ripples once. A settled board renders without any of it. */
+.gl-board .gl-just-changed {
+  animation: gl-flash-cell 1.4s ease-out;
+}
+.gl-board .gl-just-changed .pill-live {
+  animation: gl-flash-live 1.6s ease-out;
+}
+.gl-board .pill-live .gl-dot {
+  animation: gl-pulse 2.4s ease-in-out infinite;
+}
+.gl-board .pill-progress {
+  color: var(--stage);
+  background: color-mix(in srgb, var(--stage) 16%, transparent);
+}
+.gl-board .pill-progress .gl-dot {
+  animation: gl-pulse 1.1s ease-in-out infinite;
+}
+.gl-board .pill-pending {
+  color: var(--amber);
+  background: color-mix(in srgb, var(--amber) 18%, transparent);
+}
+.gl-board .pill-pending .gl-dot {
+  animation: gl-pulse 1.1s ease-in-out infinite;
+}
+.gl-board .pill-error {
+  color: var(--accent-ink);
+  background: var(--accent-soft);
+}
+.gl-board .pill-idle {
+  color: var(--faint);
+  background: color-mix(in srgb, var(--faint) 14%, transparent);
+}
+.gl-board .gl-empty-env {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--faint);
+}
+
+@keyframes gl-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+/* The cell tints and fades back as it changes hands — the hero toy's
+   .rcell.flash. */
+@keyframes gl-flash-cell {
+  0% {
+    background: var(--accent-soft);
+  }
+  100% {
+    background: transparent;
+  }
+}
+/* A freshly-live pill ripples once — the "it went live" flash from the toy,
+   which replays every time a deploy completes and swaps this cell in. */
+@keyframes gl-flash-live {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--ok) 45%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 9px transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gl-board .pill .gl-dot,
+  .gl-board .gl-just-changed,
+  .gl-board .gl-just-changed .pill-live {
+    animation: none;
+  }
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #0c1216;

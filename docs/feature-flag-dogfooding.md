@@ -71,3 +71,36 @@ Every decision emits a `flag_exposure` analytics event (`allowed`, `reason`,
 alongside every other flag. A refused visitor is redirected to
 `/?error=signups_closed`, which tells them the alpha is invite-only and points
 them at the waitlist.
+
+## Two kinds of key (and why)
+
+GitLaunch reads its own flags **in-process** — `flagService.evaluate` is a plain
+method call, no HTTP and no API key. Customers are not so lucky, so the flags
+page mints two different keys depending on where the call comes from.
+
+|                                                             | Secret (`sk_…`)             | Publishable (`pk_…`)                            |
+| ----------------------------------------------------------- | --------------------------- | ----------------------------------------------- |
+| Where it lives                                              | Your server, only           | Your frontend bundle                            |
+| Scope                                                       | `flags:read` — account-wide | `flags:evaluate` — one service, one environment |
+| Can read flag config / targeting rules / experiment results | Yes                         | **No**                                          |
+| Origin restricted                                           | No                          | Yes, to origins you list                        |
+
+`flags:read` is deliberately _not_ browser-safe. It opens six endpoints — flag
+config, a single flag, evaluate, experiment results, and two config-version
+routes — for **every service in the account**. Flag configuration includes
+targeting rules, which can name real users (`githubLogin in [alice, bob]`).
+
+**Legacy keys:** every key minted before this split carries the `pk_` prefix but
+is a secret key. What a key may do is read from the stored record, not from its
+prefix, so old keys keep working unchanged — but the prefix now reads as
+"publishable" to anyone glancing at it. Rotate them to `sk_` when convenient.
+
+**The origin allow-list is a guard rail, not a secret.** A publishable key is
+public by construction, and anything outside a browser can forge or omit the
+`Origin` header. What actually limits the damage is the confinement: one
+service, one environment, evaluate-only. The allow-list stops a key lifted from
+your bundle being dropped straight into another site's frontend.
+
+**No rate limiting yet.** The evaluate endpoint has no per-key throttle, so a
+publishable key can be replayed as fast as someone likes. Worth adding before
+this is load-bearing for a large customer.

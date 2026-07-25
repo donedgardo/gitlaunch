@@ -3,6 +3,8 @@
   "version": "1.0.0",
   "license": "MIT",
   "scripts": {
+    "analytics": "tsx scripts/analytics-report.ts",
+    "analytics:backfill": "tsx scripts/backfill-analytics.ts",
     "build": "tsc && yarn tailwind",
     "db:reset": "tsx scripts/reset-db.ts",
     "dev": "concurrently --kill-others \"yarn run server:watch\" \"yarn run tailwind:watch\"",

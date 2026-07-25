@@ -19,12 +19,14 @@
           <div class="bg-gray-900 dark:bg-gray-950 rounded-xl p-4 font-mono text-xs text-green-400 overflow-x-auto">
             <pre class="whitespace-pre"><code id="{{idPrefix}}gh_curl_build">- name: Report build to GitLaunch
   if: github.ref == 'refs/heads/main'
+  env:
+    GITLAUNCH_COMMIT_MESSAGE: $&#123;&#123; github.event.head_commit.message &#125;&#125;
   run: |
     curl --fail-with-body -sS -X POST \
       "https://gitlaunch.dev/api/v1/services/$&#123;&#123; vars.GITLAUNCH_SERVICE_ID &#125;&#125;/builds" \
       -H "Authorization: Bearer $&#123;&#123; secrets.GITLAUNCH_API_KEY &#125;&#125;" \
       -H "Content-Type: application/json" \
-      -d '{"buildId":"$&#123;&#123; github.sha &#125;&#125;"}'</code></pre>
+      -d "$(jq -nc --arg buildId "$&#123;&#123; github.sha &#125;&#125;" --arg message "$GITLAUNCH_COMMIT_MESSAGE" '{buildId:$buildId,message:$message}')"</code></pre>
           </div>
           <button
             onclick="copyReportSnippet('{{idPrefix}}gh_curl_build', '{{idPrefix}}gh_curl_build_copy', '{{idPrefix}}gh_curl_build_check')"
@@ -44,6 +46,7 @@
             Add a repository secret <code class="bg-blue-100 dark:bg-blue-900/40 px-1 rounded">GITLAUNCH_API_KEY</code>
             and a repository variable <code class="bg-blue-100 dark:bg-blue-900/40 px-1 rounded">GITLAUNCH_SERVICE_ID</code>
             (see above). The step only runs on pushes to <code class="bg-blue-100 dark:bg-blue-900/40 px-1 rounded">main</code>.
+            It sends the commit message too, so each build is easy to spot on your dashboard.
           </p>
         </div>
       </div>

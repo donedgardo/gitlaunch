@@ -78,6 +78,7 @@ export function registerWaitlistRoutes(
         honeypot: body.company_website,
         elapsedMs,
         attribution: buildAttribution(body),
+        visitorId,
       });
 
       // Attribute a genuinely new signup to the visitor's landing A/B variant.

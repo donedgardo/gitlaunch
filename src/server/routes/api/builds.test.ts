@@ -23,6 +23,8 @@ import { BuildRepository } from "../../../repositories/buildRepository";
 import { BuildService } from "../../../services/build/buildService";
 import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
 import { registerBuildsRoutes } from "./builds";
+import { WarehouseAnalytics } from "../../../services/analytics/warehouseAnalytics";
+import { AnalyticsEventRepository } from "../../../repositories/analyticsEventRepository";
 import { BuildDispatchServiceI } from "../../../services/build/buildDispatchService";
 import { DeploymentStatus } from "../../../services/service/deploymentStatus";
 import { ApiKeyScope } from "../../../repositories/apiKeyRepository";
@@ -52,6 +54,8 @@ function createMockApiKeyAuth(
       accountId: context.accountId,
       apiKeyId: new ObjectId(),
       scopes: context.scopes,
+      kind: "secret",
+      allowedOrigins: [],
     };
   };
 }
@@ -61,6 +65,7 @@ describe("Builds API Routes", () => {
   let client: MongoClient;
   let db: Db;
   let app: FastifyInstance;
+  let analytics: WarehouseAnalytics;
   let accountRepo: AccountRepository;
   let repoRepo: RepositoryRepository;
   let serviceRepo: ServiceRepository;
@@ -160,13 +165,42 @@ describe("Builds API Routes", () => {
     app.addHook("preHandler", mockAuth);
 
     // Register routes
+    analytics = new WarehouseAnalytics(new AnalyticsEventRepository(db));
+    await db.collection("analytics_events").deleteMany({});
     registerBuildsRoutes(app, {
       buildService,
       serviceRepo,
       planEnforcementService,
+      analytics,
     });
 
     await app.ready();
+  });
+
+  describe("analytics attribution", () => {
+    it("should record which account and which key reported a build", async () => {
+      // Given a CI key reporting a build
+      await app.inject({
+        method: "POST",
+        url: `/api/v1/services/${testServiceId}/builds`,
+        headers: {
+          authorization: "Bearer test-key",
+          "content-type": "application/json",
+        },
+        payload: { buildId: "build-attribution-1" },
+      });
+      await analytics.flush();
+
+      // When I look at what the warehouse captured
+      const event = await db
+        .collection("analytics_events")
+        .findOne({ event: "build_reported" });
+
+      // Then the build is attributed to a tenant and to the key that did it,
+      // so it can appear in funnels and per-actor usage
+      expect(event?.accountId?.toString()).toBe(testAccountId.toString());
+      expect(event?.distinctId).toMatch(/^apikey:/);
+    });
   });
 
   describe("POST /api/v1/services/:serviceId/builds", () => {

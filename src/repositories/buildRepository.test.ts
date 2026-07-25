@@ -53,6 +53,22 @@ describe("BuildRepository", () => {
       expect(build.updatedAt).toBeInstanceOf(Date);
     });
 
+    it("should persist a commit message when one is reported", async () => {
+      // Given: build details that include the commit message
+      const input = {
+        accountId: testAccountId,
+        serviceId: testServiceId,
+        buildId: "with-message",
+        message: "Fix session cookie expiry",
+      };
+
+      // When: I create the build
+      const build = await repo.create(input);
+
+      // Then: the commit message is stored on the build
+      expect(build.message).toBe("Fix session cookie expiry");
+    });
+
     it("should return existing build if buildId already exists for account/repo", async () => {
       // Given: a build already exists
       const input = {
@@ -266,6 +282,84 @@ describe("BuildRepository", () => {
         environment: "staging",
         status: DeploymentStatus.DEPLOYED,
       });
+    });
+
+    it("should record when the build went live in an environment", async () => {
+      // Given: a build exists
+      await repo.create({
+        accountId: testAccountId,
+        serviceId: testServiceId,
+        buildId: "went-live",
+      });
+      const before = new Date();
+
+      // When: it becomes deployed in prod
+      const updated = await repo.updateDeploymentStatus(
+        testAccountId,
+        testServiceId,
+        "went-live",
+        "prod",
+        DeploymentStatus.DEPLOYED,
+      );
+
+      // Then: the time it went live in that environment is recorded
+      const deployedAt = updated!.deployedAt?.["prod"];
+      expect(deployedAt).toBeInstanceOf(Date);
+      expect(deployedAt!.getTime()).toBeGreaterThanOrEqual(before.getTime());
+    });
+
+    it("should not record a live time for in-progress deployments", async () => {
+      // Given: a build exists
+      await repo.create({
+        accountId: testAccountId,
+        serviceId: testServiceId,
+        buildId: "still-going",
+      });
+
+      // When: it is only dispatching
+      const updated = await repo.updateDeploymentStatus(
+        testAccountId,
+        testServiceId,
+        "still-going",
+        "prod",
+        DeploymentStatus.DISPATCHING,
+      );
+
+      // Then: there is no live time to show yet
+      expect(updated!.deployedAt?.["prod"]).toBeUndefined();
+    });
+
+    it("should refresh the live time when the same environment is redeployed", async () => {
+      // Given: a build that already went live
+      await repo.create({
+        accountId: testAccountId,
+        serviceId: testServiceId,
+        buildId: "redeploy-me",
+      });
+      const first = await repo.updateDeploymentStatus(
+        testAccountId,
+        testServiceId,
+        "redeploy-me",
+        "prod",
+        DeploymentStatus.DEPLOYED,
+      );
+      const firstDeployedAt = first!.deployedAt!["prod"];
+
+      await new Promise((r) => setTimeout(r, 10));
+
+      // When: it is deployed to the same environment again
+      const second = await repo.updateDeploymentStatus(
+        testAccountId,
+        testServiceId,
+        "redeploy-me",
+        "prod",
+        DeploymentStatus.DEPLOYED,
+      );
+
+      // Then: the live time reflects the latest deployment
+      expect(second!.deployedAt!["prod"].getTime()).toBeGreaterThan(
+        firstDeployedAt.getTime(),
+      );
     });
 
     it("should update updatedAt timestamp", async () => {

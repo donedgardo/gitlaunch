@@ -2,10 +2,35 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="GitLaunch - A simple dashboard to trigger deployments. Works with GitHub Actions, Jenkins, and more. Deploy with confidence." />
+    <title>{{#if title}}{{title}} | {{/if}}GitLaunch</title>
+    {{!-- Page-specific SEO + social-sharing metadata. Routes build this with
+          buildPageMeta() (src/server/seo/meta.ts). Pages that pass no `meta`
+          still get the static description fallback below. --}}
+    {{#if meta}}
+    <meta name="description" content="{{meta.description}}" />
+    <meta name="robots" content="{{meta.robots}}" />
+    <link rel="canonical" href="{{meta.canonical}}" />
+
+    <!-- OpenGraph: Slack, iMessage, LinkedIn, Facebook -->
+    <meta property="og:site_name" content="{{meta.ogSiteName}}" />
+    <meta property="og:type" content="{{meta.ogType}}" />
+    <meta property="og:title" content="{{meta.ogTitle}}" />
+    <meta property="og:description" content="{{meta.ogDescription}}" />
+    <meta property="og:url" content="{{meta.ogUrl}}" />
+    <meta property="og:image" content="{{meta.ogImage}}" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+
+    <!-- X / Twitter card -->
+    <meta name="twitter:card" content="{{meta.twitterCard}}" />
+    <meta name="twitter:title" content="{{meta.twitterTitle}}" />
+    <meta name="twitter:description" content="{{meta.twitterDescription}}" />
+    <meta name="twitter:image" content="{{meta.twitterImage}}" />
+    {{else}}
+    <meta name="description" content="GitLaunch shows every build across every environment and gives your whole team a safe button to ship and roll back. Deployment control, not another CI/CD tool." />
+    {{/if}}
     <link href="/public/css/main.css" rel="stylesheet" />
     <link rel="icon" type="image/svg+xml" href="/public/favicon.svg" />
-    <title>{{#if title}}{{title}} | {{/if}}GitLaunch</title>
   </head>
   <body class="bg-white dark:bg-gray-900">
     {{{body}}}
@@ -57,7 +82,33 @@
         const { message, type } = evt.detail;
         showToast(message, type);
       });
-      
+
+      // Failed requests: htmx does not swap on a 4xx/5xx, so optimistic UI
+      // (e.g. a Deploy button that already says "dispatching") would sit there
+      // forever with no explanation. Snapshot the target before the request and
+      // put it back if the server rejects it, then surface the reason.
+      const glSnapshots = new WeakMap();
+      document.body.addEventListener('htmx:configRequest', function(evt) {
+        const target = evt.detail.target;
+        if (target) glSnapshots.set(target, target.innerHTML);
+      });
+      document.body.addEventListener('htmx:responseError', function(evt) {
+        const target = evt.detail.target;
+        if (target && glSnapshots.has(target)) {
+          target.innerHTML = glSnapshots.get(target);
+          glSnapshots.delete(target);
+          htmx.process(target);
+        }
+        let message = 'Something went wrong. Please try again.';
+        try {
+          const body = JSON.parse(evt.detail.xhr.responseText);
+          if (body && body.error) message = body.error;
+        } catch (e) {
+          // Non-JSON error body — keep the generic message
+        }
+        showToast(message, 'error');
+      });
+
       // Enable HTMX on service nav links for dashboard pages
       // On settings pages, links work as normal hrefs (full page navigation)
       document.addEventListener('DOMContentLoaded', function() {

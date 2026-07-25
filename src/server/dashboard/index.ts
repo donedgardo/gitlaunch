@@ -9,6 +9,11 @@ import { DeploymentStatus } from "../../services/service/deploymentStatus";
 import { TrialService } from "../../services/billing/trialService";
 import { PlanEnforcementService } from "../../services/billing/planEnforcementService";
 import { AnalyticsService } from "../../services/analytics/analytics";
+import { FlagServiceI } from "../../services/flag/flagService";
+import {
+  summarizeEnvironmentFlags,
+  EnvFlagSummary,
+} from "../../services/flag/flagBoardSummary";
 
 const DEFAULT_PAGE_SIZE = 20;
 
@@ -21,6 +26,9 @@ export type DashboardRoutesDeps = {
   trialService: TrialService;
   planEnforcementService: PlanEnforcementService;
   analytics?: AnalyticsService;
+  // Optional: when absent the board renders exactly as before, without flag
+  // state. Flags enrich the board; they are never required to read it.
+  flagService?: FlagServiceI;
 };
 
 export default function (deps: DashboardRoutesDeps) {
@@ -33,7 +41,27 @@ export default function (deps: DashboardRoutesDeps) {
     trialService,
     planEnforcementService,
     analytics,
+    flagService,
   } = deps;
+
+  // Flag state for each environment column of the release board.
+  //
+  // Deliberately fail-soft: the board's core job is showing what's deployed,
+  // and a flag lookup problem must never take that away. On any failure the
+  // board simply renders without flag state, as it did before flags existed.
+  const loadEnvironmentFlags = async (
+    accountId: ObjectId,
+    serviceId: ObjectId,
+    environmentNames: string[],
+  ): Promise<EnvFlagSummary[] | null> => {
+    if (!flagService) return null;
+    try {
+      const flags = await flagService.listFlags(accountId, serviceId);
+      return summarizeEnvironmentFlags(flags, environmentNames);
+    } catch {
+      return null;
+    }
+  };
 
   return function (server: FastifyInstance, opts: any, done: any) {
     server.addHook("preHandler", async (req, res) => {
@@ -66,6 +94,8 @@ export default function (deps: DashboardRoutesDeps) {
     ) => {
       return builds.map((build) => ({
         id: build.buildId,
+        message: build.message, // Commit message shown next to the SHA
+        createdAt: build.createdAt, // Report time, rendered as "how long ago"
         environments, // Include environments in each build for Handlebars partial scope
         serviceName, // Include serviceName in each build for Handlebars partial scope
         serviceId, // Include serviceId for deploy button URLs
@@ -75,6 +105,14 @@ export default function (deps: DashboardRoutesDeps) {
             return acc;
           },
           {} as Record<string, string | null>,
+        ),
+        // When it went live per environment, rendered as "3d ago" next to Live
+        deployedAt: environments.reduce(
+          (acc, env) => {
+            acc[env.name] = build.deployedAt?.[env.name] || null;
+            return acc;
+          },
+          {} as Record<string, Date | null>,
         ),
       }));
     };
@@ -182,6 +220,19 @@ export default function (deps: DashboardRoutesDeps) {
             name: e.name,
           }));
 
+        // What's deployed is only half of "what's live" — the other half is
+        // what's switched on inside it. Each environment column carries its own
+        // flag state so both answers sit on the same screen.
+        const flagSummaries = await loadEnvironmentFlags(
+          accountId,
+          activeService._id,
+          environments.map((e) => e.name),
+        );
+        const boardEnvironments = environments.map((env, index) => ({
+          ...env,
+          flags: flagSummaries?.[index] ?? null,
+        }));
+
         // Commit-link source: prefer the service's own repoUrl; fall back to
         // the connected repository's GitHub URL for legacy GitHub services that
         // predate repoUrl (no migration needed).
@@ -252,7 +303,7 @@ export default function (deps: DashboardRoutesDeps) {
               activeService: serviceName,
               serviceId: activeService._id.toString(),
               serviceName: serviceName,
-              environments,
+              environments: boardEnvironments,
               builds: formattedBuilds,
               repoUrl,
               canDispatch,
@@ -285,7 +336,7 @@ export default function (deps: DashboardRoutesDeps) {
             services: serviceNames,
             activeService: serviceName,
             serviceId: activeService._id.toString(),
-            environments,
+            environments: boardEnvironments,
             builds: formattedBuilds,
             repoUrl,
             canDispatch,
@@ -376,6 +427,7 @@ export default function (deps: DashboardRoutesDeps) {
             {
               buildId,
               status: build.deployments[env],
+              deployedAt: build.deployedAt?.[env],
               env,
               serviceName: service.name,
               serviceId,
@@ -401,6 +453,12 @@ export default function (deps: DashboardRoutesDeps) {
           ) {
             return reply.status(404).send({ error: message });
           }
+          // Unexpected failure (e.g. the CI provider rejected the dispatch) —
+          // log it so it is diagnosable beyond the edge's 500.
+          req.log.error(
+            { err: error, serviceId, buildId, env },
+            "Failed to dispatch deployment",
+          );
           return reply.status(500).send({ error: message });
         }
       },
@@ -471,6 +529,7 @@ export default function (deps: DashboardRoutesDeps) {
             {
               buildId,
               status: updatedBuild.deployments[env],
+              deployedAt: updatedBuild.deployedAt?.[env],
               env,
               serviceName: service.name,
               serviceId,

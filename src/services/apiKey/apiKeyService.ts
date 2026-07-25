@@ -5,6 +5,7 @@ import {
   ApiKeyRepository,
   ApiKey,
   ApiKeyScope,
+  ApiKeyKind,
 } from "../../repositories/apiKeyRepository";
 import { AccountRepository } from "../../repositories/accountRepository";
 
@@ -13,8 +14,19 @@ export type GenerateApiKeyInput = {
   createdByUserId: ObjectId;
   name: string;
   scopes: ApiKeyScope[];
+  // Defaults to a secret (server-side) key. Publishable keys additionally
+  // require serviceId, environment and at least one allowed origin.
+  kind?: ApiKeyKind;
+  serviceId?: ObjectId;
+  environment?: string;
+  allowedOrigins?: string[];
   expiresAt?: Date | null;
 };
+
+// The only scope a browser-visible key may carry. Anything wider (flags:read
+// included — it exposes rule config, targeting rules and experiment results)
+// must never leave a server.
+const PUBLISHABLE_SCOPES: readonly ApiKeyScope[] = ["flags:evaluate"];
 
 export type GenerateApiKeyResult = {
   key: string; // Full key, shown only once
@@ -36,17 +48,51 @@ export class ApiKeyService {
       throw new Error("Account not found");
     }
 
+    const kind: ApiKeyKind = input.kind ?? "secret";
+
+    // A publishable key is handed to a browser, so refuse to mint one that
+    // isn't pinned down: unbound or over-scoped keys are exactly the leak this
+    // key type exists to prevent, and silently narrowing them would hide the
+    // caller's mistake rather than surface it.
+    if (kind === "publishable") {
+      if (!input.serviceId) {
+        throw new Error(
+          "A publishable key must be bound to a single service (serviceId is required)",
+        );
+      }
+      if (!input.environment) {
+        throw new Error(
+          "A publishable key must be bound to a single environment",
+        );
+      }
+      if (!input.allowedOrigins?.length) {
+        throw new Error(
+          "A publishable key must list at least one allowed origin",
+        );
+      }
+      const overreaching = input.scopes.filter(
+        (s) => !PUBLISHABLE_SCOPES.includes(s),
+      );
+      if (overreaching.length) {
+        throw new Error(
+          `A publishable key may only carry the ${PUBLISHABLE_SCOPES.join(", ")} scope; refusing: ${overreaching.join(", ")}`,
+        );
+      }
+    }
+
     // Generate random part of the key
     const randomBytes = crypto.randomBytes(KEY_RANDOM_BYTES);
     const randomPart = randomBytes
       .toString("base64url")
       .replace(/[^A-Za-z0-9_-]/g, "");
 
-    // Build the full key: pk_{slug}_{random}
-    const fullKey = `pk_${account.slug}_${randomPart}`;
+    // sk_ = secret (server-side only), pk_ = publishable (browser-safe), so the
+    // prefix a developer sees matches how the key may actually be handled.
+    const scheme = kind === "publishable" ? "pk" : "sk";
+    const fullKey = `${scheme}_${account.slug}_${randomPart}`;
 
     // Create a prefix for display (first 8 chars of random)
-    const keyPrefix = `pk_${account.slug}_${randomPart.slice(0, 8)}`;
+    const keyPrefix = `${scheme}_${account.slug}_${randomPart.slice(0, 8)}`;
 
     // Hash the full key for storage
     const keyHash = await bcrypt.hash(fullKey, BCRYPT_ROUNDS);
@@ -59,6 +105,10 @@ export class ApiKeyService {
       keyPrefix,
       keyHash,
       scopes: input.scopes,
+      kind,
+      serviceId: input.serviceId ?? null,
+      environment: input.environment ?? null,
+      allowedOrigins: input.allowedOrigins ?? [],
       expiresAt: input.expiresAt,
     });
 
@@ -66,8 +116,10 @@ export class ApiKeyService {
   }
 
   async validate(key: string): Promise<ApiKey | null> {
-    // Check key format: pk_{slug}_{random}
-    if (!key.startsWith("pk_")) {
+    // Check key format: sk_{slug}_{random} or pk_{slug}_{random}. Keys minted
+    // before the split all carry pk_ and are secret; the prefix is a label for
+    // humans, so what a key may actually do is read from the stored record.
+    if (!key.startsWith("sk_") && !key.startsWith("pk_")) {
       return null;
     }
 

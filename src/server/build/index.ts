@@ -106,6 +106,7 @@ export default function (deps: BuildRoutesDeps) {
                   serviceName: event.serviceName,
                   serviceId: event.serviceId,
                   status: event.status,
+                  deployedAt: event.deployedAt,
                   canDispatch: event.canDispatch,
                   isOobSwap: true,
                 });
@@ -219,6 +220,7 @@ export default function (deps: BuildRoutesDeps) {
               const buildData = {
                 build: {
                   id: event.buildId,
+                  message: event.message,
                   serviceName,
                   serviceId: service._id.toString(),
                   createdAt: new Date(),

@@ -1,13 +1,16 @@
-<tr id="build-{{build.id}}" class="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-  <td class="px-4 py-3">
-    <a
-      class="font-mono text-sm text-blue-600 dark:text-blue-400 hover:underline"
-      href="{{getBuildCommitLink repoUrl build.id}}"
-      target="_blank"
-      title="{{build.id}}"
-    >
-      {{shortSha build.id}}
-    </a>
+<tr id="build-{{build.id}}">
+  <td>
+    <div class="gl-commit">
+      <a
+        class="gl-sha"
+        href="{{getBuildCommitLink repoUrl build.id}}"
+        target="_blank"
+        title="{{build.id}}"
+      >#{{shortSha build.id}}</a>{{#if build.message}}<span class="gl-msg"> · {{build.message}}</span>{{/if}}
+    </div>
+    {{#if build.createdAt}}
+    <div class="gl-when">{{timeAgo build.createdAt}}</div>
+    {{/if}}
   </td>
   {{#each build.environments as |env|}}
     {{> buildEnvironmentAction
@@ -16,6 +19,7 @@
       serviceName=../build.serviceName
       serviceId=../build.serviceId
       status=(getStatus ../build env.name)
+      deployedAt=(getDeployedAt ../build env.name)
       canDispatch=../canDispatch
     }}
   {{/each}}

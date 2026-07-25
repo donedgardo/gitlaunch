@@ -83,7 +83,10 @@ import { LeadRepository } from "../repositories/leadRepository";
 import { WaitlistService } from "../services/marketing/waitlistService";
 import { WaitlistExperiment } from "../services/marketing/waitlistExperiment";
 import { SignupGate } from "../services/account/signupGate";
-import { describeSelfFlagStatus } from "../services/flag/selfFlagContext";
+import {
+  describeSelfFlagStatus,
+  SelfFlagAccount,
+} from "../services/flag/selfFlagContext";
 import { registerWaitlistRoutes } from "./routes/marketing/waitlist";
 
 // Minimum time (ms) a real person needs to read and fill the waitlist form.
@@ -282,11 +285,6 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     analytics,
   });
 
-  // Marketing: waitlist capture (bot-filtered, campaign-attributed)
-  const waitlistService = new WaitlistService(leadRepository, analytics, {
-    minElapsedMs: WAITLIST_MIN_ELAPSED_MS,
-  });
-
   // GitLaunch's own service within its own platform: the service its
   // self-hosted feature flags live under. GitLaunch is effectively a customer
   // of its own flag service, so any internal feature that dogfoods flags (today:
@@ -321,6 +319,17 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     selfFlagContext,
   );
 
+  // Marketing: waitlist capture (bot-filtered, campaign-attributed). The same
+  // service that scopes our own flags also names the account these events
+  // belong to — without it they land in the warehouse untenanted and every
+  // account-scoped query on /dashboard/analytics skips them.
+  const waitlistService = new WaitlistService(
+    leadRepository,
+    analytics,
+    { minElapsedMs: WAITLIST_MIN_ELAPSED_MS },
+    new SelfFlagAccount(serviceRepository, selfFlagContext),
+  );
+
   // Marketing: dogfood our own feature flags to A/B test the landing-page copy.
   const waitlistExperiment = new WaitlistExperiment(
     flagService,
@@ -331,7 +340,9 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
 
   // Routes
   server.register(healthRoute(mongoClient));
-  server.register(homeRoute({ experiment: waitlistExperiment }));
+  server.register(
+    homeRoute({ experiment: waitlistExperiment, signupDoor: signupGate }),
+  );
   registerWaitlistRoutes(server, {
     waitlistService,
     experiment: waitlistExperiment,
@@ -346,6 +357,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
       trialService,
       planEnforcementService,
       analytics,
+      flagService,
     }),
   );
   server.register(

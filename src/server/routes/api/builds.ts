@@ -6,6 +6,7 @@ import { PlanEnforcementService } from "../../../services/billing/planEnforcemen
 import { requireScope } from "../../middleware/apiKeyAuth";
 import { DeploymentStatus } from "../../../services/service/deploymentStatus";
 import { AnalyticsService } from "../../../services/analytics/analytics";
+import { actor, machineActor } from "../../../services/analytics/actorIdentity";
 
 export type BuildsRoutesDependencies = {
   buildService: BuildService;
@@ -16,6 +17,8 @@ export type BuildsRoutesDependencies = {
 
 type CreateBuildBody = {
   buildId: string;
+  // Optional commit message; surfaced on the dashboard next to the SHA.
+  message?: string;
 };
 
 type UpdateDeploymentStatusBody = {
@@ -52,7 +55,7 @@ export function registerBuildsRoutes(
       reply: FastifyReply,
     ) => {
       const { serviceId: serviceIdParam } = request.params;
-      const { buildId } = request.body;
+      const { buildId, message } = request.body;
       const accountId = request.apiKey!.accountId;
 
       if (!ObjectId.isValid(serviceIdParam)) {
@@ -91,14 +94,20 @@ export function registerBuildsRoutes(
           accountId,
           serviceId,
           buildId,
+          message,
         });
-        analytics?.track("build_reported", { serviceId, buildId });
+        analytics?.track(
+          "build_reported",
+          { serviceId, buildId },
+          actor(accountId, machineActor(request.apiKey!.apiKeyId.toString())),
+        );
 
         return reply.status(201).send({
           _id: build._id.toString(),
           accountId: build.accountId.toString(),
           serviceId: build.serviceId.toString(),
           buildId: build.buildId,
+          message: build.message,
           deployments: build.deployments,
           createdAt: build.createdAt,
           updatedAt: build.updatedAt,
@@ -257,6 +266,10 @@ export function registerBuildsRoutes(
         if (message === "Build not found" || message === "Service not found") {
           return reply.status(404).send({ error: message });
         }
+        request.log.error(
+          { err: error, serviceId: serviceIdParam, buildId, env },
+          "Failed to dispatch deployment",
+        );
         return reply.status(500).send({ error: message });
       }
     },
@@ -320,10 +333,7 @@ export function registerBuildsRoutes(
             environment: env,
             status,
           },
-          {
-            accountId: accountId.toString(),
-            distinctId: `apikey:${request.apiKey!.apiKeyId.toString()}`,
-          },
+          actor(accountId, machineActor(request.apiKey!.apiKeyId.toString())),
         );
 
         return reply.send({

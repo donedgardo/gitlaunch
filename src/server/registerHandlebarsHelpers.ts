@@ -1,6 +1,7 @@
 import handlebars from "handlebars";
 import { Build } from "../repositories/buildRepository";
 import { DeploymentStatus } from "../services/service/deploymentStatus";
+import { formatTimeAgo } from "./timeAgo";
 
 export function registerHandlebarsHelpers() {
   handlebars.registerHelper("eq", function (a, b) {
@@ -10,6 +11,14 @@ export function registerHandlebarsHelpers() {
     "getStatus",
     function (build: Build, environment: string) {
       return build.deployments[environment];
+    },
+  );
+  // When this build last went live in an environment — rendered as "3d ago"
+  // beside the Live pill. Undefined for builds deployed before we tracked it.
+  handlebars.registerHelper(
+    "getDeployedAt",
+    function (build: Build, environment: string) {
+      return build.deployedAt?.[environment];
     },
   );
   handlebars.registerHelper(
@@ -44,25 +53,55 @@ export function registerHandlebarsHelpers() {
     if (!sha) return "";
     return sha.substring(0, 7);
   });
+  // Renders a build's report time as a compact "how long ago" label
+  // (e.g. "18m ago"). Snapshot at render time; a page load refreshes it.
+  handlebars.registerHelper(
+    "timeAgo",
+    function (date: Date | string | null | undefined) {
+      return formatTimeAgo(date, new Date());
+    },
+  );
+  // Maps a deployment status to a release-board status pill (styles live in
+  // src/styles/input.css under `.gl-board .pill-*`). Live and in-motion states
+  // pair with a pulsing dot — see the `showStatusDot` helper below.
   handlebars.registerHelper(
     "getStatusBadgeClass",
     function (status: DeploymentStatus) {
-      const baseClass =
-        "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium";
+      const base = "pill";
       switch (status) {
         case DeploymentStatus.DEPLOYED:
-          return `${baseClass} bg-green-100 text-green-900 dark:bg-green-900 dark:text-green-100`;
+          return `${base} pill-live`;
         case DeploymentStatus.DEPLOYING:
-          return `${baseClass} bg-blue-100 text-blue-900 dark:bg-blue-900 dark:text-blue-100 animate-pulse`;
+          return `${base} pill-progress`;
         case DeploymentStatus.DISPATCHING:
-          return `${baseClass} bg-yellow-100 text-yellow-900 dark:bg-yellow-900 dark:text-yellow-100 animate-pulse`;
+          return `${base} pill-pending`;
         case DeploymentStatus.ERROR:
-          return `${baseClass} bg-red-100 text-red-900 dark:bg-red-900 dark:text-red-100`;
+          return `${base} pill-error`;
         case DeploymentStatus.CANCELLED:
-          return `${baseClass} bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-gray-100`;
+          return `${base} pill-idle`;
         default:
-          return `${baseClass} bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-gray-100`;
+          return `${base} pill-idle`;
       }
+    },
+  );
+  // A live/in-motion deployment gets a pulsing dot in its pill; settled states
+  // (error, cancelled) do not.
+  handlebars.registerHelper(
+    "showStatusDot",
+    function (status: DeploymentStatus) {
+      return (
+        status === DeploymentStatus.DEPLOYED ||
+        status === DeploymentStatus.DEPLOYING ||
+        status === DeploymentStatus.DISPATCHING
+      );
+    },
+  );
+  // The "how long ago" label belongs to a currently-live environment only: an
+  // in-progress or rolled-back cell would otherwise show a stale live time.
+  handlebars.registerHelper(
+    "showDeployedAt",
+    function (status: DeploymentStatus, deployedAt: Date | string | null) {
+      return status === DeploymentStatus.DEPLOYED && !!deployedAt;
     },
   );
   handlebars.registerHelper("add", function (a: number, b: number) {

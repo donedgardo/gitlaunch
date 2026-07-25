@@ -8,6 +8,7 @@ import {
   TargetingRule,
 } from "../../../repositories/flagRepository";
 import { AnalyticsService } from "../../../services/analytics/analytics";
+import { actor } from "../../../services/analytics/actorIdentity";
 import { ApiKeyService } from "../../../services/apiKey/apiKeyService";
 import {
   ExperimentResultsService,
@@ -174,7 +175,7 @@ export function registerFlagsSettingsRoutes(
       reply.status(404).send("Service not found");
       return null;
     }
-    return { service, accountId };
+    return { service, accountId, userId: new ObjectId(request.session.userId) };
   }
 
   function envNamesOf(service: {
@@ -238,8 +239,7 @@ export function registerFlagsSettingsRoutes(
     async (request, reply) => {
       const result = await loadServiceWithAuth(request, reply);
       if (!result) return;
-      const { service, accountId } = result;
-      const userId = new ObjectId(request.session!.userId);
+      const { service, accountId, userId } = result;
       const envNames = envNamesOf(service);
 
       const { key } = await apiKeyService.generate({
@@ -248,9 +248,11 @@ export function registerFlagsSettingsRoutes(
         name: `Flag reader — ${service.name}`,
         scopes: ["flags:read"],
       });
-      analytics?.track("flag_client_key_created", {
-        serviceId: service._id.toString(),
-      });
+      analytics?.track(
+        "flag_client_key_created",
+        { serviceId: service._id.toString() },
+        actor(accountId, userId),
+      );
 
       return reply.view(
         "partials/flagKeyResult",
@@ -265,6 +267,72 @@ export function registerFlagsSettingsRoutes(
     },
   );
 
+  // POST /services/:serviceId/flags/keys/browser — mint a publishable key for a
+  // web app that evaluates flags client-side. Unlike the server-side key above,
+  // this one is expected to be readable by anyone who loads the page, so it is
+  // confined to a single service + environment, evaluate-only, and usable only
+  // from the origins named here.
+  app.post<{
+    Params: { serviceId: string };
+    Body: { environment?: string; origins?: string };
+  }>("/services/:serviceId/flags/keys/browser", async (request, reply) => {
+    const result = await loadServiceWithAuth(request, reply);
+    if (!result) return;
+    const { service, accountId, userId } = result;
+    const envNames = envNamesOf(service);
+
+    const environment = (request.body?.environment ?? "").trim() || envNames[0];
+    // Accept a comma- or newline-separated list, the way people paste origins.
+    const origins = (request.body?.origins ?? "")
+      .split(/[\s,]+/)
+      .map((o) => o.trim())
+      .filter(Boolean);
+
+    if (!origins.length) {
+      return reply
+        .status(400)
+        .send("Name at least one origin this key may be used from.");
+    }
+    if (!environment) {
+      return reply
+        .status(400)
+        .send("Pick the environment this key should evaluate.");
+    }
+
+    const { key } = await apiKeyService.generate({
+      accountId,
+      createdByUserId: userId,
+      name: `Browser key — ${service.name} (${environment})`,
+      scopes: ["flags:evaluate"],
+      kind: "publishable",
+      serviceId: service._id,
+      environment,
+      allowedOrigins: origins,
+    });
+    analytics?.track(
+      "flag_browser_key_created",
+      {
+        serviceId: service._id.toString(),
+        environment,
+        originCount: origins.length,
+      },
+      actor(accountId, userId),
+    );
+
+    return reply.view(
+      "partials/flagKeyResult",
+      {
+        newKey: key,
+        serviceId: service._id.toString(),
+        evaluateEnv: environment,
+        apiUrl,
+        publishable: true,
+        allowedOrigins: origins.join(", "),
+      },
+      { layout: "" },
+    );
+  });
+
   // POST /services/:serviceId/flags — create (HTMX → flagList partial)
   app.post<{
     Params: { serviceId: string };
@@ -272,7 +340,7 @@ export function registerFlagsSettingsRoutes(
   }>("/services/:serviceId/flags", async (request, reply) => {
     const result = await loadServiceWithAuth(request, reply);
     if (!result) return;
-    const { service, accountId } = result;
+    const { service, accountId, userId } = result;
     const envNames = envNamesOf(service);
     const key = (request.body?.key ?? "").trim();
 
@@ -281,10 +349,11 @@ export function registerFlagsSettingsRoutes(
         key,
         description: (request.body?.description ?? "").trim(),
       });
-      analytics?.track("flag_created", {
-        serviceId: service._id.toString(),
-        key,
-      });
+      analytics?.track(
+        "flag_created",
+        { serviceId: service._id.toString(), key },
+        actor(accountId, userId),
+      );
       return renderList(accountId, service._id, envNames, reply);
     } catch (error) {
       const message =
@@ -302,7 +371,7 @@ export function registerFlagsSettingsRoutes(
     async (request, reply) => {
       const result = await loadServiceWithAuth(request, reply);
       if (!result) return;
-      const { service, accountId } = result;
+      const { service, accountId, userId } = result;
       const envNames = envNamesOf(service);
       const { key, env } = request.params;
 
@@ -318,11 +387,11 @@ export function registerFlagsSettingsRoutes(
           enabled,
           ...(rolloutPercentage !== undefined ? { rolloutPercentage } : {}),
         });
-        analytics?.track("flag_updated", {
-          serviceId: service._id.toString(),
-          key,
-          environment: env,
-        });
+        analytics?.track(
+          "flag_updated",
+          { serviceId: service._id.toString(), key, environment: env },
+          actor(accountId, userId),
+        );
         return renderList(accountId, service._id, envNames, reply);
       } catch (error) {
         const message =
@@ -346,7 +415,7 @@ export function registerFlagsSettingsRoutes(
     async (request, reply) => {
       const result = await loadServiceWithAuth(request, reply);
       if (!result) return;
-      const { service, accountId } = result;
+      const { service, accountId, userId } = result;
       const envNames = envNamesOf(service);
       const { key, env } = request.params;
 
@@ -359,11 +428,11 @@ export function registerFlagsSettingsRoutes(
         await flagService.setEnvConfig(accountId, service._id, key, env, {
           variants,
         });
-        analytics?.track("flag_updated", {
-          serviceId: service._id.toString(),
-          key,
-          environment: env,
-        });
+        analytics?.track(
+          "flag_updated",
+          { serviceId: service._id.toString(), key, environment: env },
+          actor(accountId, userId),
+        );
         return renderList(accountId, service._id, envNames, reply);
       } catch (error) {
         const message =

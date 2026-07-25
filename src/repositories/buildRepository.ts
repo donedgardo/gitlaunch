@@ -7,7 +7,15 @@ export type Build = {
   accountId: ObjectId;
   serviceId: ObjectId;
   buildId: string;
+  // Commit message reported alongside the build, shown on the dashboard.
+  // Optional: builds reported before this existed (or by reporters that don't
+  // send it) simply show the SHA on its own.
+  message?: string;
   deployments: Record<string, DeploymentStatus>;
+  // When this build last went live per environment, so the board can show
+  // "3d ago" next to a Live pill. Only written on the deployed transition, and
+  // absent for builds that predate it (the label is simply omitted then).
+  deployedAt?: Record<string, Date>;
   deploymentLogs: DeploymentLogRecord[];
   createdAt: Date;
   updatedAt: Date;
@@ -17,6 +25,7 @@ export type CreateBuildInput = {
   accountId: ObjectId;
   serviceId: ObjectId;
   buildId: string;
+  message?: string;
 };
 
 export type PaginatedResult = {
@@ -62,6 +71,9 @@ export class BuildRepository {
       accountId: input.accountId,
       serviceId: input.serviceId,
       buildId: input.buildId,
+      // Only persist a message when the reporter sent one, so we don't write
+      // empty strings for the SHA-only case.
+      ...(input.message ? { message: input.message } : {}),
       deployments: {},
       deploymentLogs: [],
       createdAt: now,
@@ -98,13 +110,20 @@ export class BuildRepository {
     status: DeploymentStatus,
   ): Promise<Build | null> {
     const log: DeploymentLogRecord = { environment, status };
+    const now = new Date();
 
     const result = await this.collection.findOneAndUpdate(
       { accountId, serviceId, buildId },
       {
         $set: {
           [`deployments.${environment}`]: status,
-          updatedAt: new Date(),
+          // Stamp the moment it went live so the board can say how long ago.
+          // In-progress and failed states leave the previous stamp alone —
+          // nothing renders it unless the environment is currently deployed.
+          ...(status === DeploymentStatus.DEPLOYED
+            ? { [`deployedAt.${environment}`]: now }
+            : {}),
+          updatedAt: now,
         },
         $push: { deploymentLogs: log },
       },

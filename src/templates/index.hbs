@@ -46,7 +46,10 @@
 
   /* Board (signature) */
   .board-frame { position: relative; min-width: 0; }
-  .board { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow-lg); overflow: hidden; max-width: 100%; }
+  /* Sized as a container: the board keeps three columns at every width, so what
+     fits in a cell depends on the board's own width — not the viewport's. It is
+     narrow both on a phone and beside the hero copy at ~900px. */
+  .board { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow-lg); overflow: hidden; max-width: 100%; container: board / inline-size; }
   .board-bar { display: flex; align-items: center; gap: 10px; padding: 13px 16px; background: var(--surface-2); border-bottom: 1px solid var(--line); font-family: var(--mono); font-size: 12px; color: var(--muted); }
   .dot3 { display: flex; gap: 6px; }
   .dot3 span { width: 10px; height: 10px; border-radius: 50%; background: var(--line-strong); }
@@ -65,6 +68,10 @@
   .pill { font-family: var(--mono); font-size: 10px; letter-spacing: .05em; text-transform: uppercase; padding: 4px 9px; border-radius: 999px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
   .pill.live { color: var(--ok); background: color-mix(in srgb, var(--ok) 16%, transparent); }
   .live-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; animation: pulse 2.4s ease-in-out infinite; }
+  /* How long this build has been live here — its own line under the pill, the
+     same shape as the commit cell's sub-line. Inline it would push the pill
+     past the column at every width the board actually gets. */
+  .when { font-family: var(--mono); font-size: 10.5px; color: var(--faint); }
   @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
   .cbtn { font-family: var(--mono); font-size: 11px; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--accent); background: transparent; color: var(--accent-ink); font-weight: 600; white-space: nowrap; cursor: pointer; transition: background .12s ease, color .12s ease, transform .08s ease; }
   .cbtn:hover { background: var(--accent); color: #fff; }
@@ -81,6 +88,20 @@
   .rcell.flash { animation: flash 1.4s ease-out; }
   .board-hint { text-align: center; margin-top: 12px; font-family: var(--mono); font-size: 11.5px; color: var(--faint); letter-spacing: .02em; }
   .board-hint b { color: var(--accent-ink); font-weight: 600; }
+  /* Phone-sized board: bring the whole toy down a size so every cell fits. */
+  @container board (max-width: 440px) {
+    .rgrid { grid-template-columns: 1.3fr 1fr 1fr; }
+    .rcell { padding: 10px 9px; min-height: 52px; gap: 3px; }
+    .rcell.rhead { padding: 9px 9px; font-size: 9px; letter-spacing: .06em; }
+    .build { font-size: 12.5px; }
+    .build-sub { font-size: 9.5px; }
+    .pill { font-size: 9px; padding: 3px 7px; gap: 5px; }
+    .live-dot { width: 6px; height: 6px; }
+    .cbtn { font-size: 10px; padding: 5px 9px; }
+    .when { font-size: 9.5px; }
+    .board-bar { padding: 11px 12px; font-size: 11px; gap: 8px; }
+    .dot3 span { width: 8px; height: 8px; }
+  }
   .float-tag { position: absolute; right: -14px; top: -16px; background: var(--ink); color: var(--bg); font-family: var(--mono); font-size: 11px; padding: 7px 12px; border-radius: 999px; box-shadow: var(--shadow); transform: rotate(2deg); }
   .float-tag b { color: var(--accent-2); }
 
@@ -152,6 +173,9 @@
   .wl-result.wl-ok { color: var(--ok); background: color-mix(in srgb, var(--ok) 14%, transparent); border: 1px solid color-mix(in srgb, var(--ok) 30%, transparent); }
   .wl-result.wl-error { color: var(--accent-ink); background: var(--accent-soft); border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent); }
   .wl-form.htmx-request .btn { opacity: .7; pointer-events: none; }
+  /* Signups closed: the way in still shows, it just says who it is for */
+  .login-existing { display: inline-flex; flex-direction: column; line-height: 1.15; }
+  .login-existing span { font-family: var(--mono); font-size: 10px; color: var(--faint); letter-spacing: .02em; }
   /* Shown when someone tried to sign in but self-serve signups are flagged off */
   .signup-closed { margin: 0 auto; max-width: 720px; padding: 12px 16px; border-radius: 10px; font-size: 14px; font-weight: 600; text-align: center; color: var(--accent-ink); background: var(--accent-soft); border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent); }
   .signup-closed a { color: inherit; }
@@ -185,7 +209,11 @@
       <div class="nav-links">
         <a href="#how">How it works</a>
         <a href="#why">Why GitLaunch</a>
+        {{#if signupsOpen}}
         <a href="/login">Login</a>
+        {{else}}
+        <a href="/login" class="login-existing">Sign in<span>existing accounts only</span></a>
+        {{/if}}
         <a href="#start" class="btn primary">Join the waitlist</a>
       </div>
     </div>
@@ -248,7 +276,7 @@
               <div class="build-sub">3d ago · ci</div>
             </div>
             <div class="rcell env-cell" data-col="staging"><button class="cbtn" type="button">Deploy</button></div>
-            <div class="rcell env-cell" data-col="prod"><span class="pill live"><span class="live-dot"></span>Live&nbsp;3d</span></div>
+            <div class="rcell env-cell" data-col="prod"><span class="pill live"><span class="live-dot"></span>Live</span><span class="when">3d ago</span></div>
           </div>
         </div>
         <div class="board-hint">Go on — click any <b>Deploy</b> button.</div>
@@ -392,9 +420,13 @@
 
     var busy = {}; // one deploy at a time per column
 
+    // Same 440px threshold the board's container query uses: below it an env
+    // column is too narrow for the full "Deploying…" label.
+    function isNarrow() { return board.getBoundingClientRect().width <= 440; }
+
     function liveBadge(fresh) {
-      return '<span class="pill live"><span class="live-dot"></span>' +
-        (fresh ? 'Live · just now' : 'Live') + '</span>';
+      return '<span class="pill live"><span class="live-dot"></span>Live</span>' +
+        (fresh ? '<span class="when">just now</span>' : '');
     }
     function setLive(cell) {
       cell.innerHTML = liveBadge(true);
@@ -428,7 +460,7 @@
       if (reduce || !btn) { finish(); return; }
 
       busy[col] = true;
-      btn.textContent = 'Deploying…';
+      btn.textContent = isNarrow() ? 'Deploy…' : 'Deploying…';
       btn.disabled = true;
       var prog = document.createElement('div');
       prog.className = 'cprog on';

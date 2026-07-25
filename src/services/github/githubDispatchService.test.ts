@@ -112,8 +112,32 @@ describe("MultiTenantGithubDispatchService", () => {
       expect(body.inputs).toEqual({
         environment: "prod",
         buildId: "build-456",
-        serviceId: "service-xyz",
       });
+    });
+
+    it("should only send inputs the deploy workflow declares", async () => {
+      // Given: dispatch input for a service
+      const input: DispatchInput = {
+        installationId: 12345,
+        owner: "my-org",
+        repo: "my-repo",
+        workflowFile: "deploy.yml",
+        buildId: "build-456",
+        environment: "prod",
+        serviceId: "service-xyz",
+      };
+
+      // When: I dispatch
+      await service.dispatch(input);
+
+      // Then: no extra inputs are sent — GitHub rejects the whole dispatch with
+      // 422 "Unexpected inputs provided" for anything the workflow_dispatch
+      // block doesn't declare.
+      const body = JSON.parse(fakeHttp.requests[0].options.body as string);
+      expect(Object.keys(body.inputs).sort()).toEqual([
+        "buildId",
+        "environment",
+      ]);
     });
 
     it("should throw error when dispatch fails", async () => {

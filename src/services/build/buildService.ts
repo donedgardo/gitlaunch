@@ -11,6 +11,9 @@ export type BuildUpdateEvent = {
   status: DeploymentStatus;
   serviceId: string;
   serviceName: string;
+  // When this build went live in the environment, so a pushed cell keeps the
+  // "how long ago" label the full page render shows. Absent unless live.
+  deployedAt?: Date;
   // Report-only (manual) services have no dispatch — their rows show status
   // without Deploy/Redeploy controls.
   canDispatch: boolean;
@@ -20,6 +23,7 @@ export type CreateBuildInput = {
   accountId: ObjectId;
   serviceId: ObjectId;
   buildId: string;
+  message?: string;
 };
 
 export type UpdateDeploymentStatusInput = {
@@ -52,11 +56,15 @@ export class BuildService {
       accountId: input.accountId,
       serviceId: input.serviceId,
       buildId: input.buildId,
+      message: input.message,
     });
 
-    // Emit event for SSE updates (used by setup page to detect first build)
+    // Emit event for SSE updates (used by setup page to detect first build,
+    // and by the dashboard's new-build stream to render the row live —
+    // include the message so that live row can show it too).
     this.eventEmitter.emit("build:created", {
       buildId: build.buildId,
+      message: build.message,
       serviceId: input.serviceId.toString(),
       serviceName: service.name,
     });
@@ -132,6 +140,7 @@ export class BuildService {
       status: input.status,
       serviceId: input.serviceId.toString(),
       serviceName: service.name,
+      deployedAt: build.deployedAt?.[input.environment],
       canDispatch,
     };
 
