@@ -106,6 +106,7 @@ export default function (deps: BuildRoutesDeps) {
                   serviceName: event.serviceName,
                   serviceId: event.serviceId,
                   status: event.status,
+                  deployedAt: event.deployedAt,
                   canDispatch: event.canDispatch,
                   isOobSwap: true,
                 });

@@ -2,7 +2,9 @@
   id="{{serviceName}}-{{buildId}}-{{env}}"
   sse-swap="update:{{serviceName}}-{{buildId}}-{{env}}"
   {{#if isOobSwap}}hx-swap-oob="outerHTML"{{/if}}
-  class="gl-env-cell"
+  {{!-- A cell only flashes when it is swapped in mid-change (deploy, cancel,
+        rollback) — a full board render is a settled view, not an event. --}}
+  class="gl-env-cell{{#if isOobSwap}} gl-just-changed{{/if}}"
 >
   {{#if canDispatch}}
     {{#if (showDeployButton status) }}
@@ -18,6 +20,7 @@
     {{else}}
       <div class="inline-flex items-center gap-2">
         <span class="{{getStatusBadgeClass status}}">{{#if (showStatusDot status)}}<span class="gl-dot"></span>{{/if}}{{status}}</span>
+        {{#if (showDeployedAt status deployedAt)}}<span class="gl-when-env">{{timeAgo deployedAt}}</span>{{/if}}
         {{#if (canCancel status)}}
           <button
             hx-delete="/services/{{serviceId}}/builds/{{buildId}}/deploy/{{env}}"
@@ -50,7 +53,10 @@
     {{/if}}
   {{else}}
     {{#if status}}
-      <span class="{{getStatusBadgeClass status}}">{{#if (showStatusDot status)}}<span class="gl-dot"></span>{{/if}}{{status}}</span>
+      <span class="inline-flex items-center gap-2">
+        <span class="{{getStatusBadgeClass status}}">{{#if (showStatusDot status)}}<span class="gl-dot"></span>{{/if}}{{status}}</span>
+        {{#if (showDeployedAt status deployedAt)}}<span class="gl-when-env">{{timeAgo deployedAt}}</span>{{/if}}
+      </span>
     {{else}}
       <span class="gl-empty-env">—</span>
     {{/if}}

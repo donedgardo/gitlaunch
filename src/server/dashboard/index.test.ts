@@ -493,6 +493,139 @@ describe("Dashboard Routes", () => {
         `/onboarding/setup-deploy/${service._id}`,
       );
     });
+
+    it("shows how long ago a build went live in an environment", async () => {
+      // Given: a build that went live in prod three days ago
+      const account = await accountRepo.create({
+        name: "Test Org",
+        slug: `test-org-${Date.now()}-${Math.random()}`,
+      });
+      const accountId = account._id;
+      const service = await serviceRepo.create({
+        accountId,
+        repositoryId: new ObjectId(),
+        name: "live-service",
+      });
+      await serviceRepo.markWorkflowConfigured(service._id);
+      await buildRepo.create({
+        accountId,
+        serviceId: service._id,
+        buildId: "live-build",
+      });
+      await buildRepo.updateDeploymentStatus(
+        accountId,
+        service._id,
+        "live-build",
+        "prod",
+        DeploymentStatus.DEPLOYED,
+      );
+      const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+      await db
+        .collection("builds")
+        .updateOne(
+          { accountId, serviceId: service._id, buildId: "live-build" },
+          { $set: { "deployedAt.prod": threeDaysAgo } },
+        );
+      const sessionToken = sessionService.createSession({
+        userId: new ObjectId(),
+        accountId,
+      });
+
+      // When: visiting the release board
+      const response = await app.inject({
+        method: "GET",
+        url: "/dashboard/live-service",
+        cookies: { session: sessionToken },
+      });
+
+      // Then: the prod cell says how long it has been live
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain("3d ago");
+    });
+
+    it("does not replay the deploy flash for every live cell on page load", async () => {
+      // Given: a build already live in prod
+      const account = await accountRepo.create({
+        name: "Test Org",
+        slug: `test-org-${Date.now()}-${Math.random()}`,
+      });
+      const accountId = account._id;
+      const service = await serviceRepo.create({
+        accountId,
+        repositoryId: new ObjectId(),
+        name: "settled-service",
+      });
+      await serviceRepo.markWorkflowConfigured(service._id);
+      await buildRepo.create({
+        accountId,
+        serviceId: service._id,
+        buildId: "settled-build",
+      });
+      await buildRepo.updateDeploymentStatus(
+        accountId,
+        service._id,
+        "settled-build",
+        "prod",
+        DeploymentStatus.DEPLOYED,
+      );
+      const sessionToken = sessionService.createSession({
+        userId: new ObjectId(),
+        accountId,
+      });
+
+      // When: loading the board fresh
+      const response = await app.inject({
+        method: "GET",
+        url: "/dashboard/settled-service",
+        cookies: { session: sessionToken },
+      });
+
+      // Then: nothing flashes — the state did not just change
+      expect(response.statusCode).toBe(200);
+      expect(response.body).not.toContain("gl-just-changed");
+    });
+
+    it("does not show a live time for a deployment still in progress", async () => {
+      // Given: a build that is only dispatching to prod
+      const account = await accountRepo.create({
+        name: "Test Org",
+        slug: `test-org-${Date.now()}-${Math.random()}`,
+      });
+      const accountId = account._id;
+      const service = await serviceRepo.create({
+        accountId,
+        repositoryId: new ObjectId(),
+        name: "pending-service",
+      });
+      await serviceRepo.markWorkflowConfigured(service._id);
+      await buildRepo.create({
+        accountId,
+        serviceId: service._id,
+        buildId: "pending-build",
+      });
+      await buildRepo.updateDeploymentStatus(
+        accountId,
+        service._id,
+        "pending-build",
+        "prod",
+        DeploymentStatus.DISPATCHING,
+      );
+      const sessionToken = sessionService.createSession({
+        userId: new ObjectId(),
+        accountId,
+      });
+
+      // When: visiting the release board
+      const response = await app.inject({
+        method: "GET",
+        url: "/dashboard/pending-service",
+        cookies: { session: sessionToken },
+      });
+
+      // Then: no "how long live" label is shown for that cell
+      expect(response.statusCode).toBe(200);
+      expect(response.body).not.toContain("gl-when-env");
+    });
   });
 
   describe("PATCH /services/:serviceId/builds/:buildId/deploy/:env", () => {
@@ -551,6 +684,8 @@ describe("Dashboard Routes", () => {
       expect(response.statusCode).toBe(200);
       expect(response.body).toContain("deploy-service-build-123-staging");
       expect(response.body).toContain("dispatching");
+      // ...and the swapped-in cell flashes, the way the hero board does
+      expect(response.body).toContain("gl-just-changed");
       expect(mockDispatcher.dispatch).toHaveBeenCalledWith(
         accountId,
         service._id,

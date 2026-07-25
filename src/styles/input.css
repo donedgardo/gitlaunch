@@ -222,6 +222,15 @@
   margin-top: 3px;
 }
 
+/* "How long ago it went live", sitting beside a Live pill — the hero toy's
+   .when, inline instead of stacked. */
+.gl-board .gl-when-env {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--faint);
+  white-space: nowrap;
+}
+
 /* One-click deploy button — outline that fills with ignition on hover */
 .gl-board .cbtn {
   font-family: var(--mono);
@@ -294,6 +303,13 @@
 .gl-board .pill-live {
   color: var(--ok);
   background: color-mix(in srgb, var(--ok) 16%, transparent);
+}
+/* Only the cell that just changed replays the hero toy's flash: the cell tints
+   and its pill ripples once. A settled board renders without any of it. */
+.gl-board .gl-just-changed {
+  animation: gl-flash-cell 1.4s ease-out;
+}
+.gl-board .gl-just-changed .pill-live {
   animation: gl-flash-live 1.6s ease-out;
 }
 .gl-board .pill-live .gl-dot {
@@ -336,6 +352,16 @@
     opacity: 0.3;
   }
 }
+/* The cell tints and fades back as it changes hands — the hero toy's
+   .rcell.flash. */
+@keyframes gl-flash-cell {
+  0% {
+    background: var(--accent-soft);
+  }
+  100% {
+    background: transparent;
+  }
+}
 /* A freshly-live pill ripples once — the "it went live" flash from the toy,
    which replays every time a deploy completes and swaps this cell in. */
 @keyframes gl-flash-live {
@@ -349,7 +375,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .gl-board .pill .gl-dot,
-  .gl-board .pill-live {
+  .gl-board .gl-just-changed,
+  .gl-board .gl-just-changed .pill-live {
     animation: none;
   }
 }
