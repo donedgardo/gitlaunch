@@ -13,6 +13,14 @@ export function registerHandlebarsHelpers() {
       return build.deployments[environment];
     },
   );
+  // When this build last went live in an environment — rendered as "3d ago"
+  // beside the Live pill. Undefined for builds deployed before we tracked it.
+  handlebars.registerHelper(
+    "getDeployedAt",
+    function (build: Build, environment: string) {
+      return build.deployedAt?.[environment];
+    },
+  );
   handlebars.registerHelper(
     "showDeployButton",
     function (status: DeploymentStatus) {
@@ -86,6 +94,14 @@ export function registerHandlebarsHelpers() {
         status === DeploymentStatus.DEPLOYING ||
         status === DeploymentStatus.DISPATCHING
       );
+    },
+  );
+  // The "how long ago" label belongs to a currently-live environment only: an
+  // in-progress or rolled-back cell would otherwise show a stale live time.
+  handlebars.registerHelper(
+    "showDeployedAt",
+    function (status: DeploymentStatus, deployedAt: Date | string | null) {
+      return status === DeploymentStatus.DEPLOYED && !!deployedAt;
     },
   );
   handlebars.registerHelper("add", function (a: number, b: number) {

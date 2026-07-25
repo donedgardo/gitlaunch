@@ -498,6 +498,7 @@ describe("Dashboard Routes", () => {
         repositoryId: new ObjectId(),
         name: "live-service",
       });
+      await serviceRepo.markWorkflowConfigured(service._id);
       await buildRepo.create({
         accountId,
         serviceId: service._id,
@@ -546,6 +547,7 @@ describe("Dashboard Routes", () => {
         repositoryId: new ObjectId(),
         name: "pending-service",
       });
+      await serviceRepo.markWorkflowConfigured(service._id);
       await buildRepo.create({
         accountId,
         serviceId: service._id,

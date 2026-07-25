@@ -197,6 +197,15 @@
   margin-top: 3px;
 }
 
+/* "How long ago it went live", sitting beside a Live pill — the hero toy's
+   .when, inline instead of stacked. */
+.gl-board .gl-when-env {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--faint);
+  white-space: nowrap;
+}
+
 /* One-click deploy button — outline that fills with ignition on hover */
 .gl-board .cbtn {
   font-family: var(--mono);

@@ -11,6 +11,9 @@ export type BuildUpdateEvent = {
   status: DeploymentStatus;
   serviceId: string;
   serviceName: string;
+  // When this build went live in the environment, so a pushed cell keeps the
+  // "how long ago" label the full page render shows. Absent unless live.
+  deployedAt?: Date;
   // Report-only (manual) services have no dispatch — their rows show status
   // without Deploy/Redeploy controls.
   canDispatch: boolean;
@@ -137,6 +140,7 @@ export class BuildService {
       status: input.status,
       serviceId: input.serviceId.toString(),
       serviceName: service.name,
+      deployedAt: build.deployedAt?.[input.environment],
       canDispatch,
     };
 

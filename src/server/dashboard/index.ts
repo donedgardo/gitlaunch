@@ -78,6 +78,14 @@ export default function (deps: DashboardRoutesDeps) {
           },
           {} as Record<string, string | null>,
         ),
+        // When it went live per environment, rendered as "3d ago" next to Live
+        deployedAt: environments.reduce(
+          (acc, env) => {
+            acc[env.name] = build.deployedAt?.[env.name] || null;
+            return acc;
+          },
+          {} as Record<string, Date | null>,
+        ),
       }));
     };
 
@@ -378,6 +386,7 @@ export default function (deps: DashboardRoutesDeps) {
             {
               buildId,
               status: build.deployments[env],
+              deployedAt: build.deployedAt?.[env],
               env,
               serviceName: service.name,
               serviceId,
@@ -479,6 +488,7 @@ export default function (deps: DashboardRoutesDeps) {
             {
               buildId,
               status: updatedBuild.deployments[env],
+              deployedAt: updatedBuild.deployedAt?.[env],
               env,
               serviceName: service.name,
               serviceId,
