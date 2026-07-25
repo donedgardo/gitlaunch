@@ -95,6 +95,9 @@ export class WaitlistService {
         medium: attribution.medium,
         content: attribution.content,
         term: attribution.term,
+        // Names the lead this signup created, so the warehouse and the leads
+        // table can be reconciled exactly rather than matched by timestamp.
+        leadId: lead._id.toString(),
       },
       context,
     );
