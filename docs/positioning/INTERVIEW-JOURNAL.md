@@ -12,9 +12,17 @@ Running log of customer-discovery conversations for the [Positioning Canvas](./p
 
 ## Running scorecard
 
-| #   | Date       | Bucket                       | Platform team? | Alternative                                | Dominant fear | Category bucket in their head |
-| --- | ---------- | ---------------------------- | -------------- | ------------------------------------------ | ------------- | ----------------------------- |
-| 001 | 2026-07-24 | D · practitioner, not a lead | unknown        | unknown (implied: the git branching model) | none surfaced | branching model / gitflow     |
+| #   | Date       | Bucket                       | Platform team? | Batch or continuous? | Alternative                                | Dominant fear | Category bucket in their head |
+| --- | ---------- | ---------------------------- | -------------- | -------------------- | ------------------------------------------ | ------------- | ----------------------------- |
+| 001 | 2026-07-24 | D · practitioner, not a lead | unknown        | not asked            | unknown (implied: the git branching model) | none surfaced | branching model / gitflow     |
+
+### Restore signals
+
+Added after [Restore Frame 001](./RESTORE-FRAME-001.md). Filled from guide section 04. The **diagnose vs. act** column is the one that settles bet 10 — record it even when the rest of the row is thin.
+
+| #   | Undo route taken | Choice or constraint? | Restore clock (detect → diagnose → act) | Diagnose vs. act | Cost per minute of degradation |
+| --- | ---------------- | --------------------- | --------------------------------------- | ---------------- | ------------------------------ |
+| 001 | not asked        | not asked             | not asked                               | not asked        | not asked                      |
 
 **Target:** 8–12 interviews across buckets A/B/C before revising the canvas. **Bucket-D conversations do not count toward that 8.**
 
