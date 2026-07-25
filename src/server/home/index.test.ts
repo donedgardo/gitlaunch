@@ -72,6 +72,40 @@ describe("home route", () => {
     expect(meta?.canonical).toBeTruthy();
   });
 
+  describe("A/B visitor cookie", () => {
+    // ePrivacy Art. 5(3) requires consent for any storage that is not strictly
+    // necessary to deliver the page, and bucketing a visitor into a copy
+    // variant is not. We do not gate the landing page behind a consent banner,
+    // so we keep the exposure proportionate instead: the cookie lives only as
+    // long as the experiment needs to read it.
+    const THIRTY_DAYS_IN_SECONDS = 60 * 60 * 24 * 30;
+
+    it("should not retain an anonymous visitor beyond the experiment window", async () => {
+      // When a first-time visitor lands on the marketing page
+      const response = await app.inject({ method: "GET", url: "/" });
+
+      // Then the id we assign them expires within a month, rather than
+      // tracking them for a year for a test that concluded long before
+      const visitorCookie = response.cookies.find(
+        (c: any) => c.name === "gl_vid",
+      );
+      expect(visitorCookie).toBeTruthy();
+      expect(visitorCookie?.maxAge).toBeLessThanOrEqual(THIRTY_DAYS_IN_SECONDS);
+    });
+
+    it("should keep an anonymous visitor out of reach of page scripts", async () => {
+      // When a first-time visitor lands on the marketing page
+      const response = await app.inject({ method: "GET", url: "/" });
+
+      // Then the id is httpOnly, so it cannot be read and correlated by any
+      // script that later ends up on the page
+      const visitorCookie = response.cookies.find(
+        (c: any) => c.name === "gl_vid",
+      );
+      expect(visitorCookie?.httpOnly).toBe(true);
+    });
+  });
+
   describe("login call-to-action", () => {
     // A door that answers however the test wants, standing in for the flag.
     const doorThatSays = (allowed: boolean) => ({
