@@ -118,6 +118,75 @@ describe("ProductUsageService", () => {
     });
   });
 
+  describe("activeUsers by audience", () => {
+    const loggedInUser = "6a5ee3c88892169df80ea18a";
+    const anotherUser = "6a5ee3c88892169df80ea18b";
+    const anonymousVisitor = "6953af16-c997-4c9e-ad84-0c21ce8d5cef";
+    const apiKey = "apikey:6a5ee3d78892169df80ea18e";
+
+    beforeEach(async () => {
+      await track("user_logged_in", "2026-07-02T09:00:00Z", loggedInUser);
+      await track("build_reported", "2026-07-02T09:30:00Z", anotherUser);
+      await track("flag_exposure", "2026-07-02T10:00:00Z", anonymousVisitor);
+      await track("deployment_status_updated", "2026-07-02T11:00:00Z", apiKey);
+      await track(
+        "waitlist_signup",
+        "2026-07-02T12:00:00Z",
+        "lead@example.com",
+      );
+    });
+
+    it("should count only logged-in people as product active users", async () => {
+      // When I ask for active users who are actually people using the product
+      const points = await usage.activeUsers({
+        from,
+        to,
+        interval: "day",
+        audience: "user",
+      });
+
+      // Then anonymous visitors, API keys and leads are excluded
+      expect(points).toEqual([
+        { bucket: new Date("2026-07-02T00:00:00Z"), users: 2 },
+      ]);
+    });
+
+    it("should count anonymous landing visitors on their own", async () => {
+      // When I ask for the anonymous audience
+      const points = await usage.activeUsers({
+        from,
+        to,
+        interval: "day",
+        audience: "visitor",
+      });
+
+      // Then only the gl_vid visitor is counted
+      expect(points[0].users).toBe(1);
+    });
+
+    it("should count every actor when no audience is asked for", async () => {
+      // When I ask without naming an audience
+      const points = await usage.activeUsers({ from, to, interval: "day" });
+
+      // Then all five actors are counted, as before
+      expect(points[0].users).toBe(5);
+    });
+
+    it("should break the window's actors down by what they are", async () => {
+      // When I ask who was active over the window
+      const breakdown = await usage.audienceBreakdown({ from, to });
+
+      // Then each kind of actor is counted separately, so nobody quotes the
+      // total as product DAU by mistake
+      expect(breakdown).toEqual({
+        user: 2,
+        visitor: 1,
+        machine: 1,
+        unknown: 1,
+      });
+    });
+  });
+
   describe("featureAdoption", () => {
     it("should report how many people used each feature and how often", async () => {
       // Given a feature used repeatedly by one person and once by another
