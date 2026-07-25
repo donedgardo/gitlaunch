@@ -231,6 +231,42 @@
   .bets-cell.warn {
     color: var(--clay);
   }
+  .bets-row.group {
+    grid-template-columns: 1fr;
+    background: var(--surface-2);
+  }
+  .bets-row.group > div {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    border-right: none;
+    padding: 10px 18px;
+  }
+  .bets-cell .src {
+    display: block;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.03em;
+    color: var(--faint);
+    margin-top: 7px;
+  }
+  .bets-cell .flag {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 9.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--amber);
+    border: 1px solid currentColor;
+    border-radius: 4px;
+    padding: 1px 5px;
+    margin-bottom: 7px;
+  }
+  .bets-cell .flag.key {
+    color: var(--accent-ink);
+  }
 
   /* Buckets */
   .buckets {
@@ -608,23 +644,26 @@
         </div>
         <div class="meta">
           <div><b>Companion to</b> the Positioning Canvas</div>
-          <div><b>Target</b> 8–12 interviews · ~30 min each</div>
+          <div><b>Target</b> 8–12 interviews · ~35 min each</div>
           <div><b>Deliverable</b> verbatim quotes → homepage copy</div>
         </div>
       </div>
     </header>
 
     <!-- WHAT WE'RE TESTING -->
-    <div class="section-label">What we're trying to learn · the four bets</div>
+    <div class="section-label">What we're trying to learn · the ten bets</div>
     <div class="bets">
       <div class="bets-row head">
         <div class="bets-cell">Canvas claim</div>
         <div class="bets-cell">What we're testing</div>
         <div class="bets-cell">We're wrong if…</div>
       </div>
+      <div class="bets-row group">
+        <div>From the canvas · bets 01–04</div>
+      </div>
       <div class="bets-row">
         <div class="bets-cell">
-          <span class="tag">Segment</span
+          <span class="tag">01 · Segment</span
           ><span class="claim">Lean teams, no platform team</span>
         </div>
         <div class="bets-cell">These are the people who feel the pain most</div>
@@ -635,7 +674,7 @@
       </div>
       <div class="bets-row">
         <div class="bets-cell">
-          <span class="tag">Alternatives</span
+          <span class="tag">02 · Alternatives</span
           ><span class="claim">Spreadsheet + a brave engineer + Slack</span>
         </div>
         <div class="bets-cell">This is what they'd really do without us</div>
@@ -645,7 +684,7 @@
       </div>
       <div class="bets-row">
         <div class="bets-cell">
-          <span class="tag">Value</span
+          <span class="tag">03 · Value</span
           ><span class="claim">Visibility + one-click promote / rollback</span>
         </div>
         <div class="bets-cell">This is the value they'd hate to lose</div>
@@ -655,7 +694,7 @@
       </div>
       <div class="bets-row">
         <div class="bets-cell">
-          <span class="tag">Fear</span
+          <span class="tag">04 · Fear</span
           ><span class="claim"
             >"Can't say what's live, only one person can roll back"</span
           >
@@ -663,6 +702,115 @@
         <div class="bets-cell">This fear drives the decision to buy</div>
         <div class="bets-cell warn">
           The trigger to buy was something else entirely
+        </div>
+      </div>
+      <div class="bets-row group">
+        <div>From the reviews · bets 05–10</div>
+      </div>
+      <div class="bets-row">
+        <div class="bets-cell">
+          <span class="tag">05 · Alternatives</span
+          ><span class="claim"
+            >The branching model is the record of what's live</span
+          ><span class="src">Canvas Review 001</span>
+        </div>
+        <div class="bets-cell">
+          That we compete with a belief that <b>git already answers it</b> — not
+          with a stale spreadsheet. Changes the enemy, and the pitch becomes
+          "merged is not deployed."
+        </div>
+        <div class="bets-cell warn">
+          Asked where they'd look, they name a person, a CI run, or a page — not
+          a branch
+        </div>
+      </div>
+      <div class="bets-row">
+        <div class="bets-cell">
+          <span class="tag">06 · Incident reflex</span
+          ><span class="claim">Roll-forward may beat rollback</span
+          ><span class="src"
+            >Canvas Review 001 · demoted by Restore Frame 001</span
+          >
+        </div>
+        <div class="bets-cell">
+          <span class="flag">Demoted · editorial</span>
+          Which undo route we <b>name first in copy</b> — no longer whether the
+          value prop survives. Both routes serve the same restore promise.
+        </div>
+        <div class="bets-cell warn">
+          Nothing breaks either way. But separate
+          <b>preference from constraint</b> — "we always hotfix" may mean
+          rollback is unavailable or scary, which is evidence of pain, not
+          against it
+        </div>
+      </div>
+      <div class="bets-row">
+        <div class="bets-cell">
+          <span class="tag">07 · Buyer</span
+          ><span class="claim"
+            >The flags buyer and the deployment-control buyer are one
+            person</span
+          ><span class="src">Flags Positioning 001</span>
+        </div>
+        <div class="bets-cell">
+          The entire justification for one shelf. On a team with no platform
+          team, the same person wants "roll it back" and "ship it to 10% first"
+          because there's nobody else.
+        </div>
+        <div class="bets-cell warn">
+          They name a separate person or team for rollouts, or flags are already
+          owned by a tool they don't control
+        </div>
+      </div>
+      <div class="bets-row">
+        <div class="bets-cell">
+          <span class="tag">08 · Incident reflex</span
+          ><span class="claim">"Turn it off" beats "roll it back"</span
+          ><span class="src">Flags Positioning 001</span>
+        </div>
+        <div class="bets-cell">
+          Whether flag-off is the undo lean teams actually reach for — no
+          deploy, reverts nobody else's merged work. Decides whether hook A4
+          outranks A1.
+        </div>
+        <div class="bets-cell warn">
+          Reverting the whole deploy is the natural move, or flag-off feels
+          <em>riskier</em> because they don't know what state it leaves behind
+        </div>
+      </div>
+      <div class="bets-row">
+        <div class="bets-cell">
+          <span class="tag">09 · Stakes</span
+          ><span class="claim"
+            >Restore time is felt as a cost, not tracked as a metric</span
+          ><span class="src">Restore Frame 001</span>
+        </div>
+        <div class="bets-cell">
+          How we're allowed to ask. Nobody here has an MTTR dashboard, but they
+          can tell you what the last bad one cost. So reconstruct the clock from
+          the story — <b>never ask for the number</b>.
+        </div>
+        <div class="bets-cell warn">
+          They quote a tracked figure or an SLA they measure against — which
+          puts them further up-market than our stated segment
+        </div>
+      </div>
+      <div class="bets-row">
+        <div class="bets-cell">
+          <span class="tag">10 · Value</span
+          ><span class="claim">Diagnose dominates act</span
+          ><span class="src">Restore Frame 001</span>
+        </div>
+        <div class="bets-cell">
+          <span class="flag key">Load-bearing</span>
+          Whether the outage clock goes into <b>finding the cause</b> or into
+          shipping the fix. Our moat — deploy state × flag state on one screen —
+          only pays if it's the former.
+        </div>
+        <div class="bets-cell warn">
+          They knew instantly what broke and the time went into building the
+          fix. Then the rollback button <em>is</em> the product, and bet 06 goes
+          back to being dangerous
         </div>
       </div>
     </div>
@@ -727,6 +875,13 @@
           &gt; "generally." Chase numbers, names, stories.
         </li>
         <li>
+          <b>Anchor to one team and one deploy — immediately.</b> Take the
+          opening question, then narrow before they can generalize: "let's take
+          just your most recent team — walk me through the last thing that went
+          to production." Interview 001 came back a career survey because this
+          step was skipped. One org, one deploy, one week.
+        </li>
+        <li>
           <b>Capture exact words.</b> Verbatim phrases <em>are</em> the
           deliverable — they become the copy.
         </li>
@@ -743,19 +898,26 @@
 
     <!-- THE CONVERSATION -->
     <div class="section-label">
-      The conversation · ~30 minutes, ordered so you never pitch
+      The conversation · ~35 minutes, ordered so you never pitch
     </div>
     <div class="flow">
       <div class="qcard">
         <div class="qhead">
           <span class="num">01</span>
           <h3>Warm-up &amp; context</h3>
-          <span class="time">≈4 min</span>
+          <span class="time">≈5 min</span>
           <span class="validates">validates · Segment</span>
         </div>
         <ul class="qlist">
           <li>What's your role, and how does your team ship software?</li>
           <li>How often do you deploy, and to which environments?</li>
+          <li>
+            Do you ship when something's ready, or do you batch into
+            releases?<span class="probe"
+              >Screener. Release branches and a stabilization window, or
+              merge-and-it's-out?</span
+            >
+          </li>
           <li>
             Who's involved when something goes to production? Walk me through
             who touches it.
@@ -770,7 +932,9 @@
           <div class="d">
             Team size and shape, deploy frequency, and — critically —
             <b>whether a platform team exists</b>. The single most important
-            segment signal.
+            segment signal. Also log <b>batch vs. continuous</b>: the beachhead
+            assumes continuous, and Review 001 flagged that gitflow shops pull
+            the other way. Track it; don't broaden the segment to chase it.
           </div>
         </div>
       </div>
@@ -787,8 +951,22 @@
             Before GitLaunch, how did you keep track of what was deployed where?
           </li>
           <li>
+            Walk me to the exact place you'd look to find out what's running on
+            staging right now.<span class="probe"
+              >Bet 05. Don't accept "we'd check" — make them name the surface. A
+              branch, a CI run, a person, or a page?</span
+            >
+          </li>
+          <li>
             Take me back to the moment you started looking for something better.
             What happened that week?
+          </li>
+          <li>
+            When you want to ship something risky to a few users first — who
+            sets that up, and where does it live today?<span class="probe"
+              >Bet 07. A flag, a config value, an env var, a separate deploy —
+              or you just don't do it?</span
+            >
           </li>
           <li>
             What else did you try or seriously consider?<span class="probe"
@@ -807,7 +985,11 @@
             The real competitive set. Spreadsheet + Slack + "the one person who
             knows" <b>confirms the canvas</b>; Octopus / Harness / Argo
             <b>breaks it</b>. The trigger event tells us what starts a buying
-            journey.
+            journey. Two alternatives to listen for specifically:
+            <b>the branch graph</b> as the believed record of what's live (bet
+            05), and <b>"we hardcode it and redeploy"</b> as the real substitute
+            for flags (bet 07) — note that a named flag vendor is
+            <em>not</em> the alternative we're testing for.
           </div>
         </div>
       </div>
@@ -816,7 +998,7 @@
         <div class="qhead">
           <span class="num">03</span>
           <h3>Deploy-day stories &amp; stakes</h3>
-          <span class="time">≈7 min</span>
+          <span class="time">≈5 min</span>
           <span class="validates">validates · The Fear</span>
         </div>
         <ul class="qlist">
@@ -825,9 +1007,6 @@
             what did you do?
           </li>
           <li>How did you figure out what was actually live at that moment?</li>
-          <li>
-            When you needed to undo it — how did that go? Who could do it?
-          </li>
           <li>
             How do people feel on a deploy day?<span class="probe"
               >Is there a ritual, dread, a checklist, a designated person?</span
@@ -843,7 +1022,8 @@
             The three fears — <b>bus-factor</b> ("only X can roll back"),
             <b>blindness</b> ("weren't sure what was live"),
             <b>rollback</b> ("undo was slow/scary"). Note which they reach for
-            <b>first and hottest</b> — that's the fear to lead with.
+            <b>first and hottest</b> — that's the fear to lead with. Hold onto
+            the incident they name here; section 04 walks its clock.
           </div>
         </div>
       </div>
@@ -851,8 +1031,70 @@
       <div class="qcard">
         <div class="qhead">
           <span class="num">04</span>
+          <h3>The restore clock &amp; the undo</h3>
+          <span class="time">≈7 min</span>
+          <span class="validates">validates · Bets 06 · 08 · 09 · 10</span>
+        </div>
+        <ul class="qlist">
+          <li>
+            Staying with that same incident — walk me through the clock. When
+            did you first know something was wrong? When did you know
+            <em>why</em>? When was it actually better again?<span class="probe"
+              >Bet 09. Three timestamps, not a metric. If they don't remember
+              exactly, ask for the shape: minutes, an hour, half a day?</span
+            >
+          </li>
+          <li>
+            Between "something's wrong" and "we know what to undo" — how much of
+            that outage was which?<span class="probe"
+              >Bet 10, and the one that matters most. Was the time spent finding
+              the cause, or building and shipping the fix?</span
+            >
+          </li>
+          <li>
+            When you needed to undo it — how did that go? Who could do it?
+          </li>
+          <li>
+            Did you roll the deploy back, or fix forward?<span class="probe"
+              >Bet 06. Then the question that actually matters: was that a
+              choice, or the only option available to you?</span
+            >
+          </li>
+          <li>
+            Was there a way to switch just that one thing off without undoing
+            the whole release? Which would you have preferred?<span
+              class="probe"
+              >Bet 08. If they'd prefer the narrow undo, ask what stops them. If
+              flag-off sounds riskier, ask why.</span
+            >
+          </li>
+          <li>
+            What did that gap cost you?<span class="probe"
+              >Bet 09. Money, a customer, a weekend, a call from someone
+              senior.</span
+            >
+          </li>
+        </ul>
+        <div class="listen">
+          <div class="t">Listening for</div>
+          <div class="d">
+            <b>The clock, not the mechanism.</b> Roll back, fix forward and
+            flag-off are three routes to the same destination — the split tells
+            us which route to name first in copy, nothing more. What decides the
+            position is <b>where the time went</b>: if diagnose outweighs act
+            (bet 10), the deploy×flag join is the product. Separate
+            <b>preference from constraint</b> on fix-forward. And treat
+            <b>cost per minute of degradation</b> as the real "who cares most"
+            signal — it sorts prospects better than the branching model does.
+          </div>
+        </div>
+      </div>
+
+      <div class="qcard">
+        <div class="qhead">
+          <span class="num">05</span>
           <h3>Value in their words</h3>
-          <span class="time">≈6 min</span>
+          <span class="time">≈5 min</span>
           <span class="validates">validates · Value + Attributes</span>
         </div>
         <ul class="qlist">
@@ -876,7 +1118,7 @@
 
       <div class="qcard">
         <div class="qhead">
-          <span class="num">05</span>
+          <span class="num">06</span>
           <h3>Category &amp; language</h3>
           <span class="time">≈4 min</span>
           <span class="validates">validates · Category + Hook</span>
@@ -906,7 +1148,7 @@
 
       <div class="qcard">
         <div class="qhead">
-          <span class="num">06</span>
+          <span class="num">07</span>
           <h3>Wrap</h3>
           <span class="time">≈3 min</span>
           <span class="validates">validates · Reach</span>
@@ -921,6 +1163,13 @@
         </ul>
       </div>
     </div>
+    <p style="font-size: 14px; color: var(--muted); margin: 14px 2px 0">
+      <b style="color: var(--ink); font-weight: 650">Running long?</b> Compress
+      02 — the history summarizes better afterwards than anything else here.
+      Protect <b style="color: var(--ink); font-weight: 650">04</b>: it settles
+      four of the six open bets, and a restore clock cannot be reconstructed
+      from notes once the call ends.
+    </p>
 
     <!-- SCORECARD -->
     <div class="section-label">Signals scorecard · fill in after each call</div>
@@ -938,6 +1187,11 @@
         <div class="sc-cell mark">segment</div>
       </div>
       <div class="sc-row">
+        <div class="sc-cell dim">Batch or continuous?</div>
+        <div class="sc-cell blank">release branches / merge-and-it's-out</div>
+        <div class="sc-cell mark">segment</div>
+      </div>
+      <div class="sc-row">
         <div class="sc-cell dim">Trigger to look for a solution</div>
         <div class="sc-cell blank">…</div>
         <div class="sc-cell mark">trigger</div>
@@ -946,6 +1200,38 @@
         <div class="sc-cell dim">True alternative(s)</div>
         <div class="sc-cell blank">…</div>
         <div class="sc-cell mark">alternatives</div>
+      </div>
+      <div class="sc-row">
+        <div class="sc-cell dim">Where they'd look for what's live</div>
+        <div class="sc-cell blank">branch / CI run / person / page</div>
+        <div class="sc-cell mark">bet 05</div>
+      </div>
+      <div class="sc-row">
+        <div class="sc-cell dim">Who sets up a risky partial rollout</div>
+        <div class="sc-cell blank">…and where it lives today</div>
+        <div class="sc-cell mark">bet 07</div>
+      </div>
+      <div class="sc-row">
+        <div class="sc-cell dim">Undo route taken</div>
+        <div class="sc-cell blank">rollback / fix-forward / flag-off</div>
+        <div class="sc-cell mark">bets 06 + 08</div>
+      </div>
+      <div class="sc-row">
+        <div class="sc-cell dim">…choice or constraint?</div>
+        <div class="sc-cell blank">preferred it / it was the only option</div>
+        <div class="sc-cell mark">bet 06</div>
+      </div>
+      <div class="sc-row">
+        <div class="sc-cell dim">Restore clock</div>
+        <div class="sc-cell blank">
+          detect → diagnose → act, as three timestamps
+        </div>
+        <div class="sc-cell mark">bet 10</div>
+      </div>
+      <div class="sc-row">
+        <div class="sc-cell dim">Cost per minute of degradation</div>
+        <div class="sc-cell blank">what the gap cost, in their words</div>
+        <div class="sc-cell mark">bet 09 · who cares</div>
       </div>
       <div class="sc-row">
         <div class="sc-cell dim">Value they'd hate to lose</div>
@@ -1013,6 +1299,18 @@
             in copy.
           </div>
         </div>
+        <div class="step" style="grid-column: 1 / -1">
+          <div class="t">5 · The clock, not the mechanism</div>
+          <div class="d">
+            Do <em>not</em> tally rollback vs. fix-forward as a vote — it's a
+            split in method, not in buyers, and both routes serve the same
+            restore promise. Tally where the time went instead. If
+            <b>diagnose outweighs act</b> across the set, the deploy×flag join
+            is the product and the mechanism split is only a copy decision. If
+            it doesn't, the rollback button is the product and bet 06 turns
+            dangerous again. This is the one result that can reorder the canvas.
+          </div>
+        </div>
       </div>
       <p class="out">
         <b>Output:</b> update the Positioning Canvas with what you learned — the
@@ -1023,7 +1321,7 @@
     </div>
 
     <div class="foot">
-      <span>GitLaunch · Customer Interview Guide · draft v1</span>
+      <span>GitLaunch · Customer Interview Guide · draft v2 · ten bets</span>
       <span>Companion to the Positioning Canvas</span>
     </div>
   </div>
