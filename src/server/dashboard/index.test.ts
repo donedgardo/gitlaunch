@@ -29,6 +29,8 @@ import { BuildService } from "../../services/build/buildService";
 import { BuildDispatchServiceI } from "../../services/build/buildDispatchService";
 import { PlanEnforcementService } from "../../services/billing/planEnforcementService";
 import { TrialService } from "../../services/billing/trialService";
+import { FlagRepository } from "../../repositories/flagRepository";
+import { FlagService } from "../../services/flag/flagService";
 import dashboardRoutes from "./index";
 
 describe("Dashboard Routes", () => {
@@ -46,6 +48,8 @@ describe("Dashboard Routes", () => {
   let buildService: BuildService;
   let planEnforcementService: PlanEnforcementService;
   let trialService: TrialService;
+  let flagRepo: FlagRepository;
+  let flagService: FlagService;
   let mockDispatcher: BuildDispatchServiceI;
   let eventEmitter: EventEmitter;
 
@@ -72,6 +76,7 @@ describe("Dashboard Routes", () => {
     await db.collection("accounts").deleteMany({});
     await db.collection("memberships").deleteMany({});
     await db.collection("trialRegistry").deleteMany({});
+    await db.collection("flags").deleteMany({});
     vi.clearAllMocks();
 
     serviceRepo = new ServiceRepository(db);
@@ -89,6 +94,8 @@ describe("Dashboard Routes", () => {
       membershipRepo,
     );
     trialService = new TrialService(accountRepo, trialRegistryRepo);
+    flagRepo = new FlagRepository(db);
+    flagService = new FlagService(flagRepo, serviceRepo);
 
     sessionService = new SessionService(TEST_SECRET);
     eventEmitter = new EventEmitter();
@@ -136,6 +143,7 @@ describe("Dashboard Routes", () => {
         buildService,
         trialService,
         planEnforcementService,
+        flagService,
       }),
     );
     await app.ready();
@@ -1322,6 +1330,166 @@ describe("Dashboard Routes", () => {
       expect(response.body).toContain("Page 1 of 2");
       expect(response.body).toContain("Next");
       expect(response.body).toContain("cursor-not-allowed"); // Previous button disabled on page 1
+    });
+  });
+
+  describe("flag state on the release board", () => {
+    // Builds tell you which code is in an environment. Flags tell you what that
+    // code is actually doing there. The board is only a complete answer to
+    // "what's live" if it shows both.
+    const boardService = async (name: string) => {
+      const account = await accountRepo.create({
+        name: "Test Org",
+        slug: `test-org-${Date.now()}-${Math.random()}`,
+      });
+      const accountId = account._id;
+      const repositoryId = new ObjectId();
+
+      await db.collection("repositories").insertOne({
+        _id: repositoryId,
+        accountId,
+        githubId: 12345,
+        githubFullName: "my-org/my-repo",
+        name: "my-repo",
+        owner: "my-org",
+        private: false,
+        createdAt: new Date(),
+      });
+
+      const service = await serviceRepo.create({
+        accountId,
+        repositoryId,
+        name,
+        environments: [
+          { name: "staging", order: 0 },
+          { name: "prod", order: 1 },
+        ],
+      });
+      await serviceRepo.updateWorkflowConfiguration(service._id, {
+        workflowFile: "deploy.yml",
+      });
+      await buildRepo.create({
+        accountId,
+        serviceId: service._id,
+        buildId: "abc123",
+      });
+
+      const sessionToken = sessionService.createSession({
+        userId: new ObjectId(),
+        accountId,
+      });
+
+      return { accountId, service, sessionToken };
+    };
+
+    it("should show how many flags are on in each environment", async () => {
+      // Given: a service whose board is showing, with two flags — one on in
+      // both environments, one on in staging only
+      const { accountId, service, sessionToken } =
+        await boardService("flagged-service");
+
+      await flagService.createFlag(accountId, service._id, {
+        key: "dark-mode",
+        description: "dark mode",
+      });
+      await flagService.createFlag(accountId, service._id, {
+        key: "new-checkout",
+        description: "new checkout",
+      });
+      for (const env of ["staging", "prod"]) {
+        await flagService.setEnvConfig(
+          accountId,
+          service._id,
+          "dark-mode",
+          env,
+          { enabled: true, rolloutPercentage: 100 },
+        );
+      }
+      await flagService.setEnvConfig(
+        accountId,
+        service._id,
+        "new-checkout",
+        "staging",
+        { enabled: true, rolloutPercentage: 100 },
+      );
+
+      // When: looking at the release board
+      const response = await app.inject({
+        method: "GET",
+        url: "/dashboard/flagged-service",
+        cookies: { session: sessionToken },
+      });
+
+      // Then: each environment reports its own flag state
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain("2 of 2 flags on");
+      expect(response.body).toContain("1 of 2 flags on");
+    });
+
+    it("should say nothing about flags when the service has none", async () => {
+      // Given: a service with no flags at all
+      const { sessionToken } = await boardService("unflagged-service");
+
+      // When: looking at the release board
+      const response = await app.inject({
+        method: "GET",
+        url: "/dashboard/unflagged-service",
+        cookies: { session: sessionToken },
+      });
+
+      // Then: the board isn't cluttered with an empty flag summary
+      expect(response.statusCode).toBe(200);
+      expect(response.body).not.toContain("flags on");
+    });
+
+    it("should point out when a flag is live for only part of the traffic", async () => {
+      // Given: a flag half-rolled-out in prod — the environment behaves
+      // differently for different users, which the board should not hide
+      const { accountId, service, sessionToken } = await boardService(
+        "partial-rollout-service",
+      );
+      await flagService.createFlag(accountId, service._id, {
+        key: "new-checkout",
+        description: "new checkout",
+      });
+      await flagService.setEnvConfig(
+        accountId,
+        service._id,
+        "new-checkout",
+        "prod",
+        { enabled: true, rolloutPercentage: 25 },
+      );
+
+      // When: looking at the release board
+      const response = await app.inject({
+        method: "GET",
+        url: "/dashboard/partial-rollout-service",
+        cookies: { session: sessionToken },
+      });
+
+      // Then: the partial rollout is called out
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain("1 rolling out");
+    });
+
+    it("should still render the board when flag state cannot be loaded", async () => {
+      // Given: the flag lookup is broken (bad connection, etc.)
+      const { sessionToken } = await boardService("resilient-service");
+      vi.spyOn(flagService, "listFlags").mockRejectedValue(
+        new Error("flags unavailable"),
+      );
+
+      // When: looking at the release board
+      const response = await app.inject({
+        method: "GET",
+        url: "/dashboard/resilient-service",
+        cookies: { session: sessionToken },
+      });
+
+      // Then: deployments are still visible — flags are an addition to the
+      // board, never a prerequisite for seeing what's deployed
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain("abc123");
     });
   });
 });
