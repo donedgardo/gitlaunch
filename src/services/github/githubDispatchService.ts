@@ -31,10 +31,12 @@ export class MultiTenantGithubDispatchService {
         },
         body: JSON.stringify({
           ref: "main",
+          // Only inputs declared in the workflow's workflow_dispatch block:
+          // GitHub rejects the entire dispatch with 422 "Unexpected inputs
+          // provided" if we send anything else.
           inputs: {
             environment: input.environment,
             buildId: input.buildId,
-            serviceId: input.serviceId,
           },
         }),
       },
