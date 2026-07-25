@@ -208,7 +208,7 @@ export function registerFlagsSettingsRoutes(
     async (request, reply) => {
       const result = await loadServiceWithAuth(request, reply);
       if (!result) return;
-      const { service, accountId, userId } = result;
+      const { service, accountId } = result;
       const envNames = envNamesOf(service);
       const flags = await flagService.listFlags(accountId, service._id);
       const services = await serviceRepository.findByAccountId(accountId);
@@ -448,7 +448,7 @@ export function registerFlagsSettingsRoutes(
     async (request, reply) => {
       const result = await loadServiceWithAuth(request, reply);
       if (!result) return;
-      const { service, accountId, userId } = result;
+      const { service, accountId } = result;
       const envNames = envNamesOf(service);
 
       await flagService.deleteFlag(accountId, service._id, request.params.key);
@@ -464,7 +464,7 @@ export function registerFlagsSettingsRoutes(
     async (request, reply) => {
       const result = await loadServiceWithAuth(request, reply);
       if (!result) return;
-      const { service, accountId, userId } = result;
+      const { service, accountId } = result;
       const { key } = request.params;
 
       const flag = await flagService.getFlag(accountId, service._id, key);

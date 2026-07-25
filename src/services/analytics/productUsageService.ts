@@ -91,7 +91,7 @@ export class ProductUsageService {
   async audienceBreakdown(range: UsageRange): Promise<AudienceBreakdown> {
     const ids = await this.collection.distinct("distinctId", {
       ...this.rangeMatch(range),
-      distinctId: { $ne: null },
+      distinctId: { $exists: true },
     });
 
     const breakdown: AudienceBreakdown = {

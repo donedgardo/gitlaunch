@@ -6,7 +6,7 @@ import { PlanEnforcementService } from "../../../services/billing/planEnforcemen
 import { requireScope } from "../../middleware/apiKeyAuth";
 import { DeploymentStatus } from "../../../services/service/deploymentStatus";
 import { AnalyticsService } from "../../../services/analytics/analytics";
-import { machineActor } from "../../../services/analytics/actorIdentity";
+import { actor, machineActor } from "../../../services/analytics/actorIdentity";
 
 export type BuildsRoutesDependencies = {
   buildService: BuildService;
@@ -99,10 +99,7 @@ export function registerBuildsRoutes(
         analytics?.track(
           "build_reported",
           { serviceId, buildId },
-          {
-            accountId: accountId.toString(),
-            distinctId: machineActor(request.apiKey!.apiKeyId.toString()),
-          },
+          actor(accountId, machineActor(request.apiKey!.apiKeyId.toString())),
         );
 
         return reply.status(201).send({
@@ -332,10 +329,7 @@ export function registerBuildsRoutes(
             environment: env,
             status,
           },
-          {
-            accountId: accountId.toString(),
-            distinctId: machineActor(request.apiKey!.apiKeyId.toString()),
-          },
+          actor(accountId, machineActor(request.apiKey!.apiKeyId.toString())),
         );
 
         return reply.send({
