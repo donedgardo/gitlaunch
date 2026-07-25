@@ -9,6 +9,7 @@ Working artifacts for how we position, market, and sell GitLaunch. Each HTML fil
 | [Homepage Hero](./homepage-hero.html)                       | https://claude.ai/code/artifact/b5d1309c-443e-4735-b97b-9d8953f8e2b4 | The landing page built on this positioning — live promote-to-prod board, value trio, the fear, DORA metrics. Shipped as the app homepage (`src/templates/index.hbs`). |
 | [Interview Journal](./INTERVIEW-JOURNAL.md)                 | —                                                                    | Running log of every discovery conversation, scored against the guide. Append-only; one entry per call.                                                               |
 | [Canvas Review 001](./CANVAS-REVIEW-001.md)                 | —                                                                    | Positioning re-evaluation after interview 001. Verdict: no canvas changes; adds two new bets (branching model as alternative, roll-forward vs. rollback).             |
+| [Flags Positioning 001](./FLAGS-POSITIONING-001.md)         | —                                                                    | Where the feature-flag product fits. Verdict: no second shelf; flags are the progressive-delivery leg of the same position. Adds bets 7 and 8.                        |
 
 ## The one-line thesis
 
@@ -19,5 +20,7 @@ For **lean teams with no platform team**, GitLaunch is **deployment control ever
 Draft v1. The canvas is a set of **bets**, not conclusions — the interview guide exists to test them. Update the canvas after ~8 customer conversations, especially the segment definition, the hook copy, and the lead fear.
 
 **Interviews logged:** 1 (bucket D — practitioner, no buying context). Counting toward the 8: **0**. The canvas is unchanged.
+
+**Open bets:** 8. Bets 1–4 are in the interview guide; 5–6 came from [Canvas Review 001](./CANVAS-REVIEW-001.md); 7–8 from [Flags Positioning 001](./FLAGS-POSITIONING-001.md).
 
 > The shared links are private by default. Open the artifact and use the share menu to grant access before sending them around.
