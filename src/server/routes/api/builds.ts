@@ -261,6 +261,10 @@ export function registerBuildsRoutes(
         if (message === "Build not found" || message === "Service not found") {
           return reply.status(404).send({ error: message });
         }
+        request.log.error(
+          { err: error, serviceId: serviceIdParam, buildId, env },
+          "Failed to dispatch deployment",
+        );
         return reply.status(500).send({ error: message });
       }
     },

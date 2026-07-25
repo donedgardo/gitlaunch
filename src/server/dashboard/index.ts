@@ -403,6 +403,12 @@ export default function (deps: DashboardRoutesDeps) {
           ) {
             return reply.status(404).send({ error: message });
           }
+          // Unexpected failure (e.g. the CI provider rejected the dispatch) —
+          // log it so it is diagnosable beyond the edge's 500.
+          req.log.error(
+            { err: error, serviceId, buildId, env },
+            "Failed to dispatch deployment",
+          );
           return reply.status(500).send({ error: message });
         }
       },
