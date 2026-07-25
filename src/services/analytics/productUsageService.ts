@@ -1,9 +1,12 @@
 import { Collection, Db, ObjectId } from "mongodb";
 import { AnalyticsEvent } from "../../repositories/analyticsEventRepository";
+import { ActorKind, actorMatch, classifyActor } from "./actorIdentity";
 
 export type UsageInterval = "day" | "week";
 
 export type UsageRange = { from: Date; to: Date; accountId?: ObjectId };
+
+export type AudienceBreakdown = Record<ActorKind, number>;
 
 export type ActiveUsersPoint = { bucket: Date; users: number };
 
@@ -37,14 +40,24 @@ export class ProductUsageService {
     this.collection = db.collection<AnalyticsEvent>("analytics_events");
   }
 
-  /** Distinct people active per day or week. */
+  /**
+   * Distinct actors active per day or week.
+   *
+   * Pass an `audience` to count one kind of actor — `"user"` is the honest
+   * answer to "how many people used the product", since the default counts
+   * anonymous landing visitors and API keys too.
+   */
   async activeUsers(
-    params: UsageRange & { interval: UsageInterval },
+    params: UsageRange & { interval: UsageInterval; audience?: ActorKind },
   ): Promise<ActiveUsersPoint[]> {
     const rows = await this.collection
       .aggregate<{ _id: Date; users: number }>([
         {
-          $match: { ...this.rangeMatch(params), distinctId: { $ne: null } },
+          $match: {
+            ...this.rangeMatch(params),
+            distinctId: { $ne: null },
+            ...(params.audience ? actorMatch(params.audience) : {}),
+          },
         },
         // Collapse to one row per (bucket, person) before counting, so an
         // active person is counted once however busy they were.
@@ -68,6 +81,27 @@ export class ProductUsageService {
       .toArray();
 
     return rows.map((row) => ({ bucket: row._id, users: row.users }));
+  }
+
+  /**
+   * Distinct actors in the window, split by what they are. Reported alongside
+   * any headline "active users" number so product usage is never conflated
+   * with landing-page traffic or CI robots.
+   */
+  async audienceBreakdown(range: UsageRange): Promise<AudienceBreakdown> {
+    const ids = await this.collection.distinct("distinctId", {
+      ...this.rangeMatch(range),
+      distinctId: { $ne: null },
+    });
+
+    const breakdown: AudienceBreakdown = {
+      user: 0,
+      machine: 0,
+      visitor: 0,
+      unknown: 0,
+    };
+    for (const id of ids) breakdown[classifyActor(id)]++;
+    return breakdown;
   }
 
   /** Reach (distinct people) and volume (occurrences) per tracked event. */
