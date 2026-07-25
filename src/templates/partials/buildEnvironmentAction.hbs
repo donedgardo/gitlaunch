@@ -2,7 +2,9 @@
   id="{{serviceName}}-{{buildId}}-{{env}}"
   sse-swap="update:{{serviceName}}-{{buildId}}-{{env}}"
   {{#if isOobSwap}}hx-swap-oob="outerHTML"{{/if}}
-  class="gl-env-cell"
+  {{!-- A cell only flashes when it is swapped in mid-change (deploy, cancel,
+        rollback) — a full board render is a settled view, not an event. --}}
+  class="gl-env-cell{{#if isOobSwap}} gl-just-changed{{/if}}"
 >
   {{#if canDispatch}}
     {{#if (showDeployButton status) }}
