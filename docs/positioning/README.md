@@ -10,6 +10,7 @@ Working artifacts for how we position, market, and sell GitLaunch. Each HTML fil
 | [Interview Journal](./INTERVIEW-JOURNAL.md)                 | —                                                                    | Running log of every discovery conversation, scored against the guide. Append-only; one entry per call.                                                               |
 | [Canvas Review 001](./CANVAS-REVIEW-001.md)                 | —                                                                    | Positioning re-evaluation after interview 001. Verdict: no canvas changes; adds two new bets (branching model as alternative, roll-forward vs. rollback).             |
 | [Flags Positioning 001](./FLAGS-POSITIONING-001.md)         | —                                                                    | Where the feature-flag product fits. Verdict: no second shelf; flags are the progressive-delivery leg of the same position. Adds bets 7 and 8.                        |
+| [Restore Frame 001](./RESTORE-FRAME-001.md)                 | —                                                                    | Rollback vs. fix-forward is a mechanism split, not a buyer split. Position on time to restore; demotes bet 6, adds bets 9 and 10.                                     |
 
 ## The one-line thesis
 
@@ -21,6 +22,6 @@ Draft v1. The canvas is a set of **bets**, not conclusions — the interview gui
 
 **Interviews logged:** 1 (bucket D — practitioner, no buying context). Counting toward the 8: **0**. The canvas is unchanged.
 
-**Open bets:** 8. Bets 1–4 are in the interview guide; 5–6 came from [Canvas Review 001](./CANVAS-REVIEW-001.md); 7–8 from [Flags Positioning 001](./FLAGS-POSITIONING-001.md).
+**Open bets:** 10. Bets 1–4 are in the interview guide; 5–6 came from [Canvas Review 001](./CANVAS-REVIEW-001.md); 7–8 from [Flags Positioning 001](./FLAGS-POSITIONING-001.md); 9–10 from [Restore Frame 001](./RESTORE-FRAME-001.md), which also demotes bet 6 from existential to editorial. Bets 5–10 still live only in the review docs — landing them all in `customer-interview-guide.html` is an outstanding action.
 
 > The shared links are private by default. Open the artifact and use the share menu to grant access before sending them around.
