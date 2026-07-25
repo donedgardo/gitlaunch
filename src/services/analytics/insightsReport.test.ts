@@ -6,7 +6,12 @@ const emptyReport: InsightsReport = {
   to: new Date("2026-07-08T00:00:00Z"),
   campaigns: [],
   experiments: [],
-  usage: { activeUsers: [], features: [], funnel: [] },
+  usage: {
+    activeUsers: [],
+    audience: { user: 0, visitor: 0, machine: 0, unknown: 0 },
+    features: [],
+    funnel: [],
+  },
   warnings: [],
 };
 
@@ -146,6 +151,7 @@ describe("renderInsightsReport", () => {
       ...emptyReport,
       usage: {
         activeUsers: [{ bucket: new Date("2026-07-02T00:00:00Z"), users: 3 }],
+        audience: { user: 3, visitor: 44, machine: 1, unknown: 0 },
         features: [{ event: "build_reported", users: 2, occurrences: 20 }],
         funnel: [
           {
@@ -167,5 +173,26 @@ describe("renderInsightsReport", () => {
     // Then the features and the funnel drop-off are visible
     expect(output).toContain("build_reported");
     expect(output).toContain("50.0%");
+  });
+
+  it("should label active users as product users and account for the rest", () => {
+    // Given a window where anonymous landing traffic dwarfs product usage
+    const output = renderInsightsReport({
+      ...emptyReport,
+      usage: {
+        ...emptyReport.usage,
+        activeUsers: [{ bucket: new Date("2026-07-02T00:00:00Z"), users: 3 }],
+        audience: { user: 3, visitor: 44, machine: 1, unknown: 2 },
+      },
+    });
+
+    // Then the headline is explicitly product users, and the other actors are
+    // shown separately so the totals are never mistaken for DAU
+    expect(output.toLowerCase()).toContain("product users");
+
+    const lineAbout = (subject: RegExp) =>
+      output.split("\n").find((line) => subject.test(line)) ?? "";
+    expect(lineAbout(/visitor/i)).toContain("44");
+    expect(lineAbout(/machine|api key/i)).toContain("1");
   });
 });

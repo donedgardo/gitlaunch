@@ -59,27 +59,38 @@ export class InsightsService {
     const interval = query.interval ?? "day";
     const steps = query.funnelSteps ?? DEFAULT_FUNNEL;
 
-    const [campaigns, experiments, activeUsers, features, funnel, warnings] =
-      await Promise.all([
-        this.campaigns.campaignPerformance({ from, to }),
-        this.analyzeRunningExperiments(query),
-        this.usage.activeUsers({
-          from,
-          to,
-          interval,
-          accountId: query.accountId,
-        }),
-        this.usage.featureAdoption({ from, to, accountId: query.accountId }),
-        this.usage.funnel({ from, to, steps, accountId: query.accountId }),
-        this.collectWarnings(query),
-      ]);
+    const [
+      campaigns,
+      experiments,
+      activeUsers,
+      audience,
+      features,
+      funnel,
+      warnings,
+    ] = await Promise.all([
+      this.campaigns.campaignPerformance({ from, to }),
+      this.analyzeRunningExperiments(query),
+      // Headline usage is logged-in people; everyone else is itemised below,
+      // so landing traffic is never quoted as product DAU.
+      this.usage.activeUsers({
+        from,
+        to,
+        interval,
+        accountId: query.accountId,
+        audience: "user",
+      }),
+      this.usage.audienceBreakdown({ from, to, accountId: query.accountId }),
+      this.usage.featureAdoption({ from, to, accountId: query.accountId }),
+      this.usage.funnel({ from, to, steps, accountId: query.accountId }),
+      this.collectWarnings(query),
+    ]);
 
     return {
       from,
       to,
       campaigns,
       experiments,
-      usage: { activeUsers, features, funnel },
+      usage: { activeUsers, audience, features, funnel },
       warnings,
     };
   }

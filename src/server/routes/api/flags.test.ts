@@ -413,6 +413,51 @@ describe("Flags API Routes", () => {
     expect(detail.statusCode).toBe(404);
   });
 
+  describe("analytics attribution", () => {
+    async function capturedEvent(name: string) {
+      await analytics.flush();
+      return db.collection("analytics_events").findOne({ event: name });
+    }
+
+    it("should record which account and which key created a flag", async () => {
+      // Given a key creating a flag over the API
+      await app.inject({
+        method: "POST",
+        url: `/api/v1/services/${testServiceId}/flags`,
+        headers: auth(),
+        payload: { key: "attributed-flag", description: "" },
+      });
+
+      // When I look at what the warehouse captured
+      const event = await capturedEvent("flag_created");
+
+      // Then the change is attributed to a tenant and to the key that made it
+      expect(event?.accountId?.toString()).toBe(testAccountId.toString());
+      expect(event?.distinctId).toMatch(/^apikey:/);
+    });
+
+    it("should record which account and which key updated a flag", async () => {
+      // Given an existing flag being reconfigured over the API
+      await flagService.createFlag(testAccountId, testServiceId, {
+        key: "updatable",
+        description: "",
+      });
+      await app.inject({
+        method: "PATCH",
+        url: `/api/v1/services/${testServiceId}/flags/updatable/environments/prod`,
+        headers: auth(),
+        payload: { enabled: true, rolloutPercentage: 50 },
+      });
+
+      // When I look at what the warehouse captured
+      const event = await capturedEvent("flag_updated");
+
+      // Then the change is attributed to a tenant and to the key that made it
+      expect(event?.accountId?.toString()).toBe(testAccountId.toString());
+      expect(event?.distinctId).toMatch(/^apikey:/);
+    });
+  });
+
   describe("experiment metrics", () => {
     async function enableExperiment(key: string) {
       await flagService.createFlag(testAccountId, testServiceId, {

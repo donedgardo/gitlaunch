@@ -47,11 +47,12 @@ experiment gets a verdict:
 Never call a winner from raw conversion rates alone. If the verdict says keep
 running, say that, and quote the shortfall rather than implying a trend.
 
-**"How is the product being used?"** → Active users, Feature adoption and the
-activation funnel. `activeUsers` counts every distinct actor, which includes
-**anonymous landing-page visitors** (a `gl_vid` cookie id), not just logged-in
-users — do not quote it as product DAU without saying so. Feature adoption
-splits reach (`Users`) from volume (`Occurrences`).
+**"How is the product being used?"** → Active product users, Who was active,
+Feature adoption and the activation funnel. The headline counts **logged-in
+people only**; the "Who was active" table accounts for everyone else (anonymous
+`gl_vid` landing visitors, API keys, unidentified leads). Quote the headline as
+DAU; never quote the actor total. Feature adoption splits reach (`Users`) from
+volume (`Occurrences`).
 
 ## Read the data-quality section first
 
@@ -60,10 +61,13 @@ untrustworthy. Always factor these into the answer instead of quoting the
 tables as fact:
 
 - events with **no `accountId`** are invisible to every tenant-scoped dashboard query
-- **`leads` vs `waitlist_signup` mismatch** means campaign attribution is undercounting
+- **`leads` vs `waitlist_signup` mismatch** means campaign attribution is
+  undercounting — fix it with `yarn analytics:backfill --apply` (dry run first),
+  which reconciles the two by `properties.leadId`
 - events with **no `distinctId`** inflate volume while contributing nothing to
   funnels or per-user usage — a funnel step reading 0 is usually this, not a
-  real drop to zero
+  real drop to zero. New events should be attributed via `actor()` in
+  `src/services/analytics/actorIdentity.ts`.
 
 ## How the pieces fit
 

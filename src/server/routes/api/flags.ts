@@ -8,6 +8,7 @@ import {
   requireFlagEvaluateAccess,
 } from "../../middleware/apiKeyAuth";
 import { AnalyticsService } from "../../../services/analytics/analytics";
+import { actor, machineActor } from "../../../services/analytics/actorIdentity";
 import {
   ExperimentResultsService,
   EXPOSURE_EVENT,
@@ -188,7 +189,11 @@ export function registerFlagsRoutes(
           key,
           description: description ?? "",
         });
-        analytics?.track("flag_created", { serviceId, key });
+        analytics?.track(
+          "flag_created",
+          { serviceId, key },
+          actor(accountId, machineActor(request.apiKey!.apiKeyId.toString())),
+        );
         return reply.status(201).send(serializeFlag(flag));
       } catch (error) {
         const message =
@@ -252,7 +257,11 @@ export function registerFlagsRoutes(
           env,
           request.body ?? {},
         );
-        analytics?.track("flag_updated", { serviceId, key, environment: env });
+        analytics?.track(
+          "flag_updated",
+          { serviceId, key, environment: env },
+          actor(accountId, machineActor(request.apiKey!.apiKeyId.toString())),
+        );
         return reply.send(serializeFlag(flag));
       } catch (error) {
         const message =
