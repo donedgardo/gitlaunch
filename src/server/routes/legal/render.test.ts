@@ -95,6 +95,23 @@ describe("legal pages, rendered", () => {
     expect(terms.body).not.toContain("TODO(legal)");
   });
 
+  it("should only point readers at a mailbox that exists", async () => {
+    // These documents promise a reply — GDPR rights requests, security
+    // disclosure, the 30-day informal dispute step. Naming a plausible-looking
+    // address nobody monitors (legal@, privacy@, security@) turns each of those
+    // promises into a dead end, and the failure is silent: mail bounces to the
+    // sender, not to us. support@ is the one address that is actually staffed.
+    const privacy = await app.inject({ method: "GET", url: "/privacy" });
+    const terms = await app.inject({ method: "GET", url: "/terms" });
+
+    for (const body of [privacy.body, terms.body]) {
+      const addresses = new Set(
+        [...body.matchAll(/mailto:([^"]+)/g)].map((m) => m[1]),
+      );
+      expect([...addresses]).toEqual(["support@gitlaunch.dev"]);
+    }
+  });
+
   it("should state the governing jurisdiction in the terms", async () => {
     // The single clause most likely to be quietly wrong after a copy-paste from
     // another company's terms.
