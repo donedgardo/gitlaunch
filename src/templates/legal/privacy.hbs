@@ -1,0 +1,431 @@
+{{> legalStyles}}
+
+{{!-- BEFORE PUBLISHING, a human must confirm three facts this document asserts:
+       1. The exact registered legal name of the entity (below, and in terms.hbs).
+       2. A real mailing address — required for the notices clause, and required
+          by CAN-SPAM in every marketing email we eventually send.
+       3. That ANALYTICS_RETENTION_DAYS is actually set in production. Section 9
+          promises analytics events expire after 24 months; that promise is only
+          true if the TTL index is configured. An unset env var turns a truthful
+          policy into a false statement.
+     Search for "TODO(legal)" to find each spot. --}}
+
+<div class="legal">
+  <nav>
+    <div class="wrap nav-in">
+      <a class="brand" href="/"><span class="glyph"></span>Git<span class="mk">Launch</span></a>
+      <a class="nav-back" href="/">← Back to GitLaunch</a>
+    </div>
+  </nav>
+
+  <header class="doc-head">
+    <div class="wrap">
+      <span class="eff">Effective {{lastUpdated}}</span>
+      <h1>Privacy Policy</h1>
+      <p class="lede">
+        GitLaunch is a deployment control tool. This policy explains what we collect,
+        why we collect it, who we share it with, and what we have deliberately built
+        ourselves so that we never have to hand your data to anyone else.
+      </p>
+
+      <div class="tldr">
+        <h2>The short version</h2>
+        <ul>
+          <li><strong>We never receive your source code.</strong> Our GitHub integration reads repository names and triggers workflows. It has no ability to read file contents.</li>
+          <li><strong>We run our own analytics.</strong> No Google Analytics, no Segment, no third-party advertising or tracking pixels — your usage data never leaves our infrastructure for a marketing platform.</li>
+          <li><strong>We do not sell or share your personal information</strong>, and we never have.</li>
+          <li><strong>One non-essential cookie</strong>, used to keep our landing-page copy consistent for you. It expires in 30 days and cannot be read by scripts.</li>
+          <li><strong>You can get your data out or have it deleted</strong> by emailing us — no account tier required, wherever you live.</li>
+        </ul>
+        <p class="caveat">This summary is for orientation only. The sections below are the binding statement of what we do.</p>
+      </div>
+    </div>
+  </header>
+
+  <div class="wrap doc">
+    <aside class="toc">
+      <h2>Contents</h2>
+      <ol>
+        <li><a href="#who-we-are">Who we are</a></li>
+        <li><a href="#scope">What this policy covers</a></li>
+        <li><a href="#collect">Information we collect</a></li>
+        <li><a href="#never">What we never collect</a></li>
+        <li><a href="#cookies">Cookies</a></li>
+        <li><a href="#use">How and why we use it</a></li>
+        <li><a href="#share">Who we share it with</a></li>
+        <li><a href="#transfers">International transfers</a></li>
+        <li><a href="#retention">How long we keep it</a></li>
+        <li><a href="#security">How we protect it</a></li>
+        <li><a href="#rights">Your rights</a></li>
+        <li><a href="#children">Children</a></li>
+        <li><a href="#breach">Security incidents</a></li>
+        <li><a href="#changes">Changes</a></li>
+        <li><a href="#contact">Contact us</a></li>
+      </ol>
+    </aside>
+
+    <main class="body">
+      <section id="who-we-are">
+        <h2>Who we are</h2>
+        {{!-- TODO(legal): confirm registered name + mailing address. --}}
+        <p>
+          GitLaunch ("GitLaunch", "we", "us") is operated by <strong>GitLaunch LLC</strong>,
+          a limited liability company organized under the laws of the Commonwealth of
+          Puerto Rico, United States.
+        </p>
+        <p>
+          For the purposes of the EU and UK General Data Protection Regulation, we are the
+          <strong>data controller</strong> for the account and marketing information described
+          in this policy. Where our customers use GitLaunch to process information about their
+          own staff or systems, we act as a <strong>data processor</strong> on that customer's
+          instructions, and our <a href="/terms">Terms of Service</a> govern that relationship.
+        </p>
+        <p>You can reach us about anything in this policy at <a href="mailto:privacy@gitlaunch.dev">privacy@gitlaunch.dev</a>.</p>
+      </section>
+
+      <section id="scope">
+        <h2>What this policy covers</h2>
+        <p>
+          This policy applies to the GitLaunch website, the GitLaunch application, and our
+          API. It does not apply to the third-party systems you connect to GitLaunch — your
+          GitHub organization, or a Jenkins server you operate. Those systems remain under
+          your control and your own policies, and connecting them to GitLaunch does not put
+          us in charge of them.
+        </p>
+      </section>
+
+      <section id="collect">
+        <h2>Information we collect</h2>
+
+        <h3>Account information</h3>
+        <p>
+          You sign in to GitLaunch with GitHub. We request only the <code>user:email</code>
+          scope, and from it we store your GitHub user ID, your GitHub username, your email
+          address, your display name, your avatar URL, and the times your account was created
+          and last used. We never receive your GitHub password.
+        </p>
+
+        <h3>Deployment and build data</h3>
+        <p>
+          To do its job, GitLaunch stores the operational record of your deployments: service
+          and environment names, repository names and identifiers, build and deployment status,
+          version or commit identifiers, timestamps, and which user triggered a given deploy or
+          rollback. This is a record of <em>what happened</em>, not of what your code contains.
+        </p>
+
+        <h3>Integration credentials</h3>
+        <p>
+          If you connect a Jenkins server, we store the credentials you provide so we can talk
+          to it on your behalf. These are <strong>encrypted at rest</strong> using authenticated
+          encryption with a key held outside the database. API keys you generate for our own API
+          are stored only as a one-way <strong>bcrypt hash</strong> — we show you the key once,
+          at creation, and cannot recover it afterwards. If you lose it, we can only issue a new
+          one.
+        </p>
+
+        <h3>Billing information</h3>
+        <p>
+          Payments are processed by Stripe. <strong>Card numbers are entered directly with Stripe
+          and never reach our servers.</strong> We store the subscription and customer identifiers
+          Stripe gives us, your plan, and your subscription status, so we know what you are
+          entitled to use.
+        </p>
+
+        <h3>Waitlist and campaign attribution</h3>
+        <p>
+          If you join our waitlist, we store the email address you give us. We also store how you
+          found us, where the inbound link carried that information: the UTM campaign parameters
+          on the URL (<code>utm_source</code>, <code>utm_medium</code>, <code>utm_campaign</code>,
+          <code>utm_term</code>, <code>utm_content</code>) and the referring page. This tells us
+          which of our announcements were worth making. Each value is truncated before storage.
+        </p>
+
+        <h3>Product analytics</h3>
+        <p>
+          We record how GitLaunch itself is used — pages visited, features used, and the outcome
+          of actions such as a deploy being started — along with an identifier for the account and
+          user involved, and a timestamp. We use this to find where the product is confusing or
+          broken. <strong>This data is stored in our own database and is not transmitted to any
+          third-party analytics or advertising provider.</strong>
+        </p>
+
+        <h3>Technical logs</h3>
+        <p>
+          Our servers and our hosting provider produce operational logs — requests, errors, and
+          timings — which may include IP addresses. We use these to keep the service running and
+          to investigate abuse and outages, and nothing else.
+        </p>
+      </section>
+
+      <section id="never">
+        <h2>What we never collect</h2>
+        <p>Stating this plainly, because it is the question engineering teams actually ask:</p>
+        <ul>
+          <li>
+            <strong>Your source code.</strong> Our GitHub integration calls only the endpoints
+            needed to identify you, list the repositories you have granted us, and trigger a
+            workflow run. It does not request repository contents permission and cannot read
+            your files, branches, or commit diffs.
+          </li>
+          <li>
+            <strong>Your GitHub password or personal access tokens for your own account.</strong>
+            Authentication happens at GitHub, and we receive only a scoped token.
+          </li>
+          <li><strong>Your payment card details.</strong> Those exist between you and Stripe.</li>
+          <li>
+            <strong>Advertising or cross-site tracking identifiers.</strong> We run no third-party
+            trackers, no advertising pixels, and no session-replay tooling. We do not build
+            profiles of you across other websites, because we have no means of doing so.
+          </li>
+          <li><strong>Special category data</strong> — health, biometrics, race, religion, political opinions. We have no use for it and do not ask for it.</li>
+        </ul>
+      </section>
+
+      <section id="cookies">
+        <h2>Cookies</h2>
+        <p>
+          Every cookie we set is first-party. All of them are <code>HttpOnly</code>, meaning no
+          script on the page can read them. Here is the complete list:
+        </p>
+        <table>
+          <thead>
+            <tr><th>Cookie</th><th>Purpose</th><th>Lifetime</th><th>Category</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>session</code></td><td>Keeps you signed in</td><td>Session / expiry of token</td><td>Strictly necessary</td></tr>
+            <tr><td><code>oauth_state</code></td><td>Protects the GitHub sign-in flow against cross-site request forgery</td><td>Minutes</td><td>Strictly necessary</td></tr>
+            <tr><td><code>pending_invite</code></td><td>Carries a team invitation through the sign-in redirect</td><td>Short-lived</td><td>Strictly necessary</td></tr>
+            <tr><td><code>new_api_key</code>, <code>onboarding_api_key</code>, <code>service_api_key</code>, <code>created_service</code></td><td>Shows a newly generated API key once, immediately after you create it</td><td>Single use, cleared on display</td><td>Strictly necessary</td></tr>
+            <tr><td><code>gl_vid</code></td><td>An anonymous identifier that keeps our landing-page wording consistent for you while we test which version explains the product better, and lets us count a signup once rather than twice</td><td>30 days</td><td>Measurement</td></tr>
+          </tbody>
+        </table>
+        <p>
+          <strong>About <code>gl_vid</code>:</strong> it is the only cookie we set that is not
+          strictly required to deliver the page. It contains a random identifier and nothing
+          about you — no name, no email, no device fingerprint — and it is never combined with
+          data from other sites, because we do not have any. We keep its lifetime to 30 days so
+          it lasts about as long as the measurement it supports, rather than following you for a
+          year. If you would rather not have it, block or clear cookies for this site in your
+          browser; the site works normally without it.
+        </p>
+      </section>
+
+      <section id="use">
+        <h2>How and why we use it</h2>
+        <p>
+          Where the EU or UK GDPR applies, we must have a lawful basis for each use. Ours are:
+        </p>
+        <table>
+          <thead>
+            <tr><th>What we do</th><th>Lawful basis</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Provide the service: authenticate you, show your deployments, run deploys and rollbacks you request</td><td>Performance of a contract</td></tr>
+            <tr><td>Bill you and keep tax records</td><td>Contract; legal obligation</td></tr>
+            <tr><td>Keep the service secure, prevent abuse, and investigate incidents</td><td>Legitimate interests — running a service that is not compromised</td></tr>
+            <tr><td>Understand product usage and improve GitLaunch</td><td>Legitimate interests — improving a product people rely on, using first-party data only</td></tr>
+            <tr><td>Send you service and account notices you cannot opt out of while you hold an account (security, billing, breaking changes)</td><td>Contract</td></tr>
+            <tr><td>Email you about the waitlist and product news</td><td>Consent, given when you submit the waitlist form — withdrawable at any time</td></tr>
+            <tr><td>Test which landing-page wording explains the product better</td><td>Legitimate interests — measuring our own marketing with a short-lived, first-party identifier</td></tr>
+            <tr><td>Comply with the law and respond to lawful requests</td><td>Legal obligation</td></tr>
+          </tbody>
+        </table>
+        <p>
+          Where we rely on legitimate interests, we have weighed those interests against your
+          rights, and you may object at any time under section 11.
+        </p>
+        <p>
+          <strong>We do not make automated decisions producing legal or similarly significant
+          effects about you</strong>, and we do not use your data to train machine learning models.
+        </p>
+      </section>
+
+      <section id="share">
+        <h2>Who we share it with</h2>
+        <p>
+          <strong>We do not sell your personal information, and we do not share it for
+          cross-context behavioural advertising</strong> — as those terms are defined under
+          California law. We have never done so.
+        </p>
+        <p>We rely on a deliberately short list of service providers, each bound by contract to process data only on our instructions:</p>
+        <table>
+          <thead>
+            <tr><th>Provider</th><th>What it does</th><th>What it sees</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>MongoDB Atlas</td><td>Our database</td><td>Everything we store, encrypted at rest</td></tr>
+            <tr><td>Stripe</td><td>Payments and subscriptions</td><td>Your billing details and payment method</td></tr>
+            <tr><td>GitHub</td><td>Sign-in and deployment triggering</td><td>Your GitHub identity and the workflow runs we start</td></tr>
+            <tr><td>Our hosting provider</td><td>Runs the application</td><td>Traffic and operational logs</td></tr>
+          </tbody>
+        </table>
+        <p>
+          If you connect a <strong>Jenkins</strong> server, GitLaunch sends deployment instructions
+          to the server <em>you</em> specify. That server is yours, not a provider of ours.
+        </p>
+        <p>Beyond those providers, we disclose personal information only:</p>
+        <ul>
+          <li>when you tell us to, or make it visible to your own team within your account;</li>
+          <li>when the law requires it — and where we are lawfully able to tell you first, we will;</li>
+          <li>to establish or defend legal claims, or to protect the rights and safety of our users; or</li>
+          <li>
+            to an acquirer, if GitLaunch is bought or merged. We will give you notice before your
+            information becomes subject to a different privacy policy, and the acquirer will be
+            bound by commitments no less protective than these until then.
+          </li>
+        </ul>
+      </section>
+
+      <section id="transfers">
+        <h2>International transfers</h2>
+        <p>
+          We operate from Puerto Rico and our infrastructure is located in the United States. If
+          you use GitLaunch from the European Economic Area, the United Kingdom, or Switzerland,
+          your information is transferred to and processed in the United States.
+        </p>
+        <p>
+          For those transfers we rely on the European Commission's <strong>Standard Contractual
+          Clauses</strong> (and the UK Addendum, where applicable), together with the technical
+          measures described in section 10. You may request a copy of the relevant clauses by
+          emailing us.
+        </p>
+      </section>
+
+      <section id="retention">
+        <h2>How long we keep it</h2>
+        <p>We keep information only as long as it is doing a job, and no longer:</p>
+        <table>
+          <thead>
+            <tr><th>Information</th><th>Kept for</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Account and profile data</td><td>While your account is open, then deleted within 30 days of closure</td></tr>
+            <tr><td>Deployment and build history</td><td>While your account is open, then deleted with the account</td></tr>
+            <tr><td>Integration credentials</td><td>Until you disconnect the integration or close the account, then deleted</td></tr>
+            <tr><td>Billing and tax records</td><td>Seven years from the transaction, as US and Puerto Rico tax law requires</td></tr>
+            {{!-- TODO(legal): this 24-month promise is enforced by the TTL index in
+                 analyticsEventRepository, which only exists when ANALYTICS_RETENTION_DAYS
+                 is set. Set it to 730 in production before publishing this page. --}}
+            <tr><td>Product analytics events</td><td>24 months, then automatically expired by the database</td></tr>
+            <tr><td>Waitlist entries</td><td>Until you unsubscribe or ask us to delete them, or 24 months after we stop operating a waitlist</td></tr>
+            <tr><td>Operational logs</td><td>Up to 90 days</td></tr>
+          </tbody>
+        </table>
+        <p>
+          Backups are on their own cycle and are overwritten in the ordinary course, normally
+          within 90 days. Deleted data can persist in a backup until that backup rolls over.
+        </p>
+      </section>
+
+      <section id="security">
+        <h2>How we protect it</h2>
+        <ul>
+          <li>All traffic to GitLaunch is encrypted in transit with TLS.</li>
+          <li>Integration credentials are encrypted at rest with authenticated encryption, under a key that is not stored in the database. Key rotation is supported without downtime.</li>
+          <li>API keys are stored only as bcrypt hashes and cannot be recovered — only replaced.</li>
+          <li>Session cookies are <code>HttpOnly</code> and <code>SameSite</code>-restricted; the sign-in flow is protected against cross-site request forgery.</li>
+          <li>Every query is scoped to an account, so one customer's data cannot be reached from another's session.</li>
+          <li>Access to production data is limited to personnel who need it to operate the service.</li>
+        </ul>
+        <p>
+          No system is perfectly secure, and we will not claim otherwise. What we can tell you is
+          what we have actually built, which is the list above.
+        </p>
+      </section>
+
+      <section id="rights">
+        <h2>Your rights</h2>
+        <p>
+          <strong>We extend the core rights below to every user, wherever you live.</strong> Some
+          of them are legal entitlements only in certain places; we would rather not run two
+          standards.
+        </p>
+        <ul>
+          <li><strong>Access</strong> — get a copy of the personal information we hold about you.</li>
+          <li><strong>Portability</strong> — receive it in a structured, machine-readable format.</li>
+          <li><strong>Correction</strong> — have inaccurate information fixed.</li>
+          <li><strong>Deletion</strong> — have your information erased, subject to records we must keep by law (chiefly tax records).</li>
+          <li><strong>Restriction and objection</strong> — ask us to pause a use, or object to processing based on legitimate interests, including our product analytics.</li>
+          <li><strong>Withdraw consent</strong> — unsubscribe from marketing email at any time, without affecting anything we did before you withdrew.</li>
+          <li><strong>Non-discrimination</strong> — we will not degrade your service or change your price because you exercised a right.</li>
+        </ul>
+        <p>
+          To exercise any of these, email <a href="mailto:privacy@gitlaunch.dev">privacy@gitlaunch.dev</a>.
+          We will verify your request against the email on your account and respond within
+          <strong>30 days</strong>, or tell you why we need longer. This is free of charge. You may
+          use an authorised agent where the law allows it.
+        </p>
+        <p>
+          <strong>If you are in the EEA or UK</strong>, you also have the right to complain to your
+          local supervisory authority. We would appreciate the chance to resolve it first.
+        </p>
+        <p>
+          <strong>If you are in California</strong>, the rights above satisfy your CCPA/CPRA rights
+          to know, delete, correct, and opt out. Because we neither sell nor share personal
+          information, there is no "Do Not Sell or Share My Personal Information" action for you
+          to take — the answer is already no.
+        </p>
+      </section>
+
+      <section id="children">
+        <h2>Children</h2>
+        <p>
+          GitLaunch is a tool for professional software teams. It is not directed to children, and
+          we do not knowingly collect personal information from anyone under 18. If you believe a
+          child has given us information, write to us and we will delete it.
+        </p>
+      </section>
+
+      <section id="breach">
+        <h2>Security incidents</h2>
+        <p>
+          If a security breach compromises your personal information, we will notify you without
+          undue delay once we have established what happened and who is affected.
+        </p>
+        <p>
+          As a Puerto Rico entity we are also subject to the <strong>Citizen Information on Data
+          Banks Security Act (Act No. 111 of September 7, 2005)</strong>, which requires us to
+          notify the Puerto Rico Department of Consumer Affairs within <strong>ten days</strong>
+          of detecting a breach of protected personal information, and to notify affected
+          individuals. Where the GDPR applies, we will notify the relevant supervisory authority
+          within <strong>72 hours</strong> as Article 33 requires. We will meet whichever
+          obligations apply to you, and we will not wait to be asked.
+        </p>
+      </section>
+
+      <section id="changes">
+        <h2>Changes to this policy</h2>
+        <p>
+          When we change this policy we will update the effective date at the top. If a change
+          materially affects your rights or meaningfully expands how we use your information, we
+          will tell you by email or in the application <strong>before it takes effect</strong>,
+          and give you a reasonable chance to object or close your account. We will not apply a
+          materially expanded use to information we already hold without your consent where the
+          law requires it.
+        </p>
+      </section>
+
+      <section id="contact">
+        <h2>Contact us</h2>
+        {{!-- TODO(legal): add the registered mailing address here. --}}
+        <p>
+          Privacy questions and rights requests: <a href="mailto:privacy@gitlaunch.dev">privacy@gitlaunch.dev</a><br />
+          Everything else: <a href="mailto:support@gitlaunch.dev">support@gitlaunch.dev</a>
+        </p>
+        <p>GitLaunch LLC, Commonwealth of Puerto Rico, United States.</p>
+      </section>
+    </main>
+  </div>
+
+  <footer>
+    <div class="wrap foot-in">
+      <span>GitLaunch · deployment control your whole team can drive</span>
+      <span class="foot-legal">
+        <a href="/privacy">Privacy</a>
+        <a href="/terms">Terms</a>
+        <a href="mailto:support@gitlaunch.dev">Contact</a>
+        <span>© GitLaunch</span>
+      </span>
+    </div>
+  </footer>
+</div>
