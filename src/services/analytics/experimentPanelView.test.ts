@@ -41,12 +41,12 @@ describe("toExperimentPanelView", () => {
       expect(view.decision?.detail).toContain("more per arm");
     });
 
-    it("should name the winner to ship when a challenger beats the baseline significantly", () => {
-      // Given a challenger converting four times better over a real sample
+    it("should name the winner to ship when a challenger wins on a full sample", () => {
+      // Given a challenger converting far better, past the planned sample
       const view = toExperimentPanelView(
         results([
-          { variant: "control", exposures: 200, conversions: 10 },
-          { variant: "benefit-led", exposures: 200, conversions: 40 },
+          { variant: "control", exposures: 10000, conversions: 500 },
+          { variant: "benefit-led", exposures: 10000, conversions: 800 },
         ]),
       );
 
@@ -54,6 +54,22 @@ describe("toExperimentPanelView", () => {
       expect(view.decision?.label).toBe("Ship benefit-led");
       expect(view.decision?.tone).toBe("ship");
       expect(view.decision?.detail).toContain("confidence");
+    });
+
+    it("should say which arm is ahead but withhold the call while the sample is short", () => {
+      // Given an early peek that already looks significant
+      const view = toExperimentPanelView(
+        results([
+          { variant: "control", exposures: 200, conversions: 10 },
+          { variant: "benefit-led", exposures: 200, conversions: 40 },
+        ]),
+      );
+
+      // Then the badge still says keep running, but the copy names the leader
+      // and the traffic still owed rather than claiming nothing has separated
+      expect(view.decision?.label).toBe("Keep running");
+      expect(view.decision?.detail).toContain("benefit-led");
+      expect(view.decision?.detail).toContain("more per arm");
     });
 
     it("should recommend keeping the baseline when every challenger loses significantly", () => {
