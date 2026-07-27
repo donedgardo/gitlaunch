@@ -13,6 +13,8 @@ import { TrialRegistryRepository } from "./repositories/trialRegistryRepository"
 import { LeadRepository } from "./repositories/leadRepository";
 import { FlagRepository } from "./repositories/flagRepository";
 import { FlagConfigVersionRepository } from "./repositories/flagConfigVersionRepository";
+import { ReleaseRepository } from "./repositories/releaseRepository";
+import { DesiredReleaseRepository } from "./repositories/desiredReleaseRepository";
 import { createGitHubServices } from "./services/github/createGitHubServices";
 import { createFlagCache } from "./services/flag/createFlagCache";
 import { AnalyticsEventRepository } from "./repositories/analyticsEventRepository";
@@ -98,6 +100,8 @@ async function start() {
   const leadRepository = new LeadRepository(database);
   const flagRepository = new FlagRepository(database);
   const flagConfigVersionRepository = new FlagConfigVersionRepository(database);
+  const releaseRepository = new ReleaseRepository(database);
+  const desiredReleaseRepository = new DesiredReleaseRepository(database);
   await buildRepository.ensureIndexes();
   await serviceRepository.ensureIndexes();
   await webhookEventRepository.ensureIndexes();
@@ -106,6 +110,10 @@ async function start() {
   await leadRepository.ensureIndexes();
   await flagRepository.ensureIndexes();
   await flagConfigVersionRepository.ensureIndexes();
+  // Release immutability and one-desired-release-per-environment are both
+  // enforced by unique indexes, so these must exist before the first write.
+  await releaseRepository.ensureIndexes();
+  await desiredReleaseRepository.ensureIndexes();
 
   await server.listen({ host: "0.0.0.0", port: PORT });
   console.info(`Server listening on port ${PORT}`);
