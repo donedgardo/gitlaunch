@@ -51,11 +51,12 @@ describe("analyzeExperiment", () => {
     expect(analysis.baseline).toBe("a");
   });
 
-  it("should recommend shipping a challenger that wins significantly", () => {
-    // Given a challenger that clearly beats control
+  it("should recommend shipping a challenger that wins significantly on a full sample", () => {
+    // Given a challenger that clearly beats control, with both arms past the
+    // sample the experiment was planned for
     const experiment = results([
-      { variant: "control", exposures: 5000, conversions: 250 },
-      { variant: "benefit-led", exposures: 5000, conversions: 400 },
+      { variant: "control", exposures: 10000, conversions: 500 },
+      { variant: "benefit-led", exposures: 10000, conversions: 800 },
     ]);
 
     // When I analyse it
@@ -64,6 +65,61 @@ describe("analyzeExperiment", () => {
     // Then it says to ship the winner and names it
     expect(analysis.recommendation).toBe("ship");
     expect(analysis.winner).toBe("benefit-led");
+  });
+
+  it("should refuse to call a winner before the planned sample, even when the gap is already significant", () => {
+    // Given an early peek where the challenger is four times better and the
+    // difference already clears p < 0.05 by chance
+    const experiment = results([
+      { variant: "control", exposures: 200, conversions: 10 },
+      { variant: "benefit-led", exposures: 200, conversions: 40 },
+    ]);
+
+    // When I analyse it
+    const analysis = analyzeExperiment(experiment);
+
+    // Then it withholds the call — stopping at the first significant peek is
+    // what inflates false positives — and names no winner to ship
+    expect(analysis.recommendation).toBe("keep-running");
+    expect(analysis.winner).toBeNull();
+  });
+
+  it("should name the arm that is currently ahead while it withholds the call", () => {
+    const experiment = results([
+      { variant: "control", exposures: 200, conversions: 10 },
+      { variant: "benefit-led", exposures: 200, conversions: 40 },
+    ]);
+
+    const analysis = analyzeExperiment(experiment);
+
+    // So the panel can say "ahead, but not callable" instead of "nothing yet"
+    expect(analysis.provisionalWinner).toBe("benefit-led");
+  });
+
+  it("should keep reporting the outstanding shortfall when an early result looks significant", () => {
+    const experiment = results([
+      { variant: "control", exposures: 200, conversions: 10 },
+      { variant: "benefit-led", exposures: 200, conversions: 40 },
+    ]);
+
+    const analysis = analyzeExperiment(experiment);
+
+    // The shortfall must survive an apparent win — it is the whole reason the
+    // customer has to wait
+    expect(analysis.shortfallPerVariant).toBe(
+      analysis.requiredSamplePerVariant - 200,
+    );
+  });
+
+  it("should leave no provisional winner when nothing is significant yet", () => {
+    const experiment = results([
+      { variant: "control", exposures: 100, conversions: 5 },
+      { variant: "benefit-led", exposures: 100, conversions: 7 },
+    ]);
+
+    const analysis = analyzeExperiment(experiment);
+
+    expect(analysis.provisionalWinner).toBeNull();
   });
 
   it("should recommend keeping the control when every challenger loses", () => {
@@ -114,10 +170,10 @@ describe("analyzeExperiment", () => {
   });
 
   it("should not ask for more traffic once a decision is reached", () => {
-    // Given a decided experiment
+    // Given a decided experiment that has run past its planned sample
     const experiment = results([
-      { variant: "control", exposures: 5000, conversions: 250 },
-      { variant: "benefit-led", exposures: 5000, conversions: 400 },
+      { variant: "control", exposures: 10000, conversions: 500 },
+      { variant: "benefit-led", exposures: 10000, conversions: 800 },
     ]);
 
     // When I analyse it

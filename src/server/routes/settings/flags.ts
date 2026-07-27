@@ -10,10 +10,8 @@ import {
 import { AnalyticsService } from "../../../services/analytics/analytics";
 import { actor } from "../../../services/analytics/actorIdentity";
 import { ApiKeyService } from "../../../services/apiKey/apiKeyService";
-import {
-  ExperimentResultsService,
-  ExperimentResults,
-} from "../../../services/flag/experimentResultsService";
+import { ExperimentResultsService } from "../../../services/flag/experimentResultsService";
+import { toExperimentPanelView } from "../../../services/analytics/experimentPanelView";
 
 export type FlagsSettingsDeps = {
   serviceRepository: ServiceRepository;
@@ -26,32 +24,6 @@ export type FlagsSettingsDeps = {
 
 // Default experiment results window shown in the UI: the last 30 days.
 const RESULTS_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
-
-// Flatten the results into template-friendly rows: a formatted percentage plus
-// a bar width (relative to the best-performing variant) for the inline chart.
-function toResultsView(results: ExperimentResults) {
-  const best = results.variants.reduce(
-    (max, v) => Math.max(max, v.conversionRate),
-    0,
-  );
-  return {
-    flagKey: results.flagKey,
-    environment: results.environment,
-    hasData: results.totals.exposures > 0,
-    totals: {
-      exposures: results.totals.exposures,
-      conversions: results.totals.conversions,
-      conversionRatePct: (results.totals.conversionRate * 100).toFixed(1),
-    },
-    variants: results.variants.map((v) => ({
-      variant: v.variant,
-      exposures: v.exposures,
-      conversions: v.conversions,
-      conversionRatePct: (v.conversionRate * 100).toFixed(1),
-      barPct: best > 0 ? Math.round((v.conversionRate / best) * 100) : 0,
-    })),
-  };
-}
 
 // Normalizes a form field that fast-querystring returns as a string (single
 // value), an array (repeated), or undefined (absent) into a plain array.
@@ -494,7 +466,10 @@ export function registerFlagsSettingsRoutes(
         to,
       });
 
-      return reply.view("partials/experimentResults", toResultsView(results));
+      return reply.view(
+        "partials/experimentResults",
+        toExperimentPanelView(results),
+      );
     },
   );
 }

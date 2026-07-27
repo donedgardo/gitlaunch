@@ -500,6 +500,32 @@ describe("Flags Settings Routes", () => {
       expect(response.body).toContain("100.0%");
     });
 
+    it("tells the customer whether the result can be acted on yet", async () => {
+      await flagService.createFlag(accountId, serviceId, {
+        key: "exp",
+        description: "",
+      });
+      await seedExposure("control", "u1");
+      await seedExposure("control", "u2");
+      await seedExposure("control", "u1", "flag_conversion");
+      await seedExposure("treatment", "u3");
+      await seedExposure("treatment", "u4");
+      await seedExposure("treatment", "u3", "flag_conversion");
+      await seedExposure("treatment", "u4", "flag_conversion");
+
+      const response = await app.inject({
+        method: "GET",
+        url: `/services/${serviceId}/flags/exp/results`,
+        cookies: { session: session() },
+      });
+
+      // Four entities decide nothing, so the panel must say so rather than
+      // letting the raw 50% vs 100% read as a winner.
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain("Keep running");
+      expect(response.body).toContain("more per arm");
+    });
+
     it("returns 404 for results of an unknown flag", async () => {
       const response = await app.inject({
         method: "GET",
