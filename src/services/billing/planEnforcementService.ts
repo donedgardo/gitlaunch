@@ -7,6 +7,11 @@ import {
 import { RepositoryRepository } from "../../repositories/repositoryRepository";
 import { ServiceRepository } from "../../repositories/serviceRepository";
 import { MembershipRepository } from "../../repositories/membershipRepository";
+import {
+  Entitlement,
+  InstanceMode,
+  resolveEntitlement,
+} from "../licensing/resolveEntitlement";
 
 export class PlanLimitError extends Error {
   constructor(
@@ -16,6 +21,13 @@ export class PlanLimitError extends Error {
     super(message);
     this.name = "PlanLimitError";
   }
+}
+
+// A licensing block is not an upsell: on a self-hosted install there is no
+// plan to buy, so upgradeRequired stays false and the UI shows the operator a
+// licensing message rather than a Stripe CTA.
+function licenseBlocked(reason: string): LimitCheckResult {
+  return { allowed: false, reason, upgradeRequired: false };
 }
 
 export type LimitCheckResult = {
@@ -58,7 +70,16 @@ export class PlanEnforcementService {
     private repoRepo: RepositoryRepository,
     private serviceRepo: ServiceRepository,
     private membershipRepo: MembershipRepository,
+    // Which instance this is. Defaults to the hosted SaaS, so gitlaunch.com
+    // behaves exactly as before; a self-hosted install passes its license here.
+    private instanceMode: InstanceMode = { kind: "saas" },
   ) {}
+
+  // What this account may do *on this instance* — the plan it pays Stripe for
+  // on SaaS, the license the customer bought on a self-hosted install.
+  private entitlementFor(account: Account): Entitlement {
+    return resolveEntitlement(this.instanceMode, account, new Date());
+  }
 
   async canAddRepository(accountId: ObjectId): Promise<LimitCheckResult> {
     const account = await this.accountRepo.findById(accountId);
@@ -66,9 +87,14 @@ export class PlanEnforcementService {
       return { allowed: false, reason: "Account not found" };
     }
 
+    const entitlement = this.entitlementFor(account);
+    if (entitlement.blockedReason) {
+      return licenseBlocked(entitlement.blockedReason);
+    }
+
     const repos = await this.repoRepo.findByAccountId(accountId);
     const currentCount = repos.length;
-    const limit = account.planLimits.maxRepositories;
+    const limit = entitlement.limits.maxRepositories;
 
     if (currentCount >= limit) {
       return {
@@ -89,7 +115,12 @@ export class PlanEnforcementService {
       return { allowed: false, reason: "Account not found" };
     }
 
-    if (account.planLimits.publicReposOnly) {
+    const entitlement = this.entitlementFor(account);
+    if (entitlement.blockedReason) {
+      return licenseBlocked(entitlement.blockedReason);
+    }
+
+    if (entitlement.limits.publicReposOnly) {
       return {
         allowed: false,
         reason:
@@ -107,9 +138,14 @@ export class PlanEnforcementService {
       return { allowed: false, reason: "Account not found" };
     }
 
+    const entitlement = this.entitlementFor(account);
+    if (entitlement.blockedReason) {
+      return licenseBlocked(entitlement.blockedReason);
+    }
+
     const memberships = await this.membershipRepo.findByAccountId(accountId);
     const currentCount = memberships.length;
-    const limit = account.planLimits.maxUsers;
+    const limit = entitlement.limits.maxUsers;
 
     if (currentCount >= limit) {
       return {
@@ -128,9 +164,14 @@ export class PlanEnforcementService {
       return { allowed: false, reason: "Account not found" };
     }
 
+    const entitlement = this.entitlementFor(account);
+    if (entitlement.blockedReason) {
+      return licenseBlocked(entitlement.blockedReason);
+    }
+
     const services = await this.serviceRepo.findByAccountId(accountId);
     const currentCount = services.length;
-    const limit = account.planLimits.maxServices;
+    const limit = entitlement.limits.maxServices;
 
     if (currentCount >= limit) {
       return {
@@ -157,8 +198,13 @@ export class PlanEnforcementService {
       return { allowed: false, reason: "Service not found" };
     }
 
+    const entitlement = this.entitlementFor(account);
+    if (entitlement.blockedReason) {
+      return licenseBlocked(entitlement.blockedReason);
+    }
+
     const currentCount = service.environments.length;
-    const limit = account.planLimits.maxEnvironments;
+    const limit = entitlement.limits.maxEnvironments;
 
     if (currentCount >= limit) {
       return {
@@ -177,6 +223,7 @@ export class PlanEnforcementService {
       throw new Error("Account not found");
     }
 
+    const entitlement = this.entitlementFor(account);
     const repos = await this.repoRepo.findByAccountId(accountId);
     const services = await this.serviceRepo.findByAccountId(accountId);
     const memberships = await this.membershipRepo.findByAccountId(accountId);
@@ -184,17 +231,17 @@ export class PlanEnforcementService {
     return {
       repositories: {
         current: repos.length,
-        limit: account.planLimits.maxRepositories,
+        limit: entitlement.limits.maxRepositories,
       },
       services: {
         current: services.length,
-        limit: account.planLimits.maxServices,
+        limit: entitlement.limits.maxServices,
       },
       users: {
         current: memberships.length,
-        limit: account.planLimits.maxUsers,
+        limit: entitlement.limits.maxUsers,
       },
-      privateReposAllowed: !account.planLimits.publicReposOnly,
+      privateReposAllowed: !entitlement.limits.publicReposOnly,
       plan: account.plan,
     };
   }
@@ -288,8 +335,12 @@ export class PlanEnforcementService {
 
     const usage = await this.getUsage(accountId);
 
-    // Check payment failure and grace period
-    const paymentFailed = !!account.paymentFailedAt;
+    // Check payment failure and grace period. Only meaningful where Stripe
+    // governs the account — a self-hosted install has no way to settle an
+    // invoice, so stale payment state must never restrict it.
+    const entitlement = this.entitlementFor(account);
+    const paymentFailed =
+      entitlement.billingEnforced && !!account.paymentFailedAt;
     const inGracePeriod = this.isInGracePeriod(account);
     const gracePeriodDaysRemaining = this.getGracePeriodDaysRemaining(account);
 
