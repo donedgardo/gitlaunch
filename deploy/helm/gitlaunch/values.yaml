@@ -1,0 +1,181 @@
+# Default values for GitLaunch (self-hosted).
+#
+# The only two things a minimal install must set are:
+#   config.publicUrl        — the external URL users reach this instance on
+#   secrets.mongodbUri      — connection string for your MongoDB
+# plus a license key (secrets.licenseKey) to lift the SaaS tier limits.
+
+replicaCount: 2
+
+image:
+  repository: ghcr.io/donedgardo/gitlaunch
+  tag: "" # defaults to .Chart.AppVersion
+  pullPolicy: IfNotPresent
+
+# For air-gapped or private registries: mirror the image and reference the
+# pull secret here.
+imagePullSecrets: []
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+  # The app calls out to GitHub/Jenkins but never to the Kubernetes API, so it
+  # has no need for a mounted token.
+  automountServiceAccountToken: false
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: false
+  # Left unset so the cluster's default IngressClass applies. Set explicitly for
+  # nginx, traefik (k3s default), HAProxy, etc.
+  className: ""
+  annotations: {}
+  hosts:
+    - host: gitlaunch.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  # - secretName: gitlaunch-tls
+  #   hosts:
+  #     - gitlaunch.example.com
+
+# Non-secret application configuration, rendered into a ConfigMap.
+config:
+  # Must match how users reach the instance — OAuth callbacks and emailed links
+  # are built from it.
+  publicUrl: "https://gitlaunch.example.com"
+  port: 3050
+  # Marks this as a self-hosted install: entitlement comes from the license
+  # rather than from Stripe, and trial/payment restrictions do not apply.
+  selfHosted: true
+  # Persist product analytics into MongoDB for the built-in dashboard.
+  analyticsWarehouse: true
+  # Optional: expire raw analytics events after N days. Empty keeps them.
+  analyticsRetentionDays: ""
+  # Shared flag-evaluation cache across replicas. Leave empty for a per-replica
+  # in-memory cache — fine for a single replica, but flag changes then take
+  # effect per-pod rather than instantly fleet-wide.
+  redisUrl: ""
+  # Verified sender for confirmation email, e.g. "GitLaunch <noreply@acme.com>".
+  emailFrom: ""
+  # Extra raw environment variables, for settings this chart does not model yet.
+  extraEnv: []
+  # - name: GH_APP_NAME
+  #   value: acme-gitlaunch
+
+# Secret values. Supply them here for a quick start, or set
+# existingSecret to a Secret you manage with Vault / Sealed Secrets / SOPS —
+# which is what most enterprise installs should do.
+secrets:
+  # When set, every value below is ignored and this Secret is used verbatim.
+  # It must contain the same keys this chart writes (see templates/secret.yaml).
+  existingSecret: ""
+
+  mongodbUri: ""
+  # openssl rand -base64 32
+  cookieSecret: ""
+  # 32-byte base64 key encrypting stored credentials at rest.
+  # openssl rand -base64 32
+  encryptionKey: ""
+  # Issued with your GitLaunch subscription. Without it the instance runs
+  # unlicensed: existing resources keep working, new ones are blocked.
+  licenseKey: ""
+  # Overrides the license public key baked into the image. Only needed if you
+  # issue your own licenses.
+  licensePublicKey: ""
+
+  # GitHub App, for repository integration. Optional — a Jenkins-only install
+  # does not need it.
+  githubAppId: ""
+  githubAppClientId: ""
+  githubAppClientSecret: ""
+  githubAppWebhookSecret: ""
+  githubAppPrivateKey: ""
+
+  # Transactional email. Without it, confirmation links are logged instead of
+  # sent, which blocks email/password signup.
+  resendApiKey: ""
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    memory: 512Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# Matches the non-root user baked into the image.
+#
+# OpenShift note: its restricted SCC assigns an arbitrary UID per namespace and
+# will reject a hardcoded runAsUser. Set podSecurityContext.runAsUser and
+# fsGroup to null there and let the platform choose.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1001
+  runAsGroup: 1001
+  fsGroup: 1001
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+# Probes. Liveness deliberately hits an endpoint that does not touch MongoDB,
+# so a database outage does not restart every replica; readiness does check it,
+# so replicas leave the load balancer until the database is back.
+livenessProbe:
+  httpGet:
+    path: /health/live
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 20
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+# Gives a slow first connection to MongoDB time to settle before liveness
+# starts counting failures.
+startupProbe:
+  httpGet:
+    path: /health/live
+    port: http
+  periodSeconds: 5
+  failureThreshold: 30
+
+podAnnotations: {}
+podLabels: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}
+# Spread replicas across nodes so a single node failure cannot take the
+# instance down.
+topologySpreadConstraints: []

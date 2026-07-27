@@ -1,2 +1,5 @@
 public/js/htmx.min.js
 **/*.hbs
+# Helm templates are Go templates, not YAML. Prettier parses `{{ ... }}` as a
+# YAML flow mapping and rewrites it to `{ { ... } }`, which breaks the chart.
+deploy/helm/**/templates/
