@@ -457,6 +457,7 @@ describe("Flags Settings Routes", () => {
       variant: string,
       distinctId: string,
       event = "flag_exposure",
+      environment = "prod",
     ) {
       await analyticsEventRepo.insert({
         type: "track",
@@ -466,7 +467,7 @@ describe("Flags Settings Routes", () => {
         properties: {
           serviceId: serviceId.toString(),
           flagKey: "exp",
-          environment: "prod",
+          environment,
           variant,
         },
       });
@@ -524,6 +525,48 @@ describe("Flags Settings Routes", () => {
       expect(response.statusCode).toBe(200);
       expect(response.body).toContain("Keep running");
       expect(response.body).toContain("more per arm");
+    });
+
+    it("shows results for an experiment running outside the last environment", async () => {
+      // Environments are parallel, not a promotion ladder — an experiment can
+      // legitimately run only in dev.
+      await flagService.createFlag(accountId, serviceId, {
+        key: "exp",
+        description: "",
+      });
+      await seedExposure("control", "d1", "flag_exposure", "dev");
+      await seedExposure("control", "d1", "flag_conversion", "dev");
+      await seedExposure("benefit-led", "d2", "flag_exposure", "dev");
+
+      const response = await app.inject({
+        method: "GET",
+        url: `/services/${serviceId}/flags/exp/results`,
+        cookies: { session: session() },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain("dev");
+      expect(response.body).toContain("benefit-led");
+      expect(response.body).not.toContain("No exposures recorded");
+    });
+
+    it("shows every environment the experiment has data in", async () => {
+      await flagService.createFlag(accountId, serviceId, {
+        key: "exp",
+        description: "",
+      });
+      await seedExposure("control", "d1", "flag_exposure", "dev");
+      await seedExposure("control", "p1", "flag_exposure", "prod");
+
+      const response = await app.inject({
+        method: "GET",
+        url: `/services/${serviceId}/flags/exp/results`,
+        cookies: { session: session() },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain("dev");
+      expect(response.body).toContain("prod");
     });
 
     it("returns 404 for results of an unknown flag", async () => {
