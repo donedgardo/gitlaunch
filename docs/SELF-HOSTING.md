@@ -4,6 +4,9 @@ GitLaunch can run inside your own infrastructure, so deployment data, feature
 flags and A/B test assignments never leave your network. This is the Enterprise
 distribution: you run the software, we license it.
 
+> **Status: not yet generally available.** There is no published image or chart repository
+> yet, so this cannot be handed to a customer as-is.
+
 Everything here targets **any conformant Kubernetes** — managed (EKS/GKE/AKS),
 self-managed (kubeadm, RKE2), lightweight (k3s, MicroK8s) or air-gapped. The
 chart creates no cloud-specific resources.

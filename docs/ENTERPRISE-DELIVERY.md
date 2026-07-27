@@ -3,6 +3,11 @@
 **Internal.** This is our side of a self-hosted sale — what we run, what we hand over, and
 what happens at renewal. The customer-facing document is `docs/SELF-HOSTING.md`.
 
+> **Status:** the tooling below is on `main` and every command has been run end to end.
+> What is still missing is the _artifact_: no signed image or chart repository is published
+> yet (workstream F in `docs/ENTERPRISE-ROADMAP.md`), so step 2 has nothing to hand over.
+> The process is real; the distribution is not live.
+
 ---
 
 ## One-time setup (once, ever)
@@ -22,6 +27,27 @@ and redistributing the image. Put it in the secret manager with the same care as
 key for released software.
 
 ---
+
+## What is built per release vs per customer
+
+Read this before the steps below, because the split is the whole point:
+
+| Thing                  | How often                             | Why                                  |
+| ---------------------- | ------------------------------------- | ------------------------------------ |
+| The issuer keypair     | **Once, ever**                        | One key signs every licence we sell  |
+| The distribution image | **Once per release** (1.0.0, 1.1.0 …) | Every customer pulls the same image  |
+| A licence key          | **Once per customer**                 | Names the licensee, seats and expiry |
+
+**We do not build per customer.** A licence is signed data, not compiled code — the image
+verifies it at boot against the one issuer public key compiled in. So a sale is: run one
+command, send one string. Nothing is rebuilt, republished or re-tagged.
+
+That matters operationally. Per-customer builds would mean N images to patch for every CVE,
+N upgrade paths to test, and a rebuild standing between us and closing a deal. Instead the
+artifact is identical for everyone and only the entitlement differs.
+
+The per-customer part of _access_ is separate: registry pull credentials are issued per
+licensee, so we can cut off future pulls without touching the image anyone already holds.
 
 ## Building the distribution image
 
@@ -50,6 +76,8 @@ and the issuer key are therefore read from neither the environment nor the datab
 ## Per sale
 
 ### 1. Issue the license
+
+No build step here — the image is already published. This mints signed data.
 
 ```bash
 tsx scripts/issue-license.ts issue \
