@@ -122,7 +122,7 @@ function verdictLine(experiment: ExperimentAnalysis): string {
   const messages: Record<Recommendation, string> = {
     ship: `Ship **${experiment.winner}** — it beat \`${experiment.baseline}\` significantly.`,
     "keep-control": `Keep \`${experiment.baseline}\` — every challenger did significantly worse.`,
-    "keep-running": `Keep running — no arm has separated yet. Needs roughly **${count(experiment.shortfallPerVariant)} more** per arm (${count(experiment.requiredSamplePerVariant)} total each) to detect a 20% relative change.`,
+    "keep-running": `Keep running — ${experiment.provisionalWinner ? `**${experiment.provisionalWinner}** is ahead, but early leads flip` : `no arm has separated yet`}. Needs roughly **${count(experiment.shortfallPerVariant)} more** per arm (${count(experiment.requiredSamplePerVariant)} total each) to detect a 20% relative change.`,
     "no-comparison": `Nothing to compare — only one arm has traffic.`,
   };
   return messages[experiment.recommendation];

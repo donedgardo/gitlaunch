@@ -30,11 +30,16 @@ export type ExperimentAnalysis = {
   environment: string;
   baseline: string | null;
   comparisons: VariantComparison[];
+  // The arm to ship. Only set once the experiment has both separated and run
+  // long enough to be read, so it is safe to act on.
   winner: string | null;
+  // The arm currently ahead on an experiment that is still too young to call.
+  // Reportable, but not actionable — early leads flip.
+  provisionalWinner: string | null;
   recommendation: Recommendation;
   // Per-arm sample needed to detect the effect size we care about.
   requiredSamplePerVariant: number;
-  // How many more entities the smallest arm still needs; 0 once decided.
+  // How many more entities the smallest arm still needs; 0 once it is reached.
   shortfallPerVariant: number;
 };
 
@@ -67,6 +72,7 @@ export function analyzeExperiment(
       baseline: null,
       comparisons: [],
       winner: null,
+      provisionalWinner: null,
       recommendation: "no-comparison",
       requiredSamplePerVariant: 0,
       shortfallPerVariant: 0,
@@ -80,18 +86,14 @@ export function analyzeExperiment(
     compareVariants(baseline, challenger, { alpha: options.alpha }),
   );
 
-  // Ship the strongest arm that actually cleared the significance bar.
+  // The strongest arm that cleared the significance bar at this moment.
   const winners = comparisons.filter((c) => c.verdict === "winning");
-  const winner =
+  const leader =
     winners.length > 0
       ? winners.reduce((best, c) =>
           c.variantRate > best.variantRate ? c : best,
         ).variant
       : null;
-
-  const recommendation = recommend(comparisons, winner);
-  const decided =
-    recommendation === "ship" || recommendation === "keep-control";
 
   const baselineRate =
     baseline.exposures > 0 ? baseline.conversions / baseline.exposures : 0;
@@ -104,6 +106,19 @@ export function analyzeExperiment(
   });
 
   const smallestArm = Math.min(...results.variants.map((v) => v.exposures));
+  const sampleReached = smallestArm >= required;
+
+  // A significance test is only valid at its planned sample size. Results are
+  // read continuously here, so acting on the first arm to cross p < 0.05 means
+  // stopping on a lucky peek — which inflates false positives far above the
+  // nominal 5%. A leader therefore only becomes a winner once the experiment
+  // has collected the traffic it was planned for.
+  //
+  // Deliberately asymmetric: "keep control" is not gated. Abandoning a
+  // challenger early leaves the status quo in place, and stopping a variant
+  // that looks harmful is legitimate — the costly error is shipping on noise.
+  const winner = sampleReached ? leader : null;
+  const provisionalWinner = sampleReached ? null : leader;
 
   return {
     flagKey: results.flagKey,
@@ -111,9 +126,10 @@ export function analyzeExperiment(
     baseline: baseline.variant,
     comparisons,
     winner,
-    recommendation,
+    provisionalWinner,
+    recommendation: recommend(comparisons, winner),
     requiredSamplePerVariant: required,
-    shortfallPerVariant: decided ? 0 : Math.max(0, required - smallestArm),
+    shortfallPerVariant: Math.max(0, required - smallestArm),
   };
 }
 

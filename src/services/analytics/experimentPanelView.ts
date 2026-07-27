@@ -151,15 +151,22 @@ function describeDecision(
           "Only one arm has recorded traffic, so there is no baseline to test against.",
       };
     case "keep-running":
-    default:
+    default: {
+      const outstanding =
+        analysis.shortfallPerVariant > 0
+          ? `about ${count(analysis.shortfallPerVariant)} more per arm to detect a ${RELATIVE_MDE_LABEL} change`
+          : `more traffic before it can be called`;
+      // An arm that is ahead this early is real information but not a result:
+      // saying "nothing has separated" would be untrue, and calling it a winner
+      // is what the sample gate exists to prevent.
       return {
         label: "Keep running",
         tone: "running",
-        detail:
-          analysis.shortfallPerVariant > 0
-            ? `No arm has separated yet — about ${count(analysis.shortfallPerVariant)} more per arm to detect a ${RELATIVE_MDE_LABEL} change.`
-            : `No arm has separated yet, despite enough traffic to detect a ${RELATIVE_MDE_LABEL} change.`,
+        detail: analysis.provisionalWinner
+          ? `${analysis.provisionalWinner} is ahead, but early leads flip — needs ${outstanding}.`
+          : `No arm has separated yet — needs ${outstanding}.`,
       };
+    }
   }
 }
 
