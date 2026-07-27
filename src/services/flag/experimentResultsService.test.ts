@@ -178,4 +178,96 @@ describe("ExperimentResultsService", () => {
     expect(res.variants[0].variant).toBe("(control)");
     expect(res.variants[0].conversions).toBe(1);
   });
+
+  describe("getResultsByEnvironment", () => {
+    function allEnvQuery(overrides: Record<string, unknown> = {}) {
+      return {
+        accountId,
+        serviceId,
+        flagKey: "new-checkout",
+        from,
+        to,
+        ...overrides,
+      };
+    }
+
+    it("should report every environment the experiment ran in", async () => {
+      // Given the same experiment running in two environments at once
+      await exposure("control", "d1", { environment: "dev" });
+      await conversion("control", "d1", { environment: "dev" });
+      await exposure("control", "p1", { environment: "prod" });
+      await exposure("control", "p2", { environment: "prod" });
+
+      // When I ask for results without naming an environment
+      const res = await results.getResultsByEnvironment(allEnvQuery());
+
+      // Then both come back, each with its own tallies
+      expect(res.map((r) => r.environment).sort()).toEqual(["dev", "prod"]);
+      const dev = res.find((r) => r.environment === "dev");
+      expect(dev?.totals).toMatchObject({ exposures: 1, conversions: 1 });
+      const prod = res.find((r) => r.environment === "prod");
+      expect(prod?.totals).toMatchObject({ exposures: 2, conversions: 0 });
+    });
+
+    it("should keep each environment's variants separate", async () => {
+      // Given different variants running in different environments
+      await exposure("benefit-led", "d1", { environment: "dev" });
+      await exposure("control", "p1", { environment: "prod" });
+
+      const res = await results.getResultsByEnvironment(allEnvQuery());
+
+      // Then neither environment shows the other's arm
+      const dev = res.find((r) => r.environment === "dev");
+      expect(dev?.variants.map((v) => v.variant)).toEqual(["benefit-led"]);
+      const prod = res.find((r) => r.environment === "prod");
+      expect(prod?.variants.map((v) => v.variant)).toEqual(["control"]);
+    });
+
+    it("should surface an environment that carries data regardless of naming", async () => {
+      // Environments are discovered from the events themselves, so a parallel
+      // environment nobody would guess still reports.
+      await exposure("control", "e1", { environment: "eu-west" });
+
+      const res = await results.getResultsByEnvironment(allEnvQuery());
+
+      expect(res.map((r) => r.environment)).toEqual(["eu-west"]);
+    });
+
+    it("should list the busiest environment first", async () => {
+      await exposure("control", "d1", { environment: "dev" });
+      await exposure("control", "p1", { environment: "prod" });
+      await exposure("control", "p2", { environment: "prod" });
+
+      const res = await results.getResultsByEnvironment(allEnvQuery());
+
+      expect(res.map((r) => r.environment)).toEqual(["prod", "dev"]);
+    });
+
+    it("should stay scoped to the account, service, flag and window", async () => {
+      await exposure("control", "mine", { environment: "dev" });
+      await exposure("control", "theirs", {
+        environment: "dev",
+        account: otherAccountId,
+      });
+      await exposure("control", "other-flag", {
+        environment: "dev",
+        flagKey: "something-else",
+      });
+      await exposure("control", "old", {
+        environment: "dev",
+        timestamp: "2026-06-01T00:00:00Z",
+      });
+
+      const res = await results.getResultsByEnvironment(allEnvQuery());
+
+      expect(res).toHaveLength(1);
+      expect(res[0].totals.exposures).toBe(1);
+    });
+
+    it("should return nothing when the experiment has no events at all", async () => {
+      const res = await results.getResultsByEnvironment(allEnvQuery());
+
+      expect(res).toEqual([]);
+    });
+  });
 });

@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { toExperimentPanelView } from "./experimentPanelView";
+import {
+  toExperimentPanelView,
+  toExperimentPanelsView,
+} from "./experimentPanelView";
 
 type Arm = { variant: string; exposures: number; conversions: number };
 
@@ -157,5 +160,61 @@ describe("toExperimentPanelView", () => {
       expect(challenger?.barPct).toBe(100);
       expect(view.totals.conversionRatePct).toBe("12.5");
     });
+  });
+});
+
+describe("toExperimentPanelsView", () => {
+  function envResults(environment: string, variants: Arm[]) {
+    return { ...results(variants), environment };
+  }
+
+  it("should give every environment its own panel", () => {
+    const view = toExperimentPanelsView("hero-copy", [
+      envResults("prod", [
+        { variant: "control", exposures: 100, conversions: 5 },
+        { variant: "benefit-led", exposures: 100, conversions: 7 },
+      ]),
+      envResults("dev", [
+        { variant: "control", exposures: 23, conversions: 1 },
+        { variant: "benefit-led", exposures: 21, conversions: 1 },
+      ]),
+    ]);
+
+    expect(view.hasData).toBe(true);
+    expect(view.environments.map((e) => e.environment)).toEqual([
+      "prod",
+      "dev",
+    ]);
+  });
+
+  it("should decide each environment on its own evidence", () => {
+    // An experiment can be called in one environment and not another, so the
+    // verdicts must not be shared between them.
+    const view = toExperimentPanelsView("hero-copy", [
+      envResults("prod", [
+        { variant: "control", exposures: 10000, conversions: 500 },
+        { variant: "benefit-led", exposures: 10000, conversions: 800 },
+      ]),
+      envResults("dev", [
+        { variant: "control", exposures: 23, conversions: 1 },
+        { variant: "benefit-led", exposures: 21, conversions: 1 },
+      ]),
+    ]);
+
+    expect(view.environments[0].decision?.label).toBe("Ship benefit-led");
+    expect(view.environments[1].decision?.label).toBe("Keep running");
+  });
+
+  it("should report no data when the experiment has not run anywhere", () => {
+    const view = toExperimentPanelsView("hero-copy", []);
+
+    expect(view.hasData).toBe(false);
+    expect(view.environments).toEqual([]);
+  });
+
+  it("should carry the flag key for the panel heading", () => {
+    const view = toExperimentPanelsView("hero-copy", []);
+
+    expect(view.flagKey).toBe("hero-copy");
   });
 });
