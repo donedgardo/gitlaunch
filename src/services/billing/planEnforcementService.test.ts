@@ -1176,4 +1176,117 @@ describe("PlanEnforcementService", () => {
       expect(state.gracePeriodDaysRemaining).toBe(0);
     });
   });
+
+  describe("on a self-hosted instance", () => {
+    // A customer who bought a self-hosted license never sees Stripe, so the
+    // SaaS tiers must not govern their install.
+    const licensed = {
+      kind: "self-hosted" as const,
+      license: {
+        licensedTo: "Acme Corp",
+        maxUsers: 2,
+        expiresAt: new Date("2099-01-01T00:00:00Z"),
+      },
+    };
+
+    const selfHosted = (
+      mode: typeof licensed | { kind: "self-hosted"; license: null },
+    ) =>
+      new PlanEnforcementService(
+        accountRepo,
+        repoRepo,
+        serviceRepo,
+        membershipRepo,
+        mode,
+      );
+
+    const freeAccount = () =>
+      accountRepo.create({ name: "Acme", slug: `acme-${new ObjectId()}` });
+
+    it("should not throttle a licensed install with the Free tier's service limit", async () => {
+      // Given a Free-plan account on a licensed self-hosted instance, already
+      // at the SaaS limit of 3 services
+      const account = await freeAccount();
+      for (let i = 0; i < 4; i++) {
+        await serviceRepo.create({
+          accountId: account._id,
+          name: `svc-${i}`,
+          repoUrl: "https://github.com/acme/api",
+        });
+      }
+
+      // When it adds another service
+      const result = await selfHosted(licensed).canAddService(account._id);
+
+      // Then the license, not the plan, decides — and it allows it
+      expect(result.allowed).toBe(true);
+    });
+
+    it("should allow private repositories on a licensed install", async () => {
+      // Given a Free-plan account, which is public-repos-only on SaaS
+      const account = await freeAccount();
+
+      // When it connects a private repository
+      const result = await selfHosted(licensed).canAddPrivateRepository(
+        account._id,
+      );
+
+      // Then the self-hosted license permits it
+      expect(result.allowed).toBe(true);
+    });
+
+    it("should still enforce the seats the license sold", async () => {
+      // Given a 2-seat license with both seats taken
+      const account = await freeAccount();
+      for (let i = 0; i < 2; i++) {
+        await membershipRepo.create({
+          accountId: account._id,
+          userId: new ObjectId(),
+          role: MembershipRole.Member,
+        });
+      }
+
+      // When a third user is added
+      const result = await selfHosted(licensed).canAddUser(account._id);
+
+      // Then seats are the one thing a self-hosted license still meters
+      expect(result.allowed).toBe(false);
+    });
+
+    it("should block new resources on an unlicensed instance", async () => {
+      // Given someone running the image with no license
+      const account = await freeAccount();
+
+      // When they try to add a service
+      const result = await selfHosted({
+        kind: "self-hosted",
+        license: null,
+      }).canAddService(account._id);
+
+      // Then growth is blocked, and not with a "buy a plan" message — there is
+      // no plan to buy on a self-hosted install
+      expect(result.allowed).toBe(false);
+      expect(result.reason).toBe("This GitLaunch instance is not licensed");
+      expect(result.upgradeRequired).toBe(false);
+    });
+
+    it("should never mark a self-hosted account read-only for payment state", async () => {
+      // Given an account whose payment failed long ago — impossible to fix on
+      // an install with no Stripe
+      const account = await freeAccount();
+      const longAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      await db
+        .collection("accounts")
+        .updateOne(
+          { _id: account._id },
+          { $set: { paymentFailedAt: longAgo } },
+        );
+
+      // When the dashboard resolves its state
+      const state = await selfHosted(licensed).getAccountState(account._id);
+
+      // Then the install keeps working
+      expect(state.isReadOnly).toBe(false);
+    });
+  });
 });
