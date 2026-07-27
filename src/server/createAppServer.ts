@@ -75,6 +75,8 @@ import { GithubConnectionService } from "../services/github/githubConnectionServ
 import { assertEncryptionKey } from "../services/crypto/secretBox";
 import { registerSetupRoutes } from "./routes/dashboard/setup";
 import { DbClientI } from "./health/dbClientI";
+import { InstanceMode } from "../services/licensing/resolveEntitlement";
+import { resolveInstanceMode } from "../services/licensing/instanceMode";
 import {
   AnalyticsService,
   NoOpAnalytics,
@@ -116,6 +118,9 @@ export type AppServerDeps = {
   // Read-through cache for flag evaluation. Defaults to an in-memory cache;
   // inject a RedisFlagCache to share the cache across instances.
   flagCache?: FlagCacheI;
+  // Whether this is the hosted SaaS or a licensed self-hosted install.
+  // Defaults to reading the environment; injected in tests.
+  instanceMode?: InstanceMode;
 };
 
 export function createAppServer(deps: AppServerDeps): FastifyInstance {
@@ -133,6 +138,16 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     analytics = new NoOpAnalytics(),
     flagCache = new InMemoryFlagCache(),
   } = deps;
+
+  // Self-hosted installs are governed by their license rather than by Stripe.
+  const licensing = resolveInstanceMode(process.env);
+  const instanceMode = deps.instanceMode ?? licensing.mode;
+  if (licensing.licenseError) {
+    // Surfaced but never fatal — see resolveInstanceMode.
+    console.warn(
+      `GitLaunch license was not honoured: ${licensing.licenseError}`,
+    );
+  }
 
   assertEncryptionKey();
 
@@ -173,6 +188,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     repositoryRepository,
     serviceRepository,
     membershipRepository,
+    instanceMode,
   );
   const trialService = new TrialService(
     accountRepository,
@@ -227,8 +243,11 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     sessionService,
   });
 
-  // Billing services and routes (only if Stripe is configured)
-  const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+  // Billing services and routes. Never registered on a self-hosted install:
+  // entitlement there comes from the license, so a checkout flow would be both
+  // meaningless and a way to grant plan limits we did not sell.
+  const stripeSecretKey =
+    instanceMode.kind === "saas" ? process.env.STRIPE_SECRET_KEY : undefined;
   if (stripeSecretKey) {
     const stripeApiClient = new StripeApiClient(stripeSecretKey);
     const stripeService = new StripeService(stripeApiClient, {

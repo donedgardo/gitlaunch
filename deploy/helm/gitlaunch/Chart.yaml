@@ -1,0 +1,23 @@
+apiVersion: v2
+name: gitlaunch
+description: Self-hosted GitLaunch — deployment management, feature flags and A/B testing inside your own infrastructure
+type: application
+# Chart version. Bumped independently of the application version.
+version: 0.1.0
+# Default application version; overridden by image.tag.
+appVersion: "1.0.0"
+kubeVersion: ">=1.23.0-0"
+home: https://github.com/donedgardo/launchpad
+sources:
+  - https://github.com/donedgardo/launchpad
+keywords:
+  - deployment
+  - feature-flags
+  - ab-testing
+  - self-hosted
+maintainers:
+  - name: GitLaunch
+annotations:
+  # No cloud-specific resources: the chart targets any conformant Kubernetes,
+  # including k3s, RKE2, OpenShift and air-gapped clusters.
+  category: DeveloperTools

@@ -1,0 +1,37 @@
+GitLaunch {{ .Chart.AppVersion }} is installing as {{ include "gitlaunch.fullname" . }}.
+
+Reach it at:
+{{- if .Values.ingress.enabled }}
+{{- range .Values.ingress.hosts }}
+  http{{ if $.Values.ingress.tls }}s{{ end }}://{{ .host }}
+{{- end }}
+{{- else }}
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "gitlaunch.fullname" . }} 8080:{{ .Values.service.port }}
+  then open http://localhost:8080
+{{- end }}
+
+Check it came up:
+  kubectl -n {{ .Release.Namespace }} rollout status deploy/{{ include "gitlaunch.fullname" . }}
+
+{{- if not .Values.secrets.licenseKey }}
+{{- if not .Values.secrets.existingSecret }}
+
+WARNING: no license key is set, so this instance is running UNLICENSED.
+  It will serve what already exists, but blocks creating new services,
+  repositories, users and environments. Set secrets.licenseKey to activate it.
+{{- end }}
+{{- end }}
+
+{{- if contains "gitlaunch.example.com" .Values.config.publicUrl }}
+
+WARNING: config.publicUrl is still the example value. OAuth callbacks and
+  emailed links are built from it, so sign-in will fail until it matches the
+  URL your users actually reach.
+{{- end }}
+
+{{- if and (gt (int .Values.replicaCount) 1) (not .Values.config.redisUrl) }}
+
+NOTE: running {{ .Values.replicaCount }} replicas without config.redisUrl. Feature
+  flags fall back to a per-replica in-memory cache, so a flag change reaches
+  each pod as its own cache expires rather than fleet-wide at once.
+{{- end }}

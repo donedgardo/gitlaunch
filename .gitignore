@@ -46,3 +46,9 @@ src/public/css/main.css
 !.claude/skills/
 test-results/
 playwright-report/
+
+# Terraform working files (deploy/terraform is a module, not a root config)
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
