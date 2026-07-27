@@ -32,7 +32,7 @@ helm install gitlaunch ./deploy/helm/gitlaunch \
   --set secrets.mongodbUri='mongodb://user:pass@mongo:27017/gitlaunch' \
   --set secrets.cookieSecret="$(openssl rand -base64 32)" \
   --set secrets.encryptionKey="$(openssl rand -base64 32)" \
-  --set secrets.licenseKey='<your license key>' \
+  --set secrets.licenseKey='<the license key issued to you>' \
   --set ingress.enabled=true \
   --set ingress.hosts[0].host=gitlaunch.acme.com
 ```
@@ -64,19 +64,16 @@ available for decryption while new writes use the primary.
 
 ## Licensing
 
-A self-hosted instance is entitled by a signed license key, not by Stripe. The
-key is an Ed25519-signed token: the image ships the _public_ key, so an instance
-can verify a license but cannot mint one. **Nothing phones home** — verification
-is entirely local, which is what lets GitLaunch run in an air-gapped
-datacentre.
+Your instance is entitled by the signed license key issued with your
+subscription. It is an Ed25519-signed token that this build verifies against the
+issuer key compiled into the image. **Nothing phones home** — verification is
+entirely local, which is what lets GitLaunch run in an air-gapped datacentre.
 
-Setting `config.selfHosted: true` (the chart default) changes behaviour:
+What your license governs:
 
-- Per-resource SaaS tier limits stop applying. Repositories, services and
-  environments are unmetered — you bought the software, not a tier.
-- **Seats are still metered**, at the number your license sold.
-- Trial countdowns, payment-failure warnings and read-only downgrades never
-  appear. There is no Stripe in the loop.
+- Repositories, services and environments are **unmetered**. You bought the
+  software, not a usage tier.
+- **Seats are metered** at the number your license sold.
 
 ### When a license is missing or expired
 
@@ -84,11 +81,13 @@ The instance keeps serving everything that already exists, and blocks the
 creation of new services, repositories, users and environments. It does **not**
 go read-only and does **not** stop deployments.
 
-This is deliberate. A licensing disagreement must never take a customer's
-production pipeline down, and an install that crash-loops on expiry is an outage
-we inflicted on someone who paid us. A bad license is logged at boot and the
-instance starts anyway — an operator can fix a license from a running dashboard,
-but not from a crash loop.
+This is deliberate: a lapsed renewal must never take your production pipeline
+down. A rejected license is logged at boot as
+`GitLaunch license was not honoured: <reason>` and the instance starts anyway —
+you can fix a license from a running dashboard, not from a crash loop.
+
+To apply a renewed license, update `GITLAUNCH_LICENSE_KEY` in your Secret and
+restart the deployment.
 
 ---
 

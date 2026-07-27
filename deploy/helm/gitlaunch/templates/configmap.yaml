@@ -8,7 +8,6 @@ data:
   PUBLIC_URL: {{ .Values.config.publicUrl | quote }}
   PORT: {{ .Values.config.port | quote }}
   NODE_ENV: "production"
-  GITLAUNCH_SELF_HOSTED: {{ .Values.config.selfHosted | quote }}
   ANALYTICS_WAREHOUSE: {{ .Values.config.analyticsWarehouse | quote }}
   {{- with .Values.config.analyticsRetentionDays }}
   ANALYTICS_RETENTION_DAYS: {{ . | quote }}

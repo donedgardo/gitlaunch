@@ -1,16 +1,9 @@
 import { InstanceMode } from "./resolveEntitlement";
 import { verifyLicenseKey } from "./licenseKey";
-
-// The Ed25519 public key of the GitLaunch license issuer, baked into official
-// release builds. Empty here so an unconfigured build cannot honour any
-// license; distribution builds set it, and `GITLAUNCH_LICENSE_PUBLIC_KEY`
-// overrides it for testing and for customers running their own issuer.
-const ISSUER_PUBLIC_KEY = "";
+import { BUILD, BuildIdentity } from "./distribution";
 
 export type LicensingEnv = {
-  GITLAUNCH_SELF_HOSTED?: string;
   GITLAUNCH_LICENSE_KEY?: string;
-  GITLAUNCH_LICENSE_PUBLIC_KEY?: string;
   // Index signature so process.env can be passed straight in.
   [key: string]: string | undefined;
 };
@@ -22,24 +15,26 @@ export type ResolvedInstanceMode = {
   licenseError: string | null;
 };
 
-export function resolveInstanceMode(env: LicensingEnv): ResolvedInstanceMode {
-  // Self-hosting is opt-in and explicit. A stray license variable must never be
-  // able to switch billing off on the hosted product.
-  if (env.GITLAUNCH_SELF_HOSTED !== "true") {
+export function resolveInstanceMode(
+  env: LicensingEnv,
+  build: BuildIdentity = BUILD,
+): ResolvedInstanceMode {
+  // Which distribution this is comes from the build, never from the
+  // environment — see distribution.ts.
+  if (build.distribution === "saas") {
     return { mode: { kind: "saas" }, licenseError: null };
   }
 
+  // The license key is the one thing the operator legitimately supplies: it is
+  // useless without our signature, so there is no harm in it being an env var.
   const key = env.GITLAUNCH_LICENSE_KEY?.trim();
   if (!key) {
-    return {
-      mode: { kind: "self-hosted", license: null },
-      licenseError: null,
-    };
+    return { mode: { kind: "self-hosted", license: null }, licenseError: null };
   }
 
-  const publicKey =
-    env.GITLAUNCH_LICENSE_PUBLIC_KEY?.trim() || ISSUER_PUBLIC_KEY;
-  const result = verifyLicenseKey(key, publicKey);
+  // Verified against the key compiled into this image. Nothing in the
+  // environment can change what we trust.
+  const result = verifyLicenseKey(key, build.issuerPublicKey);
   if (!result.valid) {
     // Never fail the boot on a bad license. An operator can fix a license from
     // a running dashboard but not from a crash loop, and an install that dies

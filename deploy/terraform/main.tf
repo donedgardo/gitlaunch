@@ -43,17 +43,16 @@ resource "kubernetes_secret_v1" "gitlaunch" {
   # than being written as empty strings the app would treat as configured.
   data = {
     for k, v in {
-      MONGODB_URI                  = var.mongodb_uri
-      COOKIE_SECRET_SIGNATURE      = var.cookie_secret
-      ENCRYPTION_KEY               = var.encryption_key
-      GITLAUNCH_LICENSE_KEY        = var.license_key
-      GITLAUNCH_LICENSE_PUBLIC_KEY = var.license_public_key
-      GH_APP_ID                    = var.github_app_id
-      GH_APP_CLIENT_ID             = var.github_app_client_id
-      GH_APP_CLIENT_SECRET         = var.github_app_client_secret
-      GH_APP_WEBHOOK_SECRET        = var.github_app_webhook_secret
-      GH_APP_PRIVATE_KEY           = var.github_app_private_key
-      RESEND_API_KEY               = var.resend_api_key
+      MONGODB_URI             = var.mongodb_uri
+      COOKIE_SECRET_SIGNATURE = var.cookie_secret
+      ENCRYPTION_KEY          = var.encryption_key
+      GITLAUNCH_LICENSE_KEY   = var.license_key
+      GH_APP_ID               = var.github_app_id
+      GH_APP_CLIENT_ID        = var.github_app_client_id
+      GH_APP_CLIENT_SECRET    = var.github_app_client_secret
+      GH_APP_WEBHOOK_SECRET   = var.github_app_webhook_secret
+      GH_APP_PRIVATE_KEY      = var.github_app_private_key
+      RESEND_API_KEY          = var.resend_api_key
     } : k => v if v != ""
   }
 
@@ -83,7 +82,6 @@ resource "helm_release" "gitlaunch" {
 
     config = {
       publicUrl          = var.public_url
-      selfHosted         = true
       analyticsWarehouse = var.analytics_warehouse
       redisUrl           = var.redis_url
       emailFrom          = var.email_from

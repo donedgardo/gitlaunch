@@ -243,8 +243,11 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     sessionService,
   });
 
-  // Billing services and routes (only if Stripe is configured)
-  const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+  // Billing services and routes. Never registered on a self-hosted install:
+  // entitlement there comes from the license, so a checkout flow would be both
+  // meaningless and a way to grant plan limits we did not sell.
+  const stripeSecretKey =
+    instanceMode.kind === "saas" ? process.env.STRIPE_SECRET_KEY : undefined;
   if (stripeSecretKey) {
     const stripeApiClient = new StripeApiClient(stripeSecretKey);
     const stripeService = new StripeService(stripeApiClient, {

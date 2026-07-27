@@ -53,9 +53,6 @@ config:
   # are built from it.
   publicUrl: "https://gitlaunch.example.com"
   port: 3050
-  # Marks this as a self-hosted install: entitlement comes from the license
-  # rather than from Stripe, and trial/payment restrictions do not apply.
-  selfHosted: true
   # Persist product analytics into MongoDB for the built-in dashboard.
   analyticsWarehouse: true
   # Optional: expire raw analytics events after N days. Empty keeps them.
@@ -88,9 +85,6 @@ secrets:
   # Issued with your GitLaunch subscription. Without it the instance runs
   # unlicensed: existing resources keep working, new ones are blocked.
   licenseKey: ""
-  # Overrides the license public key baked into the image. Only needed if you
-  # issue your own licenses.
-  licensePublicKey: ""
 
   # GitHub App, for repository integration. Optional — a Jenkins-only install
   # does not need it.

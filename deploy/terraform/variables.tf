@@ -63,13 +63,6 @@ variable "license_key" {
   default     = ""
 }
 
-variable "license_public_key" {
-  description = "Overrides the license issuer public key baked into the image. Only needed if you issue your own licenses."
-  type        = string
-  sensitive   = true
-  default     = ""
-}
-
 # --- Optional integrations --------------------------------------------------
 
 variable "github_app_id" {
