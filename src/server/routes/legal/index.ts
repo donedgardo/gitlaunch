@@ -8,7 +8,7 @@ import { buildPageMeta } from "../../seo/meta";
 //
 // Both documents share one date deliberately: they are revised together, and a
 // single date is one fewer thing to get out of sync.
-export const LEGAL_EFFECTIVE_DATE = "July 25, 2026";
+export const LEGAL_EFFECTIVE_DATE = "July 26, 2026";
 
 type LegalPage = {
   path: string;

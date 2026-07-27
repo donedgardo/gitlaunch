@@ -80,7 +80,7 @@
           own staff or systems, we act as a <strong>data processor</strong> on that customer's
           instructions, and our <a href="/terms">Terms of Service</a> govern that relationship.
         </p>
-        <p>You can reach us about anything in this policy at <a href="mailto:privacy@gitlaunch.dev">privacy@gitlaunch.dev</a>.</p>
+        <p>You can reach us about anything in this policy at <a href="mailto:support@gitlaunch.dev">support@gitlaunch.dev</a>.</p>
       </section>
 
       <section id="scope">
@@ -99,10 +99,33 @@
 
         <h3>Account information</h3>
         <p>
-          You sign in to GitLaunch with GitHub. We request only the <code>user:email</code>
-          scope, and from it we store your GitHub user ID, your GitHub username, your email
-          address, your display name, your avatar URL, and the times your account was created
-          and last used. We never receive your GitHub password.
+          There are three ways into GitLaunch, and what we hold depends on which you use.
+          In every case we store your email address, your display name, your avatar URL
+          where one is available, and the times your account was created and last used.
+        </p>
+        <ul>
+          <li>
+            <strong>Sign in with GitHub.</strong> We request only the <code>user:email</code>
+            scope and store your GitHub user ID and username. We never receive your GitHub
+            password.
+          </li>
+          <li>
+            <strong>Sign in with Google.</strong> We request only the
+            <code>openid email profile</code> scopes — enough to know who you are and reach
+            you — and store the account identifier Google gives us. We never receive your
+            Google password.
+          </li>
+          <li>
+            <strong>Sign in with an email address and a password.</strong> We store your
+            password only as a one-way <strong>bcrypt hash</strong>. We cannot read it,
+            recover it, or tell you what it is, and no one at GitLaunch can. We also store
+            whether your address has been confirmed, and while it has not, a single-use
+            confirmation token that expires after 24 hours.
+          </li>
+        </ul>
+        <p>
+          Signing in with GitHub or Google means those companies learn that you use
+          GitLaunch. Their own privacy policies govern what they do with that.
         </p>
 
         <h3>Deployment and build data</h3>
@@ -168,8 +191,10 @@
             your files, branches, or commit diffs.
           </li>
           <li>
-            <strong>Your GitHub password or personal access tokens for your own account.</strong>
-            Authentication happens at GitHub, and we receive only a scoped token.
+            <strong>Any password in a form we can read.</strong> GitHub and Google
+            authentication happen at those providers, and we receive only a scoped token —
+            never a password. Where you set a password with us directly, we keep only a
+            bcrypt hash of it, which cannot be reversed into the original.
           </li>
           <li><strong>Your payment card details.</strong> Those exist between you and Stripe.</li>
           <li>
@@ -224,6 +249,7 @@
             <tr><td>Bill you and keep tax records</td><td>Contract; legal obligation</td></tr>
             <tr><td>Keep the service secure, prevent abuse, and investigate incidents</td><td>Legitimate interests — running a service that is not compromised</td></tr>
             <tr><td>Understand product usage and improve GitLaunch</td><td>Legitimate interests — improving a product people rely on, using first-party data only</td></tr>
+            <tr><td>Confirm that an email address used to sign up belongs to you</td><td>Contract; legitimate interests — stopping someone opening an account in your name</td></tr>
             <tr><td>Send you service and account notices you cannot opt out of while you hold an account (security, billing, breaking changes)</td><td>Contract</td></tr>
             <tr><td>Email you about the waitlist and product news</td><td>Consent, given when you submit the waitlist form — withdrawable at any time</td></tr>
             <tr><td>Test which landing-page wording explains the product better</td><td>Legitimate interests — measuring our own marketing with a short-lived, first-party identifier</td></tr>
@@ -256,6 +282,8 @@
             <tr><td>MongoDB Atlas</td><td>Our database</td><td>Everything we store, encrypted at rest</td></tr>
             <tr><td>Stripe</td><td>Payments and subscriptions</td><td>Your billing details and payment method</td></tr>
             <tr><td>GitHub</td><td>Sign-in and deployment triggering</td><td>Your GitHub identity and the workflow runs we start</td></tr>
+            <tr><td>Google</td><td>Sign-in, if you choose it</td><td>That you signed in, and the profile you agreed to share</td></tr>
+            <tr><td>Resend</td><td>Sends transactional email — address confirmation and account notices</td><td>Your email address and the contents of the message we send you</td></tr>
             <tr><td>Our hosting provider</td><td>Runs the application</td><td>Traffic and operational logs</td></tr>
           </tbody>
         </table>
@@ -302,6 +330,7 @@
             <tr><td>Account and profile data</td><td>While your account is open, then deleted within 30 days of closure</td></tr>
             <tr><td>Deployment and build history</td><td>While your account is open, then deleted with the account</td></tr>
             <tr><td>Integration credentials</td><td>Until you disconnect the integration or close the account, then deleted</td></tr>
+            <tr><td>Email confirmation tokens</td><td>24 hours, then expired and unusable</td></tr>
             <tr><td>Billing and tax records</td><td>Seven years from the transaction, as US and Puerto Rico tax law requires</td></tr>
             {{!-- TODO(legal): this 24-month promise is enforced by the TTL index in
                  analyticsEventRepository, which only exists when ANALYTICS_RETENTION_DAYS
@@ -322,7 +351,8 @@
         <ul>
           <li>All traffic to GitLaunch is encrypted in transit with TLS.</li>
           <li>Integration credentials are encrypted at rest with authenticated encryption, under a key that is not stored in the database. Key rotation is supported without downtime.</li>
-          <li>API keys are stored only as bcrypt hashes and cannot be recovered — only replaced.</li>
+          <li>API keys and account passwords are stored only as bcrypt hashes and cannot be recovered — only replaced or reset.</li>
+          <li>Email confirmation tokens are 32 bytes from a cryptographically secure random source, are single-use, and expire after 24 hours.</li>
           <li>Session cookies are <code>HttpOnly</code> and <code>SameSite</code>-restricted; the sign-in flow is protected against cross-site request forgery.</li>
           <li>Every query is scoped to an account, so one customer's data cannot be reached from another's session.</li>
           <li>Access to production data is limited to personnel who need it to operate the service.</li>
@@ -350,7 +380,7 @@
           <li><strong>Non-discrimination</strong> — we will not degrade your service or change your price because you exercised a right.</li>
         </ul>
         <p>
-          To exercise any of these, email <a href="mailto:privacy@gitlaunch.dev">privacy@gitlaunch.dev</a>.
+          To exercise any of these, email <a href="mailto:support@gitlaunch.dev">support@gitlaunch.dev</a>.
           We will verify your request against the email on your account and respond within
           <strong>30 days</strong>, or tell you why we need longer. This is free of charge. You may
           use an authorised agent where the law allows it.
@@ -409,8 +439,8 @@
         <h2>Contact us</h2>
         {{!-- TODO(legal): add the registered mailing address here. --}}
         <p>
-          Privacy questions and rights requests: <a href="mailto:privacy@gitlaunch.dev">privacy@gitlaunch.dev</a><br />
-          Everything else: <a href="mailto:support@gitlaunch.dev">support@gitlaunch.dev</a>
+          Privacy questions, rights requests, and everything else:
+          <a href="mailto:support@gitlaunch.dev">support@gitlaunch.dev</a>
         </p>
         <p>GitLaunch LLC, Commonwealth of Puerto Rico, United States.</p>
       </section>
