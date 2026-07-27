@@ -1,11 +1,11 @@
-{{! Experiment results panel — per-variant conversion rates for one flag plus
-    the decision (can this be called yet?), loaded on demand via HTMX and
-    swapped into the flag card. }}
+{{! Experiment results panel — one section per environment the experiment ran
+    in, each with its own per-variant rates and its own decision (can this be
+    called yet?). Loaded on demand via HTMX and swapped into the flag card.
+    Environments are parallel, so none of them is "the" result. }}
 <div class="border-t border-gray-200 dark:border-gray-700 px-6 py-4 bg-gray-50 dark:bg-gray-900/40">
   <div class="flex items-center justify-between mb-3">
     <h3 class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
       Experiment results
-      <span class="font-mono normal-case text-gray-400">· {{environment}}</span>
     </h3>
   </div>
 
@@ -14,53 +14,61 @@
     Experiment metrics are not enabled for this deployment.
   </p>
   {{else if hasData}}
-  {{#if decision}}
-  <div class="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1" data-testid="experiment-decision">
-    <span class="inline-flex items-center rounded px-2 py-0.5 text-xs font-semibold uppercase tracking-wide
-      {{#if (eq decision.tone "ship")}}bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-200{{/if}}
-      {{#if (eq decision.tone "control")}}bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200{{/if}}
-      {{#if (eq decision.tone "running")}}bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200{{/if}}
-      {{#if (eq decision.tone "none")}}bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300{{/if}}">
-      {{decision.label}}
-    </span>
-    <span class="text-xs text-gray-500 dark:text-gray-400">{{decision.detail}}</span>
-  </div>
-  {{/if}}
+  <div class="space-y-5" data-testid="experiment-environments">
+    {{#each environments}}
+    <section data-env="{{environment}}">
+      <h4 class="mb-2 font-mono text-xs text-gray-600 dark:text-gray-300">{{environment}}</h4>
 
-  <div class="mb-3 flex gap-6 text-xs text-gray-500 dark:text-gray-400">
-    <span>Exposures <span class="font-semibold text-gray-700 dark:text-gray-200 tabular-nums">{{totals.exposures}}</span></span>
-    <span>Conversions <span class="font-semibold text-gray-700 dark:text-gray-200 tabular-nums">{{totals.conversions}}</span></span>
-    <span>Overall rate <span class="font-semibold text-gray-700 dark:text-gray-200 tabular-nums">{{totals.conversionRatePct}}%</span></span>
-  </div>
-  <ul class="space-y-3" data-testid="experiment-variants">
-    {{#each variants}}
-    <li>
-      <div class="flex items-center justify-between text-sm mb-1">
-        <span class="font-mono text-gray-700 dark:text-gray-300 truncate mr-2">
-          {{variant}}
-          {{#if isBaseline}}<span class="ml-1 font-sans text-xs uppercase tracking-wide text-gray-400">baseline</span>{{/if}}
+      {{#if decision}}
+      <div class="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1" data-testid="experiment-decision">
+        <span class="inline-flex items-center rounded px-2 py-0.5 text-xs font-semibold uppercase tracking-wide
+          {{#if (eq decision.tone "ship")}}bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-200{{/if}}
+          {{#if (eq decision.tone "control")}}bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200{{/if}}
+          {{#if (eq decision.tone "running")}}bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200{{/if}}
+          {{#if (eq decision.tone "none")}}bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300{{/if}}">
+          {{decision.label}}
         </span>
-        <span class="text-gray-500 dark:text-gray-400 tabular-nums">
-          {{conversions}}/{{exposures}} · <span class="font-semibold text-gray-700 dark:text-gray-200">{{conversionRatePct}}%</span>
-        </span>
+        <span class="text-xs text-gray-500 dark:text-gray-400">{{decision.detail}}</span>
       </div>
-      <div class="h-2 rounded bg-gray-100 dark:bg-gray-700 overflow-hidden" role="img" aria-label="{{variant}} conversion rate {{conversionRatePct}}%">
-        <div class="h-full {{#if significant}}bg-emerald-500 dark:bg-emerald-400{{else}}bg-gray-400 dark:bg-gray-500{{/if}} rounded" style="width: {{barPct}}%"></div>
+      {{/if}}
+
+      <div class="mb-3 flex gap-6 text-xs text-gray-500 dark:text-gray-400">
+        <span>Exposures <span class="font-semibold text-gray-700 dark:text-gray-200 tabular-nums">{{totals.exposures}}</span></span>
+        <span>Conversions <span class="font-semibold text-gray-700 dark:text-gray-200 tabular-nums">{{totals.conversions}}</span></span>
+        <span>Overall rate <span class="font-semibold text-gray-700 dark:text-gray-200 tabular-nums">{{totals.conversionRatePct}}%</span></span>
       </div>
-      {{#unless isBaseline}}
-      <p class="mt-1 text-xs text-gray-500 dark:text-gray-400 tabular-nums">
-        {{#if liftPct}}{{liftPct}}%{{else}}{{absoluteLiftPts}} pts{{/if}} vs baseline
-        {{#if confidencePct}}· {{confidencePct}}% confidence{{/if}}
-        · {{#if significant}}<span class="text-emerald-600 dark:text-emerald-400">significant</span>{{else}}not significant{{/if}}
-      </p>
-      {{/unless}}
-    </li>
+      <ul class="space-y-3" data-testid="experiment-variants">
+        {{#each variants}}
+        <li>
+          <div class="flex items-center justify-between text-sm mb-1">
+            <span class="font-mono text-gray-700 dark:text-gray-300 truncate mr-2">
+              {{variant}}
+              {{#if isBaseline}}<span class="ml-1 font-sans text-xs uppercase tracking-wide text-gray-400">baseline</span>{{/if}}
+            </span>
+            <span class="text-gray-500 dark:text-gray-400 tabular-nums">
+              {{conversions}}/{{exposures}} · <span class="font-semibold text-gray-700 dark:text-gray-200">{{conversionRatePct}}%</span>
+            </span>
+          </div>
+          <div class="h-2 rounded bg-gray-100 dark:bg-gray-700 overflow-hidden" role="img" aria-label="{{variant}} conversion rate {{conversionRatePct}}%">
+            <div class="h-full {{#if significant}}bg-emerald-500 dark:bg-emerald-400{{else}}bg-gray-400 dark:bg-gray-500{{/if}} rounded" style="width: {{barPct}}%"></div>
+          </div>
+          {{#unless isBaseline}}
+          <p class="mt-1 text-xs text-gray-500 dark:text-gray-400 tabular-nums">
+            {{#if liftPct}}{{liftPct}}%{{else}}{{absoluteLiftPts}} pts{{/if}} vs baseline
+            {{#if confidencePct}}· {{confidencePct}}% confidence{{/if}}
+            · {{#if significant}}<span class="text-emerald-600 dark:text-emerald-400">significant</span>{{else}}not significant{{/if}}
+          </p>
+          {{/unless}}
+        </li>
+        {{/each}}
+      </ul>
+    </section>
     {{/each}}
-  </ul>
+  </div>
   {{else}}
   <p class="text-sm text-gray-500 dark:text-gray-400 py-2">
-    No exposures recorded in the last 30 days. Evaluate this flag in
-    <span class="font-mono">{{environment}}</span> and record conversions to see results.
+    No exposures recorded in the last 30 days, in any environment. Evaluate this
+    flag and record conversions to see results.
   </p>
   {{/if}}
 </div>

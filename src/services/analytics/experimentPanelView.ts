@@ -68,6 +68,30 @@ export type ExperimentPanelView = {
 // default so the copy can never drift from the number it explains.
 const RELATIVE_MDE_LABEL = `${Math.round(DEFAULT_RELATIVE_MDE * 100)}%`;
 
+export type ExperimentPanelsView = {
+  flagKey: string;
+  hasData: boolean;
+  environments: ExperimentPanelView[];
+};
+
+/**
+ * One panel per environment the experiment ran in. Environments are parallel
+ * rather than a promotion ladder, so no single one is "the" result — and each
+ * is judged on its own evidence, since an experiment can be callable in one
+ * environment while still too young in another.
+ */
+export function toExperimentPanelsView(
+  flagKey: string,
+  resultsByEnvironment: ExperimentPanelInput[],
+): ExperimentPanelsView {
+  const environments = resultsByEnvironment.map(toExperimentPanelView);
+  return {
+    flagKey,
+    hasData: environments.some((e) => e.hasData),
+    environments,
+  };
+}
+
 export function toExperimentPanelView(
   results: ExperimentPanelInput,
 ): ExperimentPanelView {

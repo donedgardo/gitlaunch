@@ -11,7 +11,7 @@ import { AnalyticsService } from "../../../services/analytics/analytics";
 import { actor } from "../../../services/analytics/actorIdentity";
 import { ApiKeyService } from "../../../services/apiKey/apiKeyService";
 import { ExperimentResultsService } from "../../../services/flag/experimentResultsService";
-import { toExperimentPanelView } from "../../../services/analytics/experimentPanelView";
+import { toExperimentPanelsView } from "../../../services/analytics/experimentPanelView";
 
 export type FlagsSettingsDeps = {
   serviceRepository: ServiceRepository;
@@ -444,31 +444,29 @@ export function registerFlagsSettingsRoutes(
         return reply.status(404).send("Flag not found");
       }
 
-      const envNames = envNamesOf(service);
-      const environment = envNames[envNames.length - 1] ?? "prod";
-
       if (!experimentResults) {
         return reply.view("partials/experimentResults", {
           disabled: true,
           flagKey: key,
-          environment,
         });
       }
 
+      // No environment is named: environments run in parallel, so an experiment
+      // may be live in any of them, and the panel reports every one that has
+      // data rather than guessing at a "final" one.
       const to = new Date();
       const from = new Date(to.getTime() - RESULTS_WINDOW_MS);
-      const results = await experimentResults.getResults({
+      const results = await experimentResults.getResultsByEnvironment({
         accountId,
         serviceId: service._id,
         flagKey: key,
-        environment,
         from,
         to,
       });
 
       return reply.view(
         "partials/experimentResults",
-        toExperimentPanelView(results),
+        toExperimentPanelsView(key, results),
       );
     },
   );

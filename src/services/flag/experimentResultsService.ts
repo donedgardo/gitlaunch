@@ -10,6 +10,10 @@ export type ExperimentResultsQuery = {
   to: Date;
 };
 
+// Environments are parallel, not a promotion ladder, so an experiment may be
+// running in any of them — or several at once. This query names none.
+export type AllEnvironmentsQuery = Omit<ExperimentResultsQuery, "environment">;
+
 export type VariantResult = {
   variant: string;
   exposures: number;
@@ -53,9 +57,46 @@ export class ExperimentResultsService {
   }
 
   async getResults(params: ExperimentResultsQuery): Promise<ExperimentResults> {
-    const rows = await this.collection
+    const rows = await this.tally(params, params.environment);
+    const byEnvironment = this.foldByEnvironment(params.flagKey, rows);
+
+    // An experiment with no events still reports as an empty result for the
+    // environment that was asked about.
+    return (
+      byEnvironment.get(params.environment) ??
+      this.buildResults(params.flagKey, params.environment, new Map())
+    );
+  }
+
+  /**
+   * Results for every environment this experiment has run in, each tallied
+   * independently. Environments are discovered from the events themselves
+   * rather than from the flag's current config, so an environment that was
+   * renamed or removed still reports the traffic it collected.
+   *
+   * Deliberately NOT pooled into a single figure: environments differ in
+   * traffic mix, so combining them invites Simpson's paradox. Each is a
+   * separate experiment and gets its own verdict.
+   */
+  async getResultsByEnvironment(
+    params: AllEnvironmentsQuery,
+  ): Promise<ExperimentResults[]> {
+    const rows = await this.tally(params);
+    const results = [...this.foldByEnvironment(params.flagKey, rows).values()];
+
+    // Busiest environment first; stable tie-break by name.
+    results.sort(
+      (a, b) =>
+        b.totals.exposures - a.totals.exposures ||
+        a.environment.localeCompare(b.environment),
+    );
+    return results;
+  }
+
+  private async tally(params: AllEnvironmentsQuery, environment?: string) {
+    return this.collection
       .aggregate<{
-        _id: { variant: string | null; event: string };
+        _id: { environment: string; variant: string | null; event: string };
         entities: number;
       }>([
         {
@@ -64,15 +105,18 @@ export class ExperimentResultsService {
             event: { $in: [EXPOSURE_EVENT, CONVERSION_EVENT] },
             "properties.serviceId": params.serviceId.toString(),
             "properties.flagKey": params.flagKey,
-            "properties.environment": params.environment,
+            ...(environment === undefined
+              ? {}
+              : { "properties.environment": environment }),
             timestamp: { $gte: params.from, $lt: params.to },
           },
         },
-        // Collapse to unique (variant, event, entity) first so each entity is
-        // counted at most once per variant/event, then tally the entities.
+        // Collapse to unique (environment, variant, event, entity) first so each
+        // entity is counted at most once per variant/event, then tally them.
         {
           $group: {
             _id: {
+              environment: "$properties.environment",
               variant: "$properties.variant",
               event: "$event",
               distinctId: "$distinctId",
@@ -81,19 +125,34 @@ export class ExperimentResultsService {
         },
         {
           $group: {
-            _id: { variant: "$_id.variant", event: "$_id.event" },
+            _id: {
+              environment: "$_id.environment",
+              variant: "$_id.variant",
+              event: "$_id.event",
+            },
             entities: { $sum: 1 },
           },
         },
       ])
       .toArray();
+  }
 
-    // Fold the (variant, event) rows into per-variant exposure/conversion pairs.
-    const byVariant = new Map<
+  // Fold the (environment, variant, event) rows into one result per environment.
+  private foldByEnvironment(
+    flagKey: string,
+    rows: Array<{
+      _id: { environment: string; variant: string | null; event: string };
+      entities: number;
+    }>,
+  ): Map<string, ExperimentResults> {
+    const byEnvironment = new Map<
       string,
-      { exposures: number; conversions: number }
+      Map<string, { exposures: number; conversions: number }>
     >();
+
     for (const row of rows) {
+      const environment = row._id.environment;
+      const byVariant = byEnvironment.get(environment) ?? new Map();
       const label = this.variantLabel(row._id.variant);
       const entry = byVariant.get(label) ?? { exposures: 0, conversions: 0 };
       if (row._id.event === EXPOSURE_EVENT) {
@@ -102,8 +161,24 @@ export class ExperimentResultsService {
         entry.conversions += row.entities;
       }
       byVariant.set(label, entry);
+      byEnvironment.set(environment, byVariant);
     }
 
+    const results = new Map<string, ExperimentResults>();
+    for (const [environment, byVariant] of byEnvironment) {
+      results.set(
+        environment,
+        this.buildResults(flagKey, environment, byVariant),
+      );
+    }
+    return results;
+  }
+
+  private buildResults(
+    flagKey: string,
+    environment: string,
+    byVariant: Map<string, { exposures: number; conversions: number }>,
+  ): ExperimentResults {
     const variants: VariantResult[] = [...byVariant.entries()].map(
       ([variant, { exposures, conversions }]) => ({
         variant,
@@ -122,8 +197,8 @@ export class ExperimentResultsService {
     const totalConversions = variants.reduce((s, v) => s + v.conversions, 0);
 
     return {
-      flagKey: params.flagKey,
-      environment: params.environment,
+      flagKey,
+      environment,
       variants,
       totals: {
         exposures: totalExposures,
