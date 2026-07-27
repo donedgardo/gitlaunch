@@ -44,7 +44,7 @@ const CONTROL_NAMES = ["control", "(control)"];
 
 // Default effect size worth detecting: a 20% relative change in the baseline
 // conversion rate. Used to answer "is this experiment simply too young?".
-const DEFAULT_RELATIVE_MDE = 0.2;
+export const DEFAULT_RELATIVE_MDE = 0.2;
 
 // Fallback absolute effect size when the baseline has never converted, since a
 // relative target off a zero rate would demand infinite traffic.

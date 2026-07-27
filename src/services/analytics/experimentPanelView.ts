@@ -1,4 +1,4 @@
-import { analyzeExperiment } from "./experimentAnalysis";
+import { analyzeExperiment, DEFAULT_RELATIVE_MDE } from "./experimentAnalysis";
 
 /**
  * Presents experiment tallies as the customer-facing results panel: the same
@@ -64,9 +64,9 @@ export type ExperimentPanelView = {
   decision?: ExperimentPanelDecision;
 };
 
-// The effect size the shortfall is quoted against, mirroring the default in
-// analyzeExperiment so the copy and the number agree.
-const RELATIVE_MDE_LABEL = "20%";
+// The effect size the shortfall is quoted against. Derived from the analysis
+// default so the copy can never drift from the number it explains.
+const RELATIVE_MDE_LABEL = `${Math.round(DEFAULT_RELATIVE_MDE * 100)}%`;
 
 export function toExperimentPanelView(
   results: ExperimentPanelInput,
