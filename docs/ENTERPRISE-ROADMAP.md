@@ -3,16 +3,16 @@
 Work needed to actually sell and support self-hosted GitLaunch, decomposed so separate
 agents can pick up workstreams in parallel without colliding.
 
-**Gate:** PR #43 (`feat/self-hosted-distribution`) must merge first. It carries the
-entitlement seam, the build-time distribution identity, and the chart. Everything below
-assumes it exists. PR #44 is the docs (runbook + self-hosting guide).
+**Gate: cleared.** PR #43 is merged — the entitlement seam, the build-time distribution
+identity and the Helm chart are on `main`, so every workstream below is unblocked and wave 1
+can start now. PR #44 adds the delivery runbook and self-hosting guide.
 
 ---
 
 ## Sequencing
 
 ```
-        merge #43  (entitlement + distribution build + chart)
+    #43 MERGED — entitlement + distribution build + chart on main
               │
    ┌──────────┼──────────┬──────────────┬──────────────┐
    │          │          │              │              │
