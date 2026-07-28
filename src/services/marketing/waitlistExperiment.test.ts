@@ -10,6 +10,7 @@ import {
   WAITLIST_EXPOSURE_EVENT,
   WAITLIST_CONVERSION_EVENT,
   WAITLIST_FLAG_KEY,
+  WaitlistCopy,
 } from "./waitlistExperiment";
 
 // Records analytics calls (including the warehouse context arg) so we can assert
@@ -72,12 +73,14 @@ function makeExperiment(
   analytics: AnalyticsService,
   overrides: Partial<{ serviceId?: ObjectId; environment: string }> = {},
   services: FakeServices = new FakeServices(ACCOUNT),
+  variants?: Record<string, WaitlistCopy>,
 ) {
   return new WaitlistExperiment(
     flags as FlagServiceI,
     services as unknown as ServiceRepository,
     analytics,
     { serviceId: SERVICE, environment: "prod", ...overrides },
+    ...(variants ? [variants] : []),
   );
 }
 
@@ -218,7 +221,15 @@ describe("WaitlistExperiment", () => {
           reason: "variant",
         },
       ]);
-      const experiment = makeExperiment(flags, analytics);
+      // A live, two-arm experiment — exposures are only worth recording when
+      // there is something to compare them against.
+      const experiment = makeExperiment(flags, analytics, {}, undefined, {
+        control: WaitlistExperiment.controlCopy(),
+        "benefit-led": {
+          ...WaitlistExperiment.controlCopy(),
+          heroCta: "Challenger CTA →",
+        },
+      });
       const resolved = await experiment.resolve("visitor-1");
 
       await experiment.recordExposure("visitor-1", resolved);
