@@ -10,6 +10,7 @@ import {
 import { analyzeExperiment, ExperimentAnalysis } from "./experimentAnalysis";
 import { InsightsReport } from "./insightsReport";
 import { ProductUsageService, UsageInterval } from "./productUsageService";
+import { InternalTraffic } from "./internalTraffic";
 
 export type InsightsQuery = {
   from: Date;
@@ -48,9 +49,14 @@ export class InsightsService {
   private usage: ProductUsageService;
   private experiments: ExperimentResultsService;
 
-  constructor(private db: Db) {
-    this.campaigns = new CampaignAnalyticsService(db);
-    this.usage = new ProductUsageService(db);
+  constructor(
+    private db: Db,
+    // Read from the environment by default: the briefing is the one place that
+    // should never quietly count our own traffic as customers'.
+    internal: InternalTraffic = InternalTraffic.fromEnv(),
+  ) {
+    this.campaigns = new CampaignAnalyticsService(db, internal);
+    this.usage = new ProductUsageService(db, internal);
     this.experiments = new ExperimentResultsService(db);
   }
 

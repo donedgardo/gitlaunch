@@ -1,6 +1,7 @@
 import { Collection, Db, ObjectId } from "mongodb";
 import { AnalyticsEvent } from "../../repositories/analyticsEventRepository";
 import { ActorKind, actorMatch, classifyActor } from "./actorIdentity";
+import { InternalTraffic } from "./internalTraffic";
 
 export type UsageInterval = "day" | "week";
 
@@ -36,7 +37,12 @@ export type FunnelStep = {
 export class ProductUsageService {
   private collection: Collection<AnalyticsEvent>;
 
-  constructor(db: Db) {
+  constructor(
+    db: Db,
+    // The team's own dev sessions are the loudest actor in a warehouse this
+    // young — one internal account can be every login and every deploy event.
+    private internal: InternalTraffic = InternalTraffic.fromEnv({}),
+  ) {
     this.collection = db.collection<AnalyticsEvent>("analytics_events");
   }
 
@@ -183,6 +189,7 @@ export class ProductUsageService {
   private rangeMatch(range: UsageRange) {
     const match: Record<string, unknown> = {
       timestamp: { $gte: range.from, $lt: range.to },
+      ...this.internal.excludeMatch(),
     };
     if (range.accountId) match.accountId = range.accountId;
     return match;

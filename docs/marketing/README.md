@@ -42,13 +42,13 @@ Every legitimate signup is **attributed to a campaign** via the UTM parameters c
 
 **Every outbound link must be tagged.** Untagged links are invisible in the data — we can't tell you which campaign a signup came from. Use this UTM scheme, no exceptions:
 
-| Field          | Meaning                                   | Values to use                                                   |
-| -------------- | ----------------------------------------- | --------------------------------------------------------------- |
-| `utm_source`   | Where the link lives                      | `twitter`, `hn`, `reddit`, `devto`, `newsletter`, `producthunt` |
-| `utm_medium`   | Type of placement                         | `social`, `post`, `email`, `referral`, `community`              |
-| `utm_campaign` | The campaign slug                         | e.g. `alpha-launch`                                             |
-| `utm_content`  | Variant, for A/B testing copy or creative | e.g. `fear-angle`, `rollback-angle`                             |
-| `utm_term`     | Optional keyword                          | e.g. `rollback`, `no-platform-team`                             |
+| Field          | Meaning                                   | Values to use                                                               |
+| -------------- | ----------------------------------------- | --------------------------------------------------------------------------- |
+| `utm_source`   | Where the link lives                      | `twitter`, `hn`, `reddit`, `devto`, `newsletter`, `producthunt`, `whatsapp` |
+| `utm_medium`   | Type of placement                         | `social`, `post`, `email`, `referral`, `community`, `dm`                    |
+| `utm_campaign` | The campaign slug                         | e.g. `alpha-launch`                                                         |
+| `utm_content`  | Variant, for A/B testing copy or creative | e.g. `fear-angle`, `rollback-angle`                                         |
+| `utm_term`     | Optional keyword                          | e.g. `rollback`, `no-platform-team`                                         |
 
 **Example tagged URLs** (base: `https://gitlaunch.dev/?...`):
 
@@ -71,11 +71,24 @@ Both events are filed under the account that owns `GITLAUNCH_SERVICE_ID` — the
 
 The question every campaign answers: _which source and which angle produced qualified signups?_ Tagged links are what make that answerable.
 
-## Landing-page A/B test
+## Landing-page A/B test — concluded
 
-Separately from campaign attribution, the landing hero copy is itself A/B tested through GitLaunch's own feature-flag engine (flag `waitlist-hero-copy`, variants `control` and `benefit-led`), with waitlist signups as the conversion goal. Visitors are bucketed by a `gl_vid` cookie; exposures and conversions are tracked as `flag_exposure` / `flag_conversion`.
+The `waitlist-hero-copy` experiment (variants `control` and `benefit-led`) is **stopped**. It never reached a verdict and could not have: at ~125 exposures the two arms sat at 1.7% and 1.6%, and separating a 20% relative change needed roughly **25,000 more exposures per arm**. Two of the three conversions in it were internal form tests.
 
-Keep this axis distinct from `utm_content`: UTM content is the _outbound creative you sent_, the flag variant is the _landing copy the visitor was served_. Setup, testing, and how to read per-variant results are in **[RUNBOOK.md](./RUNBOOK.md)**.
+The `benefit-led` copy — leading with deploy visibility rather than rollback, per [CANVAS-REVIEW-001](../positioning/CANVAS-REVIEW-001.md) — is now the single shipped version. Exposure tracking is off while one arm is live, so `flag_exposure` no longer accumulates rows for this flag; conversions are still recorded, so signups stay attributable.
+
+**Before starting another copy experiment,** check the traffic can support it. At a few hundred visits a week, copy questions are answered faster by talking to people than by splitting them. Add arms in `waitlistExperiment.ts` (plus variant weights on the flag) and tracking resumes on its own.
+
+Keep this axis distinct from `utm_content`: UTM content is the _outbound creative you sent_, the flag variant is the _landing copy the visitor was served_. Setup and how to read per-variant results are in **[RUNBOOK.md](./RUNBOOK.md)**.
+
+## Keeping our own traffic out of the numbers
+
+The team tests its own form and uses its own product against the same warehouse. Set these so reporting doesn't count that as acquisition (see `sample.env`):
+
+- `ANALYTICS_INTERNAL_EMAILS` — our addresses or whole domains. A matching signup is still captured as a lead; its event is stamped `internal` and dropped from campaign reporting.
+- `ANALYTICS_INTERNAL_ACTORS` — literal `distinctId`s (a `gl_vid` cookie, a user id). Applied at query time, so it also excludes events already written.
+
+Unset means nothing is excluded and every event counts, exactly as before.
 
 ## Files
 

@@ -1,5 +1,6 @@
 import { Collection, Db } from "mongodb";
 import { AnalyticsEvent } from "../../repositories/analyticsEventRepository";
+import { InternalTraffic } from "./internalTraffic";
 
 export type AttributionDimension =
   | "campaign"
@@ -41,7 +42,12 @@ const UNTAGGED_MEDIUM = "(none)";
 export class CampaignAnalyticsService {
   private collection: Collection<AnalyticsEvent>;
 
-  constructor(db: Db) {
+  constructor(
+    db: Db,
+    // Our own signups aren't acquisition. Defaults to "exclude nothing" so an
+    // unconfigured deployment reports exactly what it did before.
+    private internal: InternalTraffic = InternalTraffic.fromEnv({}),
+  ) {
     this.collection = db.collection<AnalyticsEvent>("analytics_events");
   }
 
@@ -114,6 +120,7 @@ export class CampaignAnalyticsService {
     return {
       event: SIGNUP_EVENT,
       timestamp: { $gte: range.from, $lt: range.to },
+      ...this.internal.excludeMatch(),
     };
   }
 
