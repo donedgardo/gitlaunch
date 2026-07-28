@@ -8,6 +8,7 @@
     "build": "tsc && yarn tailwind",
     "db:reset": "tsx scripts/reset-db.ts",
     "dev": "concurrently --kill-others \"yarn run server:watch\" \"yarn run tailwind:watch\"",
+    "sdk:build": "tsc -p sdk/tsconfig.json",
     "server:watch": "nodemon -e ts,hbs --exec tsx src/index.ts",
     "tailwind": "yarn tailwindcss -i ./src/styles/input.css -o src/public/css/main.css",
     "tailwind:watch": "yarn run tailwind --watch",

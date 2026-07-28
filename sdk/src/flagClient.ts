@@ -161,7 +161,7 @@ export function createFlagClient(options: FlagClientOptions): FlagClient {
     const pending = inFlight.get(cacheKey);
     if (pending) return pending;
 
-    const load = fetchDecisions(context)
+    const loading = fetchDecisions(context)
       .then((decisions) => {
         cache.set(cacheKey, { decisions, fetchedAt: now() });
         return decisions;
@@ -178,8 +178,8 @@ export function createFlagClient(options: FlagClientOptions): FlagClient {
         inFlight.delete(cacheKey);
       });
 
-    inFlight.set(cacheKey, load);
-    return load;
+    inFlight.set(cacheKey, loading);
+    return loading;
   }
 
   async function decisionFor(

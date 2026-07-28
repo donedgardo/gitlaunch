@@ -370,6 +370,22 @@ describe("Flags Settings Routes", () => {
     expect(response.body).toContain("/services/" + serviceId + "/flags/keys");
   });
 
+  it("shows how to check a flag with the client, not just the raw endpoint", async () => {
+    const response = await app.inject({
+      method: "GET",
+      url: `/services/${serviceId}/flags`,
+      cookies: { session: session() },
+    });
+
+    // A copyable install + first check beats an endpoint the reader still has
+    // to wrap in caching, timeouts and a fallback themselves.
+    expect(response.body).toContain("@gitlaunch/flags");
+    expect(response.body).toContain("createFlagClient");
+    expect(response.body).toContain("isEnabled");
+    // Pre-filled with this service, so the snippet runs as pasted.
+    expect(response.body).toContain(`serviceId: "${serviceId}"`);
+  });
+
   it("mints a read-only (flags:read only) key for the service, shown once", async () => {
     const response = await app.inject({
       method: "POST",
