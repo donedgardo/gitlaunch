@@ -1,0 +1,30 @@
+{
+  "name": "@gitlaunch/flags",
+  "version": "0.1.0",
+  "description": "GitLaunch feature flags, gradual rollouts and A/B experiments — client for browsers and Node",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "keywords": [
+    "feature-flags",
+    "feature-toggles",
+    "ab-testing",
+    "experiments",
+    "gitlaunch"
+  ]
+}

@@ -29,9 +29,16 @@ import { FlagConfigVersionService } from "../../../services/flag/flagConfigVersi
 import { registerFlagsRoutes } from "./flags";
 import { ApiKeyScope } from "../../../repositories/apiKeyRepository";
 
-function createMockApiKeyAuth(
-  getContext: () => { accountId: ObjectId; scopes: ApiKeyScope[] } | null,
-) {
+type MockAuthContext = {
+  accountId: ObjectId;
+  scopes: ApiKeyScope[];
+  kind?: "secret" | "publishable";
+  serviceId?: ObjectId | null;
+  environment?: string | null;
+  allowedOrigins?: string[];
+};
+
+function createMockApiKeyAuth(getContext: () => MockAuthContext | null) {
   return async (request: FastifyRequest, reply: FastifyReply) => {
     // Mirrors the real middleware: a CORS preflight carries no credentials.
     if (request.method === "OPTIONS") return;
@@ -49,8 +56,10 @@ function createMockApiKeyAuth(
       accountId: context.accountId,
       apiKeyId: new ObjectId(),
       scopes: context.scopes,
-      kind: "secret",
-      allowedOrigins: [],
+      kind: context.kind ?? "secret",
+      serviceId: context.serviceId ?? null,
+      environment: context.environment ?? null,
+      allowedOrigins: context.allowedOrigins ?? [],
     };
   };
 }
@@ -75,7 +84,7 @@ describe("Flags API Routes", () => {
 
   let testAccountId: ObjectId;
   let testServiceId: ObjectId;
-  let currentAuthContext: { accountId: ObjectId; scopes: ApiKeyScope[] } | null;
+  let currentAuthContext: MockAuthContext | null;
 
   beforeAll(async () => {
     mongoServer = await MongoMemoryServer.create();
@@ -588,6 +597,80 @@ describe("Flags API Routes", () => {
       };
       const c = await convert("exp", "u1");
       expect(c.statusCode).toBe(403);
+    });
+
+    // A front-end experiment is exposure + conversion. A browser key that can
+    // only do the first half reports 0% for every arm forever, so the results
+    // panel can never call a winner.
+    describe("from the browser", () => {
+      const ORIGIN = "https://app.example.com";
+
+      function browserKey(overrides: Partial<MockAuthContext> = {}) {
+        currentAuthContext = {
+          accountId: testAccountId,
+          scopes: ["flags:evaluate"],
+          kind: "publishable",
+          serviceId: testServiceId,
+          environment: "prod",
+          allowedOrigins: [ORIGIN],
+          ...overrides,
+        };
+      }
+
+      function browserConvert(key: string, entity: string, origin = ORIGIN) {
+        return app.inject({
+          method: "POST",
+          url: `/api/v1/services/${testServiceId}/environments/prod/flags/${key}/conversions`,
+          headers: { ...auth(), origin },
+          payload: { entity },
+        });
+      }
+
+      it("records a conversion for the service and environment it is bound to", async () => {
+        await enableExperiment("exp");
+        const evalRes = await app.inject({
+          method: "GET",
+          url: `/api/v1/services/${testServiceId}/environments/prod/flags/evaluate?entity=web-user`,
+          headers: { ...auth(), origin: ORIGIN },
+        });
+        browserKey();
+        const assigned = JSON.parse(evalRes.body).flags.exp.variant;
+
+        const c = await browserConvert("exp", "web-user");
+        expect(c.statusCode).toBe(201);
+        expect(JSON.parse(c.body).variant).toBe(assigned);
+        expect(c.headers["access-control-allow-origin"]).toBe(ORIGIN);
+      });
+
+      it("refuses a conversion for an environment the key is not bound to", async () => {
+        await enableExperiment("exp");
+        browserKey({ environment: "staging" });
+        const c = await browserConvert("exp", "web-user");
+        expect(c.statusCode).toBe(403);
+      });
+
+      it("refuses a conversion from an origin outside the allow-list", async () => {
+        await enableExperiment("exp");
+        browserKey();
+        const c = await browserConvert("exp", "web-user", "https://evil.test");
+        expect(c.statusCode).toBe(403);
+      });
+
+      it("answers the CORS preflight so the browser will send the conversion", async () => {
+        const preflight = await app.inject({
+          method: "OPTIONS",
+          url: `/api/v1/services/${testServiceId}/environments/prod/flags/exp/conversions`,
+          headers: {
+            origin: ORIGIN,
+            "access-control-request-method": "POST",
+          },
+        });
+        expect(preflight.statusCode).toBe(204);
+        expect(preflight.headers["access-control-allow-origin"]).toBe(ORIGIN);
+        expect(preflight.headers["access-control-allow-methods"]).toContain(
+          "POST",
+        );
+      });
     });
   });
 

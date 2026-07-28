@@ -77,7 +77,7 @@ export function requireScope(scope: ApiKeyScope) {
     if (request.apiKey.kind === "publishable") {
       return reply.status(403).send({
         error:
-          "This endpoint requires a secret key. Publishable keys may only evaluate flags.",
+          "This endpoint requires a secret key. Publishable keys may only evaluate flags and record conversions.",
       });
     }
 
@@ -89,19 +89,28 @@ export function requireScope(scope: ApiKeyScope) {
   };
 }
 
-// Guards the one endpoint a browser may reach.
+// Guards the runtime flag endpoints a browser may reach: evaluating flags, and
+// recording the conversion that closes an experiment. Those two are one loop —
+// a key that can only do the first half produces experiments where every arm
+// reads 0% forever, so the results panel can never call a winner.
 //
 // Secret keys behave exactly as before (flags:read already granted evaluate, and
 // customers hold such keys today). Publishable keys must additionally match the
 // service and environment they were bound to, and arrive from an allow-listed
 // Origin.
 //
+// Conversions are writes, so a leaked publishable key can inflate a competitor's
+// numbers the same way it can burn their evaluate quota. That is the accepted
+// cost of front-end experiments — the alternative is browser A/B tests that
+// cannot measure anything. The confinement (one service, one environment,
+// allow-listed origins) is what bounds the damage.
+//
 // The Origin check is a guard rail, not a secret: a publishable key is public by
 // construction, and anything outside a browser can forge or omit Origin. What it
 // buys is that a key lifted from your bundle cannot simply be dropped into
-// another site's frontend. Confinement to one service+environment and to
-// evaluate-only is what actually limits the blast radius.
-export function requireFlagEvaluateAccess() {
+// another site's frontend. Confinement to one service+environment, and to the
+// two runtime endpoints, is what actually limits the blast radius.
+export function requireFlagRuntimeAccess() {
   return async (request: FastifyRequest, reply: FastifyReply) => {
     // Echo the caller's origin on every outcome, including refusals, so a
     // developer sees our actual error instead of an opaque CORS failure. The

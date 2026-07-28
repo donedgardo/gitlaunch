@@ -75,14 +75,47 @@
       <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
         <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Connect an app</h2>
         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          Evaluate these flags from your app. You need two things: this endpoint and a key — a secret one if you
+          Evaluate these flags from your app. You need two things: the client and a key — a secret one if you
           call from your server, a publishable one if you call from the browser.
         </p>
       </div>
       <div class="px-6 py-4 space-y-5">
+        <!-- The client comes first: pasting the raw endpoint leaves the reader
+             to build caching, timeouts and a fallback themselves, and the
+             fallback is the part that decides what users see during an outage. -->
+        <div>
+          <label class="block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">Check a flag</label>
+          <div class="relative">
+            <pre class="bg-gray-900 rounded-lg p-3 pr-16 text-xs text-green-400 overflow-x-auto"><code id="flag-sdk">npm install @gitlaunch/flags
+
+import &#123; createFlagClient &#125; from "@gitlaunch/flags";
+
+const flags = createFlagClient(&#123;
+  apiUrl: "{{apiUrl}}",
+  serviceId: "{{serviceId}}",
+  environment: "{{evaluateEnv}}",
+  apiKey: process.env.GITLAUNCH_FLAG_KEY,
+&#125;);
+
+// USER_ID must be stable for a user, or they'll flip between variants.
+if (await flags.isEnabled("my-flag", &#123; entity: USER_ID &#125;)) &#123;
+  // ...ship it
+&#125;
+
+// Running an experiment? Record what you're optimising for:
+await flags.track("my-flag", &#123; entity: USER_ID, goal: "signup" &#125;);</code></pre>
+            <button type="button" onclick="copyFlagSnippet('flag-sdk', this)"
+              class="absolute top-2 right-2 px-2 py-1 text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 rounded">Copy</button>
+          </div>
+          <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            One round trip per user rather than per flag, a 1.5s timeout, and your fallback if we're unreachable.
+            <a href="https://github.com/donedgardo/gitlaunch/blob/main/docs/feature-flags.md" class="underline hover:text-gray-700 dark:hover:text-gray-300">Full guide →</a>
+          </p>
+        </div>
+
         <!-- Endpoint -->
         <div>
-          <label class="block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">Evaluate endpoint</label>
+          <label class="block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">Or call the endpoint directly</label>
           <div class="relative">
             <pre class="bg-gray-900 rounded-lg p-3 pr-16 text-xs text-green-400 overflow-x-auto"><code id="flag-endpoint">{{apiUrl}}/api/v1/services/{{serviceId}}/environments/{{evaluateEnv}}/flags/evaluate?entity=USER_ID</code></pre>
             <button type="button" onclick="copyFlagSnippet('flag-endpoint', this)"

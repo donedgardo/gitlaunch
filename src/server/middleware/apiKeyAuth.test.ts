@@ -16,7 +16,7 @@ import { ApiKeyService } from "../../services/apiKey/apiKeyService";
 import {
   createApiKeyAuthMiddleware,
   requireScope,
-  requireFlagEvaluateAccess,
+  requireFlagRuntimeAccess,
 } from "./apiKeyAuth";
 
 describe("API Key Auth Middleware", { sequential: true, retry: 2 }, () => {
@@ -189,7 +189,7 @@ describe("API Key Auth Middleware", { sequential: true, retry: 2 }, () => {
       const auth = createApiKeyAuthMiddleware(apiKeyService);
       local.get(
         "/api/v1/services/:serviceId/environments/:env/flags/evaluate",
-        { preHandler: [auth, requireFlagEvaluateAccess()] },
+        { preHandler: [auth, requireFlagRuntimeAccess()] },
         async () => ({ ok: true }),
       );
       local.get(

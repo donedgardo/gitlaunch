@@ -3,8 +3,8 @@
     <p class="text-sm font-semibold text-emerald-800 dark:text-emerald-200 mb-1">Save this key — shown once</p>
     <p class="text-xs text-emerald-700 dark:text-emerald-300 mb-3">
       Publishable (<code>flags:evaluate</code>). Safe to ship in your frontend: it can only evaluate this service's
-      <code>{{evaluateEnv}}</code> flags, and only from {{allowedOrigins}}. It cannot read flag configuration,
-      targeting rules, or experiment results.
+      <code>{{evaluateEnv}}</code> flags and record conversions against them, and only from {{allowedOrigins}}.
+      It cannot read flag configuration, targeting rules, or experiment results.
     </p>
 
     <div class="relative mb-3">
@@ -15,12 +15,18 @@
 
     <label class="block text-xs font-medium uppercase tracking-wide text-emerald-700 dark:text-emerald-300 mb-1">Use it in the browser</label>
     <div class="relative">
-      <pre class="bg-gray-900 rounded-lg p-3 pr-16 text-xs text-green-400 overflow-x-auto"><code id="flag-snippet">// USER_ID must be stable for a visitor, or they'll flip between variants.
-const res = await fetch(
-  "{{apiUrl}}/api/v1/services/{{serviceId}}/environments/{{evaluateEnv}}/flags/evaluate?entity=USER_ID",
-  &#123; headers: &#123; Authorization: "Bearer {{newKey}}" &#125; &#125;
-);
-const flags = await res.json();</code></pre>
+      <pre class="bg-gray-900 rounded-lg p-3 pr-16 text-xs text-green-400 overflow-x-auto"><code id="flag-snippet">import &#123; createFlagClient &#125; from "@gitlaunch/flags";
+
+const flags = createFlagClient(&#123;
+  apiUrl: "{{apiUrl}}",
+  serviceId: "{{serviceId}}",
+  environment: "{{evaluateEnv}}",
+  apiKey: "{{newKey}}",
+&#125;);
+
+// VISITOR_ID must be stable for a visitor, or they'll flip between variants.
+const variant = await flags.variant("my-flag", &#123; entity: VISITOR_ID &#125;, "control");
+await flags.track("my-flag", &#123; entity: VISITOR_ID, goal: "signup" &#125;);</code></pre>
       <button type="button" onclick="copyFlagSnippet('flag-snippet', this)"
         class="absolute top-2 right-2 px-2 py-1 text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 rounded">Copy</button>
     </div>

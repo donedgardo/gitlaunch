@@ -5,7 +5,7 @@ import { ServiceRepository } from "../../../repositories/serviceRepository";
 import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
 import {
   requireScope,
-  requireFlagEvaluateAccess,
+  requireFlagRuntimeAccess,
 } from "../../middleware/apiKeyAuth";
 import { AnalyticsService } from "../../../services/analytics/analytics";
 import { actor, machineActor } from "../../../services/analytics/actorIdentity";
@@ -293,28 +293,32 @@ export function registerFlagsRoutes(
     },
   );
 
-  // GET /api/v1/services/:serviceId/environments/:env/flags/evaluate?entity=...
-  // Runtime evaluation surface — the hot path app code calls.
-  // CORS preflight for the one endpoint a browser may call. Browsers send this
+  // CORS preflight for the endpoints a browser may call. Browsers send this
   // without credentials, so it cannot identify the key and deliberately answers
   // permissively; the key's service, environment and origin allow-list are all
-  // enforced on the GET itself, which is the request that returns data.
-  app.options<{ Params: EvaluateParams }>(
-    "/api/v1/services/:serviceId/environments/:env/flags/evaluate",
-    async (request, reply) => {
+  // enforced on the request that actually carries data.
+  function registerPreflight(url: string, methods: string) {
+    app.options(url, async (request, reply) => {
       const origin = request.headers.origin;
       if (origin) {
         reply.header("Access-Control-Allow-Origin", origin);
         reply.header("Vary", "Origin");
       }
-      reply.header("Access-Control-Allow-Methods", "GET, OPTIONS");
+      reply.header("Access-Control-Allow-Methods", `${methods}, OPTIONS`);
       reply.header(
         "Access-Control-Allow-Headers",
         "Authorization, X-API-Key, Content-Type",
       );
       reply.header("Access-Control-Max-Age", "600");
       return reply.status(204).send();
-    },
+    });
+  }
+
+  // GET /api/v1/services/:serviceId/environments/:env/flags/evaluate?entity=...
+  // Runtime evaluation surface — the hot path app code calls.
+  registerPreflight(
+    "/api/v1/services/:serviceId/environments/:env/flags/evaluate",
+    "GET",
   );
 
   app.get<{
@@ -324,7 +328,7 @@ export function registerFlagsRoutes(
     };
   }>(
     "/api/v1/services/:serviceId/environments/:env/flags/evaluate",
-    { preHandler: requireFlagEvaluateAccess() },
+    { preHandler: requireFlagRuntimeAccess() },
     async (request, reply) => {
       const accountId = request.apiKey!.accountId;
       const serviceId = await resolveServiceId(request, reply);
@@ -383,6 +387,15 @@ export function registerFlagsRoutes(
   // Record an experiment conversion for an entity. The variant is attributed
   // deterministically by re-evaluating the flag, so callers only send the
   // entity (plus an optional goal/value) — never a variant they could get wrong.
+  //
+  // Guarded like evaluate rather than by requireScope: exposure and conversion
+  // are the two halves of one experiment, and a browser key that can only record
+  // the first measures nothing.
+  registerPreflight(
+    "/api/v1/services/:serviceId/environments/:env/flags/:key/conversions",
+    "POST",
+  );
+
   app.post<{
     Params: EnvConfigParams;
     Body: {
@@ -393,7 +406,7 @@ export function registerFlagsRoutes(
     };
   }>(
     "/api/v1/services/:serviceId/environments/:env/flags/:key/conversions",
-    { preHandler: requireScope("flags:read") },
+    { preHandler: requireFlagRuntimeAccess() },
     async (request, reply) => {
       const accountId = request.apiKey!.accountId;
       const serviceId = await resolveServiceId(request, reply);
