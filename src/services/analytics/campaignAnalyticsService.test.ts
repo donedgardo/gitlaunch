@@ -3,6 +3,7 @@ import { MongoMemoryServer } from "mongodb-memory-server";
 import { MongoClient, Db, ObjectId } from "mongodb";
 import { AnalyticsEventRepository } from "../../repositories/analyticsEventRepository";
 import { CampaignAnalyticsService } from "./campaignAnalyticsService";
+import { InternalTraffic } from "./internalTraffic";
 
 describe("CampaignAnalyticsService", () => {
   let mongoServer: MongoMemoryServer;
@@ -33,7 +34,7 @@ describe("CampaignAnalyticsService", () => {
   });
 
   async function signup(
-    attribution: Record<string, string | null>,
+    attribution: Record<string, string | null | boolean>,
     options: { at?: string; distinctId?: string; accountId?: ObjectId } = {},
   ) {
     await repo.insert({
@@ -45,6 +46,71 @@ describe("CampaignAnalyticsService", () => {
       properties: attribution,
     });
   }
+
+  describe("internal traffic", () => {
+    it("should leave internally-marked signups out of campaign performance", async () => {
+      // Given: one real signup and two of the team's own form tests
+      await signup({
+        campaign: "alpha_launch",
+        source: "dm",
+        medium: "whatsapp",
+      });
+      await signup({
+        campaign: null,
+        source: null,
+        medium: null,
+        internal: true,
+      });
+      await signup({
+        campaign: null,
+        source: null,
+        medium: null,
+        internal: true,
+      });
+
+      // When: reporting excludes internal traffic
+      const scoped = new CampaignAnalyticsService(
+        db,
+        InternalTraffic.fromEnv({
+          ANALYTICS_INTERNAL_EMAILS: "founder@gitlaunch.dev",
+        }),
+      );
+      const rows = await scoped.campaignPerformance({ from, to });
+
+      // Then: only the genuine acquisition remains
+      expect(rows).toHaveLength(1);
+      expect(rows[0].signups).toBe(1);
+      expect(rows[0].source).toBe("dm");
+    });
+
+    it("should leave internal actors out of the attribution breakdown", async () => {
+      await signup({ source: "dm" }, { distinctId: "visitor-real" });
+      await signup({ source: "dm" }, { distinctId: "visitor-founder" });
+
+      const scoped = new CampaignAnalyticsService(
+        db,
+        InternalTraffic.fromEnv({
+          ANALYTICS_INTERNAL_ACTORS: "visitor-founder",
+        }),
+      );
+      const buckets = await scoped.breakdownBy({
+        from,
+        to,
+        dimension: "source",
+      });
+
+      expect(buckets).toEqual([{ value: "dm", signups: 1 }]);
+    });
+
+    it("should count every signup when no internal rules are configured", async () => {
+      await signup({ source: "dm" });
+      await signup({ source: "dm", internal: true });
+
+      const rows = await campaigns.campaignPerformance({ from, to });
+
+      expect(rows.reduce((n, r) => n + r.signups, 0)).toBe(2);
+    });
+  });
 
   describe("campaignPerformance", () => {
     it("should group signups by campaign, source and medium", async () => {
