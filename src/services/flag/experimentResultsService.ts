@@ -1,5 +1,6 @@
 import { Collection, Db, ObjectId } from "mongodb";
 import { AnalyticsEvent } from "../../repositories/analyticsEventRepository";
+import { InternalTraffic } from "../analytics/internalTraffic";
 
 export type ExperimentResultsQuery = {
   accountId: ObjectId;
@@ -52,7 +53,12 @@ const NULL_VARIANT_LABEL = "(control)";
 export class ExperimentResultsService {
   private collection: Collection<AnalyticsEvent>;
 
-  constructor(db: Db) {
+  constructor(
+    db: Db,
+    // Our own exposures and conversions are the loudest distortion on a young
+    // experiment: two internal form submissions can move a conversion rate.
+    private internal: InternalTraffic = InternalTraffic.fromEnv({}),
+  ) {
     this.collection = db.collection<AnalyticsEvent>("analytics_events");
   }
 
@@ -109,6 +115,7 @@ export class ExperimentResultsService {
               ? {}
               : { "properties.environment": environment }),
             timestamp: { $gte: params.from, $lt: params.to },
+            ...this.internal.excludeMatch(),
           },
         },
         // Collapse to unique (environment, variant, event, entity) first so each

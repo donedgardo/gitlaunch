@@ -57,7 +57,7 @@ export class InsightsService {
   ) {
     this.campaigns = new CampaignAnalyticsService(db, internal);
     this.usage = new ProductUsageService(db, internal);
-    this.experiments = new ExperimentResultsService(db);
+    this.experiments = new ExperimentResultsService(db, internal);
   }
 
   async build(query: InsightsQuery): Promise<InsightsReport> {
