@@ -178,8 +178,18 @@ curl -H "Authorization: Bearer $KEY" \
 }
 ```
 
-`reason` tells you _why_: `disabled`, `rollout`, `variant`, `targeting_rule`,
-`missing`.
+`reason` tells you _why_ you got that answer:
+
+| `reason`         | Meaning                                            |
+| ---------------- | -------------------------------------------------- |
+| `disabled`       | Off in this environment                            |
+| `targeting_rule` | A targeting rule matched and decided it            |
+| `not_in_rollout` | Outside the rollout percentage                     |
+| `variant`        | In the rollout, and assigned an experiment variant |
+| `rollout`        | In the rollout, no variants configured — plain on  |
+
+A flag that does not exist is simply absent from `flags`, which is when the
+client returns your fallback.
 
 **Record a conversion** (`flags:evaluate` or `flags:read`):
 
