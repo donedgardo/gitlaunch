@@ -103,9 +103,10 @@ describe("WaitlistExperiment", () => {
       const resolved = await experiment.resolve("visitor-1");
 
       expect(resolved.variant).toBe("benefit-led");
-      // Copy actually differs from control so the visitor sees the challenger.
+      // The experiment is concluded: every arm now renders the shipped copy, so
+      // a stale flag assignment can no longer change what a visitor reads.
       const control = experiment.copyFor(WAITLIST_CONTROL_VARIANT);
-      expect(resolved.copy.heroCta).not.toBe(control.heroCta);
+      expect(resolved.copy).toEqual(control);
       expect(resolved.reason).toBe("variant");
       // Account was derived from the service, not passed in config.
       expect(flags.calls[0]).toEqual({
@@ -279,6 +280,54 @@ describe("WaitlistExperiment", () => {
       await experiment.recordConversion("visitor-1", "benefit-led");
 
       expect(analytics.tracked).toHaveLength(0);
+    });
+  });
+
+  // The hero-copy test was stopped: at ~125 exposures it needed ~25k more per
+  // arm to detect a 20% change, so it could never reach a verdict. Concluding
+  // it means one shipped copy and no further exposure rows to reason about.
+  describe("once the experiment is concluded", () => {
+    it("should serve the same copy to every visitor whatever variant they land in", async () => {
+      const experiment = makeExperiment(new FakeFlags([]), analytics);
+      const live = WaitlistExperiment.controlCopy();
+
+      expect(experiment.copyFor("benefit-led")).toEqual(live);
+      expect(experiment.copyFor("control")).toEqual(live);
+      expect(experiment.copyFor("some-arm-added-later")).toEqual(live);
+    });
+
+    it("should lead the shipped copy with deploy visibility", async () => {
+      const live = WaitlistExperiment.controlCopy();
+
+      expect(live.heroHeadlineHtml).toContain("See every deploy");
+      expect(live.heroCta).toBe("See your deploys →");
+      expect(live.ctaSubmit).toBe("Get my invite →");
+    });
+
+    it("should record no exposures, because there is nothing left to compare", async () => {
+      const flags = new FakeFlags([
+        {
+          key: FLAG_KEY,
+          enabled: true,
+          variant: "benefit-led",
+          reason: "variant",
+        },
+      ]);
+      const experiment = makeExperiment(flags, analytics);
+
+      const resolved = await experiment.resolve("visitor-1");
+      await experiment.recordExposure("visitor-1", resolved);
+
+      expect(analytics.tracked).toHaveLength(0);
+    });
+
+    it("should still record conversions, so signups stay attributable", async () => {
+      const experiment = makeExperiment(new FakeFlags([]), analytics);
+
+      await experiment.recordConversion("visitor-1", WAITLIST_CONTROL_VARIANT);
+
+      expect(analytics.tracked).toHaveLength(1);
+      expect(analytics.tracked[0].event).toBe(WAITLIST_CONVERSION_EVENT);
     });
   });
 });
