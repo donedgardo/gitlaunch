@@ -3,6 +3,7 @@ import { MongoMemoryServer } from "mongodb-memory-server";
 import { MongoClient, Db, ObjectId } from "mongodb";
 import { AnalyticsEventRepository } from "../../repositories/analyticsEventRepository";
 import { ExperimentResultsService } from "./experimentResultsService";
+import { InternalTraffic } from "../analytics/internalTraffic";
 
 describe("ExperimentResultsService", () => {
   let mongoServer: MongoMemoryServer;
@@ -177,6 +178,40 @@ describe("ExperimentResultsService", () => {
     expect(res.variants).toHaveLength(1);
     expect(res.variants[0].variant).toBe("(control)");
     expect(res.variants[0].conversions).toBe(1);
+  });
+
+  describe("internal traffic", () => {
+    it("should not let the team's own exposures and conversions into the tally", async () => {
+      // Given: a real visitor and one of our own, both bucketed into control
+      await exposure("control", "visitor-real");
+      await conversion("control", "visitor-real");
+      await exposure("control", "lead:ourselves");
+      await conversion("control", "lead:ourselves");
+
+      // When: results are read with our own actor excluded
+      const scoped = new ExperimentResultsService(
+        db,
+        InternalTraffic.fromEnv({
+          ANALYTICS_INTERNAL_ACTORS: "lead:ourselves",
+        }),
+      );
+      const tallied = await scoped.getResults(query() as any);
+
+      // Then: only the genuine visitor is counted, so the rate isn't inflated
+      const control = tallied.variants.find((v) => v.variant === "control");
+      expect(control?.exposures).toBe(1);
+      expect(control?.conversions).toBe(1);
+    });
+
+    it("should count everyone when no internal rules are configured", async () => {
+      await exposure("control", "visitor-real");
+      await exposure("control", "lead:ourselves");
+
+      const tallied = await results.getResults(query() as any);
+
+      const control = tallied.variants.find((v) => v.variant === "control");
+      expect(control?.exposures).toBe(2);
+    });
   });
 
   describe("getResultsByEnvironment", () => {
