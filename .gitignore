@@ -10,6 +10,9 @@ dist/
 .env
 .env.local
 .env.*.local
+# Temp files written by scripts/add-private-key.sh, in case one is ever
+# orphaned by a hard kill before its cleanup trap runs
+.env.??????
 
 # Private keys
 *.pem
