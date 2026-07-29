@@ -87,6 +87,11 @@ Copy `sample.env` to `.env`. Required variables:
 - `GH_PAT` - GitHub Personal Access Token for dispatch workflows
 - `ENCRYPTION_KEY` - 32-byte base64 key for encrypting stored secrets at rest (e.g. Jenkins API tokens); generate with `openssl rand -base64 32`. Boot fails closed if missing/invalid. For key rotation, use a keyring instead: `ENCRYPTION_KEYS="<id>:<base64key>,..."` plus `ENCRYPTION_PRIMARY_KEY_ID=<id>` (old keys stay for decryption; new writes use the primary).
 
+Optional, for keeping our own traffic out of analytics (unset = nothing is excluded):
+
+- `ANALYTICS_INTERNAL_EMAILS` - comma-separated addresses (`me@x.dev`) or whole domains (`@x.dev`). A matching waitlist signup is still captured as a lead; its `waitlist_signup` event is stamped `internal: true` so acquisition reporting drops it.
+- `ANALYTICS_INTERNAL_ACTORS` - comma-separated literal `distinctId`s (a `gl_vid` visitor cookie, a user ObjectId). Applied at query time, so it also excludes events already in the warehouse.
+
 ## TDD Development Mode
 
 When implementing features, Claude MUST follow the Red-Green-Refactor cycle:

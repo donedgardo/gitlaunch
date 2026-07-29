@@ -5,6 +5,7 @@ import {
 } from "../../repositories/leadRepository";
 import { AnalyticsContext, AnalyticsService } from "../analytics/analytics";
 import { evaluateSubmission, BotConfig, BotReason } from "./botDetection";
+import { InternalTraffic } from "../analytics/internalTraffic";
 
 export type WaitlistSubmission = {
   email: string;
@@ -38,6 +39,9 @@ export class WaitlistService {
     // Absent (or unresolvable) => events are still emitted, just untenanted, so
     // capturing the lead never depends on the analytics dashboard being wired.
     private ownAccount?: OwningAccount,
+    // Recognises the team's own addresses. Their leads are still captured — we
+    // just stamp the event so acquisition reporting can leave it out.
+    private internal: InternalTraffic = InternalTraffic.fromEnv({}),
   ) {}
 
   async submit(submission: WaitlistSubmission): Promise<WaitlistOutcome> {
@@ -98,6 +102,11 @@ export class WaitlistService {
         // Names the lead this signup created, so the warehouse and the leads
         // table can be reconciled exactly rather than matched by timestamp.
         leadId: lead._id.toString(),
+        // Only stamped when true, so genuine signups keep the exact shape they
+        // had before internal filtering existed.
+        ...(this.internal.isInternalEmail(lead.email)
+          ? { internal: true }
+          : {}),
       },
       context,
     );

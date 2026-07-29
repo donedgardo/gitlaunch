@@ -83,6 +83,7 @@ import {
 } from "../services/analytics/analytics";
 import { LeadRepository } from "../repositories/leadRepository";
 import { WaitlistService } from "../services/marketing/waitlistService";
+import { InternalTraffic } from "../services/analytics/internalTraffic";
 import { WaitlistExperiment } from "../services/marketing/waitlistExperiment";
 import { SignupGate } from "../services/account/signupGate";
 import {
@@ -348,6 +349,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     analytics,
     { minElapsedMs: WAITLIST_MIN_ELAPSED_MS },
     new SelfFlagAccount(serviceRepository, selfFlagContext),
+    InternalTraffic.fromEnv(),
   );
 
   // Marketing: dogfood our own feature flags to A/B test the landing-page copy.

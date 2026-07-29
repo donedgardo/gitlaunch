@@ -4,6 +4,7 @@ import { MongoClient, Db, ObjectId } from "mongodb";
 import { LeadRepository } from "../../repositories/leadRepository";
 import { AnalyticsContext, AnalyticsService } from "../analytics/analytics";
 import { WaitlistService } from "./waitlistService";
+import { InternalTraffic } from "../analytics/internalTraffic";
 
 // Contract-based fake for the external analytics sink — records what was sent
 // so we can assert the marketing data actually flows.
@@ -92,6 +93,59 @@ describe("WaitlistService", () => {
       expect(signup).toBeDefined();
       expect(signup?.properties?.campaign).toBe("alpha-launch");
       expect(signup?.properties?.source).toBe("hackernews");
+    });
+
+    it("should mark a signup from an internal address so it never counts as acquisition", async () => {
+      // Given: the founder's own address is configured as internal
+      service = new WaitlistService(
+        repo,
+        analytics,
+        { minElapsedMs: 2000 },
+        undefined,
+        InternalTraffic.fromEnv({
+          ANALYTICS_INTERNAL_EMAILS: "founder@gitlaunch.dev",
+        }),
+      );
+
+      // When: the founder tests the form
+      const outcome = await service.submit({
+        email: "founder@gitlaunch.dev",
+        honeypot: "",
+        elapsedMs: 9000,
+      });
+
+      // Then: the lead is still captured — we don't silently drop data
+      expect(outcome.status).toBe("subscribed");
+      expect(await repo.count()).toBe(1);
+
+      // And: the signup is flagged, so reporting can leave it out
+      const signup = analytics.tracked.find(
+        (t) => t.event === "waitlist_signup",
+      );
+      expect(signup?.properties?.internal).toBe(true);
+    });
+
+    it("should not mark a genuine signup as internal", async () => {
+      service = new WaitlistService(
+        repo,
+        analytics,
+        { minElapsedMs: 2000 },
+        undefined,
+        InternalTraffic.fromEnv({
+          ANALYTICS_INTERNAL_EMAILS: "founder@gitlaunch.dev",
+        }),
+      );
+
+      await service.submit({
+        email: "maria@acme.dev",
+        honeypot: "",
+        elapsedMs: 9000,
+      });
+
+      const signup = analytics.tracked.find(
+        (t) => t.event === "waitlist_signup",
+      );
+      expect(signup?.properties?.internal).toBeUndefined();
     });
 
     it("should reject a bot without storing it, and log the block for analysis", async () => {

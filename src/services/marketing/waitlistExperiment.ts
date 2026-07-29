@@ -36,20 +36,11 @@ export type WaitlistCopy = {
   ctaSubmit: string;
 };
 
-// Control must equal the strings currently in index.hbs so "flag off" is
-// indistinguishable from today's page.
+// The shipped copy — formerly the `benefit-led` arm, promoted to the only
+// version when the experiment was concluded. Leads with deploy visibility
+// rather than rollback, per CANVAS-REVIEW-001: rollback is still an unvalidated
+// bet (Bet 6), visibility is the safer lead.
 const CONTROL_COPY: WaitlistCopy = {
-  heroHeadlineHtml:
-    'Know exactly what\'s deployed where.<br><span class="u">Roll it back in one click.</span>',
-  heroCta: "Join the waitlist →",
-  ctaKicker: "Join the waitlist · limited early spots",
-  ctaHeading: "Get early access.",
-  ctaSubmit: "Request access →",
-};
-
-// The shipped challenger: leads with the concrete outcome instead of the
-// program ("alpha/waitlist"). Add more arms here + in the flag's variant weights.
-const BENEFIT_LED_COPY: WaitlistCopy = {
   heroHeadlineHtml:
     'See every deploy, in every environment.<br><span class="u">Ship and roll back with one click.</span>',
   heroCta: "See your deploys →",
@@ -58,9 +49,15 @@ const BENEFIT_LED_COPY: WaitlistCopy = {
   ctaSubmit: "Get my invite →",
 };
 
+// One arm: the experiment is concluded. `waitlist-hero-copy` was stopped at ~125
+// exposures, where reaching a verdict on a 20% relative change needed ~25k more
+// per arm — unreachable at this traffic. Visitors the flag still buckets into a
+// stale arm fall through to the shipped copy via copyFor().
+//
+// To run a new experiment: add arm(s) here plus their variant weights in the
+// flag, and exposure tracking resumes on its own (see `running` below).
 const VARIANT_COPY: Record<string, WaitlistCopy> = {
   [WAITLIST_CONTROL_VARIANT]: CONTROL_COPY,
-  "benefit-led": BENEFIT_LED_COPY,
 };
 
 // Shared self-flag scope (service + environment); the flag key is fixed
@@ -84,6 +81,9 @@ export class WaitlistExperiment {
     services: ServiceRepository,
     private analytics: AnalyticsService,
     private config: WaitlistExperimentConfig,
+    // The arms in play. Defaults to the shipped copy map; injectable so a future
+    // experiment (and its tests) can run without editing this file's constants.
+    private variants: Record<string, WaitlistCopy> = VARIANT_COPY,
   ) {
     this.account = new SelfFlagAccount(services, config);
   }
@@ -93,8 +93,15 @@ export class WaitlistExperiment {
     return this.account.configured;
   }
 
+  // An experiment with a single arm has nothing to compare, so recording
+  // exposures would only pile up rows no analysis can use. Derived from the arms
+  // themselves so adding one is the single action that restarts tracking.
+  get running(): boolean {
+    return Object.keys(this.variants).length > 1;
+  }
+
   copyFor(variant: string): WaitlistCopy {
-    return VARIANT_COPY[variant] ?? CONTROL_COPY;
+    return this.variants[variant] ?? CONTROL_COPY;
   }
 
   static controlCopy(): WaitlistCopy {
@@ -142,6 +149,7 @@ export class WaitlistExperiment {
     entityKey: string,
     resolved: ResolvedVariant,
   ): Promise<void> {
+    if (!this.running) return;
     const accountId = await this.account.resolve();
     if (!accountId || !this.config.serviceId || !entityKey) return;
     this.analytics.track(
