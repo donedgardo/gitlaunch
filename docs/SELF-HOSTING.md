@@ -60,7 +60,7 @@ The Secret must carry the same keys the chart would have written; see
 **`encryptionKey` is not rotatable in place by re-installing.** It decrypts
 credentials already stored in MongoDB (such as Jenkins API tokens). Losing it
 strands that data. To rotate, use the keyring form (`ENCRYPTION_KEYS` +
-`ENCRYPTION_PRIMARY_KEY_ID`) documented in the main README, which keeps old keys
+`ENCRYPTION_PRIMARY_KEY_ID`) documented in `sample.env`, which keeps old keys
 available for decryption while new writes use the primary.
 
 ---

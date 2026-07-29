@@ -1,102 +1,69 @@
-# GitHub App Setup Guide
+# GitHub App Setup
 
-Quick guide to create the GitHub App for GitLaunch.
+How to create the GitHub App GitLaunch uses to list repos and dispatch
+workflows. Skip this entirely for local work by setting `USE_FAKE_GITHUB=true`.
 
-## 1. Create the GitHub App
+## 1. Create the app
 
-1. Go to **GitHub Settings** → **Developer settings** → **GitHub Apps** → **New GitHub App**
-2. Or direct link: https://github.com/settings/apps/new
+Go to [github.com/settings/apps/new](https://github.com/settings/apps/new).
 
-## 2. Basic Info
+| Field          | Value                                                |
+| -------------- | ---------------------------------------------------- |
+| App name       | `GitLaunch-Dev` (or your own)                        |
+| Homepage URL   | `http://localhost:3050`                              |
+| Callback URL   | `http://localhost:3050/auth/github/callback`         |
+| Setup URL      | `http://localhost:3050/github/installation/callback` |
+| Webhook URL    | `http://localhost:3050/webhooks/github`              |
+| Webhook secret | A random string — save it                            |
 
-| Field               | Value                                                      |
-| ------------------- | ---------------------------------------------------------- |
-| **GitHub App name** | `GitLaunch-Dev` (or your preferred name)                   |
-| **Homepage URL**    | `http://localhost:8080` (or your domain)                   |
-| **Callback URL**    | `http://localhost:8080/auth/github/callback`               |
-| **Setup URL**       | `http://localhost:8080/github/installation/callback`       |
-| **Webhook URL**     | `http://localhost:8080/webhooks/github` (optional for now) |
-| **Webhook secret**  | Generate a random string (save it!)                        |
+Swap `http://localhost:3050` for your `PUBLIC_URL` when setting up a deployed
+environment.
 
-## 3. Permissions
+**Installable on:** "Any account" for a real SaaS install, "Only on this
+account" for testing.
 
-### Repository Permissions
+## 2. Permissions
 
-| Permission   | Access | Purpose                    |
-| ------------ | ------ | -------------------------- |
-| **Actions**  | Write  | Trigger workflow dispatch  |
-| **Metadata** | Read   | List repos (auto-selected) |
+| Permission                | Access | Why                        |
+| ------------------------- | ------ | -------------------------- |
+| Repository → Actions      | Write  | Trigger workflow dispatch  |
+| Repository → Metadata     | Read   | List repos (auto-selected) |
+| Account → Email addresses | Read   | Get the user's email       |
 
-### Account Permissions
+## 3. Collect the credentials
 
-| Permission          | Access | Purpose        |
-| ------------------- | ------ | -------------- |
-| **Email addresses** | Read   | Get user email |
+From the app's settings page: the **App ID** and **Client ID** are shown on the
+page; generate a **Client Secret** and a **Private Key** (downloads a `.pem`).
+Both are shown once.
 
-## 4. Where Can This App Be Installed?
-
-Select: **Any account** (for SaaS) or **Only on this account** (for testing)
-
-## 5. Create App & Get Credentials
-
-After creating:
-
-1. Note the **App ID** (shown at top)
-2. Note the **Client ID**
-3. Generate a **Client Secret** → Save it immediately
-4. Generate a **Private Key** → Downloads a `.pem` file
-
-## 6. Environment Variables
-
-Add to your `.env`:
+## 4. Put them in `.env`
 
 ```bash
-# GitHub App credentials
 GH_APP_ID=123456
 GH_APP_CLIENT_ID=Iv1.abc123...
-GH_APP_CLIENT_SECRET=your_client_secret_here
-GH_APP_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----"
-GH_APP_WEBHOOK_SECRET=your_webhook_secret_here
+GH_APP_CLIENT_SECRET=your_client_secret
+GH_APP_WEBHOOK_SECRET=your_webhook_secret
+GH_APP_NAME=gitlaunch-dev          # the app's URL slug, used to build install links
 ```
 
-**Private Key Encoding Options:**
-
-Option A - Inline with `\n` (shown above):
+For the private key, run the helper — it reads the `.pem`, escapes the
+newlines, and writes `GH_APP_PRIVATE_KEY` into `.env` for you:
 
 ```bash
-# Replace newlines with \n in the PEM file
-GH_APP_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\nMIIE...\n-----END RSA PRIVATE KEY-----"
+scripts/add-private-key.sh path/to/your-app.private-key.pem
 ```
 
-Option B - Base64 encoded:
+The app reads `GH_APP_PRIVATE_KEY` as a PEM string with `\n` escapes. There is
+no base64 variant.
 
-```bash
-# Encode the entire PEM file
-cat your-app.pem | base64 > private-key.b64
-GH_APP_PRIVATE_KEY_BASE64=$(cat private-key.b64)
-```
+## 5. Install it
 
-## 7. Test Installation
+Visit `https://github.com/apps/<GH_APP_NAME>/installations/new`, pick an
+account and repositories, and install. GitHub redirects to your Setup URL with
+an `installation_id`, which GitLaunch stores on the account.
 
-1. Go to: `https://github.com/apps/YOUR-APP-NAME/installations/new`
-2. Select your account/org
-3. Select repositories (or all)
-4. Click Install
+## Reference
 
-You'll be redirected to your callback URL with `installation_id` query param.
-
-## Quick Reference
-
-| What You Need   | Where to Find It                     |
-| --------------- | ------------------------------------ |
-| App ID          | App settings page, top section       |
-| Client ID       | App settings page, "About" section   |
-| Client Secret   | Generate in "Client secrets" section |
-| Private Key     | Generate in "Private keys" section   |
-| Installation ID | Callback URL param after install     |
-
-## Useful Links
-
-- [GitHub App Docs](https://docs.github.com/en/apps/creating-github-apps)
-- [Installation tokens](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/generating-an-installation-access-token-for-a-github-app)
+- [Creating GitHub Apps](https://docs.github.com/en/apps/creating-github-apps)
+- [Installation access tokens](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/generating-an-installation-access-token-for-a-github-app)
 - [Workflow dispatch API](https://docs.github.com/en/rest/actions/workflows#create-a-workflow-dispatch-event)
