@@ -2,6 +2,7 @@ import "dotenv/config";
 import { MongoClient } from "mongodb";
 import EventEmitter from "node:events";
 
+import { createErrorReporter } from "./services/observability/createErrorReporter";
 import { createAppServer } from "./server/createAppServer";
 import { MongoDbClient } from "./services/auth/mongoDbClient";
 import { SessionService } from "./services/auth/sessionService";
@@ -18,6 +19,11 @@ import { createFlagCache } from "./services/flag/createFlagCache";
 import { AnalyticsEventRepository } from "./repositories/analyticsEventRepository";
 import { createAnalyticsService } from "./services/analytics/createAnalyticsService";
 import { createGoogleOAuthService } from "./services/auth/googleOAuthService";
+
+// Error reporting (optional). Registers the Sentry SDK when SENTRY_DSN is set —
+// first thing at boot, so anything that fails afterwards is reported. Without a
+// DSN this is a no-op and nothing leaves the process.
+const errorReporter = createErrorReporter();
 
 // MongoDB connection
 const mongodb_uri = process.env.MONGODB_URI as string;
@@ -85,6 +91,7 @@ const server = createAppServer({
   webhookEventRepo: webhookEventRepository,
   analytics,
   flagCache,
+  errorReporter,
 });
 
 const PORT = parseInt(process.env.PORT || "3050");
@@ -111,7 +118,10 @@ async function start() {
   console.info(`Server listening on port ${PORT}`);
 }
 
-start().catch((err) => {
+start().catch(async (err) => {
   console.error("Failed to start server:", err);
+  errorReporter.captureException(err, { phase: "startup" });
+  // Give the report a chance to leave the process before we kill it.
+  await errorReporter.flush(2000);
   process.exit(1);
 });

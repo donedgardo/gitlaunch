@@ -3,6 +3,7 @@ import { Db, ObjectId } from "mongodb";
 import EventEmitter from "node:events";
 
 import { registerPlugins } from "./registerPlugins";
+import { registerErrorReporting } from "./registerErrorReporting";
 import healthRoute from "./health";
 import homeRoute from "./home";
 import dashboardRoutes from "./dashboard";
@@ -81,6 +82,10 @@ import {
   AnalyticsService,
   NoOpAnalytics,
 } from "../services/analytics/analytics";
+import {
+  ErrorReporterI,
+  NoOpErrorReporter,
+} from "../services/observability/errorReporter";
 import { LeadRepository } from "../repositories/leadRepository";
 import { WaitlistService } from "../services/marketing/waitlistService";
 import { InternalTraffic } from "../services/analytics/internalTraffic";
@@ -119,6 +124,9 @@ export type AppServerDeps = {
   // Read-through cache for flag evaluation. Defaults to an in-memory cache;
   // inject a RedisFlagCache to share the cache across instances.
   flagCache?: FlagCacheI;
+  // Crash reporting for errors thrown while handling a request. Defaults to a
+  // no-op; inject a Sentry-backed reporter (see createErrorReporter) to enable.
+  errorReporter?: ErrorReporterI;
   // Whether this is the hosted SaaS or a licensed self-hosted install.
   // Defaults to reading the environment; injected in tests.
   instanceMode?: InstanceMode;
@@ -138,6 +146,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     emailSender = createEmailSender(),
     analytics = new NoOpAnalytics(),
     flagCache = new InMemoryFlagCache(),
+    errorReporter = new NoOpErrorReporter(),
   } = deps;
 
   // Self-hosted installs are governed by their license rather than by Stripe.
@@ -154,6 +163,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
 
   const server = Fastify();
   registerPlugins(server);
+  registerErrorReporting(server, errorReporter);
 
   // Repositories
   const userRepository = new UserRepository(database);

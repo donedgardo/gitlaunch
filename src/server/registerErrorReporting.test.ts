@@ -14,6 +14,8 @@ class RecordingReporter implements ErrorReporterI {
   captureException(error: unknown, context?: Record<string, unknown>): void {
     this.captured.push({ error, context });
   }
+
+  async flush(): Promise<void> {}
 }
 
 describe("registerErrorReporting", () => {

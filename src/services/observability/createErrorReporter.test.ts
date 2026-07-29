@@ -8,6 +8,7 @@ import { SentrySdkLike } from "./errorReporter";
 function fakeSdk() {
   const initOptions: Record<string, unknown>[] = [];
   const captured: { error: unknown; extra?: Record<string, unknown> }[] = [];
+  const flushes: (number | undefined)[] = [];
   const sdk: SentrySdkLike = {
     init: (options) => {
       initOptions.push(options);
@@ -15,8 +16,12 @@ function fakeSdk() {
     captureException: (error, hint) => {
       captured.push({ error, extra: hint?.extra });
     },
+    flush: async (timeout) => {
+      flushes.push(timeout);
+      return true;
+    },
   };
-  return { sdk, initOptions, captured };
+  return { sdk, initOptions, captured, flushes };
 }
 
 describe("createErrorReporter", () => {
@@ -101,6 +106,45 @@ describe("createErrorReporter", () => {
     expect(captured).toHaveLength(1);
     expect(captured[0].error).toBe(error);
     expect(captured[0].extra).toEqual({ url: "/api/v1/builds" });
+  });
+
+  it("should flush pending reports so a crashing process still delivers them", async () => {
+    const { sdk, flushes } = fakeSdk();
+    const reporter = createErrorReporter(
+      {
+        SENTRY_DSN: "https://key@example.ingest.sentry.io/42",
+      } as NodeJS.ProcessEnv,
+      () => sdk,
+    );
+
+    await reporter.flush(2000);
+
+    expect(flushes).toEqual([2000]);
+  });
+
+  it("should resolve flush even when reporting is disabled", async () => {
+    const reporter = createErrorReporter({} as NodeJS.ProcessEnv, () => {
+      throw new Error("should not be loaded");
+    });
+
+    await expect(reporter.flush()).resolves.toBeUndefined();
+  });
+
+  it("should resolve flush when the sdk fails to flush", async () => {
+    const reporter = createErrorReporter(
+      {
+        SENTRY_DSN: "https://key@example.ingest.sentry.io/42",
+      } as NodeJS.ProcessEnv,
+      () => ({
+        init: () => {},
+        captureException: () => {},
+        flush: async () => {
+          throw new Error("sentry transport is down");
+        },
+      }),
+    );
+
+    await expect(reporter.flush()).resolves.toBeUndefined();
   });
 
   it("should stay disabled when a DSN is set but the sdk is not installed", () => {
