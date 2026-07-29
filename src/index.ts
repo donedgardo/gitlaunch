@@ -1,8 +1,10 @@
-import "dotenv/config";
+// Must stay the first import: it loads .env and registers the error-reporting
+// SDK before the libraries it instruments (mongodb, http) are pulled in below.
+import { errorReporter } from "./instrument";
+
 import { MongoClient } from "mongodb";
 import EventEmitter from "node:events";
 
-import { createErrorReporter } from "./services/observability/createErrorReporter";
 import { createAppServer } from "./server/createAppServer";
 import { MongoDbClient } from "./services/auth/mongoDbClient";
 import { SessionService } from "./services/auth/sessionService";
@@ -19,11 +21,6 @@ import { createFlagCache } from "./services/flag/createFlagCache";
 import { AnalyticsEventRepository } from "./repositories/analyticsEventRepository";
 import { createAnalyticsService } from "./services/analytics/createAnalyticsService";
 import { createGoogleOAuthService } from "./services/auth/googleOAuthService";
-
-// Error reporting (optional). Registers the Sentry SDK when SENTRY_DSN is set —
-// first thing at boot, so anything that fails afterwards is reported. Without a
-// DSN this is a no-op and nothing leaves the process.
-const errorReporter = createErrorReporter();
 
 // MongoDB connection
 const mongodb_uri = process.env.MONGODB_URI as string;
