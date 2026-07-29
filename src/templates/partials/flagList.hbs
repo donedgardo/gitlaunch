@@ -147,6 +147,211 @@
           </p>
         </form>
       </details>
+
+      <details class="mt-3" {{#if this.targetingSummary}}open{{/if}}>
+        <summary class="cursor-pointer select-none text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
+          Targeting rules
+        </summary>
+        <form
+          class="mt-3 targeting-form"
+          hx-put="/services/{{../../serviceId}}/flags/{{../key}}/environments/{{this.name}}/targeting"
+          hx-target="#flag-list"
+          hx-swap="innerHTML"
+        >
+          <div class="targeting-rules flex flex-col gap-3">
+            {{#each this.targetingRules}}
+            <div class="targeting-rule rounded-lg border border-gray-200 dark:border-gray-700 p-3">
+              <input type="hidden" name="ruleIndex" value="{{this.index}}" />
+              <div class="targeting-conditions flex flex-col gap-2">
+                {{#each this.conditions}}
+                <div class="condition-row flex items-center gap-2">
+                  <input type="hidden" name="condRule" value="{{../index}}" />
+                  <input
+                    type="text"
+                    name="condAttribute"
+                    value="{{this.attribute}}"
+                    placeholder="attribute"
+                    title="An attribute your app passes at evaluate time, e.g. plan"
+                    class="flex-1 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm font-mono"
+                  />
+                  <select
+                    name="condOperator"
+                    class="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm"
+                  >
+                    <option value="eq" {{#if (eq this.operator "eq")}}selected{{/if}}>is</option>
+                    <option value="neq" {{#if (eq this.operator "neq")}}selected{{/if}}>is not</option>
+                    <option value="in" {{#if (eq this.operator "in")}}selected{{/if}}>in</option>
+                    <option value="not_in" {{#if (eq this.operator "not_in")}}selected{{/if}}>not in</option>
+                    <option value="contains" {{#if (eq this.operator "contains")}}selected{{/if}}>contains</option>
+                  </select>
+                  <input
+                    type="text"
+                    name="condValues"
+                    value="{{this.values}}"
+                    placeholder="value, value"
+                    title="Comma-separated. Compared as text, so case matters."
+                    class="flex-1 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm font-mono"
+                  />
+                  <button
+                    type="button"
+                    data-remove-condition
+                    aria-label="Remove condition"
+                    class="px-2 py-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 rounded-lg transition-colors"
+                  >✕</button>
+                </div>
+                {{/each}}
+              </div>
+              <div class="flex items-center justify-between gap-3 mt-2">
+                <button
+                  type="button"
+                  data-add-condition
+                  class="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                >+ And</button>
+                <div class="flex items-center gap-3">
+                  <label class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                    <span>Serve</span>
+                    <select
+                      name="ruleServe"
+                      class="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm"
+                    >
+                      {{#each this.serveOptions}}
+                      <option value="{{this.value}}" {{#if this.selected}}selected{{/if}}>{{this.label}}</option>
+                      {{/each}}
+                    </select>
+                  </label>
+                  <button
+                    type="button"
+                    data-remove-rule
+                    class="text-xs text-gray-400 hover:text-red-600 dark:hover:text-red-400"
+                  >Remove rule</button>
+                </div>
+              </div>
+            </div>
+            {{/each}}
+          </div>
+          <div class="flex items-center justify-between mt-3">
+            <button
+              type="button"
+              data-add-rule
+              class="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+            >+ Add rule</button>
+            <button
+              type="submit"
+              class="px-3 py-1.5 text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+            >Save targeting</button>
+          </div>
+          <p class="mt-2 text-xs text-gray-400 dark:text-gray-500">
+            A matched rule serves its outcome and skips the rollout — but not the
+            environment toggle above. Rules are tried top to bottom, and only
+            match entities your app actually sends the attribute for.
+          </p>
+
+          <!-- Blank rows cloned by "Add rule" / "+ And". Kept inside the form
+               so each environment's row offers that environment's variants;
+               template content is inert, so these fields are never submitted. -->
+          <template data-rule-template>
+            <div class="targeting-rule rounded-lg border border-gray-200 dark:border-gray-700 p-3">
+              <input type="hidden" name="ruleIndex" value="" />
+              <div class="targeting-conditions flex flex-col gap-2">
+                <div class="condition-row flex items-center gap-2">
+                  <input type="hidden" name="condRule" value="" />
+                  <input
+                    type="text"
+                    name="condAttribute"
+                    placeholder="attribute"
+                    title="An attribute your app passes at evaluate time, e.g. plan"
+                    class="flex-1 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm font-mono"
+                  />
+                  <select
+                    name="condOperator"
+                    class="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm"
+                  >
+                    <option value="eq">is</option>
+                    <option value="neq">is not</option>
+                    <option value="in" selected>in</option>
+                    <option value="not_in">not in</option>
+                    <option value="contains">contains</option>
+                  </select>
+                  <input
+                    type="text"
+                    name="condValues"
+                    placeholder="value, value"
+                    title="Comma-separated. Compared as text, so case matters."
+                    class="flex-1 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm font-mono"
+                  />
+                  <button
+                    type="button"
+                    data-remove-condition
+                    aria-label="Remove condition"
+                    class="px-2 py-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 rounded-lg transition-colors"
+                  >✕</button>
+                </div>
+              </div>
+              <div class="flex items-center justify-between gap-3 mt-2">
+                <button
+                  type="button"
+                  data-add-condition
+                  class="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                >+ And</button>
+                <div class="flex items-center gap-3">
+                  <label class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                    <span>Serve</span>
+                    <select
+                      name="ruleServe"
+                      class="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm"
+                    >
+                      {{#each this.blankServeOptions}}
+                      <option value="{{this.value}}">{{this.label}}</option>
+                      {{/each}}
+                    </select>
+                  </label>
+                  <button
+                    type="button"
+                    data-remove-rule
+                    class="text-xs text-gray-400 hover:text-red-600 dark:hover:text-red-400"
+                  >Remove rule</button>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <template data-condition-template>
+            <div class="condition-row flex items-center gap-2">
+              <input type="hidden" name="condRule" value="" />
+              <input
+                type="text"
+                name="condAttribute"
+                placeholder="attribute"
+                title="An attribute your app passes at evaluate time, e.g. plan"
+                class="flex-1 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm font-mono"
+              />
+              <select
+                name="condOperator"
+                class="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm"
+              >
+                <option value="eq">is</option>
+                <option value="neq">is not</option>
+                <option value="in" selected>in</option>
+                <option value="not_in">not in</option>
+                <option value="contains">contains</option>
+              </select>
+              <input
+                type="text"
+                name="condValues"
+                placeholder="value, value"
+                title="Comma-separated. Compared as text, so case matters."
+                class="flex-1 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm font-mono"
+              />
+              <button
+                type="button"
+                data-remove-condition
+                aria-label="Remove condition"
+                class="px-2 py-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 rounded-lg transition-colors"
+              >✕</button>
+            </div>
+          </template>
+        </form>
+      </details>
     </div>
     {{/each}}
   </div>

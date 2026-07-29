@@ -5,6 +5,8 @@ import { FlagServiceI } from "../../../services/flag/flagService";
 import {
   Flag,
   FlagVariant,
+  TargetingCondition,
+  TargetingOperator,
   TargetingRule,
 } from "../../../repositories/flagRepository";
 import { AnalyticsService } from "../../../services/analytics/analytics";
@@ -50,6 +52,92 @@ function parseVariants(
     variants.push({ key, weight: rawWeight === "" ? NaN : Number(rawWeight) });
   }
   return variants;
+}
+
+// The targeting editor posts one flat set of fields per form, because HTML
+// forms cannot nest. Conditions name the rule they belong to (`condRule`), so
+// several of them AND into a single rule while every row stays a sibling.
+type TargetingFormBody = {
+  ruleIndex?: string | string[];
+  ruleServe?: string | string[];
+  condRule?: string | string[];
+  condAttribute?: string | string[];
+  condOperator?: string | string[];
+  condValues?: string | string[];
+};
+
+// A condition's values are typed as one comma-separated field, mirroring how
+// the summary renders them, so a rule round-trips through the form unchanged.
+function parseConditionValues(raw: string | undefined): string[] {
+  return (raw ?? "")
+    .split(",")
+    .map((v) => v.trim())
+    .filter(Boolean);
+}
+
+// Zips the flat form fields back into targeting rules, preserving the order the
+// rules were rendered in — first match wins at evaluation time. Rows without an
+// attribute or without values are dropped (the "add" affordances leave blank
+// rows behind), and a rule whose conditions all dropped out goes with them, so
+// clearing a rule's last condition removes the rule rather than failing the
+// save. Operators are passed through for FlagService to validate.
+function parseTargetingRules(body: TargetingFormBody): TargetingRule[] {
+  const ruleIndexes = toArray(body.ruleIndex);
+  const serves = toArray(body.ruleServe);
+  const condRules = toArray(body.condRule);
+  const attributes = toArray(body.condAttribute);
+  const operators = toArray(body.condOperator);
+  const values = toArray(body.condValues);
+
+  const conditionsByRule = new Map<string, TargetingCondition[]>();
+  for (let i = 0; i < condRules.length; i++) {
+    const attribute = (attributes[i] ?? "").trim();
+    const conditionValues = parseConditionValues(values[i]);
+    if (!attribute || conditionValues.length === 0) continue;
+    const existing = conditionsByRule.get(condRules[i]) ?? [];
+    existing.push({
+      attribute,
+      operator: (operators[i] ?? "").trim() as TargetingOperator,
+      values: conditionValues,
+    });
+    conditionsByRule.set(condRules[i], existing);
+  }
+
+  const rules: TargetingRule[] = [];
+  for (let i = 0; i < ruleIndexes.length; i++) {
+    const conditions = conditionsByRule.get(ruleIndexes[i]);
+    if (!conditions?.length) continue;
+    const serve = (serves[i] ?? "").trim();
+    rules.push({ conditions, serve: serve === "" ? null : serve });
+  }
+  return rules;
+}
+
+// The "serve" choices for one rule: plain on, plus every variant defined in
+// this environment. A rule pointing at a variant that has since been deleted
+// keeps that value as an option, so re-saving another rule cannot silently
+// rewrite it — the server rejects the save until someone fixes it.
+function serveOptions(variants: FlagVariant[], serve: string | null) {
+  const keys = variants.map((v) => v.key);
+  if (serve && !keys.includes(serve)) keys.push(serve);
+  return [
+    { value: "", label: "on", selected: serve === null },
+    ...keys.map((key) => ({ value: key, label: key, selected: serve === key })),
+  ];
+}
+
+// Rules as the editor renders them: a stable index the condition rows point
+// back at, and values flattened to the comma-separated text the form takes.
+function toTargetingRuleViews(rules: TargetingRule[], variants: FlagVariant[]) {
+  return rules.map((rule, index) => ({
+    index,
+    conditions: rule.conditions.map((c) => ({
+      attribute: c.attribute,
+      operator: c.operator,
+      values: c.values.join(", "),
+    })),
+    serveOptions: serveOptions(variants, rule.serve),
+  }));
 }
 
 // Human-readable one-liner for a targeting rule, e.g.
@@ -102,6 +190,13 @@ function toFlagView(flag: Flag, envNames: string[]) {
           ? cfg.variants.map((v) => `${v.key} ${v.weight}%`).join(" / ")
           : null,
         targetingSummary: summarizeTargetingRules(cfg.targetingRules ?? []),
+        targetingRules: toTargetingRuleViews(
+          cfg.targetingRules ?? [],
+          cfg.variants,
+        ),
+        // Options for a rule the customer has not added yet, so the blank row
+        // the "Add rule" button clones offers this environment's variants.
+        blankServeOptions: serveOptions(cfg.variants, null),
       };
     }),
   };
@@ -409,6 +504,41 @@ export function registerFlagsSettingsRoutes(
       } catch (error) {
         const message =
           error instanceof Error ? error.message : "Failed to update variants";
+        return renderList(accountId, service._id, envNames, reply, message);
+      }
+    },
+  );
+
+  // PUT /services/:serviceId/flags/:key/environments/:env/targeting — edit the
+  // targeting rules for one environment (HTMX). Submitting no rows clears them,
+  // putting the environment back on the plain rollout gate.
+  app.put<{
+    Params: { serviceId: string; key: string; env: string };
+    Body: TargetingFormBody;
+  }>(
+    "/services/:serviceId/flags/:key/environments/:env/targeting",
+    async (request, reply) => {
+      const result = await loadServiceWithAuth(request, reply);
+      if (!result) return;
+      const { service, accountId, userId } = result;
+      const envNames = envNamesOf(service);
+      const { key, env } = request.params;
+
+      const targetingRules = parseTargetingRules(request.body ?? {});
+
+      try {
+        await flagService.setEnvConfig(accountId, service._id, key, env, {
+          targetingRules,
+        });
+        analytics?.track(
+          "flag_updated",
+          { serviceId: service._id.toString(), key, environment: env },
+          actor(accountId, userId),
+        );
+        return renderList(accountId, service._id, envNames, reply);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Failed to update targeting";
         return renderList(accountId, service._id, envNames, reply, message);
       }
     },

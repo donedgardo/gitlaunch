@@ -258,6 +258,27 @@ await flags.track("my-flag", &#123; entity: USER_ID, goal: "signup" &#125;);</co
       document.querySelectorAll(".variant-form").forEach(updateTotal);
     }
 
+    // Lowest index not already used by a rule in this form. querySelectorAll
+    // does not descend into <template> content, so the blank rows kept inside
+    // the form never count here.
+    function nextRuleIndex(form) {
+      var max = -1;
+      form.querySelectorAll('input[name="ruleIndex"]').forEach(function (input) {
+        var value = parseInt(input.value, 10);
+        if (!isNaN(value) && value > max) max = value;
+      });
+      return String(max + 1);
+    }
+
+    // Stamp a freshly cloned rule or condition with the rule it belongs to.
+    function setRuleIndex(fragment, index) {
+      fragment
+        .querySelectorAll('input[name="ruleIndex"], input[name="condRule"]')
+        .forEach(function (input) {
+          input.value = index;
+        });
+    }
+
     // Delegate on document so handlers keep working after HTMX swaps the list.
     document.addEventListener("click", function (e) {
       var addBtn = e.target.closest("[data-add-variant]");
@@ -275,6 +296,46 @@ await flags.track("my-flag", &#123; entity: USER_ID, goal: "signup" &#125;);</co
         var parentForm = removeBtn.closest("form");
         if (row) row.remove();
         if (parentForm) updateTotal(parentForm);
+        return;
+      }
+
+      var addRuleBtn = e.target.closest("[data-add-rule]");
+      if (addRuleBtn) {
+        var ruleForm = addRuleBtn.closest("form");
+        var ruleTpl = ruleForm.querySelector("[data-rule-template]");
+        var rule = ruleTpl.content.cloneNode(true);
+        // A rule and its conditions are tied together by this index, which only
+        // has to be unique within the form — removing rules may leave gaps.
+        setRuleIndex(rule, nextRuleIndex(ruleForm));
+        ruleForm.querySelector(".targeting-rules").appendChild(rule);
+        return;
+      }
+
+      var addCondBtn = e.target.closest("[data-add-condition]");
+      if (addCondBtn) {
+        var ownerRule = addCondBtn.closest(".targeting-rule");
+        var condForm = addCondBtn.closest("form");
+        var condTpl = condForm.querySelector("[data-condition-template]");
+        var condition = condTpl.content.cloneNode(true);
+        setRuleIndex(
+          condition,
+          ownerRule.querySelector('input[name="ruleIndex"]').value,
+        );
+        ownerRule.querySelector(".targeting-conditions").appendChild(condition);
+        return;
+      }
+
+      var removeCondBtn = e.target.closest("[data-remove-condition]");
+      if (removeCondBtn) {
+        var condRow = removeCondBtn.closest(".condition-row");
+        if (condRow) condRow.remove();
+        return;
+      }
+
+      var removeRuleBtn = e.target.closest("[data-remove-rule]");
+      if (removeRuleBtn) {
+        var doomedRule = removeRuleBtn.closest(".targeting-rule");
+        if (doomedRule) doomedRule.remove();
       }
     });
 

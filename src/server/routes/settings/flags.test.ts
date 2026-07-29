@@ -597,6 +597,27 @@ describe("Flags Settings Routes", () => {
       expect(flag?.environments.prod.targetingRules).toEqual([]);
     });
 
+    it("should keep the rules when the environment is toggled from the same card", async () => {
+      await saveTargeting({
+        ruleIndex: "0",
+        ruleServe: "",
+        condRule: "0",
+        condAttribute: "plan",
+        condOperator: "in",
+        condValues: "pro, enterprise",
+      });
+
+      await app.inject({
+        method: "PATCH",
+        url: `/services/${serviceId}/flags/checkout/environments/prod`,
+        cookies: { session: session() },
+        payload: { enabled: "true", rolloutPercentage: "25" },
+      });
+
+      const flag = await flagService.getFlag(accountId, serviceId, "checkout");
+      expect(flag?.environments.prod.targetingRules).toHaveLength(1);
+    });
+
     it("should render an editable targeting form for each environment", async () => {
       const response = await app.inject({
         method: "GET",
