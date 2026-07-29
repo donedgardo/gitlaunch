@@ -3,6 +3,8 @@ import { Db, ObjectId } from "mongodb";
 import EventEmitter from "node:events";
 
 import { registerPlugins } from "./registerPlugins";
+import { registerErrorReporting } from "./registerErrorReporting";
+import { resolveEnvironmentName } from "../services/config/environmentName";
 import healthRoute from "./health";
 import homeRoute from "./home";
 import dashboardRoutes from "./dashboard";
@@ -81,6 +83,10 @@ import {
   AnalyticsService,
   NoOpAnalytics,
 } from "../services/analytics/analytics";
+import {
+  ErrorReporterI,
+  NoOpErrorReporter,
+} from "../services/observability/errorReporter";
 import { LeadRepository } from "../repositories/leadRepository";
 import { WaitlistService } from "../services/marketing/waitlistService";
 import { InternalTraffic } from "../services/analytics/internalTraffic";
@@ -119,6 +125,9 @@ export type AppServerDeps = {
   // Read-through cache for flag evaluation. Defaults to an in-memory cache;
   // inject a RedisFlagCache to share the cache across instances.
   flagCache?: FlagCacheI;
+  // Crash reporting for errors thrown while handling a request. Defaults to a
+  // no-op; inject a Sentry-backed reporter (see createErrorReporter) to enable.
+  errorReporter?: ErrorReporterI;
   // Whether this is the hosted SaaS or a licensed self-hosted install.
   // Defaults to reading the environment; injected in tests.
   instanceMode?: InstanceMode;
@@ -138,6 +147,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     emailSender = createEmailSender(),
     analytics = new NoOpAnalytics(),
     flagCache = new InMemoryFlagCache(),
+    errorReporter = new NoOpErrorReporter(),
   } = deps;
 
   // Self-hosted installs are governed by their license rather than by Stripe.
@@ -154,6 +164,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
 
   const server = Fastify();
   registerPlugins(server);
+  registerErrorReporting(server, errorReporter);
 
   // Repositories
   const userRepository = new UserRepository(database);
@@ -312,9 +323,13 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
   // the waitlist landing A/B test) shares this scope and differs only by flag
   // key. The owning account is derived from the service (a service belongs to
   // one account), so no account id is configured. Absent service => flags inert.
+  // The environment label is the instance-wide one (GITLAUNCH_ENV, or the older
+  // GITLAUNCH_FLAG_ENV), not a flags-only setting — the same label names this
+  // instance in error reports. Unlabelled instances keep reading "prod", which
+  // is what this scope has always defaulted to.
   const selfFlagContext = {
     serviceId: toObjectId(process.env.GITLAUNCH_SERVICE_ID),
-    environment: process.env.GITLAUNCH_FLAG_ENV || "prod",
+    environment: resolveEnvironmentName(process.env, "prod"),
   };
 
   // Every self-flag fails open, so a missing or malformed GITLAUNCH_SERVICE_ID

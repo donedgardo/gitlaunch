@@ -1,4 +1,7 @@
-import "dotenv/config";
+// Must stay the first import: it loads .env and registers the error-reporting
+// SDK before the libraries it instruments (mongodb, http) are pulled in below.
+import { errorReporter } from "./instrument";
+
 import { MongoClient } from "mongodb";
 import EventEmitter from "node:events";
 
@@ -85,6 +88,7 @@ const server = createAppServer({
   webhookEventRepo: webhookEventRepository,
   analytics,
   flagCache,
+  errorReporter,
 });
 
 const PORT = parseInt(process.env.PORT || "3050");
@@ -111,7 +115,10 @@ async function start() {
   console.info(`Server listening on port ${PORT}`);
 }
 
-start().catch((err) => {
+start().catch(async (err) => {
   console.error("Failed to start server:", err);
+  errorReporter.captureException(err, { phase: "startup" });
+  // Give the report a chance to leave the process before we kill it.
+  await errorReporter.flush(2000);
   process.exit(1);
 });

@@ -80,6 +80,11 @@ Copy `sample.env` to `.env` — it documents every variable. Required to boot:
 
 - `MONGODB_URI` - MongoDB connection string
 - `COOKIE_SECRET_SIGNATURE` - Cookie signing secret
+- `API_KEY` - API authentication key
+- `GH_PAT` - GitHub Personal Access Token for dispatch workflows
+- `GITLAUNCH_ENV` - Optional. What environment this instance runs as (`prod`, `staging`). Instance-wide, not tied to a feature: it labels error reports and scopes our own feature flags. `GITLAUNCH_FLAG_ENV` is the older name and still works; falls back to `NODE_ENV`, then `development`. Resolved in `src/services/config/environmentName.ts`.
+- `RELEASE` - Optional. Which build this is, so a report points at a known commit or tag.
+- `SENTRY_DSN` - Optional. When set, the Sentry SDK is registered at boot (see `src/instrument.ts`, which must stay the first import in `src/index.ts`) and errors thrown while handling a request are reported, labelled with `GITLAUNCH_ENV` and `RELEASE`. `SENTRY_TRACES_SAMPLE_RATE` tunes tracing. Unset, reporting is a no-op and the SDK is never loaded.
 - `ENCRYPTION_KEY` - 32-byte base64 key for encrypting stored secrets at rest (e.g. Jenkins API tokens); generate with `openssl rand -base64 32`. Boot fails closed if missing/invalid. For key rotation, use a keyring instead: `ENCRYPTION_KEYS="<id>:<base64key>,..."` plus `ENCRYPTION_PRIMARY_KEY_ID=<id>` (old keys stay for decryption; new writes use the primary).
 
 GitHub App credentials (`GH_APP_ID`, `GH_APP_CLIENT_ID`, `GH_APP_CLIENT_SECRET`, `GH_APP_PRIVATE_KEY`, `GH_APP_NAME`, `GH_APP_WEBHOOK_SECRET`) are needed for real GitHub integration; set `USE_FAKE_GITHUB=true` to develop without them.
