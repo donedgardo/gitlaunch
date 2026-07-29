@@ -1,0 +1,38 @@
+{{!-- One condition of a targeting rule. `ruleIndex` ties it to the rule it
+      belongs to; blank rows kept in a <template> leave it empty for the "Add
+      rule" / "+ And" handlers to stamp. --}}
+<div class="condition-row flex items-center gap-2">
+  <input type="hidden" name="condRule" value="{{ruleIndex}}" />
+  <input
+    type="text"
+    name="condAttribute"
+    value="{{attribute}}"
+    placeholder="attribute"
+    title="An attribute your app passes at evaluate time, e.g. plan"
+    class="flex-1 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm font-mono"
+  />
+  <select
+    name="condOperator"
+    class="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm"
+  >
+    <option value="eq" {{#if (eq operator "eq")}}selected{{/if}}>is</option>
+    <option value="neq" {{#if (eq operator "neq")}}selected{{/if}}>is not</option>
+    <option value="in" {{#if (eq operator "in")}}selected{{/if}}>in</option>
+    <option value="not_in" {{#if (eq operator "not_in")}}selected{{/if}}>not in</option>
+    <option value="contains" {{#if (eq operator "contains")}}selected{{/if}}>contains</option>
+  </select>
+  <input
+    type="text"
+    name="condValues"
+    value="{{values}}"
+    placeholder="value, value"
+    title="Comma-separated. Compared as text, so case matters."
+    class="flex-1 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm font-mono"
+  />
+  <button
+    type="button"
+    data-remove-condition
+    aria-label="Remove condition"
+    class="px-2 py-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 rounded-lg transition-colors"
+  >✕</button>
+</div>

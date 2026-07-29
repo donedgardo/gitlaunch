@@ -92,6 +92,8 @@ describe("Flags Settings Routes", () => {
           navigation: "/partials/navigation.hbs",
           flagList: "/partials/flagList.hbs",
           flagKeyResult: "/partials/flagKeyResult.hbs",
+          flagTargetingRule: "/partials/flagTargetingRule.hbs",
+          flagConditionRow: "/partials/flagConditionRow.hbs",
           experimentResults: "/partials/experimentResults.hbs",
         },
       },
@@ -658,6 +660,35 @@ describe("Flags Settings Routes", () => {
       expect(response.statusCode).toBe(200);
       expect(response.body).toContain(`value="plan"`);
       expect(response.body).toContain(`value="pro, enterprise"`);
+    });
+
+    it("should tie every rendered condition to the rule it belongs to", async () => {
+      // Two rules, so a condition landing under the wrong one would show up.
+      await flagService.setEnvConfig(accountId, serviceId, "checkout", "prod", {
+        targetingRules: [
+          {
+            conditions: [
+              { attribute: "plan", operator: "in", values: ["pro"] },
+            ],
+            serve: null,
+          },
+          {
+            conditions: [
+              { attribute: "country", operator: "eq", values: ["US"] },
+            ],
+            serve: null,
+          },
+        ],
+      });
+
+      const response = await app.inject({
+        method: "GET",
+        url: `/services/${serviceId}/flags`,
+        cookies: { session: session() },
+      });
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain(`name="condRule" value="0"`);
+      expect(response.body).toContain(`name="condRule" value="1"`);
     });
 
     it("should offer the environment's variants as targets to serve", async () => {

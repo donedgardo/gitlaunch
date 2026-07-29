@@ -1,0 +1,44 @@
+{{!-- One targeting rule: conditions that all have to match (AND), and what to
+      serve when they do. Rendered both for saved rules and, with no conditions,
+      as the blank row the "Add rule" button clones. --}}
+<div class="targeting-rule rounded-lg border border-gray-200 dark:border-gray-700 p-3">
+  <input type="hidden" name="ruleIndex" value="{{index}}" />
+  <div class="targeting-conditions flex flex-col gap-2">
+    {{#if conditions}}
+    {{#each conditions}}
+    {{> flagConditionRow
+        ruleIndex=../index
+        attribute=this.attribute
+        operator=this.operator
+        values=this.values}}
+    {{/each}}
+    {{else}}
+    {{> flagConditionRow operator="in"}}
+    {{/if}}
+  </div>
+  <div class="flex items-center justify-between gap-3 mt-2">
+    <button
+      type="button"
+      data-add-condition
+      class="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+    >+ And</button>
+    <div class="flex items-center gap-3">
+      <label class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+        <span>Serve</span>
+        <select
+          name="ruleServe"
+          class="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm"
+        >
+          {{#each serveOptions}}
+          <option value="{{this.value}}" {{#if this.selected}}selected{{/if}}>{{this.label}}</option>
+          {{/each}}
+        </select>
+      </label>
+      <button
+        type="button"
+        data-remove-rule
+        class="text-xs text-gray-400 hover:text-red-600 dark:hover:text-red-400"
+      >Remove rule</button>
+    </div>
+  </div>
+</div>
