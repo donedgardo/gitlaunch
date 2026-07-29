@@ -1,3 +1,4 @@
+import { resolveEnvironmentName } from "../config/environmentName";
 import {
   ErrorReporterI,
   NoOpErrorReporter,
@@ -44,18 +45,21 @@ export function createErrorReporter(
   } catch (err) {
     console.warn(
       "[sentry] SENTRY_DSN is set but @sentry/node could not be loaded; " +
-        "error reporting is disabled. Run `yarn add @sentry/node` to enable it.",
+        "error reporting is disabled. It ships as a dependency — reinstall it " +
+        "(`yarn add @sentry/node`) if this install was slimmed down.",
       err,
     );
     return new NoOpErrorReporter();
   }
 
-  const environment = env.SENTRY_ENVIRONMENT || env.NODE_ENV || "development";
+  const environment = resolveEnvironmentName(env);
   try {
     sdk.init({
       dsn,
       environment,
-      release: env.SENTRY_RELEASE,
+      // Which build this is. Not a Sentry concept — the same identifier should
+      // name a release everywhere we report on one.
+      release: env.RELEASE,
       tracesSampleRate: parseSampleRate(env.SENTRY_TRACES_SAMPLE_RATE),
     });
   } catch (err) {

@@ -41,8 +41,8 @@ describe("createErrorReporter", () => {
     const reporter = createErrorReporter(
       {
         SENTRY_DSN: "https://key@example.ingest.sentry.io/42",
-        SENTRY_ENVIRONMENT: "staging",
-        SENTRY_RELEASE: "gitlaunch@1.2.3",
+        GITLAUNCH_ENV: "staging",
+        RELEASE: "gitlaunch@1.2.3",
       } as NodeJS.ProcessEnv,
       () => sdk,
     );
@@ -56,7 +56,7 @@ describe("createErrorReporter", () => {
     });
   });
 
-  it("should fall back to NODE_ENV for the environment when SENTRY_ENVIRONMENT is unset", () => {
+  it("should fall back to NODE_ENV for the environment when the instance is not explicitly labelled", () => {
     const { sdk, initOptions } = fakeSdk();
 
     createErrorReporter(

@@ -4,6 +4,7 @@ import EventEmitter from "node:events";
 
 import { registerPlugins } from "./registerPlugins";
 import { registerErrorReporting } from "./registerErrorReporting";
+import { resolveEnvironmentName } from "../services/config/environmentName";
 import healthRoute from "./health";
 import homeRoute from "./home";
 import dashboardRoutes from "./dashboard";
@@ -322,9 +323,13 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
   // the waitlist landing A/B test) shares this scope and differs only by flag
   // key. The owning account is derived from the service (a service belongs to
   // one account), so no account id is configured. Absent service => flags inert.
+  // The environment label is the instance-wide one (GITLAUNCH_ENV, or the older
+  // GITLAUNCH_FLAG_ENV), not a flags-only setting — the same label names this
+  // instance in error reports. Unlabelled instances keep reading "prod", which
+  // is what this scope has always defaulted to.
   const selfFlagContext = {
     serviceId: toObjectId(process.env.GITLAUNCH_SERVICE_ID),
-    environment: process.env.GITLAUNCH_FLAG_ENV || "prod",
+    environment: resolveEnvironmentName(process.env, "prod"),
   };
 
   // Every self-flag fails open, so a missing or malformed GITLAUNCH_SERVICE_ID
