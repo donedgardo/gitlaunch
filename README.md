@@ -2,88 +2,71 @@
 
 [![CI](https://github.com/donedgardo/launchpad/actions/workflows/ci.yml/badge.svg)](https://github.com/donedgardo/launchpad/actions/workflows/ci.yml)
 
-Stress-free deployment management for your organization.
+Deployment control your whole team can drive. GitLaunch shows what's deployed in
+every environment and lets anyone promote or roll back in one click, on top of
+the CI you already run.
 
-GitLaunch is a deployment tracking and management tool that streamlines your deployment process across multiple services and environments.
+## What it does
 
-## Features
+- **Deployment tracking** — build history per service, with the current state of every environment
+- **One-click promote and rollback** — trigger a deploy from the dashboard or the API
+- **Live status** — the dashboard updates over Server-Sent Events, no refresh
+- **Multi-tenant** — accounts, roles, per-account API keys, plan limits
+- **Feature flags and experiments** — per service and environment, with a ship/no-ship verdict
+- **Providers** — GitHub Actions (via a GitHub App) and Jenkins
 
-- **Deployment Tracking**: Track all deployments with a clear history of what was deployed and when
-- **Environment Management**: Manage deployments across environments (staging, production)
-- **GitHub Actions Integration**: Trigger deployments via GitHub Actions dispatch
-- **Real-time Updates**: Live dashboard updates via Server-Sent Events
-- **Multi-Service Support**: Manage multiple services from a single dashboard
+Stack: Fastify · HTMX · Handlebars · MongoDB · TypeScript · Tailwind CSS
 
-## Tech Stack
+## Getting started
 
-- **Fastify** - Fast, low overhead web framework
-- **HTMX** - Dynamic interfaces without a SPA
-- **Handlebars** - Server-side templating
-- **MongoDB** - Data persistence
-- **TypeScript** - Type-safe development
-- **Tailwind CSS** - Utility-first styling
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js 18+
-- Yarn
-- MongoDB
-
-### Installation
-
-1. Clone the repository:
-
-   ```bash
-   git clone https://github.com/your-org/gitlaunch.git
-   cd gitlaunch
-   ```
-
-2. Install dependencies:
-
-   ```bash
-   yarn install
-   ```
-
-3. Configure environment:
-   ```bash
-   cp sample.env .env
-   ```
-   Fill in the required environment variables.
-
-### Development
+Requires Node.js 20+, Yarn, and MongoDB.
 
 ```bash
-yarn dev
+yarn install
+git submodule update --init   # github-action submodule; a contract test needs it
+cp sample.env .env            # then fill it in
+yarn dev                      # http://localhost:3050
 ```
 
-### Build & Run
+`sample.env` documents every variable. The minimum to boot is `MONGODB_URI`,
+`COOKIE_SECRET_SIGNATURE`, and `ENCRYPTION_KEY` — a 32-byte base64 key
+(`openssl rand -base64 32`) that encrypts stored secrets such as Jenkins tokens.
+Boot fails closed without a valid one. To rotate it, use the keyring form
+(`ENCRYPTION_KEYS` + `ENCRYPTION_PRIMARY_KEY_ID`) so old ciphertexts stay
+readable.
+
+To work on the app without real GitHub credentials, set `USE_FAKE_GITHUB=true`
+and `ENABLE_BUILD_SIMULATION=true`. For real ones, see
+[docs/GitHub_App_Setup.md](docs/GitHub_App_Setup.md).
+
+## Commands
 
 ```bash
-yarn build
-yarn start
+yarn dev          # server with hot-reload + tailwind watcher
+yarn build        # compile to dist/
+yarn start        # run the compiled build
+yarn test         # unit tests (yarn test:watch for watch mode)
+yarn test:e2e     # Playwright e2e, requires a running server
+yarn analytics    # internal product/marketing report against $MONGODB_URI
 ```
 
-### Testing
+## Docs
 
-```bash
-# Unit tests
-yarn test
+| Doc                                                           | What's in it                                             |
+| ------------------------------------------------------------- | -------------------------------------------------------- |
+| [multi-tenancy.md](docs/multi-tenancy.md)                     | Accounts, roles, API keys, plan limits, tenant isolation |
+| [feature-flags.md](docs/feature-flags.md)                     | Flags, rollouts, experiments, and the client SDK         |
+| [GitHub_App_Setup.md](docs/GitHub_App_Setup.md)               | Creating the GitHub App and wiring its credentials       |
+| [railway-setup.md](docs/railway-setup.md)                     | Deploying to Railway, CI/CD, rollback                    |
+| [SELF-HOSTING.md](docs/SELF-HOSTING.md)                       | Running GitLaunch in your own Kubernetes cluster         |
+| [ENTERPRISE-DELIVERY.md](docs/ENTERPRISE-DELIVERY.md)         | Internal: licensing and handover for self-hosted sales   |
+| [ENTERPRISE-ROADMAP.md](docs/ENTERPRISE-ROADMAP.md)           | Internal: gaps and sequencing for the enterprise push    |
+| [product-analytics.md](docs/product-analytics.md)             | The internal analytics report                            |
+| [feature-flag-dogfooding.md](docs/feature-flag-dogfooding.md) | GitLaunch running on its own flag engine                 |
+| [marketing/](docs/marketing/README.md)                        | Alpha campaigns, UTM convention, waitlist                |
+| [positioning/](docs/positioning/README.md)                    | Positioning canvas and customer interviews               |
 
-# E2E tests (requires running server)
-yarn test:e2e
-```
-
-## Configuration
-
-See `sample.env` for required environment variables:
-
-- `MONGODB_URI` - MongoDB connection string
-- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` - OAuth credentials
-- `GH_ORG` - Your GitHub organization name
-- `GH_PAT` - GitHub Personal Access Token for dispatch
-- `SERVICES` - Comma-separated list of service names to manage
+`CLAUDE.md` covers the architecture and the TDD workflow this repo follows.
 
 ## License
 

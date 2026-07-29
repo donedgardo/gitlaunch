@@ -30,7 +30,7 @@ https://gitlaunch.dev/?utm_source=network&utm_medium=referral&utm_campaign=alpha
 
 > Hey {name} — I'm building GitLaunch: deployment control a whole lean team can drive, so it's not just the one person who knows the pipeline who can say what's live or roll it back. You've lived that problem — I'd love 30 min to have you poke holes in it before I go wider. Up for it?
 
-**When they say yes:** book the call, then run the [customer interview guide](../positioning/customer-interview-guide.html). Score the four bets (segment, alternatives, value, fear) and capture verbatim quotes — those become the next `benefit-led` hero variant and the next campaign's copy.
+**When they say yes:** book the call, then run the [customer interview guide](../positioning/customer-interview-guide.html). Score the open bets and capture verbatim quotes — those become the next `benefit-led` hero variant and the next campaign's copy.
 
 **Only if they'd rather just try it than talk:** send the tagged link above and let the landing page's waitlist form take it from there.
 
@@ -72,8 +72,8 @@ https://gitlaunch.dev/?utm_source=newsletter&utm_medium=referral&utm_campaign=al
 
 ## After the links go out
 
-1. **Confirm the pipe works first** — RUNBOOK.md §6 checklist, especially `ANALYTICS_WAREHOUSE=true` in Railway, or you collect nothing.
-2. **Read campaign results from the `leads` collection**, grouped by `attribution.campaign` / `attribution.source` — **not** `/dashboard/analytics` (the `waitlist_signup` event carries no `accountId`, so it never shows there). Query is in RUNBOOK.md §5.
+1. **Confirm the pipe works first** — the checklist in [RUNBOOK.md](./RUNBOOK.md) §5, especially `ANALYTICS_WAREHOUSE=true` in Railway, or you collect nothing.
+2. **Read the results.** `yarn analytics` or `/dashboard/analytics` for the cross-channel view; the `leads` collection grouped by `attribution.campaign` / `attribution.source` for a breakdown neither offers. Query in [RUNBOOK.md](./RUNBOOK.md) §2. If signups are missing from the dashboard but present in `leads`, `GITLAUNCH_SERVICE_ID` is wrong.
 3. **Update [CAMPAIGNS.md](./CAMPAIGNS.md)** — flip each row's status and keep the signup count current.
 4. **Judge against the bar:** the referral rate these two warm channels produce is the yardstick for the cold channels. Signup-conversion target is > 2% (MARKETING_RESEARCH.md); warm should clear it comfortably.
-5. **Interview every signup** against the four bets, and roll the sharpest verbatim quotes into the next hero variant.
+5. **Interview every signup** against the open bets, and roll the sharpest verbatim quotes into the next hero variant.
