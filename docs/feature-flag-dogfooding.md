@@ -38,10 +38,10 @@ rather than the 24-character id), and a well-formed id with no such service.
 
 ## Flags we run on ourselves
 
-| Key                  | What it controls                                  | Off/absent behaviour        |
-| -------------------- | ------------------------------------------------- | --------------------------- |
-| `waitlist-hero-copy` | A/B variant of the landing-page copy              | Control copy (today's page) |
-| `self-serve-signups` | Whether a brand-new visitor may create an account | See below — fails **open**  |
+| Key                  | What it controls                                                                                                                | Off/absent behaviour       |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
+| `waitlist-hero-copy` | Landing-page hero copy. **Experiment concluded** — one arm is shipped and exposure tracking is off. Kept for the next copy test | The shipped copy           |
+| `self-serve-signups` | Whether a brand-new visitor may create an account                                                                               | See below — fails **open** |
 
 ## `self-serve-signups` — the front door
 
@@ -72,34 +72,14 @@ alongside every other flag. A refused visitor is redirected to
 `/?error=signups_closed`, which tells them the alpha is invite-only and points
 them at the waitlist.
 
-## Two kinds of key (and why)
+## Why we need no API key and customers do
 
 GitLaunch reads its own flags **in-process** — `flagService.evaluate` is a plain
-method call, no HTTP and no API key. Customers are not so lucky, so the flags
-page mints two different keys depending on where the call comes from.
-
-|                                                             | Secret (`sk_…`)             | Publishable (`pk_…`)                            |
-| ----------------------------------------------------------- | --------------------------- | ----------------------------------------------- |
-| Where it lives                                              | Your server, only           | Your frontend bundle                            |
-| Scope                                                       | `flags:read` — account-wide | `flags:evaluate` — one service, one environment |
-| Can read flag config / targeting rules / experiment results | Yes                         | **No**                                          |
-| Origin restricted                                           | No                          | Yes, to origins you list                        |
-
-`flags:read` is deliberately _not_ browser-safe. It opens six endpoints — flag
-config, a single flag, evaluate, experiment results, and two config-version
-routes — for **every service in the account**. Flag configuration includes
-targeting rules, which can name real users (`githubLogin in [alice, bob]`).
-
-**Legacy keys:** every key minted before this split carries the `pk_` prefix but
-is a secret key. What a key may do is read from the stored record, not from its
-prefix, so old keys keep working unchanged — but the prefix now reads as
-"publishable" to anyone glancing at it. Rotate them to `sk_` when convenient.
-
-**The origin allow-list is a guard rail, not a secret.** A publishable key is
-public by construction, and anything outside a browser can forge or omit the
-`Origin` header. What actually limits the damage is the confinement: one
-service, one environment, evaluate-only. The allow-list stops a key lifted from
-your bundle being dropped straight into another site's frontend.
+method call, no HTTP and no key. Customers call over HTTP, so they mint either a
+secret (`sk_`) or a publishable (`pk_`) key depending on where the call comes
+from. That split, what each key opens up, and why the origin allow-list is a
+guard rail rather than a secret are all covered in
+[feature-flags.md](./feature-flags.md#keys-and-safety).
 
 **No rate limiting yet.** The evaluate endpoint has no per-key throttle, so a
 publishable key can be replayed as fast as someone likes. Worth adding before

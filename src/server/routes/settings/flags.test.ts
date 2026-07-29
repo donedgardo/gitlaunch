@@ -92,6 +92,8 @@ describe("Flags Settings Routes", () => {
           navigation: "/partials/navigation.hbs",
           flagList: "/partials/flagList.hbs",
           flagKeyResult: "/partials/flagKeyResult.hbs",
+          flagTargetingRule: "/partials/flagTargetingRule.hbs",
+          flagConditionRow: "/partials/flagConditionRow.hbs",
           experimentResults: "/partials/experimentResults.hbs",
         },
       },
@@ -352,6 +354,359 @@ describe("Flags Settings Routes", () => {
     });
     expect(response.statusCode).toBe(200);
     expect(response.body).toContain("country in US, CA");
+  });
+
+  describe("targeting rules", () => {
+    beforeEach(async () => {
+      await flagService.createFlag(accountId, serviceId, {
+        key: "checkout",
+        description: "",
+      });
+    });
+
+    async function saveTargeting(payload: Record<string, unknown>) {
+      return app.inject({
+        method: "PUT",
+        url: `/services/${serviceId}/flags/checkout/environments/prod/targeting`,
+        cookies: { session: session() },
+        payload,
+      });
+    }
+
+    async function evaluateCheckout(
+      entity: string,
+      attributes: Record<string, string>,
+    ) {
+      const evaluations = await flagService.evaluate(
+        accountId,
+        serviceId,
+        "prod",
+        entity,
+        attributes,
+      );
+      return evaluations.find((e) => e.key === "checkout");
+    }
+
+    it("should turn the flag on for the targeted segment while the rest stay on the rollout", async () => {
+      // Given an enabled flag nobody is rolled out to
+      await flagService.setEnvConfig(accountId, serviceId, "checkout", "prod", {
+        enabled: true,
+        rolloutPercentage: 0,
+      });
+
+      // When I target paying plans from the flags page
+      const response = await saveTargeting({
+        ruleIndex: "0",
+        ruleServe: "",
+        condRule: "0",
+        condAttribute: "plan",
+        condOperator: "in",
+        condValues: "pro, enterprise",
+      });
+      expect(response.statusCode).toBe(200);
+
+      // Then a pro customer gets it and a free one does not
+      expect((await evaluateCheckout("user-1", { plan: "pro" }))?.enabled).toBe(
+        true,
+      );
+      expect(
+        (await evaluateCheckout("user-1", { plan: "free" }))?.enabled,
+      ).toBe(false);
+    });
+
+    it("should store the rule the summary describes", async () => {
+      await saveTargeting({
+        ruleIndex: "0",
+        ruleServe: "",
+        condRule: "0",
+        condAttribute: "plan",
+        condOperator: "in",
+        condValues: "pro, enterprise",
+      });
+
+      const flag = await flagService.getFlag(accountId, serviceId, "checkout");
+      expect(flag?.environments.prod.targetingRules).toEqual([
+        {
+          conditions: [
+            {
+              attribute: "plan",
+              operator: "in",
+              values: ["pro", "enterprise"],
+            },
+          ],
+          serve: null,
+        },
+      ]);
+    });
+
+    it("should serve a chosen variant to the targeted segment", async () => {
+      await flagService.setEnvConfig(accountId, serviceId, "checkout", "prod", {
+        enabled: true,
+        variants: [
+          { key: "control", weight: 50 },
+          { key: "treatment", weight: 50 },
+        ],
+      });
+
+      await saveTargeting({
+        ruleIndex: "0",
+        ruleServe: "treatment",
+        condRule: "0",
+        condAttribute: "plan",
+        condOperator: "eq",
+        condValues: "enterprise",
+      });
+
+      expect(
+        (await evaluateCheckout("user-1", { plan: "enterprise" }))?.variant,
+      ).toBe("treatment");
+    });
+
+    it("should require every condition of a rule to match when a rule has several", async () => {
+      await flagService.setEnvConfig(accountId, serviceId, "checkout", "prod", {
+        enabled: true,
+        rolloutPercentage: 0,
+      });
+
+      // Two condition rows belonging to the same rule (condRule "0")
+      await saveTargeting({
+        ruleIndex: "0",
+        ruleServe: "",
+        condRule: ["0", "0"],
+        condAttribute: ["plan", "country"],
+        condOperator: ["in", "eq"],
+        condValues: ["pro, enterprise", "US"],
+      });
+
+      expect(
+        (await evaluateCheckout("user-1", { plan: "pro", country: "US" }))
+          ?.enabled,
+      ).toBe(true);
+      expect(
+        (await evaluateCheckout("user-1", { plan: "pro", country: "CA" }))
+          ?.enabled,
+      ).toBe(false);
+    });
+
+    it("should keep separate rules independent and in order", async () => {
+      await saveTargeting({
+        ruleIndex: ["0", "1"],
+        ruleServe: ["", ""],
+        condRule: ["0", "1"],
+        condAttribute: ["plan", "country"],
+        condOperator: ["in", "eq"],
+        condValues: ["pro, enterprise", "US"],
+      });
+
+      const flag = await flagService.getFlag(accountId, serviceId, "checkout");
+      expect(flag?.environments.prod.targetingRules).toEqual([
+        {
+          conditions: [
+            {
+              attribute: "plan",
+              operator: "in",
+              values: ["pro", "enterprise"],
+            },
+          ],
+          serve: null,
+        },
+        {
+          conditions: [
+            { attribute: "country", operator: "eq", values: ["US"] },
+          ],
+          serve: null,
+        },
+      ]);
+    });
+
+    it("should skip condition rows left blank", async () => {
+      await saveTargeting({
+        ruleIndex: ["0", "1"],
+        ruleServe: ["", ""],
+        condRule: ["0", "1"],
+        condAttribute: ["plan", ""],
+        condOperator: ["in", "eq"],
+        condValues: ["pro, enterprise", ""],
+      });
+
+      const flag = await flagService.getFlag(accountId, serviceId, "checkout");
+      expect(flag?.environments.prod.targetingRules).toEqual([
+        {
+          conditions: [
+            {
+              attribute: "plan",
+              operator: "in",
+              values: ["pro", "enterprise"],
+            },
+          ],
+          serve: null,
+        },
+      ]);
+    });
+
+    it("should clear targeting when the form is submitted empty", async () => {
+      await flagService.setEnvConfig(accountId, serviceId, "checkout", "prod", {
+        targetingRules: [
+          {
+            conditions: [
+              { attribute: "plan", operator: "in", values: ["pro"] },
+            ],
+            serve: null,
+          },
+        ],
+      });
+
+      await saveTargeting({});
+
+      const flag = await flagService.getFlag(accountId, serviceId, "checkout");
+      expect(flag?.environments.prod.targetingRules).toEqual([]);
+    });
+
+    it("should surface an error and keep the old rules when serving an unknown variant", async () => {
+      const response = await saveTargeting({
+        ruleIndex: "0",
+        ruleServe: "does-not-exist",
+        condRule: "0",
+        condAttribute: "plan",
+        condOperator: "in",
+        condValues: "pro",
+      });
+
+      // HTMX swaps on 200: the partial re-renders carrying the error.
+      expect(response.statusCode).toBe(200);
+      expect(response.body.toLowerCase()).toContain("unknown variant");
+
+      const flag = await flagService.getFlag(accountId, serviceId, "checkout");
+      expect(flag?.environments.prod.targetingRules).toEqual([]);
+    });
+
+    it("should not let a signed-out visitor change targeting", async () => {
+      const response = await app.inject({
+        method: "PUT",
+        url: `/services/${serviceId}/flags/checkout/environments/prod/targeting`,
+        payload: {
+          ruleIndex: "0",
+          ruleServe: "",
+          condRule: "0",
+          condAttribute: "plan",
+          condOperator: "in",
+          condValues: "pro",
+        },
+      });
+      expect(response.statusCode).toBe(302);
+
+      const flag = await flagService.getFlag(accountId, serviceId, "checkout");
+      expect(flag?.environments.prod.targetingRules).toEqual([]);
+    });
+
+    it("should keep the rules when the environment is toggled from the same card", async () => {
+      await saveTargeting({
+        ruleIndex: "0",
+        ruleServe: "",
+        condRule: "0",
+        condAttribute: "plan",
+        condOperator: "in",
+        condValues: "pro, enterprise",
+      });
+
+      await app.inject({
+        method: "PATCH",
+        url: `/services/${serviceId}/flags/checkout/environments/prod`,
+        cookies: { session: session() },
+        payload: { enabled: "true", rolloutPercentage: "25" },
+      });
+
+      const flag = await flagService.getFlag(accountId, serviceId, "checkout");
+      expect(flag?.environments.prod.targetingRules).toHaveLength(1);
+    });
+
+    it("should render an editable targeting form for each environment", async () => {
+      const response = await app.inject({
+        method: "GET",
+        url: `/services/${serviceId}/flags`,
+        cookies: { session: session() },
+      });
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain(
+        `/flags/checkout/environments/prod/targeting`,
+      );
+      expect(response.body).toContain(`name="condAttribute"`);
+      expect(response.body).toContain(`name="condOperator"`);
+      expect(response.body).toContain(`name="condValues"`);
+      expect(response.body).toContain(`name="ruleServe"`);
+    });
+
+    it("should render existing rules back into the form so they can be edited", async () => {
+      await flagService.setEnvConfig(accountId, serviceId, "checkout", "prod", {
+        targetingRules: [
+          {
+            conditions: [
+              {
+                attribute: "plan",
+                operator: "in",
+                values: ["pro", "enterprise"],
+              },
+            ],
+            serve: null,
+          },
+        ],
+      });
+
+      const response = await app.inject({
+        method: "GET",
+        url: `/services/${serviceId}/flags`,
+        cookies: { session: session() },
+      });
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain(`value="plan"`);
+      expect(response.body).toContain(`value="pro, enterprise"`);
+    });
+
+    it("should tie every rendered condition to the rule it belongs to", async () => {
+      // Two rules, so a condition landing under the wrong one would show up.
+      await flagService.setEnvConfig(accountId, serviceId, "checkout", "prod", {
+        targetingRules: [
+          {
+            conditions: [
+              { attribute: "plan", operator: "in", values: ["pro"] },
+            ],
+            serve: null,
+          },
+          {
+            conditions: [
+              { attribute: "country", operator: "eq", values: ["US"] },
+            ],
+            serve: null,
+          },
+        ],
+      });
+
+      const response = await app.inject({
+        method: "GET",
+        url: `/services/${serviceId}/flags`,
+        cookies: { session: session() },
+      });
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain(`name="condRule" value="0"`);
+      expect(response.body).toContain(`name="condRule" value="1"`);
+    });
+
+    it("should offer the environment's variants as targets to serve", async () => {
+      await flagService.setEnvConfig(accountId, serviceId, "checkout", "prod", {
+        variants: [
+          { key: "control", weight: 50 },
+          { key: "treatment", weight: 50 },
+        ],
+      });
+
+      const response = await app.inject({
+        method: "GET",
+        url: `/services/${serviceId}/flags`,
+        cookies: { session: session() },
+      });
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain(`value="treatment"`);
+    });
   });
 
   it("shows a 'Connect an app' panel with the evaluate endpoint for this service", async () => {

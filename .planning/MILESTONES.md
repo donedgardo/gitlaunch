@@ -32,7 +32,7 @@
 
 **Delivered:** Complete multi-tenant transformation with GitHub App, Stripe billing, and onboarding
 
-**Phases completed:** 6 phases (see docs/MULTI_TENANT_PLAN.md)
+**Phases completed:** 6 phases (the plan doc has been retired; current state is in docs/multi-tenancy.md)
 
 **Key accomplishments:**
 

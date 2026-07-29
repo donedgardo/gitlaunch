@@ -29,59 +29,56 @@ yarn test:e2e
 
 ## Architecture
 
-GitLaunch is a SaaS deployment management tool built with:
-
-- **Fastify** - Web server framework
-- **HTMX** - Client-side interactivity without a SPA
-- **Handlebars** - Server-side templating
-- **MongoDB** - Data persistence
-- **Tailwind CSS** - Styling
+GitLaunch is a multi-tenant SaaS deployment tool: Fastify, HTMX, Handlebars, MongoDB, Tailwind.
 
 ### Core Structure
 
-**Entry Point**: `src/index.ts` bootstraps the server with services and MongoDB connection.
+**Entry point**: `src/index.ts` — reads config, connects MongoDB, constructs services, listens on `PORT` (default 3050).
 
-**Server Layer** (`src/server/`):
+**Server** (`src/server/`):
 
-- `index.ts` - Creates Fastify server and registers all route handlers
-- `registerPlugins.ts` - Configures Fastify plugins (static files, views, cookies, OAuth2, SSE)
-- Route handlers in subdirectories: `auth/`, `build/`, `dashboard/`, `health/`, `home/`
+- `createAppServer.ts` - Creates the Fastify server and registers every route
+- `registerPlugins.ts` - Fastify plugins (static files, views, cookies, OAuth2, SSE, raw body)
+- `routes/` - `api/`, `auth/`, `github/`, `invite/`, `marketing/`, `onboarding/`, `services/`, `settings/`, `webhooks/`
+- Feature dirs alongside them: `build/`, `dashboard/`, `home/`, `health/`, `analytics/`, `seo/`
+- `middleware/` - session auth, API key auth, account context
 
-**Services Layer** (`src/services/`):
+**Data** (`src/repositories/`): one repository per collection — accounts, users, memberships, services, repositories, builds, API keys, invitations, leads, flags, analytics events, webhook events, trial registry. Every tenant-scoped query filters by `accountId`.
 
-- `Service` class (`service/index.ts`) - Core business logic for managing deployments
-- `BuildStorageI` interface - Abstraction for build data persistence
-- `MongoBuildStorage` - MongoDB implementation of build storage
-- `GithubDispatchService` - Triggers GitHub Actions workflows for deployments
+**Services** (`src/services/`): grouped by domain — `account/`, `analytics/`, `apiKey/`, `auth/`, `billing/`, `build/`, `crypto/`, `dispatch/`, `environment/`, `flag/`, `github/`, `invitation/`, `jenkins/`, `marketing/`, `repository/`.
 
 ### Key Patterns
 
-**Dependency Injection**: Services are created via `createServices()` and injected into route handlers.
+**Dependency injection**: services are constructed in `src/index.ts` and injected into route handlers. Nothing reaches for a global.
 
-**Real-time Updates**: Uses Server-Sent Events (SSE) via `EventEmitter` to push deployment status updates to the dashboard (`/build-update-stream` endpoint).
+**Providers**: `dispatch/providerDispatcher.ts` routes a deploy to GitHub Actions or Jenkins based on the service's connection.
 
-**Environments**: Deployments track status across environments (staging, prod) defined in `Environments` enum.
+**Real-time updates**: Server-Sent Events via `EventEmitter` push deployment status to the dashboard (`/build-update-stream`).
 
-**Deployment Status Flow**: `dispatching` -> `deploying` -> `deployed`/`error`/`cancelled`
+**Deployment status flow**: `none` -> `dispatching` -> `deploying` -> `deployed`/`error`/`cancelled` (`services/service/deploymentStatus.ts`).
+
+**Environments** are per-service records, not a fixed enum — a service defines its own (`staging`, `prod`, whatever), capped by plan limits.
 
 ### API Patterns
 
-- UI routes use Handlebars templates with HTMX for partial updates
-- API routes under `/api/{serviceName}/...` for programmatic access
-- Both UI and API routes require authentication (user cookie or API key)
+- UI routes render Handlebars templates, updated in place with HTMX, authenticated by session cookie
+- Programmatic routes live under `/api/v1/services/:serviceId/...` and authenticate with an API key
+- API keys are scoped (`builds:read/write`, `deployments:write`, `services:read/write`, `flags:read/write/evaluate`); publishable (`pk_`) keys may only carry `flags:evaluate`
 
 ### Testing
 
-- Unit tests: `*.test.ts` files alongside source files (excluded: `src/tests/`)
-- E2E tests: `src/tests/` directory (requires running server)
-- Mock implementations provided: `MockDispatchService`, `BuildMockStorage`, `MockAuthService`
+- Unit tests: `*.test.ts` alongside the source file
+- Smoke tests: `src/tests/` (`yarn test:smoke`)
+- E2E: `e2e/` with Playwright (`yarn test:e2e`, requires a running server)
+- Use the existing fakes rather than mocking internals: `FakeGitHubAppClient`, `FakeGitHubApiClient`, `FakeHttpClient`, `FakeStripeClient`, `FakeFlags`
+
+`github-action` is a git submodule; run `git submodule update --init` in a fresh clone or worktree or the reporter contract test fails.
 
 ## Environment Variables
 
-Copy `sample.env` to `.env`. Required variables:
+Copy `sample.env` to `.env` — it documents every variable. Required to boot:
 
 - `MONGODB_URI` - MongoDB connection string
-- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` - OAuth credentials
 - `COOKIE_SECRET_SIGNATURE` - Cookie signing secret
 - `API_KEY` - API authentication key
 - `GH_PAT` - GitHub Personal Access Token for dispatch workflows
@@ -89,6 +86,8 @@ Copy `sample.env` to `.env`. Required variables:
 - `RELEASE` - Optional. Which build this is, so a report points at a known commit or tag.
 - `SENTRY_DSN` - Optional. When set, the Sentry SDK is registered at boot (see `src/instrument.ts`, which must stay the first import in `src/index.ts`) and errors thrown while handling a request are reported, labelled with `GITLAUNCH_ENV` and `RELEASE`. `SENTRY_TRACES_SAMPLE_RATE` tunes tracing. Unset, reporting is a no-op and the SDK is never loaded.
 - `ENCRYPTION_KEY` - 32-byte base64 key for encrypting stored secrets at rest (e.g. Jenkins API tokens); generate with `openssl rand -base64 32`. Boot fails closed if missing/invalid. For key rotation, use a keyring instead: `ENCRYPTION_KEYS="<id>:<base64key>,..."` plus `ENCRYPTION_PRIMARY_KEY_ID=<id>` (old keys stay for decryption; new writes use the primary).
+
+GitHub App credentials (`GH_APP_ID`, `GH_APP_CLIENT_ID`, `GH_APP_CLIENT_SECRET`, `GH_APP_PRIVATE_KEY`, `GH_APP_NAME`, `GH_APP_WEBHOOK_SECRET`) are needed for real GitHub integration; set `USE_FAKE_GITHUB=true` to develop without them.
 
 Optional, for keeping our own traffic out of analytics (unset = nothing is excluded):
 
