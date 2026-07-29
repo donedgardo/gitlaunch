@@ -18,9 +18,12 @@ test.describe("Onboarding - GitHub App Installation", () => {
     // Visit the landing page
     await page.goto("/");
 
-    // Verify we're on the landing page
+    // Verify we're on the landing page. The hero leads with deploy visibility
+    // since the hero-copy experiment was concluded on the benefit-led arm.
     await expect(
-      page.getByRole("heading", { name: /roll it back in one click/i }),
+      page.getByRole("heading", {
+        name: /see every deploy, in every environment/i,
+      }),
     ).toBeVisible();
 
     // The primary CTA drives to the waitlist capture, not straight to signup.
