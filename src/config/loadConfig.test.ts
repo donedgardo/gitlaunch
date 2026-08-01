@@ -158,15 +158,27 @@ describe("loadConfig", () => {
       expect(loadConfig(baseEnv, saasBuild).github.useFakes).toBe(true);
     });
 
-    it("should name every missing GitHub App credential when fakes are off", () => {
+    it("should run without GitHub integration when nothing is configured", () => {
+      // A Jenkins-only install is a supported shape; requiring a GitHub App
+      // would block it.
+      const config = loadConfig(env({ USE_FAKE_GITHUB: "false" }), saasBuild);
+
+      expect(config.github.enabled).toBe(false);
+    });
+
+    it("should name the missing credentials when the GitHub App is half configured", () => {
+      // Partial credentials look configured and then fail on first use, which
+      // is worse than not being configured at all.
       let message = "";
       try {
-        loadConfig(env({ USE_FAKE_GITHUB: "false" }), saasBuild);
+        loadConfig(
+          env({ USE_FAKE_GITHUB: "false", GH_APP_ID: "12345" }),
+          saasBuild,
+        );
       } catch (e) {
         message = (e as Error).message;
       }
 
-      expect(message).toContain("GH_APP_ID");
       expect(message).toContain("GH_APP_CLIENT_ID");
       expect(message).toContain("GH_APP_CLIENT_SECRET");
       expect(message).toContain("GH_APP_PRIVATE_KEY");

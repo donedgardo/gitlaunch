@@ -18,3 +18,6 @@ data:
   {{- with .Values.config.emailFrom }}
   EMAIL_FROM: {{ . | quote }}
   {{- end }}
+  {{- with .Values.config.googleClientId }}
+  GOOGLE_CLIENT_ID: {{ . | quote }}
+  {{- end }}

@@ -29,6 +29,7 @@ export type Config = {
   mongoUri: string;
   cookieSecret: string;
   github: {
+    enabled: boolean;
     useFakes: boolean;
     appId?: string;
     appName?: string;
@@ -200,7 +201,9 @@ export function loadConfig(
 
   validateEncryption(env, problems);
 
-  // --- github --------------------------------------------------------------
+  // --- github (optional: a Jenkins-only install needs no GitHub App) --------
+  // All four credentials or none. A partial set is always a mistake — it looks
+  // configured but fails on first use — so it is worth failing the boot over.
   const useFakes = parseBool(env.USE_FAKE_GITHUB) ?? false;
   if (isSelfHosted && useFakes) {
     problems.push(
@@ -208,22 +211,27 @@ export function loadConfig(
         "fakes are a development affordance and would ship a product that does nothing",
     );
   }
-  if (!useFakes) {
-    if (!trimmed(env.GH_APP_ID))
-      problems.push("GH_APP_ID is required when USE_FAKE_GITHUB is false");
-    if (!trimmed(env.GH_APP_CLIENT_ID))
-      problems.push(
-        "GH_APP_CLIENT_ID is required when USE_FAKE_GITHUB is false",
-      );
-    if (!trimmed(env.GH_APP_CLIENT_SECRET))
-      problems.push(
-        "GH_APP_CLIENT_SECRET is required when USE_FAKE_GITHUB is false",
-      );
-    if (!trimmed(env.GH_APP_PRIVATE_KEY))
-      problems.push(
-        "GH_APP_PRIVATE_KEY is required when USE_FAKE_GITHUB is false",
-      );
+
+  const githubCredentials = {
+    GH_APP_ID: trimmed(env.GH_APP_ID),
+    GH_APP_CLIENT_ID: trimmed(env.GH_APP_CLIENT_ID),
+    GH_APP_CLIENT_SECRET: trimmed(env.GH_APP_CLIENT_SECRET),
+    GH_APP_PRIVATE_KEY: trimmed(env.GH_APP_PRIVATE_KEY),
+  };
+  const suppliedGithub = Object.entries(githubCredentials).filter(
+    ([, v]) => v !== undefined,
+  );
+  const missingGithub = Object.entries(githubCredentials)
+    .filter(([, v]) => v === undefined)
+    .map(([k]) => k);
+
+  if (!useFakes && suppliedGithub.length > 0 && missingGithub.length > 0) {
+    problems.push(
+      `GitHub App configuration is incomplete — also set ${missingGithub.join(", ")} ` +
+        "(or unset them all to run without GitHub integration)",
+    );
   }
+  const githubEnabled = useFakes || missingGithub.length === 0;
 
   // --- google sign-in (optional everywhere) --------------------------------
   // Most self-hosted installs authenticate with GitHub alone. The button only
@@ -318,6 +326,7 @@ export function loadConfig(
     mongoUri: mongoUri!,
     cookieSecret: cookieSecret!,
     github: {
+      enabled: githubEnabled,
       useFakes,
       appId: trimmed(env.GH_APP_ID),
       appName: trimmed(env.GH_APP_NAME),
@@ -374,7 +383,7 @@ export function summarizeConfig(config: Config): string {
     "GitLaunch configuration",
     `  distribution=${config.distribution}  publicUrl=${config.publicUrl}  port=${config.port}`,
     `  mongo=${redactUri(config.mongoUri)}`,
-    `  github=${config.github.useFakes ? "fakes (development)" : `app id=${config.github.appId}`}`,
+    `  github=${!config.github.enabled ? "off (no GitHub App configured)" : config.github.useFakes ? "fakes (development)" : `app id=${config.github.appId}`}`,
     `  features: billing=${onOff(f.billing.enabled)}` +
       `  googleAuth=${onOff(f.googleAuth.enabled)}` +
       `  email=${onOff(f.email.enabled)}` +

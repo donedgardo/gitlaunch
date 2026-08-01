@@ -28,6 +28,26 @@ chart creates no cloud-specific resources.
 
 ## Install
 
+### Evaluation: one command, nothing to prepare
+
+`mongodb.enabled=true` runs an in-cluster MongoDB, and the session and
+encryption secrets are generated on first install:
+
+```bash
+helm install gitlaunch ./deploy/helm/gitlaunch \
+  --namespace gitlaunch --create-namespace \
+  --set config.publicUrl=https://gitlaunch.acme.com \
+  --set mongodb.enabled=true \
+  --set ingress.enabled=true \
+  --set ingress.hosts[0].host=gitlaunch.acme.com
+```
+
+The bundled MongoDB is a **single node with no replica set, no failover and no
+backups**. Use it for evaluation, demos and CI. For anything you care about,
+point `secrets.mongodbUri` at a managed or HA MongoDB instead.
+
+### Production: your database, your secrets
+
 ```bash
 helm install gitlaunch ./deploy/helm/gitlaunch \
   --namespace gitlaunch --create-namespace \
@@ -40,9 +60,51 @@ helm install gitlaunch ./deploy/helm/gitlaunch \
   --set ingress.hosts[0].host=gitlaunch.acme.com
 ```
 
-The chart refuses to render if `mongodbUri`, `cookieSecret`, `encryptionKey` or
-`publicUrl` are missing, rather than starting a pod that fails in a way that is
-tedious to diagnose.
+The chart refuses to render on configuration that would produce a pod that
+starts and then misbehaves — a missing `publicUrl` or database, a Google client
+id with no secret, a Resend key with no sender address, or several replicas
+pointed at an ephemeral bundled database.
+
+### Generated secrets
+
+When `secrets.cookieSecret` or `secrets.encryptionKey` are left empty and
+`secrets.autoGenerate` is true (the default), the chart generates them on first
+install and reads them back out of the live Secret on every later upgrade, so
+they stay stable.
+
+Two consequences are worth knowing before you rely on this:
+
+- **`helm template` cannot read the cluster.** It prints new random values every
+  time. Render-then-apply pipelines (Argo CD, Flux, `helm template | kubectl
+apply`) must set both values explicitly or use `secrets.existingSecret` —
+  otherwise every sync rewrites the encryption key and strands every credential
+  encrypted under the old one.
+- **`helm uninstall` deletes the Secret.** Back up `encryptionKey` before tearing
+  an environment down if its data is meant to outlive it.
+
+## Optional components
+
+Nothing below is required. Each one stays off until you configure it, and the
+UI hides what is not available rather than offering a button that leads nowhere.
+
+| Component           | Turn it on with                                                                   | When it is off                                                         |
+| ------------------- | --------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| GitHub App          | `secrets.githubAppId` + `githubAppClientId` + `...ClientSecret` + `...PrivateKey` | No GitHub integration; a Jenkins-only install is fully supported       |
+| Sign in with Google | `config.googleClientId` + `secrets.googleClientSecret`                            | The Google button is hidden on login and signup                        |
+| Transactional email | `secrets.resendApiKey` + `config.emailFrom`                                       | Confirmation links are logged, not sent; OAuth sign-in still works     |
+| Shared flag cache   | `config.redisUrl`                                                                 | Per-replica in-memory cache; flag changes apply per pod, not fleetwide |
+| Product analytics   | `config.analyticsWarehouse=true`                                                  | Events are dropped instead of stored                                   |
+| Bundled MongoDB     | `mongodb.enabled=true`                                                            | You supply `secrets.mongodbUri`                                        |
+| Ingress             | `ingress.enabled=true`                                                            | Reach the service via port-forward or your own routing                 |
+| Autoscaling         | `autoscaling.enabled=true`                                                        | Fixed `replicaCount`                                                   |
+
+The GitHub App credentials are all-or-nothing: supplying some but not all is
+rejected, because a half-configured integration looks present and then fails on
+first use.
+
+Billing (Stripe) is **not** exposed by this chart. Self-hosted instances are
+entitled by their license key, not by a subscription, so the billing routes stay
+off regardless of what is in the environment.
 
 ### Secrets in production
 
