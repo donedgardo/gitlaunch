@@ -14,6 +14,21 @@ const baseEnv = {
 const env = (overrides: Record<string, string | undefined>) =>
   ({ ...baseEnv, ...overrides }) as NodeJS.ProcessEnv;
 
+// A valid enterprise environment. Enterprise refuses fake GitHub services, so
+// it always carries real GitHub App credentials.
+const enterpriseEnv = {
+  ...baseEnv,
+  GITLAUNCH_EDITION: "enterprise",
+  USE_FAKE_GITHUB: "false",
+  GH_APP_ID: "12345",
+  GH_APP_CLIENT_ID: "Iv1.abc",
+  GH_APP_CLIENT_SECRET: "shhh",
+  GH_APP_PRIVATE_KEY: "-----BEGIN RSA PRIVATE KEY-----",
+} as NodeJS.ProcessEnv;
+
+const entEnv = (overrides: Record<string, string | undefined>) =>
+  ({ ...enterpriseEnv, ...overrides }) as NodeJS.ProcessEnv;
+
 describe("loadConfig", () => {
   describe("core requirements", () => {
     it("should return a usable config when the minimum environment is present", () => {
@@ -76,9 +91,7 @@ describe("loadConfig", () => {
     });
 
     it("should use the enterprise edition when requested", () => {
-      expect(loadConfig(env({ GITLAUNCH_EDITION: "enterprise" })).edition).toBe(
-        "enterprise",
-      );
+      expect(loadConfig(enterpriseEnv).edition).toBe("enterprise");
     });
 
     it("should reject an unknown edition", () => {
@@ -102,12 +115,7 @@ describe("loadConfig", () => {
     it("should disable billing in enterprise even when a Stripe key is present", () => {
       // Enterprise is licensed, not per-seat billed. A stray key from a copied
       // env file must not silently expose billing routes on-prem.
-      const config = loadConfig(
-        env({
-          GITLAUNCH_EDITION: "enterprise",
-          STRIPE_SECRET_KEY: "sk_test_123",
-        }),
-      );
+      const config = loadConfig(entEnv({ STRIPE_SECRET_KEY: "sk_test_123" }));
       expect(config.features.billing.enabled).toBe(false);
     });
 
@@ -119,11 +127,7 @@ describe("loadConfig", () => {
 
     it("should allow enterprise to opt into billing explicitly", () => {
       const config = loadConfig(
-        env({
-          GITLAUNCH_EDITION: "enterprise",
-          BILLING_ENABLED: "true",
-          STRIPE_SECRET_KEY: "sk_test_123",
-        }),
+        entEnv({ BILLING_ENABLED: "true", STRIPE_SECRET_KEY: "sk_test_123" }),
       );
       expect(config.features.billing.enabled).toBe(true);
     });
@@ -209,17 +213,7 @@ describe("loadConfig", () => {
 
     it("should disable GitLaunch's own flag reads in enterprise", () => {
       // A customer's install must never phone home to our flag service.
-      const config = loadConfig(
-        env({
-          GITLAUNCH_EDITION: "enterprise",
-          USE_FAKE_GITHUB: "false",
-          GH_APP_ID: "1",
-          GH_APP_CLIENT_ID: "a",
-          GH_APP_CLIENT_SECRET: "b",
-          GH_APP_PRIVATE_KEY: "c",
-          GITLAUNCH_SERVICE_ID: "svc_123",
-        }),
-      );
+      const config = loadConfig(entEnv({ GITLAUNCH_SERVICE_ID: "svc_123" }));
       expect(config.features.selfFlags.enabled).toBe(false);
     });
   });
@@ -227,17 +221,7 @@ describe("loadConfig", () => {
   describe("build simulation", () => {
     it("should refuse build simulation in the enterprise edition", () => {
       expect(() =>
-        loadConfig(
-          env({
-            GITLAUNCH_EDITION: "enterprise",
-            USE_FAKE_GITHUB: "false",
-            GH_APP_ID: "1",
-            GH_APP_CLIENT_ID: "a",
-            GH_APP_CLIENT_SECRET: "b",
-            GH_APP_PRIVATE_KEY: "c",
-            ENABLE_BUILD_SIMULATION: "true",
-          }),
-        ),
+        loadConfig(entEnv({ ENABLE_BUILD_SIMULATION: "true" })),
       ).toThrow(/ENABLE_BUILD_SIMULATION/);
     });
   });
