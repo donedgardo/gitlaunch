@@ -95,3 +95,4 @@ Unset means nothing is excluded and every event counts, exactly as before.
 - **[CAMPAIGNS.md](./CAMPAIGNS.md)** — the live campaign register. Every planned and running alpha campaign, its UTM codes, its tagged URL, and its signup count. Add a row before you send a link.
 - **[RUNBOOK.md](./RUNBOOK.md)** — the operating runbook: how to configure and test the landing-page A/B test, launch a campaign, read both sets of results, and the production checklist.
 - **[OUTREACH-COPY.md](./OUTREACH-COPY.md)** — ready-to-send copy for the two warm channels (network DMs and the founder newsletter), anchored to the lead fear, plus the tagged links and the post-send read-the-data steps.
+- **[OUTREACH-LIST.md](./OUTREACH-LIST.md)** — how to build the warm-DM target list: where to pull names, how to qualify them against the canvas segment, and how to tier each contact into a direct-interview, intro, or referral ask.
