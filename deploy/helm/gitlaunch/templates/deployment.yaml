@@ -40,6 +40,38 @@ spec:
       securityContext:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- if .Values.mongodb.enabled }}
+      initContainers:
+        # The app exits (rather than retries) if MongoDB is unreachable at boot,
+        # so on a first install it would crash-loop until the bundled database
+        # finishes initialising. Waiting here turns that into a clean startup.
+        # Uses the same URI the app will use, so it also proves the generated
+        # credentials actually work before the app depends on them.
+        - name: wait-for-mongodb
+          image: "{{ .Values.mongodb.image.repository }}:{{ .Values.mongodb.image.tag }}"
+          imagePullPolicy: {{ .Values.mongodb.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          envFrom:
+            - secretRef:
+                name: {{ include "gitlaunch.mongodb.secretName" . }}
+          command:
+            - sh
+            - -c
+            - |
+              until mongosh "$MONGODB_URI" --quiet --eval 'db.adminCommand("ping")' >/dev/null 2>&1; do
+                echo "waiting for mongodb..."
+                sleep 2
+              done
+              echo "mongodb is accepting authenticated connections"
+          resources:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+      {{- end }}
       containers:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
@@ -57,6 +89,12 @@ spec:
                 name: {{ include "gitlaunch.fullname" . }}
             - secretRef:
                 name: {{ include "gitlaunch.secretName" . }}
+            {{- if .Values.mongodb.enabled }}
+            # Supplies MONGODB_URI for the bundled database. Listed last so it
+            # is unambiguous which source wins if both ever set the same key.
+            - secretRef:
+                name: {{ include "gitlaunch.mongodb.secretName" . }}
+            {{- end }}
           {{- with .Values.config.extraEnv }}
           env:
             {{- toYaml . | nindent 12 }}

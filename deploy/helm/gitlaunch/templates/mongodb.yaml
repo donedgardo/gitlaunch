@@ -1,0 +1,143 @@
+{{- if .Values.mongodb.enabled }}
+{{- include "gitlaunch.validateConfig" . -}}
+{{- /*
+  Resolve the password exactly once. "gitlaunch.mongodb.password" generates a
+  fresh random value on every call when nothing is installed yet, so calling it
+  twice here would store one password and connect with a different one.
+*/ -}}
+{{- $password := include "gitlaunch.mongodb.password" . -}}
+{{- $host := include "gitlaunch.mongodb.fullname" . -}}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ include "gitlaunch.mongodb.secretName" . }}
+  labels:
+    {{- include "gitlaunch.mongodb.labels" . | nindent 4 }}
+type: Opaque
+stringData:
+  MONGO_INITDB_ROOT_USERNAME: {{ .Values.mongodb.auth.username | quote }}
+  MONGO_INITDB_ROOT_PASSWORD: {{ $password | quote }}
+  # The application reads this key directly via envFrom. Credentials live in
+  # the root "admin" database, hence authSource.
+  MONGODB_URI: {{ printf "mongodb://%s:%s@%s:27017/%s?authSource=admin" .Values.mongodb.auth.username $password $host .Values.mongodb.auth.database | quote }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $host }}
+  labels:
+    {{- include "gitlaunch.mongodb.labels" . | nindent 4 }}
+spec:
+  # Headless: a single stable DNS name for the one replica. No load balancing
+  # to do, and a StatefulSet wants a governing headless Service anyway.
+  clusterIP: None
+  ports:
+    - port: 27017
+      targetPort: mongodb
+      name: mongodb
+  selector:
+    {{- include "gitlaunch.mongodb.selectorLabels" . | nindent 4 }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $host }}
+  labels:
+    {{- include "gitlaunch.mongodb.labels" . | nindent 4 }}
+spec:
+  serviceName: {{ $host }}
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "gitlaunch.mongodb.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "gitlaunch.mongodb.labels" . | nindent 8 }}
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: mongodb
+          image: "{{ .Values.mongodb.image.repository }}:{{ .Values.mongodb.image.tag }}"
+          imagePullPolicy: {{ .Values.mongodb.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          ports:
+            - name: mongodb
+              containerPort: 27017
+          envFrom:
+            - secretRef:
+                name: {{ include "gitlaunch.mongodb.secretName" . }}
+          # mongosh exits non-zero until the server is accepting queries, which
+          # is what "ready" has to mean here — the app's own readiness probe
+          # connects to this on startup.
+          readinessProbe:
+            exec:
+              command:
+                - mongosh
+                - --quiet
+                - --eval
+                - "db.adminCommand('ping')"
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            exec:
+              command:
+                - mongosh
+                - --quiet
+                - --eval
+                - "db.adminCommand('ping')"
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 6
+          {{- with .Values.mongodb.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: data
+              mountPath: /data/db
+      {{- with .Values.mongodb.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.mongodb.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.mongodb.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if not .Values.mongodb.persistence.enabled }}
+      volumes:
+        - name: data
+          emptyDir: {}
+      {{- end }}
+  {{- if .Values.mongodb.persistence.enabled }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        {{- with .Values.mongodb.persistence.storageClass }}
+        storageClassName: {{ . | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.mongodb.persistence.size | quote }}
+  {{- end }}
+{{- end }}

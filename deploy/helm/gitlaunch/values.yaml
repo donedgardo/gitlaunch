@@ -63,6 +63,11 @@ config:
   redisUrl: ""
   # Verified sender for confirmation email, e.g. "GitLaunch <noreply@acme.com>".
   emailFrom: ""
+  # Sign in with Google — optional, and off by default. Most self-hosted
+  # installs authenticate with GitHub alone. Set this together with
+  # secrets.googleClientSecret to show the button; leave both empty and it stays
+  # hidden rather than leading nowhere.
+  googleClientId: ""
   # Extra raw environment variables, for settings this chart does not model yet.
   extraEnv: []
   # - name: GH_APP_NAME
@@ -76,11 +81,25 @@ secrets:
   # It must contain the same keys this chart writes (see templates/secret.yaml).
   existingSecret: ""
 
+  # Generate cookieSecret and encryptionKey on first install when they are left
+  # empty, so standing up a new environment takes no pre-work. Both are read
+  # back from the live Secret on every later upgrade, so they stay stable.
+  #
+  # Two consequences worth knowing:
+  #   * `helm template` cannot read the cluster, so it prints NEW random values
+  #     every time. Render-then-apply pipelines (GitOps, ArgoCD) must set these
+  #     explicitly or use existingSecret, or they will rewrite the encryption
+  #     key on every sync and strand data encrypted under the old one.
+  #   * `helm uninstall` deletes the Secret. Back up encryptionKey before you
+  #     tear an environment down if the data is meant to outlive it.
+  autoGenerate: true
+
+  # Leave empty when mongodb.enabled is true — the chart composes the URI.
   mongodbUri: ""
-  # openssl rand -base64 32
+  # openssl rand -base64 32   (generated when empty and autoGenerate is true)
   cookieSecret: ""
   # 32-byte base64 key encrypting stored credentials at rest.
-  # openssl rand -base64 32
+  # openssl rand -base64 32   (generated when empty and autoGenerate is true)
   encryptionKey: ""
   # Issued with your GitLaunch subscription. Without it the instance runs
   # unlicensed: existing resources keep working, new ones are blocked.
@@ -97,6 +116,42 @@ secrets:
   # Transactional email. Without it, confirmation links are logged instead of
   # sent, which blocks email/password signup.
   resendApiKey: ""
+
+  # Paired with config.googleClientId. Optional — see that value.
+  googleClientSecret: ""
+
+# An in-cluster MongoDB, so a new environment comes up with one command and no
+# external dependency.
+#
+# It is a SINGLE node with no replica set, no backups and no failover. That is
+# the right shape for evaluation, demos and CI, and the wrong shape for a
+# production install — point secrets.mongodbUri at a managed or HA MongoDB
+# there instead.
+mongodb:
+  enabled: false
+  image:
+    repository: mongo
+    tag: "7"
+    pullPolicy: IfNotPresent
+  auth:
+    username: root
+    # Generated on first install and preserved across upgrades when empty.
+    password: ""
+    database: gitlaunch
+  persistence:
+    enabled: true
+    size: 8Gi
+    # Empty uses the cluster's default StorageClass.
+    storageClass: ""
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 1Gi
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
 
 resources:
   requests:
