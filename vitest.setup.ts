@@ -5,3 +5,17 @@
 if (!process.env.ENCRYPTION_KEY) {
   process.env.ENCRYPTION_KEY = Buffer.alloc(32, 7).toString("base64");
 }
+
+// createAppServer validates the environment through loadConfig when no config
+// is injected, for the same fail-closed reason. Tests that care about a
+// specific setting pass their own config; these are just the floor that lets
+// the default path resolve. As above, a real environment wins.
+if (!process.env.PUBLIC_URL) {
+  process.env.PUBLIC_URL = "http://localhost:3050";
+}
+if (!process.env.MONGODB_URI) {
+  process.env.MONGODB_URI = "mongodb://localhost:27017";
+}
+if (!process.env.COOKIE_SECRET_SIGNATURE) {
+  process.env.COOKIE_SECRET_SIGNATURE = "test-cookie-secret";
+}

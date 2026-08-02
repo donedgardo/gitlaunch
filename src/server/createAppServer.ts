@@ -5,6 +5,7 @@ import EventEmitter from "node:events";
 import { registerPlugins } from "./registerPlugins";
 import { registerErrorReporting } from "./registerErrorReporting";
 import { resolveEnvironmentName } from "../services/config/environmentName";
+import { loadConfig, Config } from "../config/loadConfig";
 import healthRoute from "./health";
 import homeRoute from "./home";
 import dashboardRoutes from "./dashboard";
@@ -131,6 +132,10 @@ export type AppServerDeps = {
   // Whether this is the hosted SaaS or a licensed self-hosted install.
   // Defaults to reading the environment; injected in tests.
   instanceMode?: InstanceMode;
+  // Validated runtime configuration. Defaults to loading and validating the
+  // process environment; the composition root in src/index.ts loads it once and
+  // passes it in so boot validates exactly once.
+  config?: Config;
 };
 
 export function createAppServer(deps: AppServerDeps): FastifyInstance {
@@ -148,6 +153,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     analytics = new NoOpAnalytics(),
     flagCache = new InMemoryFlagCache(),
     errorReporter = new NoOpErrorReporter(),
+    config = loadConfig(),
   } = deps;
 
   // Self-hosted installs are governed by their license rather than by Stripe.
@@ -244,7 +250,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     const webhookHandler = new StripeWebhookHandler(accountRepository);
     registerStripeWebhookRoute(server, {
       webhookHandler,
-      webhookSecret: process.env.STRIPE_WEBHOOK_SECRET || "",
+      webhookSecret: config.features.billing.webhookSecret ?? "",
       webhookEventRepo,
       analytics,
     });
@@ -259,18 +265,16 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
   // entitlement there comes from the license, so a checkout flow would be both
   // meaningless and a way to grant plan limits we did not sell.
   const stripeSecretKey =
-    instanceMode.kind === "saas" ? process.env.STRIPE_SECRET_KEY : undefined;
+    instanceMode.kind === "saas" && config.features.billing.enabled
+      ? config.features.billing.secretKey
+      : undefined;
   if (stripeSecretKey) {
     const stripeApiClient = new StripeApiClient(stripeSecretKey);
     const stripeService = new StripeService(stripeApiClient, {
-      proPriceId: process.env.STRIPE_PRO_PRICE_ID || "",
-      teamPriceId: process.env.STRIPE_TEAM_PRICE_ID || "",
-      successUrl:
-        process.env.STRIPE_SUCCESS_URL ||
-        `${process.env.PUBLIC_URL}/settings/billing?success=true`,
-      cancelUrl:
-        process.env.STRIPE_CANCEL_URL ||
-        `${process.env.PUBLIC_URL}/settings/billing?cancelled=true`,
+      proPriceId: config.features.billing.proPriceId ?? "",
+      teamPriceId: config.features.billing.teamPriceId ?? "",
+      successUrl: config.features.billing.successUrl,
+      cancelUrl: config.features.billing.cancelUrl,
     });
 
     registerBillingRoutes(server, {
@@ -328,7 +332,9 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
   // instance in error reports. Unlabelled instances keep reading "prod", which
   // is what this scope has always defaulted to.
   const selfFlagContext = {
-    serviceId: toObjectId(process.env.GITLAUNCH_SERVICE_ID),
+    serviceId: config.features.selfFlags.enabled
+      ? toObjectId(config.features.selfFlags.serviceId)
+      : undefined,
     environment: resolveEnvironmentName(process.env, "prod"),
   };
 
@@ -336,7 +342,9 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
   // silently disables the signup gate and the landing A/B test — you create the
   // flag, flip it, and nothing happens, with nothing to see. Say so at boot.
   const selfFlagStatus = describeSelfFlagStatus(
-    process.env.GITLAUNCH_SERVICE_ID,
+    config.features.selfFlags.enabled
+      ? config.features.selfFlags.serviceId
+      : undefined,
     selfFlagContext.environment,
   );
   if (selfFlagStatus.live) {
@@ -448,7 +456,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     membershipRepository,
     passwordService,
     emailSender,
-    publicUrl: process.env.PUBLIC_URL || "",
+    publicUrl: config.publicUrl,
     googleEnabled: !!googleOAuthService,
     signupGate,
     analytics,

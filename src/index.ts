@@ -21,45 +21,58 @@ import { createFlagCache } from "./services/flag/createFlagCache";
 import { AnalyticsEventRepository } from "./repositories/analyticsEventRepository";
 import { createAnalyticsService } from "./services/analytics/createAnalyticsService";
 import { createGoogleOAuthService } from "./services/auth/googleOAuthService";
+import { loadConfig, summarizeConfig, Config } from "./config/loadConfig";
+
+// A bad configuration is an operator mistake, not a crash. Print the list of
+// problems plainly and stop, rather than throwing a stack trace from module
+// scope or — worse — booting with a feature silently missing.
+function loadConfigOrExit(): Config {
+  try {
+    return loadConfig();
+  } catch (err) {
+    console.error((err as Error).message);
+    return process.exit(1);
+  }
+}
+
+const config = loadConfigOrExit();
+
+// What actually resolved, with secrets redacted. This is the first thing to
+// ask for when someone reports a missing feature on a self-hosted install.
+console.info(summarizeConfig(config));
 
 // MongoDB connection
-const mongodb_uri = process.env.MONGODB_URI as string;
-const client = new MongoClient(mongodb_uri);
+const client = new MongoClient(config.mongoUri);
 const database = client.db("gitlaunch");
 
 // Event emitter for SSE
 const eventEmitter = new EventEmitter();
 
 // Session service
-const sessionService = new SessionService(
-  process.env.COOKIE_SECRET_SIGNATURE as string,
-);
+const sessionService = new SessionService(config.cookieSecret);
 
 // GitHub services
 const accountRepository = new AccountRepository(database);
 const { githubOAuthService, gitHubAppService, installationTokenService } =
   createGitHubServices(accountRepository, {
-    useFakes: process.env.USE_FAKE_GITHUB === "true",
-    clientId: process.env.GH_APP_CLIENT_ID,
-    clientSecret: process.env.GH_APP_CLIENT_SECRET,
-    appId: process.env.GH_APP_ID,
-    privateKey: process.env.GH_APP_PRIVATE_KEY,
-    publicUrl: process.env.PUBLIC_URL,
+    useFakes: config.github.useFakes,
+    clientId: config.github.clientId,
+    clientSecret: config.github.clientSecret,
+    appId: config.github.appId,
+    privateKey: config.github.privateKey,
+    publicUrl: config.publicUrl,
   });
 
-// Google OAuth (optional — enabled when a client id is configured, or in fake
-// mode for local dev). Left undefined otherwise so the button stays hidden.
-const useFakeGoogle = process.env.USE_FAKE_GOOGLE === "true";
-const googleClientId = process.env.GOOGLE_CLIENT_ID;
-const googleOAuthService =
-  googleClientId || useFakeGoogle
-    ? createGoogleOAuthService({
-        useFakes: useFakeGoogle,
-        clientId: googleClientId,
-        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-        publicUrl: process.env.PUBLIC_URL,
-      })
-    : undefined;
+// Google OAuth (optional). Left undefined when unconfigured so the button
+// stays hidden rather than leading nowhere.
+const googleOAuthService = config.features.googleAuth.enabled
+  ? createGoogleOAuthService({
+      useFakes: config.features.googleAuth.useFakes,
+      clientId: config.features.googleAuth.clientId,
+      clientSecret: config.features.googleAuth.clientSecret,
+      publicUrl: config.publicUrl,
+    })
+  : undefined;
 
 // Create WebhookEventRepository for webhook idempotency
 const webhookEventRepository = new WebhookEventRepository(database);
@@ -68,7 +81,7 @@ const webhookEventRepository = new WebhookEventRepository(database);
 // otherwise logs to console (dev) or no-ops.
 const analyticsEventRepository = new AnalyticsEventRepository(database);
 const analytics = createAnalyticsService(analyticsEventRepository, {
-  warehouse: process.env.ANALYTICS_WAREHOUSE === "true",
+  warehouse: config.features.analytics.enabled,
   dev: process.env.NODE_ENV !== "production",
 });
 
@@ -89,9 +102,10 @@ const server = createAppServer({
   analytics,
   flagCache,
   errorReporter,
+  config,
 });
 
-const PORT = parseInt(process.env.PORT || "3050");
+const PORT = config.port;
 
 // Initialize indexes and start server
 async function start() {
