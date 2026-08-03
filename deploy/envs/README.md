@@ -90,6 +90,29 @@ leaves externally-managed secrets at whatever the store currently holds.
 Two things it does **not** cover, both true of any rollback mechanism:
 database migrations that already ran, and events already consumed.
 
+### Drill
+
+Run against `local` on the kind cluster, reading the running image back out of
+the cluster at each step:
+
+| Step                                      | Running image           | Helm revision |
+| ----------------------------------------- | ----------------------- | ------------- |
+| baseline                                  | `gitlaunch:sha-aa23f53` | 3             |
+| commit `e3da5aa` bumps `image.tag`, apply | `gitlaunch:sha-ca6a3be` | 4             |
+| `git revert e3da5aa`, apply               | `gitlaunch:sha-aa23f53` | 5             |
+
+Both applies rolled the pods, and the ingress answered 200 throughout. The
+revert was a one-line diff — every comment in the values file survived it,
+which is the property a generated promotion PR has to preserve to stay
+reviewable.
+
+Note what this does and does not establish. The two images have identical
+contents, because the only commit between them touched files the Dockerfile
+never copies. The drill proves the mechanism — a revert moves the running
+reference back and restarts the workload — not that the builds differ. Proving
+that end of it needs an observable build identity in the app itself, which is
+gap 3 below.
+
 ## Secrets
 
 Nothing in these files authenticates against anything. `onprem`'s
