@@ -1,0 +1,47 @@
+# Environment: local
+#
+#   release:   gitlaunch
+#   namespace: gitlaunch-local
+#   cluster:   kind `lab` (kubectl config use-context kind-lab)
+#   url:       http://gitlaunch.local
+#
+# Apply with `deploy/envs/apply.sh local`. See deploy/envs/README.md.
+
+replicaCount: 1
+
+# Built locally and side-loaded with `kind load docker-image`, so never pulled.
+# `tag` is the GitOps promotion target — the value an image bump rewrites.
+image:
+  repository: gitlaunch
+  tag: local
+  pullPolicy: Never
+
+config:
+  # No port: kind publishes host :8080, and the gitlaunch-local-proxy container
+  # bridges host :80 to the ingress. See deploy/envs/README.md.
+  publicUrl: http://gitlaunch.local
+  analyticsWarehouse: true
+
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: gitlaunch.local
+      paths:
+        - path: /
+          pathType: Prefix
+
+# Bundled single-node MongoDB: no replica set, no backups. Correct for a
+# laptop, wrong for anything else.
+mongodb:
+  enabled: true
+  persistence:
+    size: 2Gi
+
+# A single replica can never satisfy a PDB during node drain.
+podDisruptionBudget:
+  enabled: false
+# No `secrets:` block on purpose. cookieSecret and encryptionKey are generated
+# by the chart on first install and read back from the live Secret on every
+# upgrade, so they stay stable without being committed. This is the one part of
+# this file that does not survive the move to Argo CD — see README.md.

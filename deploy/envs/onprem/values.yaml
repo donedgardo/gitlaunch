@@ -1,0 +1,50 @@
+# Environment: onprem
+#
+#   release:   gitlaunch
+#   namespace: onprem
+#   cluster:   kind `lab` (kubectl config use-context kind-lab)
+#   url:       http://onprem.localtest.me:8080
+#
+# The self-hosted / enterprise demo instance — what a customer's own install
+# looks like. Deliberately reachable on the kind-published :8080 rather than
+# through the local proxy, so it stays independent of the `local` environment.
+#
+# Apply with `deploy/envs/apply.sh onprem`. See deploy/envs/README.md.
+
+replicaCount: 1
+
+# `tag` is the GitOps promotion target — the value an image bump rewrites.
+image:
+  repository: gitlaunch
+  tag: config
+  pullPolicy: Never
+
+config:
+  publicUrl: http://onprem.localtest.me:8080
+  analyticsWarehouse: true
+  # Placeholder, not a credential: it exercises the "Sign in with Google button
+  # is rendered" path without pointing at a real OAuth client. The chart refuses
+  # to render if this is set without secrets.googleClientSecret below.
+  googleClientId: demo-client-id.apps.googleusercontent.com
+
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: onprem.localtest.me
+      paths:
+        - path: /
+          pathType: Prefix
+
+mongodb:
+  enabled: true
+
+podDisruptionBudget:
+  enabled: false
+
+secrets:
+  # Matching placeholder for config.googleClientId above. Not a real secret —
+  # it authenticates against nothing. Every genuine secret (cookieSecret,
+  # encryptionKey, MongoDB credentials) is chart-generated and stays in the
+  # cluster; none of them are committed here.
+  googleClientSecret: demo-client-secret
