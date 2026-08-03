@@ -138,9 +138,9 @@ rendering — and therefore Helm prunes — the Secret it used to own.
 The `local` environment needs three things the cluster cannot provide itself:
 
 ```bash
-# 1. the image, side-loaded (values set pullPolicy: Never)
-docker build -t gitlaunch:local .
-kind load docker-image gitlaunch:local --name lab
+# 1. the image, built under its commit tag and side-loaded into kind
+#    (values set pullPolicy: Never, so nothing is ever fetched from a registry)
+deploy/envs/build-image.sh
 
 # 2. host :80 -> ingress. kind publishes :8080, and changing that means
 #    recreating the cluster, which would take the onprem demo with it.
