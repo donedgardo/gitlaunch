@@ -16,7 +16,7 @@ replicaCount: 1
 # refuses to rebuild a tag that exists.
 image:
   repository: gitlaunch
-  tag: sha-ca6a3be
+  tag: sha-aa23f53
   pullPolicy: Never
 
 config:
