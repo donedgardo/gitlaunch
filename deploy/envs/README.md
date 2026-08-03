@@ -27,9 +27,37 @@ deploy/envs/apply.sh onprem
 ```
 
 `apply.sh` is a stand-in for the reconciler we do not have yet. It is a plain
-`helm upgrade --install` against the committed values, nothing more. **The repo
-is only the source of truth while nobody runs `helm upgrade --set` behind its
-back** — there is no drift detection here yet (see Gaps).
+`helm upgrade --install` against the committed values. **The repo is only the
+source of truth while nobody runs `helm upgrade --set` behind its back** — there
+is no drift detection here yet (see Gaps).
+
+### Reporting back to GitLaunch
+
+These deploys report through the same API our own CI already uses —
+`PATCH /api/v1/services/:serviceId/builds/:buildId/deploy/:env`, the endpoint
+`.github/workflows/deploy.yml` calls for the hosted instance and the one
+`deploymentSetupGuide.hbs` hands to customers. Nothing new was invented here;
+the k8s environments were simply the ones not yet talking to it.
+
+```bash
+export GITLAUNCH_SERVICE_ID=<service id>
+export GITLAUNCH_API_KEY=<key with deployments:write>
+deploy/envs/apply.sh local
+```
+
+`buildId` is the app source commit, recovered from the image tag — which only
+works because the tag is `sha-<commit>`. Immutable tags buy traceability here,
+not just rollback.
+
+Unset credentials mean no reporting rather than a failure, and a reporting
+error warns without failing the deploy: applying an environment must not depend
+on a running GitLaunch. Set `GITLAUNCH_API_URL` to report to somewhere other
+than `https://gitlaunch.dev` — pointing `local` at itself is the tightest
+dogfooding loop available.
+
+The environment name sent is the directory name (`local`, `onprem`), so the
+Service's environments in GitLaunch have to match, or override with
+`GITLAUNCH_ENVIRONMENT`.
 
 ## The promotion contract
 
@@ -173,12 +201,23 @@ Honest list of what this is not, in the order they block dogfooding:
    the first thing that makes any of the rest real.
 2. **Secrets do not survive render-then-apply** — see above. This must be
    solved before step 1, not after.
-3. **A rollback is not observable from the outside.** Nothing in the running app
-   reports which commit it was built from, so the only way to confirm a rollback
-   landed is to read `deployment.spec.template.spec.containers[0].image`. The
-   revision is already stamped on the image as an OCI label; surfacing it on
-   `/health` would make "what is actually live" answerable by the dashboard —
-   which is a thing a deployment tool should be able to say about itself.
+3. **What the dashboard knows is a claim, not an observation.** `apply.sh` now
+   reports through the same endpoint our CI does, so a rollback shows up as the
+   older build going `deployed` again. But every reporter we have — this script,
+   `deploy.yml`, the Jenkins and raw guides — reports what the _deployer intended
+   to deploy_. Nothing asks the running process what it is actually running.
+
+   For push-based providers that gap is narrow, since one actor does both halves.
+   Pull-based GitOps is where it stops being narrow: nobody in the cluster claims
+   anything, which is exactly why the design doc needs `/api/v1/gitops/events`
+   plus the `Promotion` mapping to correlate a reconciler's config-repo SHA back
+   to a build. A drift badge — "Argo says `OutOfSync` and no promotion is open" —
+   needs an observation, not a claim.
+
+   The revision is already stamped on the image as an OCI label, so surfacing it
+   on `/health` would give us the observed side cheaply, for our own instances at
+   least.
+
 4. **No promotion ladder.** `local` and `onprem` now run the same artifact, so
    promoting between them is finally meaningful, but neither is upstream of the
    other — they are peers, not staging→prod. The promote path needs an ordered
