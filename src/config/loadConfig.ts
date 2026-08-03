@@ -28,6 +28,13 @@ export type Config = {
   port: number;
   mongoUri: string;
   cookieSecret: string;
+  cookies: { secure: boolean };
+  /**
+   * Development affordances only — console logging and Fastify's dev mode.
+   * Never gate a feature or a security decision on this: a customer sets their
+   * own NODE_ENV, so it says nothing trustworthy about how the install is run.
+   */
+  isProduction: boolean;
   github: {
     enabled: boolean;
     useFakes: boolean;
@@ -165,6 +172,9 @@ export function loadConfig(
 
   // --- core ----------------------------------------------------------------
   const publicUrl = trimmed(env.PUBLIC_URL);
+  // Whether the install is actually reached over TLS decides cookie security
+  // below — a far more reliable signal than NODE_ENV, which a customer sets.
+  let servedOverHttps = false;
   if (!publicUrl) {
     problems.push("PUBLIC_URL is required (the externally reachable base URL)");
   } else {
@@ -173,6 +183,7 @@ export function loadConfig(
       if (!["http:", "https:"].includes(parsed.protocol)) {
         problems.push("PUBLIC_URL must be an http(s) URL");
       }
+      servedOverHttps = parsed.protocol === "https:";
     } catch {
       problems.push(`PUBLIC_URL must be an absolute URL (got "${publicUrl}")`);
     }
@@ -325,6 +336,8 @@ export function loadConfig(
     port,
     mongoUri: mongoUri!,
     cookieSecret: cookieSecret!,
+    cookies: { secure: servedOverHttps },
+    isProduction: env.NODE_ENV === "production",
     github: {
       enabled: githubEnabled,
       useFakes,
