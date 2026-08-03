@@ -10,10 +10,13 @@
 replicaCount: 1
 
 # Built locally and side-loaded with `kind load docker-image`, so never pulled.
-# `tag` is the GitOps promotion target — the value an image bump rewrites.
+# `tag` is the GitOps promotion target — the value an image bump rewrites, and
+# the only thing `git revert` needs to change to roll this environment back.
+# Immutable by construction: deploy/envs/build-image.sh tags from the commit and
+# refuses to rebuild a tag that exists.
 image:
   repository: gitlaunch
-  tag: local
+  tag: sha-aa23f53
   pullPolicy: Never
 
 config:

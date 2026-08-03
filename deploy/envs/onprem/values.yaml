@@ -13,10 +13,14 @@
 
 replicaCount: 1
 
-# `tag` is the GitOps promotion target — the value an image bump rewrites.
+# `tag` is the GitOps promotion target — the value an image bump rewrites, and
+# the only thing `git revert` needs to change to roll this environment back.
+# Immutable by construction: deploy/envs/build-image.sh tags from the commit and
+# refuses to rebuild a tag that exists. The same artifact runs in `local`; only
+# the config below differs, which is what makes promotion between them possible.
 image:
   repository: gitlaunch
-  tag: config
+  tag: sha-aa23f53
   pullPolicy: Never
 
 config:

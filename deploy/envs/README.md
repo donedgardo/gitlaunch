@@ -60,11 +60,35 @@ hand-friendly:
   `yaml` package's Document API rather than a `js-yaml` load/dump round trip
   precisely so a one-line image bump stays a one-line diff. These files are the
   first real test of that.
-- **The tag must be immutable.** `local` and `onprem` currently use the
-  hand-built tags `local` and `config`, which are mutable — rolling back to a
-  previous commit of this file would not actually roll back the image. That is
-  risk 3 in the design doc, reproduced faithfully in our own setup. Moving to
-  digest or commit-SHA tags is a prerequisite for dogfooding rollback.
+- **The tag must be immutable.** `image.tag` is `sha-<commit>`, produced by
+  [`build-image.sh`](build-image.sh), which stamps the revision as an OCI label
+  and refuses to rebuild a tag that already exists. This is what makes rollback
+  real: a moving tag like `latest` or the `local`/`config` tags these
+  environments started on would let a revert change the file and nothing else —
+  risk 3 in the design doc.
+
+Both environments run the same tag. They differ only in the config below it,
+which is what makes promoting one artifact between them meaningful.
+
+## Rolling back
+
+Rollback is `git revert` plus an apply. There is no separate mechanism, and
+that is the point — the thing that shipped and the thing you roll back to are
+both commits.
+
+```bash
+git revert <the commit that changed deploy/envs/<env>/values.yaml>
+deploy/envs/apply.sh <env>
+```
+
+This works for an image bump and for any other config in the file — replica
+count, ingress host, analytics settings — because they are all versioned in the
+same commit. That is the argument the design doc makes for preferring a revert
+over `helm rollback`, which restores only what the chart itself rendered and
+leaves externally-managed secrets at whatever the store currently holds.
+
+Two things it does **not** cover, both true of any rollback mechanism:
+database migrations that already ran, and events already consumed.
 
 ## Secrets
 
@@ -126,7 +150,13 @@ Honest list of what this is not, in the order they block dogfooding:
    the first thing that makes any of the rest real.
 2. **Secrets do not survive render-then-apply** — see above. This must be
    solved before step 1, not after.
-3. **Mutable image tags** make rollback a no-op.
-4. **No promotion ladder.** `local` and `onprem` are independent instances, not
-   a staging→prod pair, so there is nothing to promote _between_ yet. Testing
-   the promote path needs a second environment fed by the same image.
+3. **A rollback is not observable from the outside.** Nothing in the running app
+   reports which commit it was built from, so the only way to confirm a rollback
+   landed is to read `deployment.spec.template.spec.containers[0].image`. The
+   revision is already stamped on the image as an OCI label; surfacing it on
+   `/health` would make "what is actually live" answerable by the dashboard —
+   which is a thing a deployment tool should be able to say about itself.
+4. **No promotion ladder.** `local` and `onprem` now run the same artifact, so
+   promoting between them is finally meaningful, but neither is upstream of the
+   other — they are peers, not staging→prod. The promote path needs an ordered
+   pair before it can be dogfooded.
