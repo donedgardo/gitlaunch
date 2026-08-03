@@ -136,6 +136,8 @@ describe("Dashboard Routes", () => {
     sessionAuthMiddleware(app, sessionService);
     app.register(
       dashboardRoutes({
+        publicUrl: "http://localhost:3050",
+        buildSimulationEnabled: false,
         serviceRepository: serviceRepo,
         buildRepository: buildRepo,
         repositoryRepository: repositoryRepo,

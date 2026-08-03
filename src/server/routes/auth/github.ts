@@ -13,6 +13,7 @@ import {
   signupEntityKey,
 } from "../../../services/account/signupGate";
 import { ensureAccountForUser } from "../../../services/auth/accountBootstrap";
+import { sessionCookieOptions, oauthStateCookieOptions } from "../../cookies";
 
 export type GitHubAuthRoutesConfig = {
   oauthService: GitHubOAuthService;
@@ -20,6 +21,8 @@ export type GitHubAuthRoutesConfig = {
   userRepository: UserRepository;
   accountRepository: AccountRepository;
   membershipRepository: MembershipRepository;
+  cookieSecure: boolean;
+  useFakeGitHub: boolean;
   // Optional: when present, a pending_invite cookie is redeemed right after
   // sign-in so a logged-out invitee joins the workspace they were invited to.
   invitationRepository?: InvitationRepository;
@@ -39,6 +42,8 @@ export function registerGitHubAuthRoutes(
     userRepository,
     accountRepository,
     membershipRepository,
+    cookieSecure,
+    useFakeGitHub,
     invitationRepository,
     signupGate,
     analytics,
@@ -52,20 +57,18 @@ export function registerGitHubAuthRoutes(
       const state = randomBytes(16).toString("hex");
 
       // Store state in cookie for validation on callback
-      reply.setCookie("oauth_state", state, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        path: "/",
-        maxAge: 600, // 10 minutes
-      });
+      reply.setCookie(
+        "oauth_state",
+        state,
+        oauthStateCookieOptions(cookieSecure),
+      );
 
       // In fake mode, skip real GitHub entirely: redirect straight to our own
       // callback with a dummy code. The fake OAuth client returns a dev user,
       // so login completes without leaving localhost. The relative path keeps
       // it on whatever host you're on, regardless of PUBLIC_URL / OAuth App
       // callback config.
-      if (process.env.USE_FAKE_GITHUB === "true") {
+      if (useFakeGitHub) {
         return reply.redirect(
           `/auth/github/callback?code=fake-dev-code&state=${state}`,
         );
@@ -181,13 +184,11 @@ export function registerGitHubAuthRoutes(
         });
 
         // Set session cookie
-        reply.setCookie("session", sessionToken, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-          sameSite: "lax",
-          path: "/",
-          maxAge: 7 * 24 * 60 * 60, // 7 days
-        });
+        reply.setCookie(
+          "session",
+          sessionToken,
+          sessionCookieOptions(cookieSecure),
+        );
 
         analytics?.identify(
           user._id.toString(),

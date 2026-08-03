@@ -70,7 +70,11 @@ describe("Setup Wizard Routes", () => {
       },
     });
     sessionAuthMiddleware(app, sessionService);
-    registerSetupRoutes(app, { serviceRepo, buildRepo });
+    registerSetupRoutes(app, {
+      buildSimulationEnabled: false,
+      serviceRepo,
+      buildRepo,
+    });
     await app.ready();
   });
 

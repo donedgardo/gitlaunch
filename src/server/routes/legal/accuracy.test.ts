@@ -53,7 +53,7 @@ describe("legal documents match the system they describe", () => {
         partials: { legalStyles: "/partials/legalStyles.hbs" },
       },
     });
-    registerLegalRoutes(app);
+    registerLegalRoutes(app, { publicUrl: "http://localhost:3050" });
     await app.ready();
 
     privacy = (await app.inject({ method: "GET", url: "/privacy" })).body;

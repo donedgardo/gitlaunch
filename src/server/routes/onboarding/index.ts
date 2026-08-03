@@ -12,8 +12,14 @@ import { ApiKeyService } from "../../../services/apiKey/apiKeyService";
 import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
 import { TrialService } from "../../../services/billing/trialService";
 import { AnalyticsService } from "../../../services/analytics/analytics";
+import { oneTimeSecretCookieOptions } from "../../cookies";
+import { githubInstallUrl } from "../../githubInstallUrl";
 
 export type OnboardingRoutesDeps = {
+  cookieSecure: boolean;
+  publicUrl: string;
+  github: { useFakes: boolean; appName?: string };
+  buildSimulationEnabled: boolean;
   accountRepository: AccountRepository;
   repositoryRepository: RepositoryRepository;
   userRepository: UserRepository;
@@ -30,6 +36,10 @@ export function registerOnboardingRoutes(
   deps: OnboardingRoutesDeps,
 ): void {
   const {
+    cookieSecure,
+    publicUrl,
+    github,
+    buildSimulationEnabled,
     accountRepository,
     repositoryRepository,
     userRepository,
@@ -40,25 +50,6 @@ export function registerOnboardingRoutes(
     trialService,
     analytics,
   } = deps;
-
-  // GitHub App install URL. In fake mode it hits our local callback directly,
-  // so it can carry a local returnTo that survives the connect+select flow
-  // (the callback re-attaches it to repo selection). The real GitHub App flow
-  // can't preserve it — GitHub owns the post-install redirect.
-  function githubInstallUrl(returnTo?: string): string {
-    const useFakeGitHub = process.env.USE_FAKE_GITHUB === "true";
-    if (!useFakeGitHub) {
-      return `https://github.com/apps/${process.env.GH_APP_NAME || "gitlaunchapp"}/installations/new`;
-    }
-    const base = "/github/installation/callback?installation_id=12345";
-    const isLocalPath =
-      typeof returnTo === "string" &&
-      returnTo.startsWith("/") &&
-      !returnTo.startsWith("//");
-    return isLocalPath
-      ? `${base}&returnTo=${encodeURIComponent(returnTo)}`
-      : base;
-  }
 
   // GET /onboarding/plan-selection - Plan selection page
   app.get(
@@ -242,14 +233,11 @@ export function registerOnboardingRoutes(
         scopes: ["builds:read", "builds:write", "deployments:write"],
       });
       // Signed cookie so the reporting guide can show the key once.
-      reply.setCookie("onboarding_api_key", key, {
-        signed: true,
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
-        path: "/",
-        maxAge: 3600,
-      });
+      reply.setCookie(
+        "onboarding_api_key",
+        key,
+        oneTimeSecretCookieOptions(cookieSecure, 3600),
+      );
 
       analytics?.track("service_created", {
         serviceName: name,
@@ -303,12 +291,12 @@ export function registerOnboardingRoutes(
           title: "Report your first build",
           serviceId: service._id.toString(),
           serviceName: service.name,
-          apiUrl: process.env.PUBLIC_URL,
+          apiUrl: publicUrl,
           apiKey,
           firstEnv: environments[0]?.name ?? "staging",
           // Dev-only: report a fake build to exercise the SSE → next-step flow
           // without a real CI pipeline.
-          showSimulateBuild: process.env.ENABLE_BUILD_SIMULATION === "true",
+          showSimulateBuild: buildSimulationEnabled,
         },
         { layout: "/layouts/main.hbs" },
       );
@@ -353,6 +341,7 @@ export function registerOnboardingRoutes(
     );
     // Connecting GitHub here should return to finish deploy setup (fake mode).
     const installUrl = githubInstallUrl(
+      github,
       `/onboarding/setup-deploy/${service._id}`,
     );
 
@@ -362,7 +351,7 @@ export function registerOnboardingRoutes(
         title: "Set up deployments",
         serviceId: service._id.toString(),
         serviceName: service.name,
-        apiUrl: process.env.PUBLIC_URL,
+        apiUrl: publicUrl,
         firstEnv: environments[0]?.name ?? "staging",
         environments,
         githubConnected: account.githubConnection != null,
@@ -545,7 +534,7 @@ export function registerOnboardingRoutes(
       // preserves returnTo so e.g. "don't see your repo?" from /services/new
       // returns there afterward).
       if (!account.githubConnection) {
-        return reply.redirect(githubInstallUrl(request.query.returnTo));
+        return reply.redirect(githubInstallUrl(github, request.query.returnTo));
       }
 
       // Fetch available repositories from GitHub App installation

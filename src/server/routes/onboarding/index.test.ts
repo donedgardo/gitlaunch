@@ -24,7 +24,7 @@ import { TrialService } from "../../../services/billing/trialService";
 import { SessionService } from "../../../services/auth/sessionService";
 import { sessionAuthMiddleware } from "../../middleware/sessionAuth";
 import { mockViewPlugin } from "../../testing/mockViewPlugin";
-import { registerOnboardingRoutes } from "./index";
+import { registerOnboardingRoutes, OnboardingRoutesDeps } from "./index";
 
 // Fake GitHubAppService that returns test repos
 class FakeGitHubAppService {
@@ -85,6 +85,36 @@ describe("Onboarding Routes", () => {
     await mongoServer.stop();
   });
 
+  // Route configuration is a dependency now, not ambient process.env. Tests
+  // that need a different configuration mount their own app and say so.
+  const onboardingDeps = (): OnboardingRoutesDeps => ({
+    cookieSecure: false,
+    publicUrl: "http://localhost:3050",
+    github: { useFakes: false, appName: "gitlaunchapp" },
+    buildSimulationEnabled: false,
+    accountRepository: accountRepo,
+    repositoryRepository: repositoryRepo,
+    userRepository: userRepo,
+    serviceRepository: serviceRepo,
+    gitHubAppService: fakeGitHubAppService as unknown as GitHubAppService,
+    apiKeyService,
+    planEnforcementService,
+    trialService,
+  });
+
+  async function mountOnboarding(
+    overrides: Partial<OnboardingRoutesDeps> = {},
+  ): Promise<FastifyInstance> {
+    const local = Fastify();
+    await local.register(cookie, { secret: COOKIE_SECRET });
+    await local.register(formbody);
+    await local.register(mockViewPlugin);
+    sessionAuthMiddleware(local, sessionService);
+    registerOnboardingRoutes(local, { ...onboardingDeps(), ...overrides });
+    await local.ready();
+    return local;
+  }
+
   beforeEach(async () => {
     await db.collection("accounts").deleteMany({});
     await db.collection("repositories").deleteMany({});
@@ -118,16 +148,7 @@ describe("Onboarding Routes", () => {
     await app.register(formbody);
     await app.register(mockViewPlugin);
     sessionAuthMiddleware(app, sessionService);
-    registerOnboardingRoutes(app, {
-      accountRepository: accountRepo,
-      repositoryRepository: repositoryRepo,
-      userRepository: userRepo,
-      serviceRepository: serviceRepo,
-      gitHubAppService: fakeGitHubAppService as unknown as GitHubAppService,
-      apiKeyService,
-      planEnforcementService,
-      trialService,
-    });
+    registerOnboardingRoutes(app, onboardingDeps());
     await app.ready();
   });
 
@@ -271,20 +292,15 @@ describe("Onboarding Routes", () => {
         name: "api",
       });
 
-      const prev = process.env.ENABLE_BUILD_SIMULATION;
-      process.env.ENABLE_BUILD_SIMULATION = "true";
-      try {
-        const response = await app.inject({
-          method: "GET",
-          url: `/onboarding/report-builds/${service._id}`,
-          cookies: { session },
-        });
-        expect(response.statusCode).toBe(200);
-        expect(response.body).toContain("simulate-build-btn");
-      } finally {
-        if (prev === undefined) delete process.env.ENABLE_BUILD_SIMULATION;
-        else process.env.ENABLE_BUILD_SIMULATION = prev;
-      }
+      const local = await mountOnboarding({ buildSimulationEnabled: true });
+      const response = await local.inject({
+        method: "GET",
+        url: `/onboarding/report-builds/${service._id}`,
+        cookies: { session },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain("simulate-build-btn");
     });
 
     it("hides the simulate-build button when not in dev mode", async () => {
@@ -294,19 +310,14 @@ describe("Onboarding Routes", () => {
         name: "api",
       });
 
-      const prev = process.env.ENABLE_BUILD_SIMULATION;
-      delete process.env.ENABLE_BUILD_SIMULATION;
-      try {
-        const response = await app.inject({
-          method: "GET",
-          url: `/onboarding/report-builds/${service._id}`,
-          cookies: { session },
-        });
-        expect(response.statusCode).toBe(200);
-        expect(response.body).not.toContain("simulate-build-btn");
-      } finally {
-        if (prev !== undefined) process.env.ENABLE_BUILD_SIMULATION = prev;
-      }
+      const response = await app.inject({
+        method: "GET",
+        url: `/onboarding/report-builds/${service._id}`,
+        cookies: { session },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.body).not.toContain("simulate-build-btn");
     });
 
     it("renders a full setup-deploy page (not a blank one) with the real view engine", async () => {
@@ -334,16 +345,7 @@ describe("Onboarding Routes", () => {
         },
       });
       sessionAuthMiddleware(realApp, sessionService);
-      registerOnboardingRoutes(realApp, {
-        accountRepository: accountRepo,
-        repositoryRepository: repositoryRepo,
-        userRepository: userRepo,
-        serviceRepository: serviceRepo,
-        gitHubAppService: fakeGitHubAppService as unknown as GitHubAppService,
-        apiKeyService,
-        planEnforcementService,
-        trialService,
-      });
+      registerOnboardingRoutes(realApp, onboardingDeps());
       await realApp.ready();
 
       const response = await realApp.inject({
@@ -364,41 +366,31 @@ describe("Onboarding Routes", () => {
       // there. It must instead prompt a GitHub App install and come back.
       const { session } = await authedAccount("connect-fake-org");
 
-      const prev = process.env.USE_FAKE_GITHUB;
-      process.env.USE_FAKE_GITHUB = "true";
-      try {
-        const response = await app.inject({
-          method: "GET",
-          url: "/onboarding/repositories?returnTo=/services/new",
-          cookies: { session },
-        });
-        expect(response.statusCode).toBe(302);
-        expect(response.headers.location).toBe(
-          `/github/installation/callback?installation_id=12345&returnTo=${encodeURIComponent("/services/new")}`,
-        );
-      } finally {
-        if (prev === undefined) delete process.env.USE_FAKE_GITHUB;
-        else process.env.USE_FAKE_GITHUB = prev;
-      }
+      const local = await mountOnboarding({ github: { useFakes: true } });
+      const response = await local.inject({
+        method: "GET",
+        url: "/onboarding/repositories?returnTo=/services/new",
+        cookies: { session },
+      });
+
+      expect(response.statusCode).toBe(302);
+      expect(response.headers.location).toBe(
+        `/github/installation/callback?installation_id=12345&returnTo=${encodeURIComponent("/services/new")}`,
+      );
     });
 
     it("repo selection without a GitHub connection sends the user to the GitHub App (real)", async () => {
       const { session } = await authedAccount("connect-real-org");
 
-      const prev = process.env.USE_FAKE_GITHUB;
-      delete process.env.USE_FAKE_GITHUB;
-      try {
-        const response = await app.inject({
-          method: "GET",
-          url: "/onboarding/repositories?returnTo=/services/new",
-          cookies: { session },
-        });
-        expect(response.statusCode).toBe(302);
-        expect(response.headers.location).toContain("github.com/apps/");
-        expect(response.headers.location).toContain("/installations/new");
-      } finally {
-        if (prev !== undefined) process.env.USE_FAKE_GITHUB = prev;
-      }
+      const response = await app.inject({
+        method: "GET",
+        url: "/onboarding/repositories?returnTo=/services/new",
+        cookies: { session },
+      });
+
+      expect(response.statusCode).toBe(302);
+      expect(response.headers.location).toContain("github.com/apps/");
+      expect(response.headers.location).toContain("/installations/new");
     });
 
     it("fake-github install link returns to setup-deploy after connecting", async () => {
@@ -411,25 +403,20 @@ describe("Onboarding Routes", () => {
         name: "api",
       });
 
-      const prev = process.env.USE_FAKE_GITHUB;
-      process.env.USE_FAKE_GITHUB = "true";
-      try {
-        const response = await app.inject({
-          method: "GET",
-          url: `/onboarding/setup-deploy/${service._id}`,
-          cookies: { session },
-        });
-        expect(response.statusCode).toBe(200);
-        // fake callback link...
-        expect(response.body).toContain("/github/installation/callback");
-        // ...carrying a returnTo back to this service's deploy-setup step
-        expect(response.body).toContain(
-          `returnTo=${encodeURIComponent(`/onboarding/setup-deploy/${service._id}`)}`,
-        );
-      } finally {
-        if (prev === undefined) delete process.env.USE_FAKE_GITHUB;
-        else process.env.USE_FAKE_GITHUB = prev;
-      }
+      const local = await mountOnboarding({ github: { useFakes: true } });
+      const response = await local.inject({
+        method: "GET",
+        url: `/onboarding/setup-deploy/${service._id}`,
+        cookies: { session },
+      });
+
+      expect(response.statusCode).toBe(200);
+      // fake callback link...
+      expect(response.body).toContain("/github/installation/callback");
+      // ...carrying a returnTo back to this service's deploy-setup step
+      expect(response.body).toContain(
+        `returnTo=${encodeURIComponent(`/onboarding/setup-deploy/${service._id}`)}`,
+      );
     });
 
     it("returns 404 for a service the account does not own", async () => {

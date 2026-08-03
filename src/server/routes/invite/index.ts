@@ -9,12 +9,15 @@ import { AccountRepository } from "../../../repositories/accountRepository";
 import { SessionService } from "../../../services/auth/sessionService";
 import { acceptInvitation } from "./acceptInvitation";
 import { buildPageMeta } from "../../seo/meta";
+import { sessionCookieOptions, oauthStateCookieOptions } from "../../cookies";
 
 export type InviteRoutesDeps = {
   invitationRepository: InvitationRepository;
   membershipRepository: MembershipRepository;
   accountRepository: AccountRepository;
   sessionService: SessionService;
+  cookieSecure: boolean;
+  publicUrl: string;
 };
 
 const ROLE_LABELS: Record<MembershipRole, string> = {
@@ -30,15 +33,10 @@ function setSessionCookie(
   sessionService: SessionService,
   userId: ObjectId,
   accountId: ObjectId,
+  cookieSecure: boolean,
 ): void {
   const token = sessionService.createSession({ userId, accountId });
-  reply.setCookie("session", token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: 7 * 24 * 60 * 60,
-  });
+  reply.setCookie("session", token, sessionCookieOptions(cookieSecure));
 }
 
 export function registerInviteRoutes(
@@ -50,6 +48,8 @@ export function registerInviteRoutes(
     membershipRepository,
     accountRepository,
     sessionService,
+    cookieSecure,
+    publicUrl,
   } = deps;
 
   // Invite links carry a secret token, so they must never be indexed — but they
@@ -60,7 +60,7 @@ export function registerInviteRoutes(
       description: `You've been invited to collaborate on deployments in ${accountName} on GitLaunch.`,
       path: `/invite/${token}`,
       robots: "noindex, nofollow",
-      publicUrl: process.env.PUBLIC_URL,
+      publicUrl,
     });
   }
 
@@ -74,7 +74,7 @@ export function registerInviteRoutes(
           title: "Invitation — GitLaunch",
           path: "/invite",
           robots: "noindex, nofollow",
-          publicUrl: process.env.PUBLIC_URL,
+          publicUrl,
         }),
       },
       { layout: "/layouts/main.hbs" },
@@ -125,13 +125,11 @@ export function registerInviteRoutes(
 
       // Logged out: stash the token so we can finish the join right after the
       // GitHub sign-in completes, then invite them to sign in.
-      reply.setCookie(PENDING_INVITE_COOKIE, token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        path: "/",
-        maxAge: 600,
-      });
+      reply.setCookie(
+        PENDING_INVITE_COOKIE,
+        token,
+        oauthStateCookieOptions(cookieSecure),
+      );
       return reply.view(
         "invite/accept",
         {
@@ -158,13 +156,11 @@ export function registerInviteRoutes(
       const { token } = request.params;
 
       if (!request.session) {
-        reply.setCookie(PENDING_INVITE_COOKIE, token, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-          sameSite: "lax",
-          path: "/",
-          maxAge: 600,
-        });
+        reply.setCookie(
+          PENDING_INVITE_COOKIE,
+          token,
+          oauthStateCookieOptions(cookieSecure),
+        );
         return reply.redirect("/auth/github");
       }
 
@@ -185,7 +181,13 @@ export function registerInviteRoutes(
       }
 
       // Switch the active workspace to the one they just joined.
-      setSessionCookie(reply, sessionService, userId, result.accountId);
+      setSessionCookie(
+        reply,
+        sessionService,
+        userId,
+        result.accountId,
+        cookieSecure,
+      );
       reply.clearCookie(PENDING_INVITE_COOKIE, { path: "/" });
       return reply.redirect("/dashboard");
     },

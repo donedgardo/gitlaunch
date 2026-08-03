@@ -16,7 +16,7 @@ declare module "fastify" {
   }
 }
 
-export function registerPlugins(server: FastifyInstance) {
+export function registerPlugins(server: FastifyInstance, cookieSecret: string) {
   registerHandlebarsHelpers();
   server.register(fastifyFormbody);
   server.register(rawBody, {
@@ -66,7 +66,7 @@ export function registerPlugins(server: FastifyInstance) {
     list: true,
   });
   server.register(fastifyCookie, {
-    secret: process.env.COOKIE_SECRET_SIGNATURE,
+    secret: cookieSecret,
     hook: "preParsing",
     parseOptions: {},
   });

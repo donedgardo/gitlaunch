@@ -5,6 +5,7 @@ import { BuildRepository } from "../../../repositories/buildRepository";
 import { AnalyticsService } from "../../../services/analytics/analytics";
 
 export type SetupRoutesDeps = {
+  buildSimulationEnabled: boolean;
   serviceRepo: ServiceRepository;
   buildRepo: BuildRepository;
   analytics?: AnalyticsService;
@@ -16,7 +17,7 @@ export function registerSetupRoutes(
   app: FastifyInstance,
   deps: SetupRoutesDeps,
 ): void {
-  const { serviceRepo, buildRepo, analytics } = deps;
+  const { serviceRepo, buildRepo, analytics, buildSimulationEnabled } = deps;
 
   app.get<{ Params: { serviceName: string; step: string } }>(
     "/dashboard/:serviceName/setup/:step",
@@ -71,7 +72,7 @@ export function registerSetupRoutes(
           serviceName: service.name,
           environments,
           hasBuilds,
-          showSimulateBuild: process.env.ENABLE_BUILD_SIMULATION === "true",
+          showSimulateBuild: buildSimulationEnabled,
         },
         { layout: "" },
       );

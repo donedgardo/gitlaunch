@@ -88,6 +88,7 @@ describe("Settings Routes - Workflow Configuration", () => {
     });
     sessionAuthMiddleware(app, sessionService);
     registerSettingsRoutes(app, {
+      publicUrl: "http://localhost:3050",
       serviceRepository: serviceRepo,
       repositoryRepository: repositoryRepo,
       environmentService,

@@ -169,7 +169,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
   assertEncryptionKey();
 
   const server = Fastify();
-  registerPlugins(server);
+  registerPlugins(server, config.cookieSecret);
   registerErrorReporting(server, errorReporter);
 
   // Repositories
@@ -259,6 +259,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
   // Session middleware (must be before routes that need request.session)
   registerSessionMiddleware(server, {
     sessionService,
+    cookieSecure: config.cookies.secure,
   });
 
   // Billing services and routes. Never registered on a self-hosted install:
@@ -278,6 +279,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     });
 
     registerBillingRoutes(server, {
+      publicUrl: config.publicUrl,
       stripeService,
       planEnforcementService,
       accountRepo: accountRepository,
@@ -290,7 +292,10 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
   // API key management routes
   registerApiKeyRoutes(server, { apiKeyService, serviceRepository });
   registerJenkinsSettingsRoutes(server, { jenkinsConnectionService });
-  registerGithubSettingsRoutes(server, { githubConnectionService });
+  registerGithubSettingsRoutes(server, {
+    githubConnectionService,
+    github: config.github,
+  });
 
   // Team: shareable-link invites into a shared workspace
   const accountMembershipService = new AccountMembershipService(
@@ -303,11 +308,14 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     invitationRepository,
   );
   registerTeamRoutes(server, {
+    publicUrl: config.publicUrl,
     teamManagementService,
     accountMembershipService,
     invitationRepository,
   });
   registerInviteRoutes(server, {
+    cookieSecure: config.cookies.secure,
+    publicUrl: config.publicUrl,
     invitationRepository,
     membershipRepository,
     accountRepository,
@@ -316,6 +324,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
 
   // Setup wizard routes
   registerSetupRoutes(server, {
+    buildSimulationEnabled: config.features.buildSimulation.enabled,
     serviceRepo: serviceRepository,
     buildRepo: buildRepository,
     analytics,
@@ -386,7 +395,11 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
   // Routes
   server.register(healthRoute(mongoClient));
   server.register(
-    homeRoute({ experiment: waitlistExperiment, signupDoor: signupGate }),
+    homeRoute({
+      experiment: waitlistExperiment,
+      signupDoor: signupGate,
+      publicUrl: config.publicUrl,
+    }),
   );
   registerWaitlistRoutes(server, {
     waitlistService,
@@ -395,9 +408,11 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
   // Public and unauthenticated by design — see the note in the module. Both the
   // landing-page footer and the review bots at GitHub, Stripe and Google need
   // these to resolve without a session.
-  registerLegalRoutes(server);
+  registerLegalRoutes(server, { publicUrl: config.publicUrl });
   server.register(
     dashboardRoutes({
+      publicUrl: config.publicUrl,
+      buildSimulationEnabled: config.features.buildSimulation.enabled,
       serviceRepository,
       buildRepository,
       repositoryRepository,
@@ -425,6 +440,8 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
 
   // GitHub OAuth routes
   registerGitHubAuthRoutes(server, {
+    cookieSecure: config.cookies.secure,
+    useFakeGitHub: config.github.useFakes,
     oauthService: githubOAuthService,
     sessionService,
     userRepository,
@@ -438,6 +455,8 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
   // Google OAuth routes (only when a Google client is configured)
   if (googleOAuthService) {
     registerGoogleAuthRoutes(server, {
+      cookieSecure: config.cookies.secure,
+      useFakeGoogle: config.features.googleAuth.useFakes,
       oauthService: googleOAuthService,
       sessionService,
       userRepository,
@@ -450,6 +469,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
 
   // Email/password auth routes (login/signup pages, confirmation flow)
   registerEmailPasswordAuthRoutes(server, {
+    cookieSecure: config.cookies.secure,
     sessionService,
     userRepository,
     accountRepository,
@@ -470,6 +490,10 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
 
   // Onboarding routes
   registerOnboardingRoutes(server, {
+    cookieSecure: config.cookies.secure,
+    publicUrl: config.publicUrl,
+    github: config.github,
+    buildSimulationEnabled: config.features.buildSimulation.enabled,
     accountRepository,
     repositoryRepository,
     userRepository,
@@ -483,6 +507,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
 
   // Service management routes
   registerServiceRoutes(server, {
+    cookieSecure: config.cookies.secure,
     accountRepository,
     repositoryRepository,
     serviceRepository,
@@ -494,6 +519,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
 
   // Service settings routes (environments management)
   registerSettingsRoutes(server, {
+    publicUrl: config.publicUrl,
     serviceRepository,
     repositoryRepository,
     environmentService,
@@ -503,6 +529,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
 
   // Feature flags management UI (per-service)
   registerFlagsSettingsRoutes(server, {
+    publicUrl: config.publicUrl,
     serviceRepository,
     flagService,
     apiKeyService,

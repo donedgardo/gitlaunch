@@ -101,6 +101,8 @@ describe("Invite Routes", () => {
     });
     sessionAuthMiddleware(app, sessionService);
     registerInviteRoutes(app, {
+      cookieSecure: false,
+      publicUrl: "http://localhost:3050",
       invitationRepository: invitationRepo,
       membershipRepository: membershipRepo,
       accountRepository: accountRepo,

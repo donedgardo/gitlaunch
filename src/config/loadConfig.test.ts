@@ -308,6 +308,53 @@ describe("loadConfig", () => {
       ).toThrow(/ENABLE_BUILD_SIMULATION/);
     });
   });
+
+  describe("cookie security", () => {
+    // Secure cookies are decided by how the install is actually reached, not by
+    // NODE_ENV. A customer serving GitLaunch over plain http with
+    // NODE_ENV=production would otherwise set Secure cookies the browser
+    // refuses to send back, and sign-in would fail with nothing in the logs.
+    it("should mark cookies secure when the install is reached over https", () => {
+      const config = loadConfig(
+        env({ PUBLIC_URL: "https://gitlaunch.example.com" }),
+        saasBuild,
+      );
+
+      expect(config.cookies.secure).toBe(true);
+    });
+
+    it("should not mark cookies secure when the install is reached over http", () => {
+      const config = loadConfig(
+        env({ PUBLIC_URL: "http://localhost:3050" }),
+        saasBuild,
+      );
+
+      expect(config.cookies.secure).toBe(false);
+    });
+
+    it("should ignore NODE_ENV when deciding cookie security", () => {
+      const overHttp = loadConfig(
+        env({ PUBLIC_URL: "http://internal.acme.lan", NODE_ENV: "production" }),
+        saasBuild,
+      );
+
+      expect(overHttp.cookies.secure).toBe(false);
+    });
+  });
+
+  describe("development affordances", () => {
+    it("should treat an unset NODE_ENV as development", () => {
+      expect(
+        loadConfig(env({ NODE_ENV: undefined }), saasBuild).isProduction,
+      ).toBe(false);
+    });
+
+    it("should treat NODE_ENV=production as production", () => {
+      expect(
+        loadConfig(env({ NODE_ENV: "production" }), saasBuild).isProduction,
+      ).toBe(true);
+    });
+  });
 });
 
 describe("summarizeConfig", () => {

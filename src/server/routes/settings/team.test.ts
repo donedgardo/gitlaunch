@@ -106,6 +106,7 @@ describe("Team Routes", () => {
     });
     sessionAuthMiddleware(app, sessionService);
     registerTeamRoutes(app, {
+      publicUrl: "http://localhost:3050",
       teamManagementService: new TeamManagementService(
         membershipRepo,
         invitationRepo,

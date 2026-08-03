@@ -13,6 +13,7 @@ import {
   SignupGate,
   emailSignupEntityKey,
 } from "../../../services/account/signupGate";
+import { sessionCookieOptions } from "../../cookies";
 
 export type EmailPasswordAuthRoutesConfig = {
   sessionService: SessionService;
@@ -22,6 +23,7 @@ export type EmailPasswordAuthRoutesConfig = {
   passwordService: PasswordService;
   emailSender: EmailSender;
   publicUrl: string;
+  cookieSecure: boolean;
   googleEnabled?: boolean;
   // Optional: when present, creating a *new* account via email/password is gated
   // by GitLaunch's own self-serve-signups flag (same kill switch as GitHub and
@@ -35,14 +37,12 @@ const MIN_PASSWORD_LENGTH = 8;
 const VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-function setSessionCookie(reply: FastifyReply, token: string): void {
-  reply.setCookie("session", token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: 7 * 24 * 60 * 60, // 7 days
-  });
+function setSessionCookie(
+  reply: FastifyReply,
+  token: string,
+  cookieSecure: boolean,
+): void {
+  reply.setCookie("session", token, sessionCookieOptions(cookieSecure));
 }
 
 export function registerEmailPasswordAuthRoutes(
@@ -57,6 +57,7 @@ export function registerEmailPasswordAuthRoutes(
     passwordService,
     emailSender,
     publicUrl,
+    cookieSecure,
     googleEnabled = false,
     signupGate,
     analytics,
@@ -201,7 +202,7 @@ export function registerEmailPasswordAuthRoutes(
         userId: user._id,
         accountId,
       });
-      setSessionCookie(reply, sessionToken);
+      setSessionCookie(reply, sessionToken, cookieSecure);
 
       analytics?.identify(user._id.toString(), { email: user.email });
       analytics?.track("user_logged_in", {
@@ -255,7 +256,7 @@ export function registerEmailPasswordAuthRoutes(
         userId: user._id,
         accountId,
       });
-      setSessionCookie(reply, sessionToken);
+      setSessionCookie(reply, sessionToken, cookieSecure);
 
       analytics?.track("user_logged_in", {
         userId: user._id.toString(),

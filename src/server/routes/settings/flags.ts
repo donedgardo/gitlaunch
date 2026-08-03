@@ -16,6 +16,7 @@ import { ExperimentResultsService } from "../../../services/flag/experimentResul
 import { toExperimentPanelsView } from "../../../services/analytics/experimentPanelView";
 
 export type FlagsSettingsDeps = {
+  publicUrl: string;
   serviceRepository: ServiceRepository;
   flagService: FlagServiceI;
   // Mints least-privilege (flags:read only) keys for the "Connect an app" panel.
@@ -207,6 +208,7 @@ export function registerFlagsSettingsRoutes(
   deps: FlagsSettingsDeps,
 ): void {
   const {
+    publicUrl,
     serviceRepository,
     flagService,
     apiKeyService,
@@ -216,7 +218,7 @@ export function registerFlagsSettingsRoutes(
 
   // Base URL for the copy-paste integration snippets. Empty in dev/tests keeps
   // the endpoint path (with serviceId) intact — the panel is still useful.
-  const apiUrl = process.env.PUBLIC_URL || "";
+  const apiUrl = publicUrl;
 
   async function loadServiceWithAuth(
     request: FastifyRequest<{ Params: { serviceId: string } }>,

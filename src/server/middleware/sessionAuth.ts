@@ -4,6 +4,7 @@ import {
   SessionService,
   SessionPayload,
 } from "../../services/auth/sessionService";
+import { sessionCookieOptions } from "../cookies";
 
 // Extend Fastify request type to include session
 declare module "fastify" {
@@ -14,13 +15,14 @@ declare module "fastify" {
 
 export type SessionMiddlewareDeps = {
   sessionService: SessionService;
+  cookieSecure: boolean;
 };
 
 export function registerSessionMiddleware(
   app: FastifyInstance,
   deps: SessionMiddlewareDeps,
 ): void {
-  const { sessionService } = deps;
+  const { sessionService, cookieSecure } = deps;
 
   // Decorate request with session property
   app.decorateRequest("session", null);
@@ -41,15 +43,18 @@ export function registerSessionMiddleware(
 
       // Refresh session cookie on each request (sliding session)
       if (session) {
-        refreshSessionCookie(reply, sessionService, session);
+        refreshSessionCookie(reply, sessionService, session, cookieSecure);
       }
     },
   );
 }
 
+// Test-only convenience wrapper. Tests drive plain http, so insecure cookies
+// are the right default; production goes through registerSessionMiddleware.
 export function sessionAuthMiddleware(
   app: FastifyInstance,
   sessionService: SessionService,
+  cookieSecure = false,
 ): void {
   // Decorate request with session property
   app.decorateRequest("session", null);
@@ -70,7 +75,7 @@ export function sessionAuthMiddleware(
 
       // Refresh session cookie on each request (sliding session)
       if (session) {
-        refreshSessionCookie(reply, sessionService, session);
+        refreshSessionCookie(reply, sessionService, session, cookieSecure);
       }
     },
   );
@@ -80,19 +85,14 @@ function refreshSessionCookie(
   reply: FastifyReply,
   sessionService: SessionService,
   session: SessionPayload,
+  cookieSecure: boolean,
 ): void {
   const newToken = sessionService.createSession({
     userId: new ObjectId(session.userId),
     accountId: new ObjectId(session.accountId),
   });
 
-  reply.setCookie("session", newToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: 7 * 24 * 60 * 60, // 7 days
-  });
+  reply.setCookie("session", newToken, sessionCookieOptions(cookieSecure));
 }
 
 function extractToken(request: FastifyRequest): string | null {

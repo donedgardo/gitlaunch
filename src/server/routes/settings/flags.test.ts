@@ -101,6 +101,7 @@ describe("Flags Settings Routes", () => {
     sessionAuthMiddleware(app, sessionService);
     analytics = new WarehouseAnalytics(analyticsEventRepo);
     registerFlagsSettingsRoutes(app, {
+      publicUrl: "http://localhost:3050",
       serviceRepository: serviceRepo,
       flagService,
       apiKeyService,

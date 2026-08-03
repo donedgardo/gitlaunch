@@ -1,23 +1,18 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { ObjectId } from "mongodb";
 import { GithubConnectionService } from "../../../services/github/githubConnectionService";
+import { githubInstallUrl } from "../../githubInstallUrl";
 
 export type GithubSettingsRoutesDeps = {
   githubConnectionService: GithubConnectionService;
+  github: { useFakes: boolean; appName?: string };
 };
-
-function installUrl(): string {
-  const useFakeGitHub = process.env.USE_FAKE_GITHUB === "true";
-  return useFakeGitHub
-    ? "/github/installation/callback?installation_id=12345"
-    : `https://github.com/apps/${process.env.GH_APP_NAME || "gitlaunchapp"}/installations/new`;
-}
 
 export function registerGithubSettingsRoutes(
   app: FastifyInstance,
   deps: GithubSettingsRoutesDeps,
 ): void {
-  const { githubConnectionService } = deps;
+  const { githubConnectionService, github } = deps;
 
   async function renderPage(accountId: ObjectId, reply: FastifyReply) {
     const connection = await githubConnectionService.getView(accountId);
@@ -31,7 +26,7 @@ export function registerGithubSettingsRoutes(
               connectedAt: connection.connectedAt.toISOString().split("T")[0],
             }
           : null,
-        installUrl: installUrl(),
+        installUrl: githubInstallUrl(github),
       },
       { layout: "/layouts/main.hbs" },
     );

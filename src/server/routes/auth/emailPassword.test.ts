@@ -83,6 +83,7 @@ describe("Email/Password Auth Routes", () => {
     });
 
     registerEmailPasswordAuthRoutes(app, {
+      cookieSecure: false,
       sessionService: new SessionService("test-secret"),
       userRepository,
       accountRepository: new AccountRepository(db),
@@ -289,6 +290,7 @@ describe("Email/Password Auth Routes", () => {
         options: { compileOptions: { preventIndent: true } },
       });
       registerEmailPasswordAuthRoutes(gated, {
+        cookieSecure: false,
         sessionService: new SessionService("test-secret"),
         userRepository,
         accountRepository: new AccountRepository(db),

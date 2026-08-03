@@ -6,6 +6,7 @@ import { InvitationRepository } from "../../../repositories/invitationRepository
 import { MembershipRole } from "../../../repositories/membershipRepository";
 
 export type TeamRoutesDeps = {
+  publicUrl: string;
   teamManagementService: TeamManagementService;
   accountMembershipService: AccountMembershipService;
   invitationRepository: InvitationRepository;
@@ -28,8 +29,8 @@ function parseRole(value: unknown): MembershipRole | null {
   return null;
 }
 
-function inviteLink(token: string): string {
-  const base = (process.env.PUBLIC_URL || "").replace(/\/$/, "");
+function inviteLink(publicUrl: string, token: string): string {
+  const base = publicUrl.replace(/\/$/, "");
   return `${base}/invite/${token}`;
 }
 
@@ -38,6 +39,7 @@ export function registerTeamRoutes(
   deps: TeamRoutesDeps,
 ): void {
   const {
+    publicUrl,
     teamManagementService,
     accountMembershipService,
     invitationRepository,
@@ -75,7 +77,7 @@ export function registerTeamRoutes(
           .map((i) => ({
             email: i.email,
             role: ROLE_LABELS[i.role],
-            link: inviteLink(i.token),
+            link: inviteLink(publicUrl, i.token),
             expiresAt: i.expiresAt.toISOString().split("T")[0],
           })),
         error: banner?.error,
