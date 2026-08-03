@@ -11,8 +11,11 @@ import {
   SignupGate,
   googleSignupEntityKey,
 } from "../../../services/account/signupGate";
+import { sessionCookieOptions, oauthStateCookieOptions } from "../../cookies";
 
 export type GoogleAuthRoutesConfig = {
+  cookieSecure: boolean;
+  useFakeGoogle: boolean;
   oauthService: GoogleOAuthService;
   sessionService: SessionService;
   userRepository: UserRepository;
@@ -30,6 +33,8 @@ export function registerGoogleAuthRoutes(
   config: GoogleAuthRoutesConfig,
 ): void {
   const {
+    cookieSecure,
+    useFakeGoogle,
     oauthService,
     sessionService,
     userRepository,
@@ -45,17 +50,15 @@ export function registerGoogleAuthRoutes(
     async (request: FastifyRequest, reply: FastifyReply) => {
       const state = randomBytes(16).toString("hex");
 
-      reply.setCookie("oauth_state", state, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        path: "/",
-        maxAge: 600, // 10 minutes
-      });
+      reply.setCookie(
+        "oauth_state",
+        state,
+        oauthStateCookieOptions(cookieSecure),
+      );
 
       // In fake mode, skip real Google entirely and bounce to our own callback
       // with a dummy code. Mirrors the GitHub fake-mode short-circuit.
-      if (process.env.USE_FAKE_GOOGLE === "true") {
+      if (useFakeGoogle) {
         return reply.redirect(
           `/auth/google/callback?code=fake-dev-code&state=${state}`,
         );
@@ -139,13 +142,11 @@ export function registerGoogleAuthRoutes(
           accountId,
         });
 
-        reply.setCookie("session", sessionToken, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-          sameSite: "lax",
-          path: "/",
-          maxAge: 7 * 24 * 60 * 60, // 7 days
-        });
+        reply.setCookie(
+          "session",
+          sessionToken,
+          sessionCookieOptions(cookieSecure),
+        );
 
         analytics?.identify(user._id.toString(), {
           email: user.email,

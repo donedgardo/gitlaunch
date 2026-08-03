@@ -79,10 +79,13 @@ const webhookEventRepository = new WebhookEventRepository(database);
 
 // Analytics — persists product events into the Mongo warehouse when enabled,
 // otherwise logs to console (dev) or no-ops.
-const analyticsEventRepository = new AnalyticsEventRepository(database);
+const analyticsEventRepository = new AnalyticsEventRepository(
+  database,
+  config.features.analytics.retentionDays,
+);
 const analytics = createAnalyticsService(analyticsEventRepository, {
   warehouse: config.features.analytics.enabled,
-  dev: process.env.NODE_ENV !== "production",
+  dev: !config.isProduction,
 });
 
 // Flag evaluation cache (Redis when REDIS_URL is set, in-memory otherwise)

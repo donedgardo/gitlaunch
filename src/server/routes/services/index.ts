@@ -7,8 +7,10 @@ import { ApiKeyService } from "../../../services/apiKey/apiKeyService";
 import { GitHubAppService } from "../../../services/github/githubAppService";
 import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
 import { AnalyticsService } from "../../../services/analytics/analytics";
+import { oneTimeSecretCookieOptions } from "../../cookies";
 
 export type ServiceRoutesDeps = {
+  cookieSecure: boolean;
   accountRepository: AccountRepository;
   repositoryRepository: RepositoryRepository;
   serviceRepository: ServiceRepository;
@@ -23,6 +25,7 @@ export function registerServiceRoutes(
   deps: ServiceRoutesDeps,
 ): void {
   const {
+    cookieSecure,
     accountRepository,
     repositoryRepository,
     serviceRepository,
@@ -135,14 +138,11 @@ export function registerServiceRoutes(
         });
 
         // Store API key in a signed, short-lived cookie for dashboard to display
-        reply.setCookie("new_api_key", key, {
-          signed: true,
-          httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-          sameSite: "strict",
-          path: "/",
-          maxAge: 300, // 5 minutes - just enough time to view and copy
-        });
+        reply.setCookie(
+          "new_api_key",
+          key,
+          oneTimeSecretCookieOptions(cookieSecure, 300),
+        );
 
         // Redirect straight to dashboard
         return reply.redirect(`/dashboard/${name}`);

@@ -34,7 +34,15 @@ const PAGES: LegalPage[] = [
   },
 ];
 
-export function registerLegalRoutes(app: FastifyInstance): void {
+export type LegalRoutesDeps = {
+  publicUrl: string;
+};
+
+export function registerLegalRoutes(
+  app: FastifyInstance,
+  deps: LegalRoutesDeps,
+): void {
+  const { publicUrl } = deps;
   for (const page of PAGES) {
     // Registered outside the authenticated surface on purpose. Terms a visitor
     // has to log in to read cannot bind them at the moment they sign up, and
@@ -45,7 +53,7 @@ export function registerLegalRoutes(app: FastifyInstance): void {
         title: `${page.title} — GitLaunch`,
         description: page.description,
         path: page.path,
-        publicUrl: process.env.PUBLIC_URL,
+        publicUrl,
       });
 
       return reply.view(

@@ -14,6 +14,7 @@ export type SignupDoor = {
 };
 
 export type HomeRouteDeps = {
+  publicUrl?: string;
   experiment?: WaitlistExperiment;
   signupDoor?: SignupDoor;
 };
@@ -33,7 +34,7 @@ export type HomeRouteDeps = {
 const VISITOR_COOKIE_MAX_AGE = 60 * 60 * 24 * 30;
 
 export default function (deps: HomeRouteDeps = {}) {
-  const { experiment, signupDoor } = deps;
+  const { experiment, signupDoor, publicUrl } = deps;
 
   return function (server: FastifyInstance, opts: any, done: any) {
     server.get<{ Querystring: { error?: string } }>("/", async (req, res) => {
@@ -96,7 +97,7 @@ export default function (deps: HomeRouteDeps = {}) {
         description:
           "See every build across every environment, and give your whole team a safe button to ship and roll back. Deployment control, not another CI/CD tool.",
         path: "/",
-        publicUrl: process.env.PUBLIC_URL,
+        publicUrl,
       });
 
       // Show landing page for non-logged in users

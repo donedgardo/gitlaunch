@@ -124,6 +124,8 @@ describe("GitHub OAuth Routes", () => {
 
     // Register routes
     registerGitHubAuthRoutes(app, {
+      cookieSecure: false,
+      useFakeGitHub: false,
       oauthService,
       sessionService,
       userRepository,
@@ -168,24 +170,32 @@ describe("GitHub OAuth Routes", () => {
     });
 
     it("short-circuits to the local callback in fake mode (no real GitHub)", async () => {
-      const prev = process.env.USE_FAKE_GITHUB;
-      process.env.USE_FAKE_GITHUB = "true";
-      try {
-        const response = await app.inject({
-          method: "GET",
-          url: "/auth/github",
-        });
+      const fake = Fastify();
+      await fake.register(cookie, { secret: "cookie-secret" });
+      registerGitHubAuthRoutes(fake, {
+        cookieSecure: false,
+        useFakeGitHub: true,
+        oauthService,
+        sessionService,
+        userRepository,
+        accountRepository,
+        membershipRepository,
+      });
+      await fake.ready();
 
-        // Then: it stays local — a relative callback path, not github.com
-        expect(response.statusCode).toBe(302);
-        expect(response.headers.location).not.toContain("github.com");
-        expect(response.headers.location).toMatch(
-          /^\/auth\/github\/callback\?code=[^&]+&state=[^&]+$/,
-        );
-      } finally {
-        if (prev === undefined) delete process.env.USE_FAKE_GITHUB;
-        else process.env.USE_FAKE_GITHUB = prev;
-      }
+      const response = await fake.inject({
+        method: "GET",
+        url: "/auth/github",
+      });
+
+      // Then: it stays local — a relative callback path, not github.com
+      expect(response.statusCode).toBe(302);
+      expect(response.headers.location).not.toContain("github.com");
+      expect(response.headers.location).toMatch(
+        /^\/auth\/github\/callback\?code=[^&]+&state=[^&]+$/,
+      );
+
+      await fake.close();
     });
   });
 
@@ -319,6 +329,8 @@ describe("GitHub OAuth Routes", () => {
       const gated = Fastify();
       await gated.register(cookie, { secret: "cookie-secret" });
       registerGitHubAuthRoutes(gated, {
+        cookieSecure: false,
+        useFakeGitHub: false,
         oauthService,
         sessionService,
         userRepository,

@@ -10,6 +10,7 @@ import { PlanEnforcementService } from "../../../services/billing/planEnforcemen
 import { AnalyticsService } from "../../../services/analytics/analytics";
 
 export type SettingsRoutesDeps = {
+  publicUrl: string;
   serviceRepository: ServiceRepository;
   repositoryRepository: RepositoryRepository;
   environmentService: EnvironmentService;
@@ -22,6 +23,7 @@ export function registerSettingsRoutes(
   deps: SettingsRoutesDeps,
 ): void {
   const {
+    publicUrl,
     serviceRepository,
     repositoryRepository,
     environmentService,
@@ -130,7 +132,7 @@ export function registerSettingsRoutes(
             selected: dispatchRepoId ? r._id.equals(dispatchRepoId) : false,
           })),
           environments,
-          apiUrl: process.env.PUBLIC_URL,
+          apiUrl: publicUrl,
           firstEnv: environments[0]?.name ?? "staging",
           canDelete: environments.length > 1,
           services: serviceNames,

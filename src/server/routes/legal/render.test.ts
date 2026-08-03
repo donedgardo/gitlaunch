@@ -26,7 +26,7 @@ describe("legal pages, rendered", () => {
         partials: { legalStyles: "/partials/legalStyles.hbs" },
       },
     });
-    registerLegalRoutes(app);
+    registerLegalRoutes(app, { publicUrl: "http://localhost:3050" });
     await app.ready();
   });
 

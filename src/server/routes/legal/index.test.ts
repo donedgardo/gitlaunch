@@ -24,7 +24,7 @@ describe("legal routes", () => {
     rendered = null;
     app = Fastify();
     await app.register(capturingViewPlugin);
-    registerLegalRoutes(app);
+    registerLegalRoutes(app, { publicUrl: "http://localhost:3050" });
     await app.ready();
   });
 

@@ -28,7 +28,12 @@ export type CreateAnalyticsEventInput = {
 export class AnalyticsEventRepository {
   private collection: Collection<AnalyticsEvent>;
 
-  constructor(db: Db) {
+  // Optional TTL for raw events, in days. Undefined leaves them forever, which
+  // is the right default for a self-hosted install nobody is pruning.
+  constructor(
+    db: Db,
+    private retentionDays?: number,
+  ) {
     this.collection = db.collection<AnalyticsEvent>("analytics_events");
   }
 
@@ -44,11 +49,8 @@ export class AnalyticsEventRepository {
 
     // Optional TTL: expire raw events after a retention window so the
     // warehouse doesn't grow unbounded. Disabled unless configured.
-    const retentionDays = parseInt(
-      process.env.ANALYTICS_RETENTION_DAYS ?? "",
-      10,
-    );
-    if (Number.isFinite(retentionDays) && retentionDays > 0) {
+    const retentionDays = this.retentionDays;
+    if (retentionDays !== undefined && retentionDays > 0) {
       await this.collection.createIndex(
         { timestamp: 1 },
         { expireAfterSeconds: retentionDays * 24 * 60 * 60 },

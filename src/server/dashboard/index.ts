@@ -18,6 +18,8 @@ import {
 const DEFAULT_PAGE_SIZE = 20;
 
 export type DashboardRoutesDeps = {
+  publicUrl: string;
+  buildSimulationEnabled: boolean;
   serviceRepository: ServiceRepository;
   buildRepository: BuildRepository;
   repositoryRepository: RepositoryRepository;
@@ -33,6 +35,8 @@ export type DashboardRoutesDeps = {
 
 export default function (deps: DashboardRoutesDeps) {
   const {
+    publicUrl,
+    buildSimulationEnabled,
     serviceRepository,
     buildRepository,
     repositoryRepository,
@@ -256,7 +260,7 @@ export default function (deps: DashboardRoutesDeps) {
         // empty dashboard (GitHub Actions / Jenkins / raw). Report-only services
         // default to the GitHub guide.
         const provider = activeService.deployment?.provider ?? "github";
-        const apiUrl = process.env.PUBLIC_URL;
+        const apiUrl = publicUrl;
 
         // Load paginated builds for this service
         const { builds, total, hasMore } = await buildRepository.findPaginated(
@@ -344,7 +348,7 @@ export default function (deps: DashboardRoutesDeps) {
             apiUrl,
             needsDeploymentSetup,
             newApiKey,
-            showSimulateBuild: process.env.ENABLE_BUILD_SIMULATION === "true",
+            showSimulateBuild: buildSimulationEnabled,
             pagination,
             trialDaysRemaining: accountState.trialDaysRemaining,
             isReadOnly: accountState.isReadOnly,

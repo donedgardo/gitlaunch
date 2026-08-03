@@ -106,6 +106,7 @@ describe("Billing Routes", () => {
     });
     sessionAuthMiddleware(app, sessionService);
     registerBillingRoutes(app, {
+      publicUrl: "http://localhost:3050",
       stripeService,
       planEnforcementService: planService,
       accountRepo,

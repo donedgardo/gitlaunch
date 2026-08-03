@@ -145,6 +145,7 @@ describe("Service Routes - Workflow Configuration", () => {
     });
     sessionAuthMiddleware(app, sessionService);
     registerServiceRoutes(app, {
+      cookieSecure: false,
       accountRepository: accountRepo,
       repositoryRepository: repositoryRepo,
       serviceRepository: serviceRepo,

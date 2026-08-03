@@ -109,6 +109,8 @@ describe("Google OAuth Routes", () => {
     app = Fastify();
     await app.register(cookie, { secret: "cookie-secret" });
     registerGoogleAuthRoutes(app, {
+      cookieSecure: false,
+      useFakeGoogle: false,
       oauthService,
       sessionService: new SessionService("test-secret"),
       userRepository,
@@ -212,6 +214,8 @@ describe("Google OAuth Routes", () => {
       const gated = Fastify();
       await gated.register(cookie, { secret: "cookie-secret" });
       registerGoogleAuthRoutes(gated, {
+        cookieSecure: false,
+        useFakeGoogle: false,
         oauthService,
         sessionService: new SessionService("test-secret"),
         userRepository,

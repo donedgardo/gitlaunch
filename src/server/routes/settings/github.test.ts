@@ -61,6 +61,7 @@ describe("GitHub Settings Routes", () => {
     });
     sessionAuthMiddleware(app, sessionService);
     registerGithubSettingsRoutes(app, {
+      github: { useFakes: false, appName: "gitlaunchapp" },
       githubConnectionService: githubService,
     });
     await app.ready();

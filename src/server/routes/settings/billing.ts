@@ -11,6 +11,7 @@ import { ServiceRepository } from "../../../repositories/serviceRepository";
 import { AnalyticsService } from "../../../services/analytics/analytics";
 
 export type BillingRoutesDependencies = {
+  publicUrl: string;
   stripeService: StripeService;
   planEnforcementService: PlanEnforcementService;
   accountRepo: AccountRepository;
@@ -24,6 +25,7 @@ export function registerBillingRoutes(
   deps: BillingRoutesDependencies,
 ) {
   const {
+    publicUrl,
     stripeService,
     planEnforcementService,
     accountRepo,
@@ -205,7 +207,7 @@ export function registerBillingRoutes(
         // Ensure returnUrl is absolute
         const returnUrl = body?.returnUrl?.startsWith("http")
           ? body.returnUrl
-          : `${process.env.PUBLIC_URL}${body?.returnUrl || "/settings/billing"}`;
+          : `${publicUrl}${body?.returnUrl || "/settings/billing"}`;
 
         const result = await stripeService.createBillingPortalSession({
           account,
