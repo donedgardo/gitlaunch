@@ -1,0 +1,55 @@
+# Argo CD desired state for the `onprem` environment — the self-hosted demo.
+#
+# Three sources, which is the documented way to render a chart against a values
+# file that lives outside the chart directory:
+#
+#   1. the chart itself
+#   2. a `ref` source contributing no manifests, only the `$values` root that
+#      source 1's valueFiles path resolves against
+#   3. the environment's sealed secrets, applied as plain manifests
+#
+# Source 2 exists because a Helm `valueFiles` entry cannot escape the chart
+# directory with `../`; Argo rejects it as outside the base directory.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: gitlaunch-onprem
+  namespace: argocd
+  finalizers:
+    # Without this, deleting the Application orphans everything it created.
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: onprem
+  sources:
+    - repoURL: https://github.com/donedgardo/launchpad.git
+      targetRevision: main
+      path: deploy/helm/gitlaunch
+      helm:
+        valueFiles:
+          - $values/deploy/envs/onprem/values.yaml
+    - repoURL: https://github.com/donedgardo/launchpad.git
+      targetRevision: main
+      ref: values
+    - repoURL: https://github.com/donedgardo/launchpad.git
+      targetRevision: main
+      path: deploy/envs/onprem/secrets
+  syncPolicy:
+    automated:
+      # Prune: a resource deleted from git is deleted from the cluster. Safe
+      # here only because the chart no longer renders any Secret — when it did,
+      # a prune would have deleted the encryption key.
+      prune: true
+      # Self-heal is what makes the repo the source of truth rather than merely
+      # the usual source: a `helm upgrade --set` run by hand gets reverted.
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        maxDuration: 3m
+        factor: 2
