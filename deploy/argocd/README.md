@@ -102,13 +102,22 @@ Run against the `lab` cluster:
 | `seal.sh verify` detects injected drift                    | yes                                      |
 | `seal.sh set` leaves other keys' ciphertext byte-identical | yes — one-line diff                      |
 | Argo CD installs                                           | yes                                      |
-| **Argo CD actually syncs an environment**                  | **no — nothing is pushed yet**           |
+| both Applications reach `Synced` / `Healthy`               | yes                                      |
+| secrets survive Argo's first sync with prune + selfHeal    | yes — 11/11 still hash-identical         |
+| `selfHeal` reverts a hand-scaled deployment                | yes, ~20s                                |
+| the pre-push guard refuses an unmigrated revision          | yes                                      |
 
-The last row is the honest gap. Argo fetches from the remote, and at the time of
-writing none of this exists on `origin`. `bootstrap.sh` refuses to register the
-Applications until the sealed secrets are present at the target revision, which
-is exactly the state it is in now — so the multi-source layout below is still
-built from the Argo CD docs rather than from a passing sync.
+That third-from-last row is the one this whole change exists for. Argo's first
+sync with `prune: true` is precisely the moment the old arrangement would have
+regenerated the encryption key. Every value came through untouched, measured by
+digest rather than by "the pods came back up".
 
-Treat the first real `bootstrap.sh --revision <branch>` after pushing as the
-test of that one remaining piece.
+Two bugs only the live run could find, both now fixed: `git ls-tree` resolves
+pathspecs relative to the working directory, so the guard was refusing correctly
+migrated environments; and Argo defaults the Helm release name to the
+_Application_ name, which collided with the existing release and would have
+pointed the app at a MongoDB host that does not exist.
+
+The committed Applications say `targetRevision: main`, which is where they
+should point once this merges. They are currently running against
+`worktree-gitops-own-envs` via `bootstrap.sh --revision`.
