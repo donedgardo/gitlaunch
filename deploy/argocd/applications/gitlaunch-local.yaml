@@ -28,6 +28,14 @@ spec:
       targetRevision: main
       path: deploy/helm/gitlaunch
       helm:
+        # Must be `gitlaunch`, not the Application name, which is what Argo
+        # would default to. The chart derives every resource name from the
+        # release name, and the sealed MONGODB_URI points at `gitlaunch-mongodb`
+        # — a release called `gitlaunch-local` would render
+        # `gitlaunch-local-mongodb` and the app would dial a host that does not
+        # exist. It is also what lets Argo adopt the existing Helm release
+        # instead of colliding with it.
+        releaseName: gitlaunch
         valueFiles:
           - $values/deploy/envs/local/values.yaml
     - repoURL: https://github.com/donedgardo/launchpad.git

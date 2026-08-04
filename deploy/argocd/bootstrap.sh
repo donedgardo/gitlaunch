@@ -113,7 +113,11 @@ fi
 git -C "$REPO_ROOT_ENVS" fetch --quiet origin "$REVISION" 2>/dev/null || true
 
 for env in local onprem; do
-  sealed_at_revision="$(git -C "$REPO_ROOT_ENVS" ls-tree --name-only \
+  # --full-tree because ls-tree resolves pathspecs relative to the working
+  # directory, and this runs from deploy/. Without it the path becomes
+  # deploy/envs/deploy/envs/... , matches nothing, and the guard fires on a
+  # correctly migrated environment — which is how this was found.
+  sealed_at_revision="$(git -C "$REPO_ROOT_ENVS" ls-tree --full-tree --name-only \
     "origin/$REVISION" "deploy/envs/$env/secrets/" 2>/dev/null | grep -c '\.sealed\.yaml$' || true)"
 
   if [[ "${sealed_at_revision:-0}" -eq 0 ]]; then
