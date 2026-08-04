@@ -40,11 +40,26 @@ mongodb:
   enabled: true
   persistence:
     size: 2Gi
+  auth:
+    # Same reasoning as secrets.existingSecret below, with a sharper edge: the
+    # root password is only honoured while initialising an empty data directory,
+    # so a regenerated one locks out a database that already has data.
+    existingSecret: gitlaunch-mongodb-secrets
 
 # A single replica can never satisfy a PDB during node drain.
 podDisruptionBudget:
   enabled: false
-# No `secrets:` block on purpose. cookieSecret and encryptionKey are generated
-# by the chart on first install and read back from the live Secret on every
-# upgrade, so they stay stable without being committed. This is the one part of
-# this file that does not survive the move to Argo CD — see README.md.
+
+# Secrets come from SealedSecrets committed under secrets/, not from the chart.
+#
+# `autoGenerate: false` is the load-bearing line. The chart's generated secrets
+# are read back with a Helm `lookup`, which returns nothing under `helm template`
+# — so a reconciler would mint a new encryption key on every sync and strand
+# every credential already encrypted under the old one. With autoGenerate false
+# the chart refuses to render unless both existingSecret values are supplied,
+# which makes that failure impossible rather than merely avoided.
+#
+# Rotate or add a key with `deploy/envs/seal.sh set local app <KEY>`.
+secrets:
+  autoGenerate: false
+  existingSecret: gitlaunch-app-secrets

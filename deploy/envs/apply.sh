@@ -10,20 +10,19 @@
 # the source of truth if nobody runs `helm upgrade --set` behind its back.
 set -euo pipefail
 
+# shellcheck source=lib.sh
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib.sh"
+
 ENV_NAME="${1:-}"
 shift || true
 
-case "$ENV_NAME" in
-  local)  NAMESPACE=gitlaunch-local ;;
-  onprem) NAMESPACE=onprem ;;
-  *)
-    echo "usage: $0 <local|onprem> [extra helm args]" >&2
-    exit 64
-    ;;
-esac
+NAMESPACE="$(env_namespace "$ENV_NAME")" || {
+  echo "usage: $0 <local|onprem> [extra helm args]" >&2
+  exit 64
+}
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-VALUES="$REPO_ROOT/deploy/envs/$ENV_NAME/values.yaml"
+VALUES="$(env_values_file "$ENV_NAME")"
+SECRETS_DIR="$(env_secrets_dir "$ENV_NAME")"
 CHART="$REPO_ROOT/deploy/helm/gitlaunch"
 
 # Report to GitLaunch with the same protocol .github/workflows/deploy.yml uses,
@@ -61,6 +60,17 @@ fi
 
 report deploying
 trap 'report error' ERR
+
+# Sealed secrets first, and in their own step: the chart no longer renders any
+# Secret for these environments, so the Deployment's envFrom references have to
+# resolve to something the controller has already decrypted. Argo CD expresses
+# this ordering with a sync wave (see deploy/argocd/applications/); here it is
+# just a line above the helm call.
+if [[ -d "$SECRETS_DIR" ]]; then
+  kubectl create namespace "$NAMESPACE" --dry-run=client -o yaml | kubectl apply -f - >/dev/null
+  echo "==> applying sealed secrets from ${SECRETS_DIR#"$REPO_ROOT"/}"
+  kubectl apply -n "$NAMESPACE" -f "$SECRETS_DIR"
+fi
 
 # --install so a deleted environment comes back from git alone; the release name
 # is the same in every namespace because the namespace is what separates them.
