@@ -67,20 +67,67 @@ pointed at an ephemeral bundled database.
 
 ### Generated secrets
 
-When `secrets.cookieSecret` or `secrets.encryptionKey` are left empty and
+When `secrets.cookieSecret` and `secrets.encryptionKey` are left empty and
 `secrets.autoGenerate` is true (the default), the chart generates them on first
 install and reads them back out of the live Secret on every later upgrade, so
-they stay stable.
+they stay stable. The bundled MongoDB's root password works the same way.
 
 Two consequences are worth knowing before you rely on this:
 
 - **`helm template` cannot read the cluster.** It prints new random values every
-  time. Render-then-apply pipelines (Argo CD, Flux, `helm template | kubectl
-apply`) must set both values explicitly or use `secrets.existingSecret` —
-  otherwise every sync rewrites the encryption key and strands every credential
-  encrypted under the old one.
+  time. See [GitOps installs](#gitops-installs) below — this is a real hazard,
+  not a footnote, and the chart now has a switch for it.
 - **`helm uninstall` deletes the Secret.** Back up `encryptionKey` before tearing
   an environment down if its data is meant to outlive it.
+
+### GitOps installs
+
+If a reconciler (Argo CD, Flux) or any `helm template | kubectl apply` pipeline
+manages this chart, **turn generation off**:
+
+```yaml
+secrets:
+  autoGenerate: false
+  existingSecret: gitlaunch-app-secrets
+mongodb:
+  auth:
+    existingSecret: gitlaunch-mongodb-secrets
+```
+
+The read-back described above is a Helm `lookup`, which returns nothing when
+there is no cluster to look at. Left on, every sync mints fresh credentials:
+
+- a new `encryptionKey`, stranding every credential already encrypted under the
+  old one — Jenkins tokens, provider secrets;
+- a new MongoDB root password, which the database will reject, because
+  `MONGO_INITDB_ROOT_PASSWORD` is only honoured while initialising an _empty_
+  data directory. The result is an application that cannot authenticate against
+  a database nobody can log into either.
+
+`autoGenerate: false` is an interlock rather than a preference: with it false the
+chart refuses to render unless both `existingSecret` values are supplied, so no
+path is left that can invent a credential mid-sync. You can check that your
+values are safe before a reconciler ever touches them —
+
+```bash
+# renders must be byte-identical; if they are not, generation is still reachable
+diff <(helm template gitlaunch ./gitlaunch -f my-values.yaml) \
+     <(helm template gitlaunch ./gitlaunch -f my-values.yaml)
+```
+
+Supplying those Secrets is your choice of Sealed Secrets, External Secrets
+Operator, the Secrets Store CSI driver, or a one-off `kubectl create secret`.
+Note that Argo CD deliberately does not do this itself and
+[recommends managing secrets on the destination cluster](https://argo-cd.readthedocs.io/en/stable/operator-manual/secret-management/),
+cautioning against plugins that inject secrets during manifest generation —
+Argo caches rendered manifests in plaintext. `deploy/envs` in this repo is a
+worked example using Sealed Secrets.
+
+Migrating an already-running install is an ordering problem: copy the live
+generated values into the external Secrets **before** the first sync with
+`autoGenerate: false`, because that sync is when Helm prunes the Secrets it used
+to own. Give the new Secrets different names from the chart's
+(`{release}` and `{release}-mongodb`) so the two never contend for one object.
 
 ## Optional components
 
@@ -118,6 +165,11 @@ Secrets, SOPS, External Secrets — and point the chart at it:
 
 The Secret must carry the same keys the chart would have written; see
 `deploy/helm/gitlaunch/templates/secret.yaml` for the exact list.
+
+`secrets.existingSecret` covers the application's Secret only. If you also run
+the bundled MongoDB, set `mongodb.auth.existingSecret` — that Secret needs
+`MONGO_INITDB_ROOT_USERNAME`, `MONGO_INITDB_ROOT_PASSWORD` and a `MONGODB_URI`
+consistent with them.
 
 **`encryptionKey` is not rotatable in place by re-installing.** It decrypts
 credentials already stored in MongoDB (such as Jenkins API tokens). Losing it
