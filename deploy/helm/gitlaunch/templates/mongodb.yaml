@@ -1,12 +1,13 @@
 {{- if .Values.mongodb.enabled }}
 {{- include "gitlaunch.validateConfig" . -}}
+{{- $host := include "gitlaunch.mongodb.fullname" . -}}
+{{- if not .Values.mongodb.auth.existingSecret }}
 {{- /*
   Resolve the password exactly once. "gitlaunch.mongodb.password" generates a
   fresh random value on every call when nothing is installed yet, so calling it
   twice here would store one password and connect with a different one.
 */ -}}
 {{- $password := include "gitlaunch.mongodb.password" . -}}
-{{- $host := include "gitlaunch.mongodb.fullname" . -}}
 apiVersion: v1
 kind: Secret
 metadata:
@@ -21,6 +22,7 @@ stringData:
   # the root "admin" database, hence authSource.
   MONGODB_URI: {{ printf "mongodb://%s:%s@%s:27017/%s?authSource=admin" .Values.mongodb.auth.username $password $host .Values.mongodb.auth.database | quote }}
 ---
+{{- end }}
 apiVersion: v1
 kind: Service
 metadata:
