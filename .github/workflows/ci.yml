@@ -86,6 +86,54 @@ jobs:
       - name: Build Docker image
         run: docker build -t gitlaunch:ci .
 
+  chart:
+    name: Helm Chart
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/setup-helm@v4
+
+      - name: Lint
+        run: helm lint deploy/helm/gitlaunch --set config.publicUrl=http://ci.invalid
+
+      # The chart's default path generates secrets and reads them back with a
+      # Helm `lookup`. That is correct for `helm install` and unusable under a
+      # reconciler, which renders without a cluster and would therefore mint a
+      # fresh encryption key on every sync. Our own environments opt out via
+      # secrets.autoGenerate=false. This asserts the opt-out actually holds:
+      # two renders of the same input must be byte-identical.
+      - name: Environments render deterministically
+        run: |
+          for env in local onprem; do
+            values="deploy/envs/$env/values.yaml"
+            helm template gitlaunch deploy/helm/gitlaunch -f "$values" > "/tmp/$env.a"
+            helm template gitlaunch deploy/helm/gitlaunch -f "$values" > "/tmp/$env.b"
+            if ! diff -u "/tmp/$env.a" "/tmp/$env.b"; then
+              echo "::error file=$values::$env renders differently each time — a reconciler would rewrite these values on every sync. Check secrets.autoGenerate and the existingSecret settings."
+              exit 1
+            fi
+            if grep -q '^kind: Secret' "/tmp/$env.a"; then
+              echo "::error file=$values::$env has the chart rendering a Secret. Secrets for reconciled environments belong in deploy/envs/$env/secrets, sealed."
+              exit 1
+            fi
+            echo "$env: deterministic, no chart-rendered Secrets"
+          done
+
+      # The interlock itself: with generation off and no external Secret named,
+      # the chart must refuse rather than quietly invent a credential.
+      - name: autoGenerate=false refuses to render without existing Secrets
+        run: |
+          if helm template gitlaunch deploy/helm/gitlaunch \
+               --set config.publicUrl=http://ci.invalid \
+               --set mongodb.enabled=true \
+               --set secrets.autoGenerate=false \
+               --set secrets.existingSecret=app >/dev/null 2>&1; then
+            echo "::error::chart rendered with autoGenerate=false and no mongodb.auth.existingSecret"
+            exit 1
+          fi
+          echo "interlock holds"
+
   report-build:
     name: Report build
     runs-on: ubuntu-latest
