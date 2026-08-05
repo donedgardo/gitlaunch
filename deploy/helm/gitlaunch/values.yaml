@@ -81,17 +81,24 @@ secrets:
   # It must contain the same keys this chart writes (see templates/secret.yaml).
   existingSecret: ""
 
-  # Generate cookieSecret and encryptionKey on first install when they are left
-  # empty, so standing up a new environment takes no pre-work. Both are read
-  # back from the live Secret on every later upgrade, so they stay stable.
+  # Generate cookieSecret, encryptionKey and the bundled MongoDB password on
+  # first install when they are left empty, so standing up a new environment
+  # takes no pre-work. All three are read back from the live Secret on every
+  # later upgrade, so they stay stable.
   #
   # Two consequences worth knowing:
-  #   * `helm template` cannot read the cluster, so it prints NEW random values
-  #     every time. Render-then-apply pipelines (GitOps, ArgoCD) must set these
-  #     explicitly or use existingSecret, or they will rewrite the encryption
-  #     key on every sync and strand data encrypted under the old one.
+  #   * That read-back is a Helm `lookup`. `helm template` cannot read the
+  #     cluster, so it prints NEW random values every time. Render-then-apply
+  #     pipelines (Argo CD, Flux) would rewrite the encryption key on every sync
+  #     and strand data encrypted under the old one.
   #   * `helm uninstall` deletes the Secret. Back up encryptionKey before you
   #     tear an environment down if the data is meant to outlive it.
+  #
+  # Set this to FALSE for anything a reconciler manages. It is not a preference
+  # but a safety interlock: with it false the chart refuses to render unless
+  # secrets.existingSecret and mongodb.auth.existingSecret are both supplied, so
+  # no code path is left that can invent a credential during a sync. See
+  # deploy/envs/README.md for how our own environments do this.
   autoGenerate: true
 
   # Leave empty when mongodb.enabled is true — the chart composes the URI.
@@ -135,7 +142,18 @@ mongodb:
     pullPolicy: IfNotPresent
   auth:
     username: root
+    # When set, the chart renders no MongoDB Secret and both the database and
+    # the app read this one instead. It must carry MONGO_INITDB_ROOT_USERNAME,
+    # MONGO_INITDB_ROOT_PASSWORD and MONGODB_URI, consistent with each other.
+    # Required when secrets.autoGenerate is false — see the note there.
+    existingSecret: ""
     # Generated on first install and preserved across upgrades when empty.
+    #
+    # "Preserved" is a Helm `lookup` against the live Secret, so it only holds
+    # for `helm upgrade`. Under `helm template` or a reconciler this reads empty
+    # and a NEW password is minted — which the database will reject, because
+    # MONGO_INITDB_ROOT_PASSWORD is only honoured while initialising an empty
+    # data directory. Use existingSecret there.
     password: ""
     database: gitlaunch
   persistence:

@@ -55,9 +55,16 @@ the one this chart renders.
 {{- end -}}
 {{- end -}}
 
-{{/* Name of the Secret holding the bundled MongoDB credentials and URI. */}}
+{{/*
+Name of the Secret holding the bundled MongoDB credentials and URI: either one
+the operator manages externally, or the one this chart renders.
+*/}}
 {{- define "gitlaunch.mongodb.secretName" -}}
+{{- if (.Values.mongodb.auth | default dict).existingSecret -}}
+{{- (.Values.mongodb.auth | default dict).existingSecret -}}
+{{- else -}}
 {{- printf "%s-mongodb" (include "gitlaunch.fullname" .) -}}
+{{- end -}}
 {{- end -}}
 
 {{- define "gitlaunch.mongodb.fullname" -}}
@@ -94,6 +101,13 @@ Read one key out of a Secret that already exists in the cluster, or "" if the
 Secret (or the key) is not there yet. This is what makes generated values
 survive `helm upgrade` — without it every upgrade would mint a new encryption
 key and strand every credential already encrypted in MongoDB.
+
+This is a Helm `lookup`, so it is EMPTY under `helm template` and under any
+render-then-apply reconciler (Argo CD, Flux), which never contact the cluster
+during rendering. Every caller therefore falls through to generating a fresh
+random value on each sync. That is why `secrets.autoGenerate: false` exists and
+why it must be set for a GitOps-managed environment: with it false, no caller
+below can reach a generator, so nothing here can change behind your back.
 */}}
 {{- define "gitlaunch.existingSecretValue" -}}
 {{- $found := lookup "v1" "Secret" .namespace .name -}}
@@ -136,6 +150,12 @@ Root password for the bundled MongoDB.
 NOTE: call this exactly once per rendered template and assign it to a variable.
 Each invocation without an existing Secret produces a NEW random value, so
 using it twice in one file would write one password and connect with another.
+
+Honours secrets.autoGenerate for the same reason the app's own secrets do, and
+with a sharper failure mode: MongoDB only reads MONGO_INITDB_ROOT_PASSWORD when
+it initialises an EMPTY data directory. Regenerate it against a populated volume
+and the Secret holds a password the database has never heard of — the app then
+fails authentication against a database nobody can log into either.
 */}}
 {{- define "gitlaunch.mongodb.password" -}}
 {{- if .Values.mongodb.auth.password -}}
@@ -173,6 +193,21 @@ then misbehaves in ways that are tedious to diagnose.
 {{- end -}}
 {{- if and .Values.mongodb.enabled .Values.secrets.mongodbUri -}}
   {{- fail "Set either mongodb.enabled=true (bundled) or secrets.mongodbUri (external), not both." -}}
+{{- end -}}
+{{- if .Values.mongodb.enabled -}}
+  {{- /* `mongodb.auth:` written with nothing under it overrides the chart's
+         defaults with nil, which would panic on field access below. Fail with a
+         sentence instead — an unreadable template error is the exact thing this
+         whole function exists to prevent. */ -}}
+  {{- if not .Values.mongodb.auth -}}
+    {{- fail "mongodb.auth is empty. Remove the key to take the chart defaults, or set mongodb.auth.existingSecret (recommended) or mongodb.auth.username/password." -}}
+  {{- end -}}
+  {{- if and .Values.mongodb.auth.existingSecret .Values.mongodb.auth.password -}}
+    {{- fail "Set either mongodb.auth.existingSecret or mongodb.auth.password, not both. The existing Secret is used verbatim, so the password here would be silently ignored." -}}
+  {{- end -}}
+  {{- if and (not .Values.mongodb.auth.existingSecret) (not .Values.mongodb.auth.password) (not .Values.secrets.autoGenerate) -}}
+    {{- fail "mongodb.auth.existingSecret is required when secrets.autoGenerate is false. The bundled MongoDB password is generated and read back with a Helm `lookup`, which is empty under `helm template` — a render-then-apply reconciler would mint a new password on every sync while the database keeps the one it was initialised with." -}}
+  {{- end -}}
 {{- end -}}
 {{- if and .Values.mongodb.enabled (gt (int .Values.replicaCount) 1) (not .Values.mongodb.persistence.enabled) -}}
   {{- fail "The bundled MongoDB is a single node with no persistence — do not point multiple GitLaunch replicas at it. Enable mongodb.persistence or use an external MongoDB." -}}

@@ -1,0 +1,75 @@
+# Environment: onprem
+#
+#   release:   gitlaunch
+#   namespace: onprem
+#   cluster:   kind `lab` (kubectl config use-context kind-lab)
+#   url:       http://onprem.localtest.me:8080
+#
+# The self-hosted / enterprise demo instance — what a customer's own install
+# looks like. Deliberately reachable on the kind-published :8080 rather than
+# through the local proxy, so it stays independent of the `local` environment.
+#
+# Apply with `deploy/envs/apply.sh onprem`. See deploy/envs/README.md.
+
+replicaCount: 1
+
+# `tag` is the GitOps promotion target — the value an image bump rewrites, and
+# the only thing `git revert` needs to change to roll this environment back.
+# Immutable by construction: deploy/envs/build-image.sh tags from the commit and
+# refuses to rebuild a tag that exists. The same artifact runs in `local`; only
+# the config below differs, which is what makes promotion between them possible.
+image:
+  repository: gitlaunch
+  tag: sha-aa23f53
+  pullPolicy: Never
+
+config:
+  publicUrl: http://onprem.localtest.me:8080
+  analyticsWarehouse: true
+  # Placeholder, not a credential: it exercises the "Sign in with Google button
+  # is rendered" path without pointing at a real OAuth client. The chart refuses
+  # to render if this is set without secrets.googleClientSecret below.
+  googleClientId: demo-client-id.apps.googleusercontent.com
+
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: onprem.localtest.me
+      paths:
+        - path: /
+          pathType: Prefix
+
+mongodb:
+  enabled: true
+  auth:
+    # Same reasoning as secrets.existingSecret below, with a sharper edge: the
+    # root password is only honoured while initialising an empty data directory,
+    # so a regenerated one locks out a database that already has data.
+    existingSecret: gitlaunch-mongodb-secrets
+
+podDisruptionBudget:
+  enabled: false
+
+# Secrets come from SealedSecrets committed under secrets/, not from the chart.
+#
+# `autoGenerate: false` is the load-bearing line. The chart's generated secrets
+# are read back with a Helm `lookup`, which returns nothing under `helm template`
+# — so a reconciler would mint a new encryption key on every sync and strand
+# every credential already encrypted under the old one. With autoGenerate false
+# the chart refuses to render unless both existingSecret values are supplied,
+# which makes that failure impossible rather than merely avoided.
+#
+# googleClientSecret is the exception that proves the rule: it stays in
+# plaintext here because it authenticates against nothing. It is a matching
+# placeholder for config.googleClientId above, present only so the chart renders
+# the "Sign in with Google" button. Anything that is actually a credential
+# belongs in secrets/, sealed.
+#
+# NOTE: this key is only read when existingSecret is empty. It is kept here as
+# documentation of the demo's intent; the value that reaches the pod comes from
+# the sealed Secret, which `seal.sh adopt` copied it into.
+secrets:
+  autoGenerate: false
+  existingSecret: gitlaunch-app-secrets
+  googleClientSecret: demo-client-secret

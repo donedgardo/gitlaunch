@@ -1,0 +1,65 @@
+# Environment: local
+#
+#   release:   gitlaunch
+#   namespace: gitlaunch-local
+#   cluster:   kind `lab` (kubectl config use-context kind-lab)
+#   url:       http://gitlaunch.local
+#
+# Apply with `deploy/envs/apply.sh local`. See deploy/envs/README.md.
+
+replicaCount: 1
+
+# Built locally and side-loaded with `kind load docker-image`, so never pulled.
+# `tag` is the GitOps promotion target — the value an image bump rewrites, and
+# the only thing `git revert` needs to change to roll this environment back.
+# Immutable by construction: deploy/envs/build-image.sh tags from the commit and
+# refuses to rebuild a tag that exists.
+image:
+  repository: gitlaunch
+  tag: sha-aa23f53
+  pullPolicy: Never
+
+config:
+  # No port: kind publishes host :8080, and the gitlaunch-local-proxy container
+  # bridges host :80 to the ingress. See deploy/envs/README.md.
+  publicUrl: http://gitlaunch.local
+  analyticsWarehouse: true
+
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: gitlaunch.local
+      paths:
+        - path: /
+          pathType: Prefix
+
+# Bundled single-node MongoDB: no replica set, no backups. Correct for a
+# laptop, wrong for anything else.
+mongodb:
+  enabled: true
+  persistence:
+    size: 2Gi
+  auth:
+    # Same reasoning as secrets.existingSecret below, with a sharper edge: the
+    # root password is only honoured while initialising an empty data directory,
+    # so a regenerated one locks out a database that already has data.
+    existingSecret: gitlaunch-mongodb-secrets
+
+# A single replica can never satisfy a PDB during node drain.
+podDisruptionBudget:
+  enabled: false
+
+# Secrets come from SealedSecrets committed under secrets/, not from the chart.
+#
+# `autoGenerate: false` is the load-bearing line. The chart's generated secrets
+# are read back with a Helm `lookup`, which returns nothing under `helm template`
+# — so a reconciler would mint a new encryption key on every sync and strand
+# every credential already encrypted under the old one. With autoGenerate false
+# the chart refuses to render unless both existingSecret values are supplied,
+# which makes that failure impossible rather than merely avoided.
+#
+# Rotate or add a key with `deploy/envs/seal.sh set local app <KEY>`.
+secrets:
+  autoGenerate: false
+  existingSecret: gitlaunch-app-secrets
