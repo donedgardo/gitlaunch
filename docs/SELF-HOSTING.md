@@ -4,8 +4,11 @@ GitLaunch can run inside your own infrastructure, so deployment data, feature
 flags and A/B test assignments never leave your network. This is the Enterprise
 distribution: you run the software, we license it.
 
-> **Status: not yet generally available.** There is no published image or chart repository
-> yet, so this cannot be handed to a customer as-is.
+> **Status: partially available.** CI publishes
+> `ghcr.io/donedgardo/gitlaunch` on every push to `main` and on every `v*` tag,
+> so the image a customer needs now exists. There is still no published chart
+> repository — the chart installs from a local path — and the image is not
+> signed.
 
 Everything here targets **any conformant Kubernetes** — managed (EKS/GKE/AKS),
 self-managed (kubeadm, RKE2), lightweight (k3s, MicroK8s) or air-gapped. The
@@ -281,8 +284,11 @@ built yet:
 - **Single-org mode.** The data model is multi-tenant (accounts). A self-hosted
   install still creates accounts, and nothing yet pins an instance to exactly
   one organisation.
-- **Air-gapped image publishing.** No official signed image or public chart
-  repository is published yet; the chart currently installs from a local path.
+- **Image signing and chart publishing.** The image is published to
+  `ghcr.io/donedgardo/gitlaunch`, but it is not signed (no cosign/provenance
+  attestation) and there is no public chart repository — the chart still
+  installs from a local path. An air-gapped buyer can mirror the image today;
+  a buyer who requires supply-chain attestation cannot yet verify it.
 - **Backup/restore runbook.** MongoDB holds everything, but there is no
   documented, tested restore procedure.
 - **Audit log.** No tamper-evident record of who changed a flag or triggered a
