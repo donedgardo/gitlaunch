@@ -1,7 +1,8 @@
 {
   "name": "gitlaunch",
   "version": "1.0.0",
-  "license": "MIT",
+  "license": "SEE LICENSE IN LICENSE.md",
+  "private": true,
   "scripts": {
     "analytics": "tsx scripts/analytics-report.ts",
     "analytics:backfill": "tsx scripts/backfill-analytics.ts",
