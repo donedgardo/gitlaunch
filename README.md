@@ -17,6 +17,33 @@ the CI you already run.
 
 Stack: Fastify · HTMX · Handlebars · MongoDB · TypeScript · Tailwind CSS
 
+## Deploy your own
+
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/gitlaunch)
+
+The button provisions GitLaunch and a MongoDB instance together. Running your
+own instance is explicitly permitted under the [license](#license). Publishing
+the Railway template the button points at is a one-time manual step — see
+[docs/railway-template.md](docs/railway-template.md).
+
+Or pull the image directly — every push to `main` publishes
+`ghcr.io/donedgardo/gitlaunch`, and every `v*` tag publishes the matching
+semver tags:
+
+```bash
+docker run -p 3050:3050 \
+  -e MONGODB_URI="mongodb://host.docker.internal:27017" \
+  -e PUBLIC_URL="http://localhost:3050" \
+  -e COOKIE_SECRET_SIGNATURE="$(openssl rand -hex 32)" \
+  -e ENCRYPTION_KEY="$(openssl rand -base64 32)" \
+  ghcr.io/donedgardo/gitlaunch:latest
+```
+
+`ENCRYPTION_KEY` must decode to exactly 32 bytes, so generate it with
+`openssl rand -base64 32` rather than by hand — boot fails closed otherwise.
+
+For Kubernetes, see [docs/SELF-HOSTING.md](docs/SELF-HOSTING.md).
+
 ## Getting started
 
 Requires Node.js 20+, Yarn, and MongoDB.
@@ -57,7 +84,8 @@ yarn analytics    # internal product/marketing report against $MONGODB_URI
 | [multi-tenancy.md](docs/multi-tenancy.md)                     | Accounts, roles, API keys, plan limits, tenant isolation |
 | [feature-flags.md](docs/feature-flags.md)                     | Flags, rollouts, experiments, and the client SDK         |
 | [GitHub_App_Setup.md](docs/GitHub_App_Setup.md)               | Creating the GitHub App and wiring its credentials       |
-| [railway-setup.md](docs/railway-setup.md)                     | Deploying to Railway, CI/CD, rollback                    |
+| [railway-setup.md](docs/railway-setup.md)                     | Deploying gitlaunch.dev to Railway, CI/CD, rollback      |
+| [railway-template.md](docs/railway-template.md)               | The one-click deploy button and the template behind it   |
 | [SELF-HOSTING.md](docs/SELF-HOSTING.md)                       | Running GitLaunch in your own Kubernetes cluster         |
 | [ENTERPRISE-DELIVERY.md](docs/ENTERPRISE-DELIVERY.md)         | Internal: licensing and handover for self-hosted sales   |
 | [ENTERPRISE-ROADMAP.md](docs/ENTERPRISE-ROADMAP.md)           | Internal: gaps and sequencing for the enterprise push    |
