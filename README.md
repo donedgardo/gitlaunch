@@ -70,4 +70,23 @@ yarn analytics    # internal product/marketing report against $MONGODB_URI
 
 ## License
 
-MIT
+The server — everything in this repository except the directories listed below —
+is licensed under the [Functional Source License, Version 1.1, ALv2 Future
+License](LICENSE.md) (`FSL-1.1-ALv2`).
+
+In short: you may read, modify, and run it for any purpose except a Competing
+Use — a commercial product or service that substitutes for GitLaunch. Running
+your own instance internally is explicitly permitted, which is what a
+self-hosted licensee buys. Each version converts to Apache 2.0 two years after
+we make it available.
+
+The client-side pieces are MIT, because nothing else would be usable:
+
+| Path                                                                             | License |
+| -------------------------------------------------------------------------------- | ------- |
+| `sdk/` (`@gitlaunch/flags`)                                                      | MIT     |
+| `github-action/` ([separate repo](https://github.com/donedgardo/build-reporter)) | MIT     |
+
+A self-hosted license key governs entitlement on a customer instance and is
+separate from this license — see
+[ENTERPRISE-DELIVERY.md](docs/ENTERPRISE-DELIVERY.md).
