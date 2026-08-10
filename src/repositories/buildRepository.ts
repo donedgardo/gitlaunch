@@ -1,6 +1,7 @@
 import { Db, ObjectId, Collection } from "mongodb";
 import { DeploymentStatus } from "../services/service/deploymentStatus";
 import { DeploymentLogRecord } from "../services/service/deploymentLogsRecord";
+import { DeploymentIntent } from "../services/dispatch/deploymentIntent";
 
 export type Build = {
   _id: ObjectId;
@@ -108,9 +109,15 @@ export class BuildRepository {
     buildId: string,
     environment: string,
     status: DeploymentStatus,
+    intent?: DeploymentIntent,
   ): Promise<Build | null> {
-    const log: DeploymentLogRecord = { environment, status };
     const now = new Date();
+    const log: DeploymentLogRecord = {
+      environment,
+      status,
+      at: now,
+      ...(intent ? { intent } : {}),
+    };
 
     const result = await this.collection.findOneAndUpdate(
       { accountId, serviceId, buildId },
@@ -159,9 +166,11 @@ export class BuildRepository {
       return [];
     }
 
+    const supersededAt = new Date();
     const log: DeploymentLogRecord = {
       environment,
       status: DeploymentStatus.NONE,
+      at: supersededAt,
     };
 
     await this.collection.updateMany(
@@ -174,7 +183,7 @@ export class BuildRepository {
       {
         $set: {
           [`deployments.${environment}`]: DeploymentStatus.NONE,
-          updatedAt: new Date(),
+          updatedAt: supersededAt,
         },
         $push: { deploymentLogs: log },
       },
