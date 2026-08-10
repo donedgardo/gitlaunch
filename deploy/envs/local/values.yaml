@@ -9,15 +9,30 @@
 
 replicaCount: 1
 
-# Built locally and side-loaded with `kind load docker-image`, so never pulled.
+# The release image CI publishes to GHCR (.github/workflows/ci.yml), which is
+# the same artifact a self-hosted customer installs. This environment used to run
+# a name only a laptop could resolve (`gitlaunch`), which meant it could never be
+# running the thing we ship.
+#
 # `tag` is the GitOps promotion target — the value an image bump rewrites, and
 # the only thing `git revert` needs to change to roll this environment back.
-# Immutable by construction: deploy/envs/build-image.sh tags from the commit and
-# refuses to rebuild a tag that exists.
+# Immutable either way it was produced, and the width says which: CI publishes
+# `sha-<full 40-char commit>`, deploy/envs/build-image.sh builds `sha-<short>`
+# and side-loads it into kind. Nothing ever rebuilds an existing tag.
+#
+# IfNotPresent rather than Always is what lets both work from one field: a tag
+# already in the node's image store is used without contacting the registry, so
+# a locally built tag needs no credential, and a CI tag pulls exactly once.
 image:
-  repository: gitlaunch
+  repository: ghcr.io/donedgardo/gitlaunch
   tag: sha-aa23f53
-  pullPolicy: Never
+  pullPolicy: IfNotPresent
+
+# The GHCR package inherits `private` from the repository, so pulling a CI tag
+# needs a credential even in our own cluster. Sealed alongside the others:
+#   deploy/envs/seal.sh registry local
+imagePullSecrets:
+  - name: gitlaunch-ghcr-secrets
 
 config:
   # No port: kind publishes host :8080, and the gitlaunch-local-proxy container

@@ -66,6 +66,56 @@ The environment name sent is the directory name (`local`, `onprem`), so the
 Service's environments in GitLaunch have to match, or override with
 `GITLAUNCH_ENVIRONMENT`.
 
+## The release image
+
+Both environments run `ghcr.io/donedgardo/gitlaunch` — the image
+`.github/workflows/ci.yml` publishes on every push to `main` and every `v*` tag.
+That is the same artifact a self-hosted customer installs, which is the point:
+they used to run a bare `gitlaunch`, a name nothing outside this laptop can
+resolve, so neither environment could have been running the thing we ship. It
+mattered most for `onprem`, whose entire job is to be the customer's install.
+
+The package inherits `private` from the repository, so pulling it needs a
+credential — even in our own cluster. GHCR knows which repository the package
+belongs to, and therefore who may pull it, from the
+`org.opencontainers.image.source` label CI stamps on the image; the package is
+called `gitlaunch` and the repository `launchpad`, so nothing else links them.
+With that link in place a repository collaborator's token is enough, and the
+token needs only `read:packages`:
+
+```bash
+# One-time per environment. Create a token at https://github.com/settings/tokens
+# with read:packages, then:
+deploy/envs/seal.sh registry local
+deploy/envs/seal.sh registry onprem   # paste the token, ctrl-d
+
+deploy/envs/seal.sh verify local      # registry.sealed.yaml now listed OK
+```
+
+The result is ciphertext committed under `secrets/`, applied by Argo like the
+other two — a pull credential is a secret with the same lifecycle as the rest,
+not a `kubectl create secret` someone has to remember. `read:packages` and not
+`write:packages`: a cluster only ever pulls, and a token that could push would
+let anything able to read that Secret overwrite the release image.
+
+Until that is sealed, an environment can still only run a tag already sitting in
+the kind node's image store — which is exactly what `pullPolicy: IfNotPresent`
+plus [`build-image.sh`](build-image.sh) gives you, and why the switch to GHCR
+did not require a credential to land.
+
+### Two tag widths
+
+Both mean `sha-<commit>`, and the width says who built it:
+
+| Tag              | Built by                            | Pulled?                    |
+| ---------------- | ----------------------------------- | -------------------------- |
+| `sha-<40 chars>` | CI, from a commit that passed tests | yes, on first use          |
+| `sha-<7 chars>`  | `build-image.sh`, on this laptop    | no — side-loaded into kind |
+
+They cannot collide, so `docker images` says plainly which one an environment is
+on, and `apply.sh` recovers the build id from either (`git rev-parse` expands
+both). `build-image.sh` never pushes: publishing under our name is CI's job.
+
 ## The promotion contract
 
 `image.tag` in each values file is the field a promotion rewrites. It is the
@@ -95,12 +145,14 @@ hand-friendly:
   `yaml` package's Document API rather than a `js-yaml` load/dump round trip
   precisely so a one-line image bump stays a one-line diff. These files are the
   first real test of that.
-- **The tag must be immutable.** `image.tag` is `sha-<commit>`, produced by
-  [`build-image.sh`](build-image.sh), which stamps the revision as an OCI label
-  and refuses to rebuild a tag that already exists. This is what makes rollback
-  real: a moving tag like `latest` or the `local`/`config` tags these
-  environments started on would let a revert change the file and nothing else —
-  risk 3 in the design doc.
+- **The tag must be immutable.** `image.tag` is `sha-<commit>` — published by CI
+  under the full commit, or built by [`build-image.sh`](build-image.sh), which
+  stamps the revision as an OCI label and refuses to rebuild a tag that already
+  exists. This is what makes rollback real: a moving tag like `latest` or the
+  `local`/`config` tags these environments started on would let a revert change
+  the file and nothing else — risk 3 in the design doc. The `chart` job in CI
+  asserts it, along with the registry and the pull secret, so an environment
+  cannot quietly drift back.
 
 Both environments run the same tag. They differ only in the config below it,
 which is what makes promoting one artifact between them meaningful.
@@ -293,8 +345,10 @@ production cluster:
 The `local` environment needs three things the cluster cannot provide itself:
 
 ```bash
-# 1. the image, built under its commit tag and side-loaded into kind
-#    (values set pullPolicy: Never, so nothing is ever fetched from a registry)
+# 1. an image under the tag the values file names. Either seal the GHCR
+#    credential and let the kubelet pull a CI tag (see "The release image"), or
+#    build one locally and side-load it — pullPolicy: IfNotPresent takes
+#    whichever is already in the node.
 deploy/envs/build-image.sh
 
 # 2. host :80 -> ingress. kind publishes :8080, and changing that means
@@ -328,8 +382,9 @@ Honest list of what this is not, in the order they block dogfooding:
    demotes `apply.sh` from "the thing that deploys" to a convenience that does
    the same thing faster. See [`deploy/argocd/README.md`](../argocd/README.md).
 
-   Still hand-run: `build-image.sh`. Argo reconciles the image _tag_ in git; it
-   cannot build or side-load the image behind it.
+   Still hand-written: the image bump itself. Argo reconciles the image _tag_ in
+   git; nothing yet writes a new tag into these files when CI publishes one, and
+   `build-image.sh` remains the escape hatch for a tag CI never built.
 
 2. ~~**Secrets do not survive render-then-apply.**~~ Solved before the
    reconciler, as it had to be — see [Secrets](#secrets). Both environments now

@@ -119,9 +119,18 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
+          # image.source is stated rather than left to be inferred. GHCR links a
+          # package to a repository through that label, and it is the only link
+          # available here: the package is called gitlaunch and the repository
+          # is called launchpad, so nothing matches by name. The link is what
+          # gives the package the repository's access control, which is what
+          # makes read:packages on a collaborator's token enough to pull the
+          # image while the package is private, rather than the package needing
+          # its own permission list.
           labels: |
             org.opencontainers.image.licenses=FSL-1.1-ALv2
             org.opencontainers.image.title=GitLaunch
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
 
       - name: Build and push
         uses: docker/build-push-action@v6
@@ -165,6 +174,58 @@ jobs:
               exit 1
             fi
             echo "$env: deterministic, no chart-rendered Secrets"
+          done
+
+      # Our own environments must run the artifact we publish, pinned to a tag
+      # that can only ever mean one build. Both halves have already been wrong
+      # here: the bare name `gitlaunch` (resolvable on one laptop, so the
+      # environment was demonstrably not running what we ship) and the moving
+      # tags `local` / `config` (which make `git revert` change the file and
+      # nothing else — the rollback that looks like it worked).
+      - name: Environments pin the published image
+        run: |
+          for env in local onprem; do
+            values="deploy/envs/$env/values.yaml"
+            rendered="$(helm template gitlaunch deploy/helm/gitlaunch -f "$values" \
+              --show-only templates/deployment.yaml)"
+            # Every image the Deployment names, minus the bundled MongoDB, which
+            # is the only other container. Piping into `head` rather than
+            # matching on `gitlaunch` keeps a wrong repository reaching the
+            # check below with its own error message instead of dying in a
+            # `grep` that found nothing.
+            image="$(echo "$rendered" | awk '$1 == "image:" { gsub(/"/, "", $2); print $2 }' \
+              | grep -v -e '^mongo:' -e '/mongo:' | head -1)"
+            if [ -z "$image" ]; then
+              echo "::error file=$values::no app container image in the rendered Deployment for $env"
+              exit 1
+            fi
+
+            case "$image" in
+              ghcr.io/donedgardo/gitlaunch:*) ;;
+              *)
+                echo "::error file=$values::$env runs '$image' — not the image CI publishes. Set image.repository to ghcr.io/donedgardo/gitlaunch."
+                exit 1
+                ;;
+            esac
+
+            tag="${image##*:}"
+            # sha-<commit>, short from build-image.sh or full from CI, or a
+            # semver a v* tag published. Anything else is a name that can be
+            # made to point somewhere new.
+            if ! echo "$tag" | grep -Eq '^(sha-[0-9a-f]{7,40}|[0-9]+\.[0-9]+(\.[0-9]+)?)$'; then
+              echo "::error file=$values::$env pins image.tag '$tag', which is not immutable. Use sha-<commit> or a released semver."
+              exit 1
+            fi
+
+            # The package inherits `private` from the repository, so a pull
+            # without a credential fails — and fails late, at the first tag that
+            # is not already side-loaded into the node.
+            if ! echo "$rendered" | grep -q '^      imagePullSecrets:'; then
+              echo "::error file=$values::$env sets no imagePullSecrets, so it cannot pull the private release image."
+              exit 1
+            fi
+
+            echo "$env: $image, with a pull secret"
           done
 
       # The interlock itself: with generation off and no external Secret named,

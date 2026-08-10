@@ -19,6 +19,25 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 APP_SECRET_NAME="gitlaunch-app-secrets"
 MONGODB_SECRET_NAME="gitlaunch-mongodb-secrets"
 
+# The GHCR pull credential. Referenced by `imagePullSecrets` in every
+# environment's values.yaml, because the package inherits `private` from the
+# repository — see deploy/envs/README.md.
+REGISTRY_SECRET_NAME="gitlaunch-ghcr-secrets"
+
+# Where the release image lives, and who to authenticate to it as. The registry
+# host has to agree with the `image.repository` prefix in the values files or the
+# kubelet finds no matching credential and reports the pull as unauthorized.
+REGISTRY_HOST="ghcr.io"
+REGISTRY_IMAGE="$REGISTRY_HOST/donedgardo/gitlaunch"
+
+# What `org.opencontainers.image.source` gets stamped with locally, matching the
+# label CI derives from `github.repository`. It is how GHCR knows which
+# repository a package belongs to, and therefore who is allowed to pull it — the
+# package is named gitlaunch and the repository launchpad, so nothing else links
+# them. A locally built image is never pushed, but it carries the same label so
+# a pod's provenance reads the same wherever the image came from.
+SOURCE_URL="https://github.com/donedgardo/launchpad"
+
 # Namespace for an environment. Fails loudly on an unknown name so a typo
 # cannot quietly target the default namespace.
 env_namespace() {
