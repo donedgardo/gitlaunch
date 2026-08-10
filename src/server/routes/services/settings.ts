@@ -8,6 +8,7 @@ import { RepositoryRepository } from "../../../repositories/repositoryRepository
 import { EnvironmentService } from "../../../services/environment/environmentService";
 import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
 import { AnalyticsService } from "../../../services/analytics/analytics";
+import { actor } from "../../../services/analytics/actorIdentity";
 
 export type SettingsRoutesDeps = {
   publicUrl: string;
@@ -185,6 +186,19 @@ export function registerSettingsRoutes(
           accountId,
           service._id,
           { name },
+        );
+
+        // Environments are per-service, so growth here is a real activation
+        // signal rather than a fixed enum being toggled.
+        const userId = request.session?.userId;
+        analytics?.track(
+          "environment_added",
+          {
+            serviceId: service._id.toString(),
+            environment: name,
+            environmentCount: updatedService.environments.length,
+          },
+          userId ? actor(accountId, userId) : undefined,
         );
 
         // Sort environments by order

@@ -271,6 +271,45 @@ describe("loadConfig", () => {
       ).toThrow(/ANALYTICS_RETENTION_DAYS/);
     });
 
+    it("should leave PostHog unconfigured by default", () => {
+      expect(loadConfig(baseEnv, saasBuild).features.analytics.posthog).toBe(
+        undefined,
+      );
+    });
+
+    it("should configure PostHog when a project token is set", () => {
+      const config = loadConfig(
+        env({
+          POSTHOG_PROJECT_TOKEN: "phc_abc",
+          POSTHOG_HOST: "https://eu.i.posthog.com",
+        }),
+        saasBuild,
+      );
+      expect(config.features.analytics.posthog).toEqual({
+        projectToken: "phc_abc",
+        host: "https://eu.i.posthog.com",
+      });
+    });
+
+    it("should default to PostHog US cloud when only a token is set", () => {
+      const config = loadConfig(
+        env({ POSTHOG_PROJECT_TOKEN: "phc_abc" }),
+        saasBuild,
+      );
+      expect(config.features.analytics.posthog?.host).toBe(
+        "https://us.i.posthog.com",
+      );
+    });
+
+    it("should never send a self-hosted install's analytics to our PostHog", () => {
+      // A customer's own install must not phone home. Their usage is theirs.
+      const config = loadConfig(
+        shEnv({ POSTHOG_PROJECT_TOKEN: "phc_abc" }),
+        selfHostedBuild,
+      );
+      expect(config.features.analytics.posthog).toBe(undefined);
+    });
+
     it("should fall back to the console email sender when no API key is set", () => {
       expect(loadConfig(baseEnv, saasBuild).features.email.enabled).toBe(false);
     });
