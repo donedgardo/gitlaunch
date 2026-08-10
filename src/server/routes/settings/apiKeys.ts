@@ -2,17 +2,20 @@ import { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { ObjectId } from "mongodb";
 import { ApiKeyService } from "../../../services/apiKey/apiKeyService";
 import { ServiceRepository } from "../../../repositories/serviceRepository";
+import { AnalyticsService } from "../../../services/analytics/analytics";
+import { actor } from "../../../services/analytics/actorIdentity";
 
 export type ApiKeyRoutesDeps = {
   apiKeyService: ApiKeyService;
   serviceRepository?: ServiceRepository;
+  analytics?: AnalyticsService;
 };
 
 export function registerApiKeyRoutes(
   app: FastifyInstance,
   deps: ApiKeyRoutesDeps,
 ): void {
-  const { apiKeyService, serviceRepository } = deps;
+  const { apiKeyService, serviceRepository, analytics } = deps;
 
   // GET /settings/api-keys - List API keys
   app.get(
@@ -79,6 +82,14 @@ export function registerApiKeyRoutes(
           "flags:write",
         ],
       });
+
+      // Reaching for the API is an activation milestone. The key itself never
+      // leaves this handler — only that one was made.
+      analytics?.track(
+        "api_key_created",
+        { scopeCount: apiKey.scopes.length },
+        actor(accountId, userId),
+      );
 
       // List all keys and services to show alongside the new one
       const [keys, services] = await Promise.all([

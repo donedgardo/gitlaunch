@@ -20,6 +20,7 @@ import { createGitHubServices } from "./services/github/createGitHubServices";
 import { createFlagCache } from "./services/flag/createFlagCache";
 import { AnalyticsEventRepository } from "./repositories/analyticsEventRepository";
 import { createAnalyticsService } from "./services/analytics/createAnalyticsService";
+import { createPostHogClient } from "./services/analytics/createPostHogClient";
 import { createGoogleOAuthService } from "./services/auth/googleOAuthService";
 import { loadConfig, summarizeConfig, Config } from "./config/loadConfig";
 
@@ -77,14 +78,16 @@ const googleOAuthService = config.features.googleAuth.enabled
 // Create WebhookEventRepository for webhook idempotency
 const webhookEventRepository = new WebhookEventRepository(database);
 
-// Analytics — persists product events into the Mongo warehouse when enabled,
-// otherwise logs to console (dev) or no-ops.
+// Analytics — one port, whichever destinations this instance is configured
+// for: the Mongo warehouse, PostHog, both, or (in dev, with neither) the
+// console. Emitters never learn which.
 const analyticsEventRepository = new AnalyticsEventRepository(
   database,
   config.features.analytics.retentionDays,
 );
 const analytics = createAnalyticsService(analyticsEventRepository, {
   warehouse: config.features.analytics.enabled,
+  posthog: createPostHogClient(config.features.analytics.posthog),
   dev: !config.isProduction,
 });
 
@@ -130,6 +133,16 @@ async function start() {
 
   await server.listen({ host: "0.0.0.0", port: PORT });
   console.info(`Server listening on port ${PORT}`);
+}
+
+// A redeploy shouldn't cost us the events buffered since the last send. Both
+// signals are handled: the platform sends SIGTERM, a local `yarn dev` SIGINT.
+for (const signal of ["SIGTERM", "SIGINT"] as const) {
+  process.once(signal, async () => {
+    await analytics.flush?.();
+    await server.close();
+    process.exit(0);
+  });
 }
 
 start().catch(async (err) => {
