@@ -9,7 +9,10 @@ import * as handlebars from "handlebars";
 import path from "node:path";
 import { ServiceRepository } from "../../../repositories/serviceRepository";
 import { RepositoryRepository } from "../../../repositories/repositoryRepository";
-import { AccountRepository } from "../../../repositories/accountRepository";
+import {
+  AccountRepository,
+  Plan,
+} from "../../../repositories/accountRepository";
 import { MembershipRepository } from "../../../repositories/membershipRepository";
 import { SessionService } from "../../../services/auth/sessionService";
 import { EnvironmentService } from "../../../services/environment/environmentService";
@@ -276,18 +279,21 @@ describe("Settings Routes - Workflow Configuration", () => {
         repositoryId: repository._id,
         name: "my-service",
       });
+      // A plan with room for another environment — the free tier caps out at
+      // the two a new service already has.
+      await accountRepo.selectPlan(account._id, Plan.Pro);
       const userId = new ObjectId();
       const sessionToken = sessionService.createSession({
         userId,
         accountId: account._id,
       });
 
-      // When: an environment is added
+      // When: an environment is added (a new service already has staging/prod)
       await app.inject({
         method: "POST",
         url: `/services/${service._id}/environments`,
         cookies: { session: sessionToken },
-        payload: { name: "prod" },
+        payload: { name: "qa" },
       });
 
       // Then: the activation signal names the environment, tenant and actor
@@ -295,7 +301,7 @@ describe("Settings Routes - Workflow Configuration", () => {
         (e) => e.event === "environment_added",
       );
       expect(event).toBeDefined();
-      expect(event?.properties?.environment).toBe("prod");
+      expect(event?.properties?.environment).toBe("qa");
       expect(event?.context?.accountId).toBe(account._id.toString());
       expect(event?.context?.distinctId).toBe(userId.toString());
     });
