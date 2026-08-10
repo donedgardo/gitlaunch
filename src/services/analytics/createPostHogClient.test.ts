@@ -47,6 +47,22 @@ describe("createPostHogClient", () => {
     expect(constructed[0].options.host).toBe("https://eu.i.posthog.com");
   });
 
+  it("should build a client the sink can drive, against the real SDK", async () => {
+    // Given the installed posthog-node package (no loader injected)
+    // When a client is built
+    const client = createPostHogClient({
+      projectToken: "phc_contract_test",
+      host: "https://us.i.posthog.com",
+    });
+
+    // Then it satisfies the port PostHogAnalytics depends on — the one place
+    // an SDK upgrade could silently break delivery.
+    expect(typeof client?.capture).toBe("function");
+    expect(typeof client?.identify).toBe("function");
+    expect(typeof client?.flush).toBe("function");
+    await client?.shutdown?.();
+  });
+
   it("should degrade to no client when the SDK is not installed", () => {
     // Given an install without posthog-node
     const loader = () => {
