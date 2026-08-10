@@ -924,4 +924,143 @@ describe("BuildService", () => {
       expect(finalService?.workflowConfigured).toBe(true);
     });
   });
+
+  describe("deployment intent", () => {
+    const setup = async (slug: string) => {
+      const account = await accountRepo.create({ name: "Org", slug });
+      const repository = await repoRepo.create({
+        accountId: account._id,
+        githubRepoId: Math.floor(Math.random() * 1e6),
+        githubFullName: `org/${slug}`,
+        githubOwner: "org",
+        githubRepoName: slug,
+        isPrivate: false,
+      });
+      const svc = await serviceRepo.create({
+        accountId: account._id,
+        repositoryId: repository._id,
+        name: slug,
+      });
+      return { account, svc };
+    };
+
+    const deploy = async (
+      account: { _id: ObjectId },
+      svc: { _id: ObjectId },
+      buildId: string,
+      status: DeploymentStatus,
+    ) =>
+      service.updateDeploymentStatus({
+        accountId: account._id,
+        serviceId: svc._id,
+        buildId,
+        environment: "prod",
+        status,
+      });
+
+    const logsFor = async (
+      account: { _id: ObjectId },
+      svc: { _id: ObjectId },
+      buildId: string,
+    ) => {
+      const build = await buildRepo.findByBuildId(
+        account._id,
+        svc._id,
+        buildId,
+      );
+      return build!.deploymentLogs.filter((l) => l.environment === "prod");
+    };
+
+    it("should record a promote when a newer build goes out", async () => {
+      // Given: an older build is live in prod
+      const { account, svc } = await setup("promote-org");
+      await service.createBuild({
+        accountId: account._id,
+        serviceId: svc._id,
+        buildId: "v1",
+      });
+      await deploy(account, svc, "v1", DeploymentStatus.DEPLOYED);
+
+      // When: a newer build is dispatched there
+      await service.createBuild({
+        accountId: account._id,
+        serviceId: svc._id,
+        buildId: "v2",
+      });
+      await deploy(account, svc, "v2", DeploymentStatus.DISPATCHING);
+
+      // Then: it is recorded as moving forward
+      const logs = await logsFor(account, svc, "v2");
+      expect(logs[0].intent).toBe("promote");
+    });
+
+    it("should record a rollback when an older build is sent back out", async () => {
+      // Given: v1 then v2 have both been live in prod
+      const { account, svc } = await setup("rollback-org");
+      await service.createBuild({
+        accountId: account._id,
+        serviceId: svc._id,
+        buildId: "v1",
+      });
+      await deploy(account, svc, "v1", DeploymentStatus.DEPLOYED);
+      await service.createBuild({
+        accountId: account._id,
+        serviceId: svc._id,
+        buildId: "v2",
+      });
+      await deploy(account, svc, "v2", DeploymentStatus.DEPLOYED);
+
+      // When: the team sends v1 back out
+      await deploy(account, svc, "v1", DeploymentStatus.DISPATCHING);
+
+      // Then: it is recorded as an undo — the signal change failure rate and
+      // time to restore are both counted from
+      const logs = await logsFor(account, svc, "v1");
+      expect(logs[logs.length - 1].intent).toBe("rollback");
+    });
+
+    it("should keep the rollback intent on the status updates that follow", async () => {
+      // Given: a rollback of v1 has been dispatched
+      const { account, svc } = await setup("carry-org");
+      await service.createBuild({
+        accountId: account._id,
+        serviceId: svc._id,
+        buildId: "v1",
+      });
+      await deploy(account, svc, "v1", DeploymentStatus.DEPLOYED);
+      await service.createBuild({
+        accountId: account._id,
+        serviceId: svc._id,
+        buildId: "v2",
+      });
+      await deploy(account, svc, "v2", DeploymentStatus.DEPLOYED);
+      await deploy(account, svc, "v1", DeploymentStatus.DISPATCHING);
+
+      // When: the pipeline reports it landed
+      await deploy(account, svc, "v1", DeploymentStatus.DEPLOYED);
+
+      // Then: the entry that marks service restored is a rollback too
+      const logs = await logsFor(account, svc, "v1");
+      const last = logs[logs.length - 1];
+      expect(last.status).toBe(DeploymentStatus.DEPLOYED);
+      expect(last.intent).toBe("rollback");
+    });
+
+    it("should record a promote for the first ever deploy to an environment", async () => {
+      // Given: nothing has been deployed to prod
+      const { account, svc } = await setup("first-org");
+      await service.createBuild({
+        accountId: account._id,
+        serviceId: svc._id,
+        buildId: "v1",
+      });
+
+      // When: the first build is dispatched
+      await deploy(account, svc, "v1", DeploymentStatus.DISPATCHING);
+
+      // Then: there is nothing to undo
+      const logs = await logsFor(account, svc, "v1");
+      expect(logs[0].intent).toBe("promote");
+    });
+  });
 });
