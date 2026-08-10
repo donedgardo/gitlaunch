@@ -61,11 +61,7 @@ export type Config = {
       clientSecret?: string;
     };
     email: { enabled: boolean; apiKey?: string; from?: string };
-    analytics: {
-      enabled: boolean;
-      retentionDays?: number;
-      posthog?: { projectToken: string; host: string };
-    };
+    analytics: { enabled: boolean; retentionDays?: number };
     flagCache: { redisUrl?: string };
     selfFlags: { enabled: boolean; serviceId?: string };
     buildSimulation: { enabled: boolean };
@@ -310,22 +306,6 @@ export function loadConfig(
     }
   }
 
-  // PostHog is an additional destination for the same events, not a
-  // replacement for the warehouse. It is a SaaS-only concern: a customer's own
-  // install must never stream their usage to our project, so the token is
-  // ignored on a self-hosted build rather than trusted.
-  const posthogToken = isSelfHosted
-    ? undefined
-    : trimmed(env.POSTHOG_PROJECT_TOKEN);
-  const posthog = posthogToken
-    ? {
-        projectToken: posthogToken,
-        // Region matters (EU vs US project); default to the US cloud, which is
-        // where a project created without picking a region lives.
-        host: trimmed(env.POSTHOG_HOST) ?? "https://us.i.posthog.com",
-      }
-    : undefined;
-
   // --- GitLaunch's own flag reads (dogfooding) -----------------------------
   // A customer install must never phone home to our flag service.
   const selfFlagServiceId = trimmed(env.GITLAUNCH_SERVICE_ID);
@@ -392,7 +372,7 @@ export function loadConfig(
         apiKey: resendApiKey,
         from: emailFrom,
       },
-      analytics: { enabled: analyticsEnabled, retentionDays, posthog },
+      analytics: { enabled: analyticsEnabled, retentionDays },
       flagCache: { redisUrl: trimmed(env.REDIS_URL) },
       selfFlags: {
         enabled: selfFlagsEnabled,
@@ -421,7 +401,6 @@ export function summarizeConfig(config: Config): string {
       `  googleAuth=${onOff(f.googleAuth.enabled)}` +
       `  email=${onOff(f.email.enabled)}` +
       `  analytics=${onOff(f.analytics.enabled)}` +
-      `  posthog=${onOff(f.analytics.posthog !== undefined)}` +
       `  flagCache=${f.flagCache.redisUrl ? "redis" : "in-memory"}` +
       `  selfFlags=${onOff(f.selfFlags.enabled)}` +
       `  buildSimulation=${onOff(f.buildSimulation.enabled)}`,

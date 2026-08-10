@@ -4,15 +4,12 @@ import { TeamManagementService } from "../../../services/account/teamManagementS
 import { AccountMembershipService } from "../../../services/account/accountMembershipService";
 import { InvitationRepository } from "../../../repositories/invitationRepository";
 import { MembershipRole } from "../../../repositories/membershipRepository";
-import { AnalyticsService } from "../../../services/analytics/analytics";
-import { actor } from "../../../services/analytics/actorIdentity";
 
 export type TeamRoutesDeps = {
   publicUrl: string;
   teamManagementService: TeamManagementService;
   accountMembershipService: AccountMembershipService;
   invitationRepository: InvitationRepository;
-  analytics?: AnalyticsService;
 };
 
 const ROLE_LABELS: Record<MembershipRole, string> = {
@@ -46,7 +43,6 @@ export function registerTeamRoutes(
     teamManagementService,
     accountMembershipService,
     invitationRepository,
-    analytics,
   } = deps;
 
   async function renderPage(
@@ -133,14 +129,6 @@ export function registerTeamRoutes(
           email,
           role,
         });
-        // Only a created invite counts — a refused attempt below never
-        // reaches here, so the collaboration funnel stays honest. The
-        // invitee's address is a lead, not an analytics property.
-        analytics?.track(
-          "team_member_invited",
-          { role },
-          actor(accountId, userId),
-        );
         return renderPage(accountId, userId, reply, {
           success: `Invite link ready for ${email} — copy it below and send it over.`,
         });

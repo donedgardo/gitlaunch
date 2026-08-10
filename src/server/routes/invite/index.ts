@@ -10,8 +10,6 @@ import { SessionService } from "../../../services/auth/sessionService";
 import { acceptInvitation } from "./acceptInvitation";
 import { buildPageMeta } from "../../seo/meta";
 import { sessionCookieOptions, oauthStateCookieOptions } from "../../cookies";
-import { AnalyticsService } from "../../../services/analytics/analytics";
-import { actor } from "../../../services/analytics/actorIdentity";
 
 export type InviteRoutesDeps = {
   invitationRepository: InvitationRepository;
@@ -20,7 +18,6 @@ export type InviteRoutesDeps = {
   sessionService: SessionService;
   cookieSecure: boolean;
   publicUrl: string;
-  analytics?: AnalyticsService;
 };
 
 const ROLE_LABELS: Record<MembershipRole, string> = {
@@ -53,7 +50,6 @@ export function registerInviteRoutes(
     sessionService,
     cookieSecure,
     publicUrl,
-    analytics,
   } = deps;
 
   // Invite links carry a secret token, so they must never be indexed — but they
@@ -182,17 +178,6 @@ export function registerInviteRoutes(
             ? "This invite link has expired."
             : "This invite link is no longer valid.";
         return renderInvalid(reply, reason);
-      }
-
-      // The closing step of the invite funnel, recorded against the workspace
-      // that gained a member rather than the one they came from. Re-accepting
-      // an already-redeemed link is idempotent, so it is not a second join.
-      if (!result.alreadyMember) {
-        analytics?.track(
-          "invitation_accepted",
-          {},
-          actor(result.accountId, userId),
-        );
       }
 
       // Switch the active workspace to the one they just joined.

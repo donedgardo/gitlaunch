@@ -94,13 +94,6 @@ Optional, for keeping our own traffic out of analytics (unset = nothing is exclu
 - `ANALYTICS_INTERNAL_EMAILS` - comma-separated addresses (`me@x.dev`) or whole domains (`@x.dev`). A matching waitlist signup is still captured as a lead; its `waitlist_signup` event is stamped `internal: true` so acquisition reporting drops it.
 - `ANALYTICS_INTERNAL_ACTORS` - comma-separated literal `distinctId`s (a `gl_vid` visitor cookie, a user ObjectId). Applied at query time, so it also excludes events already in the warehouse.
 
-Optional, to also stream the same product events to PostHog (an additional destination, independent of `ANALYTICS_WAREHOUSE`):
-
-- `POSTHOG_PROJECT_TOKEN` - enables the PostHog sink. Ignored on a self-hosted build: a customer's install must never report their usage to our project.
-- `POSTHOG_HOST` - the region the project lives in. Defaults to `https://us.i.posthog.com`.
-
-Destinations are composed in `services/analytics/createAnalyticsService.ts`. Code that emits an event depends only on the `AnalyticsService` port, so a new destination is added there and nowhere else; `posthog-node` is imported by `createPostHogClient.ts` alone.
-
 ## TDD Development Mode
 
 When implementing features, Claude MUST follow the Red-Green-Refactor cycle:
