@@ -14,6 +14,7 @@ import {
   emailSignupEntityKey,
 } from "../../../services/account/signupGate";
 import { sessionCookieOptions } from "../../cookies";
+import { posthog } from "../../../instrument";
 
 export type EmailPasswordAuthRoutesConfig = {
   sessionService: SessionService;
@@ -189,6 +190,14 @@ export function registerEmailPasswordAuthRoutes(
 
       await userRepository.markEmailVerified(user._id);
 
+      // The identity changes mid-request, after the verification token is
+      // accepted. Rebind the PostHog context so later errors are attributed.
+      posthog?.enterContext({ distinctId: user._id.toString() }, { fresh: true });
+      posthog?.identify({
+        distinctId: user._id.toString(),
+        properties: { email: user.email, name: user.name },
+      });
+
       const seed = user.email ? user.email.split("@")[0] : "user";
       const { accountId, isNewUser } = await ensureAccountForUser({
         userId: user._id,
@@ -242,6 +251,13 @@ export function registerEmailPasswordAuthRoutes(
       if (!user.emailVerified) {
         return reply.redirect("/login?error=unverified");
       }
+
+      // Authentication becomes known here rather than at the request boundary.
+      posthog?.enterContext({ distinctId: user._id.toString() }, { fresh: true });
+      posthog?.identify({
+        distinctId: user._id.toString(),
+        properties: { email: user.email, name: user.name },
+      });
 
       const seed = user.email ? user.email.split("@")[0] : "user";
       const { accountId } = await ensureAccountForUser({

@@ -12,6 +12,7 @@ import {
   googleSignupEntityKey,
 } from "../../../services/account/signupGate";
 import { sessionCookieOptions, oauthStateCookieOptions } from "../../cookies";
+import { posthog } from "../../../instrument";
 
 export type GoogleAuthRoutesConfig = {
   cookieSecure: boolean;
@@ -135,6 +136,17 @@ export function registerGoogleAuthRoutes(
           slugSeed: seed,
           accountRepository,
           membershipRepository,
+        });
+
+        // OAuth authentication becomes known partway through this request, so
+        // establish a fresh context before any later reports or errors.
+        posthog?.enterContext(
+          { distinctId: user._id.toString() },
+          { fresh: true },
+        );
+        posthog?.identify({
+          distinctId: user._id.toString(),
+          properties: { email: user.email, name: user.name },
         });
 
         const sessionToken = sessionService.createSession({

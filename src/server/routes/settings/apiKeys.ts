@@ -2,6 +2,7 @@ import { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { ObjectId } from "mongodb";
 import { ApiKeyService } from "../../../services/apiKey/apiKeyService";
 import { ServiceRepository } from "../../../repositories/serviceRepository";
+import { posthog } from "../../../instrument";
 
 export type ApiKeyRoutesDeps = {
   apiKeyService: ApiKeyService;
@@ -79,6 +80,8 @@ export function registerApiKeyRoutes(
           "flags:write",
         ],
       });
+      posthog?.capture({ event: "api_key_created" });
+      await posthog?.flush();
 
       // List all keys and services to show alongside the new one
       const [keys, services] = await Promise.all([

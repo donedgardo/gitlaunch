@@ -8,6 +8,7 @@ import { RepositoryRepository } from "../../../repositories/repositoryRepository
 import { EnvironmentService } from "../../../services/environment/environmentService";
 import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
 import { AnalyticsService } from "../../../services/analytics/analytics";
+import { posthog } from "../../../instrument";
 
 export type SettingsRoutesDeps = {
   publicUrl: string;
@@ -186,6 +187,8 @@ export function registerSettingsRoutes(
           service._id,
           { name },
         );
+        posthog?.capture({ event: "environment_added" });
+        await posthog?.flush();
 
         // Sort environments by order
         const environments = [...updatedService.environments].sort(

@@ -4,6 +4,7 @@ import { TeamManagementService } from "../../../services/account/teamManagementS
 import { AccountMembershipService } from "../../../services/account/accountMembershipService";
 import { InvitationRepository } from "../../../repositories/invitationRepository";
 import { MembershipRole } from "../../../repositories/membershipRepository";
+import { posthog } from "../../../instrument";
 
 export type TeamRoutesDeps = {
   publicUrl: string;
@@ -129,6 +130,11 @@ export function registerTeamRoutes(
           email,
           role,
         });
+        posthog?.capture({
+          event: "team_member_invited",
+          properties: { role },
+        });
+        await posthog?.flush();
         return renderPage(accountId, userId, reply, {
           success: `Invite link ready for ${email} — copy it below and send it over.`,
         });

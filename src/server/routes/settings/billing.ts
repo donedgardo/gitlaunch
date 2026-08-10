@@ -9,6 +9,7 @@ import {
 import { UserRepository } from "../../../repositories/userRepository";
 import { ServiceRepository } from "../../../repositories/serviceRepository";
 import { AnalyticsService } from "../../../services/analytics/analytics";
+import { posthog } from "../../../instrument";
 
 export type BillingRoutesDependencies = {
   publicUrl: string;
@@ -157,6 +158,11 @@ export function registerBillingRoutes(
           plan: planEnum,
           accountId: account._id.toString(),
         });
+        posthog?.capture({
+          event: "checkout_started",
+          properties: { plan: planEnum },
+        });
+        await posthog?.flush();
         const result = await stripeService.createCheckoutSession({
           account,
           userEmail,

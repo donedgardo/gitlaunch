@@ -14,6 +14,7 @@ import {
 } from "../../../services/account/signupGate";
 import { ensureAccountForUser } from "../../../services/auth/accountBootstrap";
 import { sessionCookieOptions, oauthStateCookieOptions } from "../../cookies";
+import { posthog } from "../../../instrument";
 
 export type GitHubAuthRoutesConfig = {
   oauthService: GitHubOAuthService;
@@ -176,6 +177,21 @@ export function registerGitHubAuthRoutes(
             joinedViaInvite = true;
           }
         }
+
+        // OAuth authentication becomes known partway through this request, so
+        // establish a fresh request context before any later reports or errors.
+        posthog?.enterContext(
+          { distinctId: user._id.toString() },
+          { fresh: true },
+        );
+        posthog?.identify({
+          distinctId: user._id.toString(),
+          properties: {
+            email: user.email,
+            name: user.name,
+            github_login: user.githubLogin,
+          },
+        });
 
         // Create session
         const sessionToken = sessionService.createSession({

@@ -5,6 +5,7 @@ import {
   WaitlistExperiment,
   WAITLIST_VISITOR_COOKIE,
 } from "../../../services/marketing/waitlistExperiment";
+import { posthog } from "../../../instrument";
 
 export type WaitlistRoutesDeps = {
   waitlistService: WaitlistService;
@@ -80,6 +81,11 @@ export function registerWaitlistRoutes(
         attribution: buildAttribution(body),
         visitorId,
       });
+
+      if (outcome.status === "subscribed" && !outcome.alreadyOnList) {
+        posthog?.capture({ event: "waitlist_joined" });
+        await posthog?.flush();
+      }
 
       // Attribute a genuinely new signup to the visitor's landing A/B variant.
       // Re-evaluated server-side from the cookie so it can't be spoofed by the

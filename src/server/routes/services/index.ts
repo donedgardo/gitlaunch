@@ -8,6 +8,7 @@ import { GitHubAppService } from "../../../services/github/githubAppService";
 import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
 import { AnalyticsService } from "../../../services/analytics/analytics";
 import { oneTimeSecretCookieOptions } from "../../cookies";
+import { posthog } from "../../../instrument";
 
 export type ServiceRoutesDeps = {
   cookieSecure: boolean;
@@ -128,6 +129,11 @@ export function registerServiceRoutes(
           accountId: account._id.toString(),
           provider: "report-only",
         });
+        posthog?.capture({
+          event: "service_created",
+          properties: { creation_flow: "services" },
+        });
+        await posthog?.flush();
 
         // Generate API key for this service
         const { key } = await apiKeyService.generate({

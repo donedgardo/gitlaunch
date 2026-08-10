@@ -14,6 +14,7 @@ import { TrialService } from "../../../services/billing/trialService";
 import { AnalyticsService } from "../../../services/analytics/analytics";
 import { oneTimeSecretCookieOptions } from "../../cookies";
 import { githubInstallUrl } from "../../githubInstallUrl";
+import { posthog } from "../../../instrument";
 
 export type OnboardingRoutesDeps = {
   cookieSecure: boolean;
@@ -140,6 +141,11 @@ export function registerOnboardingRoutes(
               plan: selectedPlan,
               accountId: account._id.toString(),
             });
+            posthog?.capture({
+              event: "trial_started",
+              properties: { plan: selectedPlan },
+            });
+            await posthog?.flush();
           } else {
             console.log(
               `Trial not started for account ${account._id}: ${trialResult.reason}`,
@@ -154,6 +160,11 @@ export function registerOnboardingRoutes(
         plan: selectedPlan,
         accountId: account._id.toString(),
       });
+      posthog?.capture({
+        event: "plan_selected",
+        properties: { plan: selectedPlan },
+      });
+      await posthog?.flush();
 
       // Reporting-first onboarding: create the service next.
       return reply.redirect("/onboarding/service");
@@ -244,6 +255,11 @@ export function registerOnboardingRoutes(
         accountId: account._id.toString(),
         provider: "onboarding",
       });
+      posthog?.capture({
+        event: "service_created",
+        properties: { creation_flow: "onboarding" },
+      });
+      await posthog?.flush();
 
       return reply.redirect(`/onboarding/report-builds/${service._id}`);
     },
@@ -436,6 +452,11 @@ export function registerOnboardingRoutes(
       serviceId: service._id.toString(),
       provider: "github",
     });
+    posthog?.capture({
+      event: "deployment_configured",
+      properties: { provider: "github" },
+    });
+    await posthog?.flush();
     return reply.redirect(`/dashboard/${service.name}`);
   });
 
@@ -469,6 +490,11 @@ export function registerOnboardingRoutes(
       serviceId: service._id.toString(),
       provider: "jenkins",
     });
+    posthog?.capture({
+      event: "deployment_configured",
+      properties: { provider: "jenkins" },
+    });
+    await posthog?.flush();
     return reply.redirect(`/dashboard/${service.name}`);
   });
 
@@ -494,6 +520,11 @@ export function registerOnboardingRoutes(
       serviceId: service._id.toString(),
       provider: "raw",
     });
+    posthog?.capture({
+      event: "deployment_configured",
+      properties: { provider: "raw" },
+    });
+    await posthog?.flush();
     return reply.redirect(`/dashboard/${service.name}`);
   });
 
@@ -683,6 +714,11 @@ export function registerOnboardingRoutes(
         count: selectedRepoIds.length,
         accountId: account._id.toString(),
       });
+      posthog?.capture({
+        event: "repositories_selected",
+        properties: { repository_count: selectedRepoIds.length },
+      });
+      await posthog?.flush();
 
       // Redirect to returnTo if provided, otherwise to dashboard
       const redirectTo = request.body.returnTo || "/dashboard";

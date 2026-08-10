@@ -9,6 +9,7 @@
 import "dotenv/config";
 
 import { createErrorReporter } from "./services/observability/createErrorReporter";
+export { posthog } from "./services/observability/posthog";
 
 // Registers the Sentry SDK when SENTRY_DSN is set; a no-op reporter otherwise.
 export const errorReporter = createErrorReporter();

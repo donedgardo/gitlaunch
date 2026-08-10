@@ -10,6 +10,7 @@ import { SessionService } from "../../../services/auth/sessionService";
 import { acceptInvitation } from "./acceptInvitation";
 import { buildPageMeta } from "../../seo/meta";
 import { sessionCookieOptions, oauthStateCookieOptions } from "../../cookies";
+import { posthog } from "../../../instrument";
 
 export type InviteRoutesDeps = {
   invitationRepository: InvitationRepository;
@@ -189,6 +190,11 @@ export function registerInviteRoutes(
         cookieSecure,
       );
       reply.clearCookie(PENDING_INVITE_COOKIE, { path: "/" });
+      posthog?.capture({
+        event: "invitation_accepted",
+        properties: { already_member: result.alreadyMember },
+      });
+      await posthog?.flush();
       return reply.redirect("/dashboard");
     },
   );

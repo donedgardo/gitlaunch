@@ -2,6 +2,7 @@ import { FastifyInstance } from "fastify";
 import { ObjectId } from "mongodb";
 import { GithubConnectionService } from "../../../services/github/githubConnectionService";
 import { AnalyticsService } from "../../../services/analytics/analytics";
+import { posthog } from "../../../instrument";
 
 type InstallationRouteDeps = {
   githubConnectionService: GithubConnectionService;
@@ -37,6 +38,8 @@ export function registerInstallationRoutes(
       accountId: accountId.toString(),
       installationId,
     });
+    posthog?.capture({ event: "github_app_installed" });
+    await posthog?.flush();
 
     // Repository selection is always the next step; carry a caller-supplied
     // returnTo through it so a connect started from e.g. deploy setup comes

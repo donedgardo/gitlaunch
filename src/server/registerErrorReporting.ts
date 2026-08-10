@@ -1,5 +1,6 @@
 import { FastifyInstance } from "fastify";
 
+import { posthog } from "../instrument";
 import { ErrorReporterI } from "../services/observability/errorReporter";
 
 // Reports errors thrown while handling a request. An onError hook observes the
@@ -15,5 +16,7 @@ export function registerErrorReporting(
       method: request.method,
       url: request.url,
     });
+    posthog?.captureException(error);
+    await posthog?.flush();
   });
 }
