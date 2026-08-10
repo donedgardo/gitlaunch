@@ -48,10 +48,9 @@ export function registerSessionMiddleware(
       // Identity is request-scoped: the long-lived server can serve different
       // people concurrently. A fresh context lets every PostHog event and
       // exception downstream inherit this authenticated database identifier.
-      posthog?.enterContext(
-        session ? { distinctId: session.userId } : {},
-        { fresh: true },
-      );
+      posthog?.enterContext(session ? { distinctId: session.userId } : {}, {
+        fresh: true,
+      });
 
       // Refresh session cookie on each request (sliding session)
       if (session) {
@@ -87,10 +86,9 @@ export function sessionAuthMiddleware(
       request.session = session;
 
       // Match production request identity behavior in middleware-focused tests.
-      posthog?.enterContext(
-        session ? { distinctId: session.userId } : {},
-        { fresh: true },
-      );
+      posthog?.enterContext(session ? { distinctId: session.userId } : {}, {
+        fresh: true,
+      });
 
       // Refresh session cookie on each request (sliding session)
       if (session) {

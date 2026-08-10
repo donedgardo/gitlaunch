@@ -192,7 +192,10 @@ export function registerEmailPasswordAuthRoutes(
 
       // The identity changes mid-request, after the verification token is
       // accepted. Rebind the PostHog context so later errors are attributed.
-      posthog?.enterContext({ distinctId: user._id.toString() }, { fresh: true });
+      posthog?.enterContext(
+        { distinctId: user._id.toString() },
+        { fresh: true },
+      );
       posthog?.identify({
         distinctId: user._id.toString(),
         properties: { email: user.email, name: user.name },
@@ -253,7 +256,10 @@ export function registerEmailPasswordAuthRoutes(
       }
 
       // Authentication becomes known here rather than at the request boundary.
-      posthog?.enterContext({ distinctId: user._id.toString() }, { fresh: true });
+      posthog?.enterContext(
+        { distinctId: user._id.toString() },
+        { fresh: true },
+      );
       posthog?.identify({
         distinctId: user._id.toString(),
         properties: { email: user.email, name: user.name },

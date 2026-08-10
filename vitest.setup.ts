@@ -19,3 +19,12 @@ if (!process.env.MONGODB_URI) {
 if (!process.env.COOKIE_SECRET_SIGNATURE) {
   process.env.COOKIE_SECRET_SIGNATURE = "test-cookie-secret";
 }
+
+// The PostHog singleton (src/services/observability/posthog.ts) throws on
+// import outside production when unconfigured, so tests need the same floor.
+if (!process.env.POSTHOG_PROJECT_TOKEN) {
+  process.env.POSTHOG_PROJECT_TOKEN = "phc_test_dummy_token_for_ci";
+}
+if (!process.env.POSTHOG_HOST) {
+  process.env.POSTHOG_HOST = "https://us.i.posthog.com";
+}
