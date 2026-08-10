@@ -6,15 +6,20 @@ const HOUR = 60 * 60 * 1000;
 
 const t = (iso: string) => new Date(iso);
 
-const event = (
-  overrides: Partial<DeploymentEvent> & { at: string },
-): DeploymentEvent => ({
+const event = ({
+  at,
+  changeAt,
+  ...rest
+}: Omit<Partial<DeploymentEvent>, "at" | "changeAt"> & {
+  at: string;
+  changeAt?: Date;
+}): DeploymentEvent => ({
   buildId: "b1",
   environment: "prod",
   status: DeploymentStatus.DEPLOYED,
-  changeAt: t(overrides.at),
-  ...overrides,
-  at: t(overrides.at),
+  ...rest,
+  at: t(at),
+  changeAt: changeAt ?? t(at),
 });
 
 const window = {
