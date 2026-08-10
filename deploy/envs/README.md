@@ -83,13 +83,15 @@ called `gitlaunch` and the repository `launchpad`, so nothing else links them.
 With that link in place a repository collaborator's token is enough, and the
 token needs only `read:packages`:
 
+Both environments already have one sealed. To rotate it, or to seal one for a new
+environment:
+
 ```bash
-# One-time per environment. Create a token at https://github.com/settings/tokens
-# with read:packages, then:
+# Create a token at https://github.com/settings/tokens with read:packages, then:
 deploy/envs/seal.sh registry local
 deploy/envs/seal.sh registry onprem   # paste the token, ctrl-d
 
-deploy/envs/seal.sh verify local      # registry.sealed.yaml now listed OK
+deploy/envs/seal.sh verify local      # registry.sealed.yaml listed OK
 ```
 
 The result is ciphertext committed under `secrets/`, applied by Argo like the
@@ -98,10 +100,10 @@ not a `kubectl create secret` someone has to remember. `read:packages` and not
 `write:packages`: a cluster only ever pulls, and a token that could push would
 let anything able to read that Secret overwrite the release image.
 
-Until that is sealed, an environment can still only run a tag already sitting in
-the kind node's image store — which is exactly what `pullPolicy: IfNotPresent`
-plus [`build-image.sh`](build-image.sh) gives you, and why the switch to GHCR
-did not require a credential to land.
+Without a credential an environment can still run a tag already sitting in the
+kind node's image store, because `pullPolicy` is `IfNotPresent` rather than
+`Always` — which is what [`build-image.sh`](build-image.sh) produces, and what
+kept these environments servable while the credential was still missing.
 
 ### Two tag widths
 
