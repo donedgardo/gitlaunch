@@ -93,6 +93,29 @@ export class BuildRepository {
     return this.collection.findOne({ accountId, serviceId, buildId });
   }
 
+  /**
+   * The build that most recently went live in an environment.
+   *
+   * Ordered by when it was deployed rather than by current status, so a
+   * failed deploy sitting in ERROR does not make the environment look empty —
+   * what is live is still whatever landed last. Builds that predate the
+   * `deployedAt` stamp are invisible here and read as an empty environment.
+   */
+  async findLastDeployed(
+    accountId: ObjectId,
+    serviceId: ObjectId,
+    environment: string,
+  ): Promise<Build | null> {
+    return this.collection.findOne(
+      {
+        accountId,
+        serviceId,
+        [`deployedAt.${environment}`]: { $exists: true },
+      },
+      { sort: { [`deployedAt.${environment}`]: -1 } },
+    );
+  }
+
   async findByAccountAndService(
     accountId: ObjectId,
     serviceId: ObjectId,
