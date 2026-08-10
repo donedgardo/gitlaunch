@@ -17,6 +17,7 @@ import { PlanEnforcementService } from "../../../services/billing/planEnforcemen
 import { sessionAuthMiddleware } from "../../middleware/sessionAuth";
 import { registerHandlebarsHelpers } from "../../registerHandlebarsHelpers";
 import { registerSettingsRoutes } from "./settings";
+import { RecordingAnalytics } from "../../../services/analytics/fakes";
 
 describe("Settings Routes - Workflow Configuration", () => {
   let mongoServer: MongoMemoryServer;
@@ -28,6 +29,7 @@ describe("Settings Routes - Workflow Configuration", () => {
   let accountRepo: AccountRepository;
   let membershipRepo: MembershipRepository;
   let sessionService: SessionService;
+  let analytics: RecordingAnalytics;
   let environmentService: EnvironmentService;
   let planEnforcementService: PlanEnforcementService;
 
@@ -87,12 +89,14 @@ describe("Settings Routes - Workflow Configuration", () => {
       },
     });
     sessionAuthMiddleware(app, sessionService);
+    analytics = new RecordingAnalytics();
     registerSettingsRoutes(app, {
       publicUrl: "http://localhost:3050",
       serviceRepository: serviceRepo,
       repositoryRepository: repositoryRepo,
       environmentService,
       planEnforcementService,
+      analytics,
     });
     await app.ready();
   });
@@ -249,6 +253,51 @@ describe("Settings Routes - Workflow Configuration", () => {
       // ...and neither the GitHub Actions curl guide nor the Jenkins pipeline
       expect(response.body).not.toContain("--fail-with-body");
       expect(response.body).not.toContain("pipeline {");
+    });
+  });
+
+  describe("POST /services/:serviceId/environments", () => {
+    it("should report a new environment to analytics with tenant and actor", async () => {
+      // Given: an authenticated owner of a service
+      const account = await accountRepo.create({
+        name: "Test Org",
+        slug: "test-org",
+      });
+      const repository = await repositoryRepo.create({
+        accountId: account._id,
+        githubRepoId: 999,
+        githubFullName: "test-org/my-repo",
+        githubRepoName: "my-repo",
+        githubOwner: "test-org",
+        isPrivate: false,
+      });
+      const service = await serviceRepo.create({
+        accountId: account._id,
+        repositoryId: repository._id,
+        name: "my-service",
+      });
+      const userId = new ObjectId();
+      const sessionToken = sessionService.createSession({
+        userId,
+        accountId: account._id,
+      });
+
+      // When: an environment is added
+      await app.inject({
+        method: "POST",
+        url: `/services/${service._id}/environments`,
+        cookies: { session: sessionToken },
+        payload: { name: "prod" },
+      });
+
+      // Then: the activation signal names the environment, tenant and actor
+      const event = analytics.tracked.find(
+        (e) => e.event === "environment_added",
+      );
+      expect(event).toBeDefined();
+      expect(event?.properties?.environment).toBe("prod");
+      expect(event?.context?.accountId).toBe(account._id.toString());
+      expect(event?.context?.distinctId).toBe(userId.toString());
     });
   });
 
