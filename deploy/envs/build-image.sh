@@ -10,12 +10,26 @@
 # That is what makes `git revert` on an environment's values.yaml an actual
 # rollback: the old tag still names the old bits. A moving tag like `latest`
 # turns rollback into a no-op that looks like it worked.
+#
+# This is the shortcut, not the source of truth. The image an environment is
+# meant to run is the one CI publishes to GHCR, tagged `sha-<full commit>`;
+# what this builds is the same Dockerfile under a short tag, side-loaded into
+# kind so `pullPolicy: IfNotPresent` finds it without a registry round trip.
+# The two tag widths can therefore never collide, and a `docker images` listing
+# says plainly which of the two is running. Nothing here ever pushes: publishing
+# under our name is CI's job, from a commit that passed the quality gates.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$REPO_ROOT"
 
-IMAGE_REPO="${IMAGE_REPO:-gitlaunch}"
+# shellcheck source=lib.sh
+source "$REPO_ROOT/deploy/envs/lib.sh"
+
+# Registry-qualified, matching `image.repository` in the environment values. A
+# bare `gitlaunch` was a name only this laptop could resolve, so an environment
+# using it could not be running the artifact we ship.
+IMAGE_REPO="${IMAGE_REPO:-$REGISTRY_IMAGE}"
 KIND_CLUSTER="${KIND_CLUSTER:-lab}"
 ALLOW_DIRTY="${ALLOW_DIRTY:-0}"
 
@@ -47,7 +61,7 @@ else
   # a running pod cannot be traced back to a commit.
   docker build \
     --label "org.opencontainers.image.revision=$REVISION" \
-    --label "org.opencontainers.image.source=https://github.com/donedgardo/launchpad" \
+    --label "org.opencontainers.image.source=$SOURCE_URL" \
     -t "$IMAGE_REPO:$TAG" \
     "$REPO_ROOT"
 fi

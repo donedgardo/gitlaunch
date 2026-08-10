@@ -2,9 +2,10 @@
 #
 # Encrypted, versioned secrets for our own environments.
 #
-#   deploy/envs/seal.sh adopt  <env>              one-shot migration off chart generation
-#   deploy/envs/seal.sh set    <env> app|mongodb <KEY>   set one key, value on stdin
-#   deploy/envs/seal.sh verify <env>              do the committed files match the cluster?
+#   deploy/envs/seal.sh adopt    <env>            one-shot migration off chart generation
+#   deploy/envs/seal.sh set      <env> app|mongodb <KEY>  set one key, value on stdin
+#   deploy/envs/seal.sh registry <env>            GHCR pull credential, token on stdin
+#   deploy/envs/seal.sh verify   <env>            do the committed files match the cluster?
 #
 # The output is committed. A SealedSecret holds ciphertext only decryptable by
 # the controller's private key, which never leaves the cluster, so the config
@@ -23,7 +24,7 @@ CONTROLLER_NS="${SEALED_SECRETS_NAMESPACE:-kube-system}"
 CONTROLLER_NAME="${SEALED_SECRETS_CONTROLLER:-sealed-secrets-controller}"
 
 usage() {
-  sed -n '2,12p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '2,13p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
   exit 64
 }
 
@@ -119,6 +120,41 @@ cmd_set() {
   echo "==> $key sealed into $file"
 }
 
+# The credential that lets the kubelet pull the release image. Needed because the
+# GHCR package inherits `private` from the repository, and unlike the app's own
+# secrets there is nothing to adopt: no chart ever rendered this one.
+#
+# Takes a GitHub token with `read:packages` on stdin. Read-only on purpose — a
+# cluster only ever pulls, and `write:packages` in a Secret would let anything
+# that can read it overwrite the release image.
+cmd_registry() {
+  local env="${1:-}"; [[ -n "$env" ]] || usage
+  local ns; ns="$(env_namespace "$env")"
+  local dir; dir="$(env_secrets_dir "$env")"
+  mkdir -p "$dir"
+  local file="$dir/registry.sealed.yaml"
+  local username="${GHCR_USERNAME:-donedgardo}"
+
+  echo "reading a GitHub token with read:packages for $REGISTRY_HOST from stdin" >&2
+  echo "(ctrl-d to end; create one at https://github.com/settings/tokens)..." >&2
+  local token; token="$(cat)"
+  [[ -n "$token" ]] || { echo "error: refusing to seal an empty token" >&2; exit 1; }
+
+  # Built by hand rather than with `kubectl create secret docker-registry`,
+  # which only takes the password as an argument — visible to every process on
+  # the box through `ps`. Same reasoning as `set` reading its value from stdin.
+  local auth; auth="$(printf '%s:%s' "$username" "$token" | base64 | tr -d '\n')"
+  printf '{"auths":{"%s":{"auth":"%s"}}}' "$REGISTRY_HOST" "$auth" \
+    | kubectl create secret generic "$REGISTRY_SECRET_NAME" \
+        --namespace "$ns" --dry-run=client -o yaml \
+        --type=kubernetes.io/dockerconfigjson \
+        --from-file=.dockerconfigjson=/dev/stdin \
+    | seal > "$file"
+
+  echo "==> $REGISTRY_HOST credential sealed into $file"
+  echo "    Applied by deploy/envs/apply.sh $env, or by Argo CD from git."
+}
+
 # Does what is committed still match what the cluster is running? A drifted
 # secret is invisible otherwise: pods keep working off the live Secret, and the
 # repo quietly stops being able to rebuild the environment.
@@ -128,11 +164,17 @@ cmd_verify() {
   local dir; dir="$(env_secrets_dir "$env")"
   local rc=0
 
-  for pair in "$APP_SECRET_NAME:app" "$MONGODB_SECRET_NAME:mongodb"; do
+  for pair in "$APP_SECRET_NAME:app" "$MONGODB_SECRET_NAME:mongodb" "$REGISTRY_SECRET_NAME:registry"; do
     local name="${pair%%:*}" label="${pair##*:}"
     local file="$dir/$label.sealed.yaml"
     if [[ ! -f "$file" ]]; then
-      echo "MISSING  $file"; rc=1; continue
+      echo "MISSING  $file"
+      # An `&&` one-liner here would be the last command of the branch and, under
+      # `set -e`, would abort the loop for every label that is not `registry`.
+      if [[ "$label" == registry ]]; then
+        echo "         values.yaml names it in imagePullSecrets; seal it with: deploy/envs/seal.sh registry $env"
+      fi
+      rc=1; continue
     fi
     if ! kubectl get secret "$name" -n "$ns" >/dev/null 2>&1; then
       echo "NOT LIVE $name in $ns — committed but never applied"; rc=1; continue
@@ -164,7 +206,7 @@ cmd_verify() {
 # Resolve the subcommand before checking for tools, so `seal.sh` with no
 # arguments explains itself rather than complaining about a missing binary.
 case "${1:-}" in
-  adopt|set|verify) ;;
+  adopt|set|registry|verify) ;;
   *) usage ;;
 esac
 
@@ -173,7 +215,8 @@ require_cmd kubeseal "Install with: brew install kubeseal — or grab a release 
        https://github.com/bitnami-labs/sealed-secrets/releases and put it on PATH."
 
 case "$1" in
-  adopt)  shift; cmd_adopt  "$@" ;;
-  set)    shift; cmd_set    "$@" ;;
-  verify) shift; cmd_verify "$@" ;;
+  adopt)    shift; cmd_adopt    "$@" ;;
+  set)      shift; cmd_set      "$@" ;;
+  registry) shift; cmd_registry "$@" ;;
+  verify)   shift; cmd_verify   "$@" ;;
 esac

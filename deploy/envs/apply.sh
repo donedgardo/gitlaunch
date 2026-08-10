@@ -27,8 +27,9 @@ CHART="$REPO_ROOT/deploy/helm/gitlaunch"
 
 # Report to GitLaunch with the same protocol .github/workflows/deploy.yml uses,
 # so these environments show up on the dashboard like any other deploy. The
-# buildId is the app source commit, recovered from the image tag — the tag is
-# `sha-<short>`, and the API wants the full SHA.
+# buildId is the app source commit, recovered from the image tag — `sha-<commit>`
+# either way it was built, and the API wants the full SHA, so `git rev-parse`
+# expands CI's full-length tag and a locally built short one alike.
 #
 # Unset credentials mean no reporting, not a failure: applying an environment
 # must not depend on a running GitLaunch.

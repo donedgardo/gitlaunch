@@ -6,9 +6,11 @@ distribution: you run the software, we license it.
 
 > **Status: partially available.** CI publishes
 > `ghcr.io/donedgardo/gitlaunch` on every push to `main` and on every `v*` tag,
-> so the image a customer needs now exists. There is still no published chart
-> repository — the chart installs from a local path — and the image is not
-> signed.
+> so the image a customer needs now exists — and our own `local` and `onprem`
+> environments run it, rather than an image only our laptop can resolve. The
+> package is still private, so pulling it needs a credential we grant you (set
+> `imagePullSecrets`, below); there is no published chart repository — the chart
+> installs from a local path — and the image is not signed.
 
 Everything here targets **any conformant Kubernetes** — managed (EKS/GKE/AKS),
 self-managed (kubeadm, RKE2), lightweight (k3s, MicroK8s) or air-gapped. The
@@ -242,6 +244,26 @@ filesystem, no privilege escalation and all capabilities dropped.
 rejects a hardcoded `runAsUser`. Set `podSecurityContext.runAsUser` and
 `fsGroup` to `null` and let the platform assign them.
 
+### Pulling the image
+
+The GHCR package is private today, so create a pull secret from the credential
+we issue you and name it in `imagePullSecrets`:
+
+```bash
+kubectl create secret docker-registry gitlaunch-ghcr \
+  --namespace gitlaunch \
+  --docker-server=ghcr.io \
+  --docker-username=<user> \
+  --docker-password=<token with read:packages>
+
+helm upgrade --install gitlaunch ./deploy/helm/gitlaunch \
+  --set imagePullSecrets[0].name=gitlaunch-ghcr
+```
+
+We run the same shape ourselves — see
+[`deploy/envs/README.md`](../deploy/envs/README.md), where the credential is a
+sealed secret in git rather than a `kubectl` command someone has to remember.
+
 ### Air-gapped installs
 
 Mirror the image to your internal registry and set `image.repository` plus
@@ -285,8 +307,9 @@ built yet:
   install still creates accounts, and nothing yet pins an instance to exactly
   one organisation.
 - **Image signing and chart publishing.** The image is published to
-  `ghcr.io/donedgardo/gitlaunch`, but it is not signed (no cosign/provenance
-  attestation) and there is no public chart repository — the chart still
+  `ghcr.io/donedgardo/gitlaunch`, but the package is private (pulling it needs a
+  credential we issue per customer), it is not signed (no cosign/provenance
+  attestation), and there is no public chart repository — the chart still
   installs from a local path. An air-gapped buyer can mirror the image today;
   a buyer who requires supply-chain attestation cannot yet verify it.
 - **Backup/restore runbook.** MongoDB holds everything, but there is no

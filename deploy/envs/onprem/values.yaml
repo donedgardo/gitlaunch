@@ -13,15 +13,28 @@
 
 replicaCount: 1
 
+# The release image CI publishes to GHCR (.github/workflows/ci.yml). That matters
+# more here than in `local`: this environment is the self-hosted demo, so if it
+# runs an image only our laptop can resolve then it is not demonstrating the
+# install a customer performs. Same registry, same tag, same pull secret — the
+# only difference from a customer is who owns the credential.
+#
 # `tag` is the GitOps promotion target — the value an image bump rewrites, and
 # the only thing `git revert` needs to change to roll this environment back.
-# Immutable by construction: deploy/envs/build-image.sh tags from the commit and
-# refuses to rebuild a tag that exists. The same artifact runs in `local`; only
-# the config below differs, which is what makes promotion between them possible.
+# Immutable either way it was produced, and the width says which: CI publishes
+# `sha-<full 40-char commit>`, deploy/envs/build-image.sh builds `sha-<short>`
+# and side-loads it into kind. The same artifact runs in `local`; only the config
+# below differs, which is what makes promotion between them possible.
 image:
-  repository: gitlaunch
-  tag: sha-aa23f53
-  pullPolicy: Never
+  repository: ghcr.io/donedgardo/gitlaunch
+  tag: sha-78ef9d32e469aadba00d49bb1dc3fa8bee5cedd4
+  pullPolicy: IfNotPresent
+
+# The GHCR package inherits `private` from the repository, so pulling a CI tag
+# needs a credential even in our own cluster. Sealed alongside the others:
+#   deploy/envs/seal.sh registry onprem
+imagePullSecrets:
+  - name: gitlaunch-ghcr-secrets
 
 config:
   publicUrl: http://onprem.localtest.me:8080
