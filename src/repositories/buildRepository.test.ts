@@ -974,6 +974,76 @@ describe("BuildRepository", () => {
       expect(result.hasMore).toBe(true);
     });
 
+    it("should show every build exactly once across pages when builds share a timestamp", async () => {
+      // Given: 25 builds reported in the same millisecond — one CI run
+      // reporting a burst, which is how ties actually happen in production
+      for (let i = 1; i <= 25; i++) {
+        await repo.create({
+          accountId: testAccountId,
+          serviceId: testServiceId,
+          buildId: `build-${i}`,
+        });
+      }
+      await db
+        .collection("builds")
+        .updateMany({}, { $set: { createdAt: new Date("2026-01-01") } });
+
+      // When: I page through all of them
+      const seen: string[] = [];
+      for (const page of [1, 2, 3]) {
+        const result = await repo.findPaginated(
+          testAccountId,
+          testServiceId,
+          page,
+          10,
+        );
+        seen.push(...result.builds.map((b) => b.buildId));
+      }
+
+      // Then: nobody is shown twice and nobody is lost between pages. Without a
+      // tiebreak, ties come back in an arbitrary order per query, so a build on
+      // a page boundary can appear on both pages — or on neither.
+      expect(seen).toHaveLength(25);
+      expect(new Set(seen).size).toBe(25);
+    });
+
+    it("should keep newest-first order among builds sharing a timestamp", async () => {
+      // Given: 25 builds reported in the same millisecond
+      for (let i = 1; i <= 25; i++) {
+        await repo.create({
+          accountId: testAccountId,
+          serviceId: testServiceId,
+          buildId: `build-${i}`,
+        });
+      }
+      await db
+        .collection("builds")
+        .updateMany({}, { $set: { createdAt: new Date("2026-01-01") } });
+
+      // When: I read the first page
+      const result = await repo.findPaginated(
+        testAccountId,
+        testServiceId,
+        1,
+        10,
+      );
+
+      // Then: the most recently reported build still leads. A tie is broken by
+      // insertion order, not left to the storage engine.
+      expect(result.builds.map((b) => b.buildId)).toEqual([
+        "build-25",
+        "build-24",
+        "build-23",
+        "build-22",
+        "build-21",
+        "build-20",
+        "build-19",
+        "build-18",
+        "build-17",
+        "build-16",
+      ]);
+    });
+
     it("should treat negative page as page 1", async () => {
       // Given: 15 builds exist
       for (let i = 1; i <= 15; i++) {
