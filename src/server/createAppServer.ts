@@ -290,7 +290,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
   }
 
   // API key management routes
-  registerApiKeyRoutes(server, { apiKeyService, serviceRepository, analytics });
+  registerApiKeyRoutes(server, { apiKeyService, serviceRepository });
   registerJenkinsSettingsRoutes(server, { jenkinsConnectionService });
   registerGithubSettingsRoutes(server, {
     githubConnectionService,
@@ -312,7 +312,6 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     teamManagementService,
     accountMembershipService,
     invitationRepository,
-    analytics,
   });
   registerInviteRoutes(server, {
     cookieSecure: config.cookies.secure,
@@ -321,7 +320,6 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     membershipRepository,
     accountRepository,
     sessionService,
-    analytics,
   });
 
   // Setup wizard routes

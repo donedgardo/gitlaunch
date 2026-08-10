@@ -3,7 +3,6 @@ import { MongoMemoryServer } from "mongodb-memory-server";
 import { MongoClient, Db, ObjectId } from "mongodb";
 import { AnalyticsEventRepository } from "../../repositories/analyticsEventRepository";
 import { createAnalyticsService } from "./createAnalyticsService";
-import { FakePostHogClient } from "./fakes";
 
 const tick = () => new Promise((r) => setTimeout(r, 10));
 
@@ -73,57 +72,5 @@ describe("createAnalyticsService", () => {
     // Then: nothing is written to the warehouse
     const events = await repo.findByAccount(accountId);
     expect(events).toHaveLength(0);
-  });
-
-  it("should send the same event to both destinations when the warehouse and PostHog are on", async () => {
-    // Given: analytics configured with both destinations
-    const posthog = new FakePostHogClient();
-    const analytics = createAnalyticsService(repo, {
-      warehouse: true,
-      posthog,
-    });
-
-    // When: an event is tracked
-    analytics.track("service_created", {}, { accountId: accountId.toString() });
-
-    // Then: it lands in the warehouse and in PostHog
-    const count = await waitForEventCount(repo, accountId, 1);
-    expect(count).toBe(1);
-    expect(posthog.captured[0].event).toBe("service_created");
-  });
-
-  it("should still reach PostHog when the warehouse is off", async () => {
-    // Given: analytics with PostHog as the only destination
-    const posthog = new FakePostHogClient();
-    const analytics = createAnalyticsService(repo, {
-      warehouse: false,
-      posthog,
-    });
-
-    // When: an event is tracked
-    analytics.track("service_created", {}, { accountId: accountId.toString() });
-    await tick();
-
-    // Then: PostHog got it and the warehouse stayed empty
-    expect(posthog.captured).toHaveLength(1);
-    expect(await repo.findByAccount(accountId)).toHaveLength(0);
-  });
-
-  it("should not log to the console when a real destination is configured", () => {
-    // Given: a dev instance that also ships events to PostHog
-    const logged: string[] = [];
-    const analytics = createAnalyticsService(repo, {
-      warehouse: false,
-      dev: true,
-      posthog: new FakePostHogClient(),
-      log: (msg) => logged.push(msg),
-    });
-
-    // When: an event is tracked
-    analytics.track("service_created");
-
-    // Then: the console sink stays out of the way — it is the fallback for
-    // having no destination at all, not an extra one.
-    expect(logged).toHaveLength(0);
   });
 });

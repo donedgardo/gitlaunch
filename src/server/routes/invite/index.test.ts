@@ -17,7 +17,6 @@ import { SessionService } from "../../../services/auth/sessionService";
 import { sessionAuthMiddleware } from "../../middleware/sessionAuth";
 import { registerHandlebarsHelpers } from "../../registerHandlebarsHelpers";
 import { registerInviteRoutes } from "./index";
-import { RecordingAnalytics } from "../../../services/analytics/fakes";
 
 describe("Invite Routes", () => {
   let mongoServer: MongoMemoryServer;
@@ -29,7 +28,6 @@ describe("Invite Routes", () => {
   let membershipRepo: MembershipRepository;
   let invitationRepo: InvitationRepository;
   let sessionService: SessionService;
-  let analytics: RecordingAnalytics;
 
   let invitedAccountId: ObjectId;
 
@@ -102,7 +100,6 @@ describe("Invite Routes", () => {
       options: { partials: { navigation: "/partials/navigation.hbs" } },
     });
     sessionAuthMiddleware(app, sessionService);
-    analytics = new RecordingAnalytics();
     registerInviteRoutes(app, {
       cookieSecure: false,
       publicUrl: "http://localhost:3050",
@@ -110,7 +107,6 @@ describe("Invite Routes", () => {
       membershipRepository: membershipRepo,
       accountRepository: accountRepo,
       sessionService,
-      analytics,
     });
     await app.ready();
   });
@@ -167,38 +163,6 @@ describe("Invite Routes", () => {
       invitedAccountId,
     );
     expect(membership?.role).toBe(MembershipRole.Member);
-  });
-
-  it("reports the accepted invite to analytics, in the joined workspace", async () => {
-    const invite = await makeInvite(MembershipRole.Member);
-    const { user, session } = await makeVisitor();
-
-    await app.inject({
-      method: "POST",
-      url: `/invite/${invite.token}/accept`,
-      cookies: { session },
-    });
-
-    // The event belongs to the workspace they joined, attributed to them —
-    // that pairing is what closes the invite→join funnel.
-    const event = analytics.tracked.find(
-      (e) => e.event === "invitation_accepted",
-    );
-    expect(event).toBeDefined();
-    expect(event?.context?.accountId).toBe(invitedAccountId.toString());
-    expect(event?.context?.distinctId).toBe(user._id.toString());
-  });
-
-  it("reports nothing to analytics when the link is no longer valid", async () => {
-    const { session } = await makeVisitor();
-
-    await app.inject({
-      method: "POST",
-      url: "/invite/nope-not-real/accept",
-      cookies: { session },
-    });
-
-    expect(analytics.tracked).toHaveLength(0);
   });
 
   it("shows an invalid page for an unknown or used link", async () => {

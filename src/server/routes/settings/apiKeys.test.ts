@@ -13,10 +13,8 @@ import { ApiKeyService } from "../../../services/apiKey/apiKeyService";
 import { SessionService } from "../../../services/auth/sessionService";
 import { sessionAuthMiddleware } from "../../middleware/sessionAuth";
 import { registerApiKeyRoutes } from "./apiKeys";
-import { RecordingAnalytics } from "../../../services/analytics/fakes";
 
 describe("API Key Routes", () => {
-  let analytics: RecordingAnalytics;
   let mongoServer: MongoMemoryServer;
   let client: MongoClient;
   let db: Db;
@@ -64,8 +62,7 @@ describe("API Key Routes", () => {
       },
     });
     sessionAuthMiddleware(app, sessionService);
-    analytics = new RecordingAnalytics();
-    registerApiKeyRoutes(app, { apiKeyService, analytics });
+    registerApiKeyRoutes(app, { apiKeyService });
     await app.ready();
   });
 
@@ -138,37 +135,6 @@ describe("API Key Routes", () => {
       expect(response.statusCode).toBe(200);
       expect(response.body).toContain("sk_test-org_");
       expect(response.body).toContain("Deploy Key");
-    });
-
-    it("should report the new key to analytics, attributed to the account", async () => {
-      // Given: an authenticated account
-      const account = await accountRepo.create({
-        name: "Test Org",
-        slug: "test-org",
-      });
-      const userId = new ObjectId();
-      const sessionToken = sessionService.createSession({
-        userId,
-        accountId: account._id,
-      });
-
-      // When: POST to create a new key
-      await app.inject({
-        method: "POST",
-        url: "/settings/api-keys",
-        cookies: { session: sessionToken },
-        payload: { name: "Deploy Key" },
-      });
-
-      // Then: the activation signal is emitted with tenant and actor, so it
-      // can be counted in a funnel — and never the key itself.
-      const event = analytics.tracked.find(
-        (e) => e.event === "api_key_created",
-      );
-      expect(event).toBeDefined();
-      expect(event?.context?.accountId).toBe(account._id.toString());
-      expect(event?.context?.distinctId).toBe(userId.toString());
-      expect(JSON.stringify(event?.properties)).not.toContain("sk_");
     });
 
     it("should redirect unauthenticated users", async () => {
