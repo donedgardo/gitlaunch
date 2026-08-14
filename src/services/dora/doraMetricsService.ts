@@ -23,6 +23,38 @@ export class DoraMetricsService {
     environment: string,
     window: MeasurementWindow,
   ): Promise<FourKeys> {
+    const events = await this.eventsFor(accountId, serviceId);
+    return computeFourKeys(events, environment, window);
+  }
+
+  /**
+   * The four keys for several environments, from a single read.
+   *
+   * A release board asks about every column at once. Answering it with one
+   * `forService` call per environment would re-read the whole build history
+   * per column; the measurement is identical either way, so the only thing
+   * that differs here is how often we hit the database.
+   */
+  async forEnvironments(
+    accountId: ObjectId,
+    serviceId: ObjectId,
+    environments: readonly string[],
+    window: MeasurementWindow,
+  ): Promise<Record<string, FourKeys>> {
+    const events = await this.eventsFor(accountId, serviceId);
+
+    const byEnvironment: Record<string, FourKeys> = {};
+    for (const environment of environments) {
+      byEnvironment[environment] = computeFourKeys(events, environment, window);
+    }
+    return byEnvironment;
+  }
+
+  /** Every deployment outcome this service has recorded, as a flat timeline. */
+  private async eventsFor(
+    accountId: ObjectId,
+    serviceId: ObjectId,
+  ): Promise<DeploymentEvent[]> {
     const builds = await this.buildRepo.findByAccountAndService(
       accountId,
       serviceId,
@@ -51,6 +83,6 @@ export class DoraMetricsService {
       }
     }
 
-    return computeFourKeys(events, environment, window);
+    return events;
   }
 }
