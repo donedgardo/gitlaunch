@@ -99,6 +99,41 @@ Everything else stays unmetered on open core. Expiry returns a customer to open 
 than blocking their install: capacity is granted by the FSL, which was never ours to
 withdraw, and no licensing disagreement should be able to break a running pipeline.
 
+## Portability: the enterprise code can be removed
+
+The manifest says which code is commercial. `src/services/limits/portability.test.ts`
+says the commercial code could actually be **removed** — it fails if any open-core
+file imports from a covered path.
+
+Without that, "enterprise" would be a label on files the free product still depends
+on, and the boundary would exist only on paper. With it, the dependency arrow points
+one way: enterprise may use core, core may never use enterprise.
+
+Where the open core needs an answer only the commercial code can give, it depends on
+a port instead:
+
+| Port                                          | Open-core implementation         | Commercial implementation |
+| --------------------------------------------- | -------------------------------- | ------------------------- |
+| `AccountLimits` (`services/limits/accountPolicy.ts`) | `OpenCoreLimits`            | `PlanEnforcementService`  |
+| `TrialPolicy` (same file)                     | `NO_TRIALS`                      | `TrialService`            |
+| `PendingInviteRedeemer` (`services/auth/pendingInvite.ts`) | unsupplied          | `acceptInvitation`        |
+| Account cap (a plain `number`)                | `maxAccounts` omitted            | `maxAccountsFor()`        |
+
+Two files are exempt, and only two: `src/index.ts` and `src/server/createAppServer.ts`.
+Something has to choose which implementation gets built and which routes get
+registered, and confining that to the wiring is the point — removing the enterprise
+code is an edit to one composition root, not a search through the tree.
+
+**To actually move the covered paths into `ee/`:** move them, update the imports in
+the two composition-root files, add `ee/` to `tsconfig.json`'s `include`, add a
+second Handlebars view root in `registerPlugins.ts` and a copy step to `postbuild`.
+No feature code changes, because none of it points at the enterprise paths.
+
+**To ship without the enterprise code at all:** delete the covered paths, then in
+`createAppServer.ts` swap `PlanEnforcementService`/`TrialService` for
+`openCorePolicy(...)`, drop `redeemPendingInvite`, and stop registering the
+enterprise routes. `openCorePolicy.test.ts` pins what the result behaves like.
+
 ## Deliberately not enterprise
 
 Recorded because each was considered and rejected, and re-litigating this later

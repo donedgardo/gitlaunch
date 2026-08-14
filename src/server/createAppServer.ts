@@ -70,6 +70,7 @@ import { registerJenkinsSettingsRoutes } from "./routes/settings/jenkins";
 import { registerGithubSettingsRoutes } from "./routes/settings/github";
 import { registerTeamRoutes } from "./routes/settings/team";
 import { registerInviteRoutes } from "./routes/invite";
+import { acceptInvitation } from "./routes/invite/acceptInvitation";
 import { InvitationRepository } from "../repositories/invitationRepository";
 import { AccountMembershipService } from "../services/account/accountMembershipService";
 import { TeamManagementService } from "../services/account/teamManagementService";
@@ -455,7 +456,19 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     userRepository,
     accountRepository,
     membershipRepository,
-    invitationRepository,
+    // The invitation feature is commercial, so the login flow gets a hook
+    // rather than the repository. An open-core build supplies nothing here.
+    redeemPendingInvite: async (token, userId) => {
+      const accepted = await acceptInvitation(
+        invitationRepository,
+        membershipRepository,
+        token,
+        userId,
+      );
+      return accepted.ok
+        ? { joined: true, accountId: accepted.accountId }
+        : { joined: false };
+    },
     signupGate,
     analytics,
     maxAccounts,

@@ -17,9 +17,14 @@ const REPO_ROOT = process.cwd();
 const MANIFEST = "ENTERPRISE-PATHS.md";
 
 // The composition root is allowed to know both sides — something has to choose
-// which implementation gets built. Removing the enterprise code means editing
-// this one file, which is the point: one edit, not a search through the tree.
-const COMPOSITION_ROOT = ["src/index.ts"];
+// which implementation gets built and which routes get registered. These are the
+// only files that may, and that is the whole point: removing the enterprise code
+// is an edit to the wiring, not a search through the tree.
+//
+// Be strict about what goes on this list. Every addition is a file that has to
+// be reworked by hand when the enterprise paths move, and a place where a
+// feature can quietly reach across the boundary and still pass this test.
+const COMPOSITION_ROOT = ["src/index.ts", "src/server/createAppServer.ts"];
 
 const IGNORED_DIRS = new Set(["node_modules", "dist", ".git"]);
 

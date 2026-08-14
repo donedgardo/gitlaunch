@@ -82,7 +82,8 @@ When you add code:
 
 - Building a seat/SSO/billing/licensing feature? Add its path to `ENTERPRISE-PATHS.md` under **Covered paths** and put `// GitLaunch Enterprise Feature — licensed under LICENSE-enterprise.md, not the FSL.` at the top of each file (`{{!-- … --}}` in `.hbs`).
 - Anything else defaults to FSL. Don't add paths to the manifest to be safe — a wrong claim of coverage is worse than none.
-- `src/services/licensing/licenseBoundary.test.ts` fails the build if the manifest and the tree disagree.
+- **Never import an enterprise path from open-core code.** If the core needs an answer only enterprise code can give, define a port in the core and inject the implementation (see `src/services/limits/accountPolicy.ts` for the pattern, and its open-core default in `openCorePolicy.ts`). Only `src/index.ts` and `src/server/createAppServer.ts` may know both sides.
+- `src/services/licensing/licenseBoundary.test.ts` fails the build if the manifest and the tree disagree; `src/services/limits/portability.test.ts` fails it if the core reaches into an enterprise path.
 
 ## Environment Variables
 

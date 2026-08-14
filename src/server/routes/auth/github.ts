@@ -5,8 +5,7 @@ import { SessionService } from "../../../services/auth/sessionService";
 import { UserRepository } from "../../../repositories/userRepository";
 import { AccountRepository } from "../../../repositories/accountRepository";
 import { MembershipRepository } from "../../../repositories/membershipRepository";
-import { InvitationRepository } from "../../../repositories/invitationRepository";
-import { acceptInvitation } from "../invite/acceptInvitation";
+import { PendingInviteRedeemer } from "../../../services/auth/pendingInvite";
 import { AnalyticsService } from "../../../services/analytics/analytics";
 import {
   SignupGate,
@@ -28,7 +27,8 @@ export type GitHubAuthRoutesConfig = {
   useFakeGitHub: boolean;
   // Optional: when present, a pending_invite cookie is redeemed right after
   // sign-in so a logged-out invitee joins the workspace they were invited to.
-  invitationRepository?: InvitationRepository;
+  // Supplied only by builds that have the invitation feature.
+  redeemPendingInvite?: PendingInviteRedeemer;
   // Optional: when present, creating a *new* account is gated by GitLaunch's
   // own feature flag (dogfooding). Absent => signups always open.
   signupGate?: SignupGate;
@@ -50,7 +50,7 @@ export function registerGitHubAuthRoutes(
     membershipRepository,
     cookieSecure,
     useFakeGitHub,
-    invitationRepository,
+    redeemPendingInvite,
     signupGate,
     analytics,
     maxAccounts,
@@ -120,7 +120,7 @@ export function registerGitHubAuthRoutes(
         // An invitee is vouched for by an existing customer, so they join their
         // workspace even while the public front door is shut.
         const hasPendingInvite = !!(
-          request.cookies?.pending_invite && invitationRepository
+          request.cookies?.pending_invite && redeemPendingInvite
         );
 
         // Dogfooding our own feature flags: a visitor with no membership is a
@@ -171,15 +171,13 @@ export function registerGitHubAuthRoutes(
         // invited workspace their active account.
         let joinedViaInvite = false;
         const pendingInviteToken = request.cookies?.pending_invite;
-        if (pendingInviteToken && invitationRepository) {
-          const accepted = await acceptInvitation(
-            invitationRepository,
-            membershipRepository,
+        if (pendingInviteToken && redeemPendingInvite) {
+          const accepted = await redeemPendingInvite(
             pendingInviteToken,
             user._id,
           );
           reply.clearCookie("pending_invite", { path: "/" });
-          if (accepted.ok) {
+          if (accepted.joined && accepted.accountId) {
             accountId = accepted.accountId;
             joinedViaInvite = true;
           }
