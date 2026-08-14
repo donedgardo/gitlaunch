@@ -1,5 +1,3 @@
-// GitLaunch Enterprise Feature — licensed under LICENSE-enterprise.md, not the FSL.
-
 import { AnalyticsService } from "../analytics/analytics";
 import { FlagServiceI } from "../flag/flagService";
 import { FlagAttributes } from "../flag/flagEvaluator";

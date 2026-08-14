@@ -22,10 +22,10 @@ reserved path may exist yet without being promoted.
 
 ```
 # Seats, teams and tenancy beyond a single account
-src/services/account/**
+src/services/account/teamManagementService.ts
+src/services/account/teamManagementService.test.ts
+src/services/account/tenantSecurity.test.ts
 src/services/invitation/**
-src/repositories/membershipRepository.ts
-src/repositories/membershipRepository.test.ts
 src/repositories/invitationRepository.ts
 src/repositories/invitationRepository.test.ts
 src/server/routes/invite/**
@@ -117,3 +117,15 @@ without the reasoning would be worse than the decision itself.
   with no insight into its own deploys is not a product anyone adopts.
 - **`src/server/middleware/apiKeyAuth.ts`, `sessionAuth.ts`.** Authenticating a
   single user is not a seat feature.
+- **Membership records and role lookup** (`src/repositories/membershipRepository.ts`,
+  `src/services/account/accountMembershipService.ts`). A single-seat install
+  still has one membership — the owner's — and `accountContext` reads its role on
+  every request. Reading a membership is not the paid capability; *adding* one
+  is, and that lives in `teamManagementService` and `invitationService`, which
+  are covered.
+- **`src/services/account/signupGate.ts`.** A feature-flag application, and the
+  flag engine is open core. It gates self-serve signups; the single-account cap
+  is enforced separately in `ensureAccountForUser`.
+- **`src/config/distribution.ts`.** Build identity — which build this is. The
+  open-core build has one too, and `loadConfig` reads it to pick defaults. The
+  issuer public key it carries is inert without the covered verification code.

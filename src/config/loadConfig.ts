@@ -11,7 +11,7 @@
 // of one restart per missing variable.
 //
 // Which distribution this is comes from the BUILD, never from the environment
-// (see services/licensing/distribution.ts). A customer controls their own
+// (see config/distribution.ts). A customer controls their own
 // environment, so anything they can set is something they can set to whatever
 // they like — and entitlement hangs off the distribution. This module only
 // *reads* that decision to pick sensible defaults for optional features.
@@ -20,7 +20,7 @@ import {
   BUILD,
   BuildIdentity,
   Distribution,
-} from "../services/licensing/distribution";
+} from "./distribution";
 
 export type Config = {
   distribution: Distribution;

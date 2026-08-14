@@ -2,7 +2,7 @@
 
 import { InstanceMode } from "./resolveEntitlement";
 import { verifyLicenseKey } from "./licenseKey";
-import { BUILD, BuildIdentity } from "./distribution";
+import { BUILD, BuildIdentity } from "../../config/distribution";
 
 export type LicensingEnv = {
   GITLAUNCH_LICENSE_KEY?: string;

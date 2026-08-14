@@ -60,7 +60,7 @@ yarn build
 docker build -t ghcr.io/donedgardo/gitlaunch:1.0.0 .
 ```
 
-`set-distribution.ts` rewrites `src/services/licensing/distribution.ts` before the
+`set-distribution.ts` rewrites `src/config/distribution.ts` before the
 TypeScript build, stamping in both the distribution and the trusted issuer key. It refuses
 to run if handed a private key or a non-Ed25519 key.
 

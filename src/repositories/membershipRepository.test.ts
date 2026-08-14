@@ -1,5 +1,3 @@
-// GitLaunch Enterprise Feature — licensed under LICENSE-enterprise.md, not the FSL.
-
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { MongoMemoryServer } from "mongodb-memory-server";
 import { MongoClient, Db, ObjectId } from "mongodb";

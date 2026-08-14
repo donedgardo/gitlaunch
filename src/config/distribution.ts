@@ -1,5 +1,3 @@
-// GitLaunch Enterprise Feature — licensed under LICENSE-enterprise.md, not the FSL.
-
 // Which build this is, and the key it trusts. Both are decided when the image
 // is built and are NOT readable from the environment.
 //
