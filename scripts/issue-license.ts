@@ -1,4 +1,6 @@
 #!/usr/bin/env tsx
+// GitLaunch Enterprise Feature — licensed under LICENSE-enterprise.md, not the FSL.
+
 /**
  * License issuer — our side of an enterprise sale. See
  * docs/ENTERPRISE-DELIVERY.md for where this sits in the process.

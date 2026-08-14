@@ -1,3 +1,5 @@
+// GitLaunch Enterprise Feature — licensed under LICENSE-enterprise.md, not the FSL.
+
 import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { StripeWebhookHandler } from "../../../services/billing/webhookHandler";
 import { WebhookEventRepository } from "../../../repositories/webhookEventRepository";

@@ -1,3 +1,5 @@
+// GitLaunch Enterprise Feature — licensed under LICENSE-enterprise.md, not the FSL.
+
 import { KeyLike, sign, verify } from "node:crypto";
 import { SelfHostedLicense } from "./resolveEntitlement";
 

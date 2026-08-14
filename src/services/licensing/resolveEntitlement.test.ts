@@ -1,3 +1,5 @@
+// GitLaunch Enterprise Feature — licensed under LICENSE-enterprise.md, not the FSL.
+
 import { describe, it, expect } from "vitest";
 import { resolveEntitlement, SelfHostedLicense } from "./resolveEntitlement";
 import { Plan, PRO_PLAN_LIMITS } from "../../repositories/accountRepository";

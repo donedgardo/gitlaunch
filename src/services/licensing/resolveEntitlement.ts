@@ -1,3 +1,5 @@
+// GitLaunch Enterprise Feature — licensed under LICENSE-enterprise.md, not the FSL.
+
 import { Plan, PlanLimits } from "../../repositories/accountRepository";
 
 // Entitlement answers one question: what may this account do *on this

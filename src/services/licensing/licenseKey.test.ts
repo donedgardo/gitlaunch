@@ -1,3 +1,5 @@
+// GitLaunch Enterprise Feature — licensed under LICENSE-enterprise.md, not the FSL.
+
 import { describe, it, expect } from "vitest";
 import { generateKeyPairSync, sign } from "node:crypto";
 import { signLicense, verifyLicenseKey } from "./licenseKey";

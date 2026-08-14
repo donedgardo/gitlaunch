@@ -1,3 +1,5 @@
+// GitLaunch Enterprise Feature — licensed under LICENSE-enterprise.md, not the FSL.
+
 import { Account, Plan } from "../../repositories/accountRepository";
 
 export type CheckoutSessionResult = {
