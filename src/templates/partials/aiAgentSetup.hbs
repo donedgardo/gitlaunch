@@ -1,0 +1,60 @@
+<!-- AI agent handoff. Vars: apiUrl, serviceId, apiKey (may be absent) -->
+<div class="bg-white dark:bg-gray-800 rounded-2xl border-2 border-blue-500 dark:border-blue-500 shadow-lg overflow-hidden mb-6">
+  <div class="p-6 sm:p-8">
+    <div style="display: flex; align-items: flex-start; gap: 12px;">
+      <svg style="width: 24px; height: 24px; min-width: 24px;" class="text-blue-600 dark:text-blue-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+      </svg>
+      <div style="flex: 1; min-width: 0;">
+        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;" class="mb-2">
+          <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Let an AI agent set this up</h2>
+          <span class="text-xs font-medium px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300">Recommended</span>
+        </div>
+        <p class="text-gray-600 dark:text-gray-400 mb-4 text-sm">
+          Works with Claude Code, Cursor, Codex and anything else that can read your repo.
+          It detects your project, writes or updates your pipelines, and opens a pull request
+          you review before anything merges.
+          {{#unless apiKey}}
+          <span class="block mt-2 text-amber-700 dark:text-amber-400">
+            Your API key is only shown once, when the service is created. Mint a new one in
+            <a href="/settings/api-keys" class="underline">Settings → API keys</a> and paste it into the prompt below.
+          </span>
+          {{/unless}}
+        </p>
+
+        <div class="relative">
+          <div class="bg-gray-900 dark:bg-gray-950 rounded-xl p-4 font-mono text-xs text-green-400 overflow-x-auto">
+<pre class="whitespace-pre-wrap"><code id="ai_agent_prompt">Set up GitLaunch CI/CD in this repository.
+
+Follow the skill at {{apiUrl}}/skills/gitlaunch-onboarding/SKILL.md
+(fetch it and its references/ files, then follow it exactly).
+
+GitLaunch host: {{apiUrl}}
+Service ID:     {{serviceId}}
+API key:        {{#if apiKey}}{{apiKey}}{{else}}&lt;paste your API key&gt;{{/if}}
+
+Detect my project type and whether I already have CI/CD. If I don't,
+generate pipelines with GitLaunch build reporting and deploy control
+built in. If I do, integrate GitLaunch into what's already there.
+Open a pull request — don't commit to my default branch.</code></pre>
+          </div>
+          <button onclick="copyText('ai_agent_prompt')"
+            class="absolute top-3 right-3 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition-colors">
+            Copy prompt
+          </button>
+        </div>
+
+        <p class="mt-3 text-xs text-gray-500 dark:text-gray-400">
+          This prompt contains your API key — paste it into your own coding agent, not into a shared chat.
+          This page advances on its own as soon as your first build reaches GitLaunch.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="flex items-center gap-3 mb-6">
+  <div class="flex-1 h-px bg-gray-200 dark:bg-gray-700"></div>
+  <span class="text-xs uppercase tracking-wide text-gray-400 dark:text-gray-500">or set it up by hand</span>
+  <div class="flex-1 h-px bg-gray-200 dark:bg-gray-700"></div>
+</div>

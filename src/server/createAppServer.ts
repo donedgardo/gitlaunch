@@ -4,6 +4,7 @@ import EventEmitter from "node:events";
 
 import { registerPlugins } from "./registerPlugins";
 import { registerErrorReporting } from "./registerErrorReporting";
+import { registerErrorSanitizer } from "./registerErrorSanitizer";
 import { resolveEnvironmentName } from "../services/config/environmentName";
 import { loadConfig, Config } from "../config/loadConfig";
 import healthRoute from "./health";
@@ -23,6 +24,8 @@ import { registerBuildsRoutes } from "./routes/api/builds";
 import { registerEnvironmentsRoutes } from "./routes/api/environments";
 import { registerDoraRoutes } from "./routes/api/dora";
 import { DoraMetricsService } from "../services/dora/doraMetricsService";
+import { registerSetupSnippetsRoutes } from "./routes/api/setupSnippets";
+import { registerDeploymentRoutes } from "./routes/api/deployment";
 import { registerFlagsRoutes } from "./routes/api/flags";
 import { registerFlagsSettingsRoutes } from "./routes/settings/flags";
 import { registerSessionMiddleware } from "./middleware/sessionAuth";
@@ -170,9 +173,20 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
 
   assertEncryptionKey();
 
-  const server = Fastify();
+  // Logging is load-bearing, not decoration: failures that used to describe
+  // themselves in the HTTP response are now deliberately generic, so the detail
+  // has to land somewhere. Off under test to keep output readable.
+  const server = Fastify({
+    logger:
+      process.env.NODE_ENV === "test"
+        ? false
+        : { level: process.env.LOG_LEVEL ?? "info" },
+  });
   registerPlugins(server, config.cookieSecret);
   registerErrorReporting(server, errorReporter);
+  // After error reporting: the onError hook above still sees the real error,
+  // this only decides what the caller is told.
+  registerErrorSanitizer(server);
 
   // Repositories
   const userRepository = new UserRepository(database);
@@ -570,6 +584,24 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
       registerDoraRoutes(apiServer, {
         doraMetricsService,
         serviceRepo: serviceRepository,
+      });
+
+      // Canonical CI/CD snippets, so an onboarding agent generates the same
+      // workflows the dashboard shows.
+      registerSetupSnippetsRoutes(apiServer, {
+        serviceRepository,
+        apiUrl: config.publicUrl,
+      });
+
+      // Lets an onboarding agent bind the deploy provider itself, so only the
+      // GitHub App install still needs a browser.
+      registerDeploymentRoutes(apiServer, {
+        serviceRepository,
+        repositoryRepository,
+        accountRepository,
+        planEnforcementService,
+        gitHubAppService,
+        analytics,
       });
 
       // Register feature flags API routes (CRUD + evaluation)

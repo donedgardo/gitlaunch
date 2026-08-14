@@ -15,6 +15,7 @@ class FakeHttpClient implements IHttpClient {
     crumb: "crumb-abc",
   };
   public buildStatus = 201;
+  public buildBody: string | null = null;
 
   async fetch(url: string, options?: RequestInit): Promise<Response> {
     this.requests.push({ url, options: options ?? {} });
@@ -24,7 +25,7 @@ class FakeHttpClient implements IHttpClient {
         { status: this.crumbStatus },
       );
     }
-    return new Response(null, { status: this.buildStatus });
+    return new Response(this.buildBody, { status: this.buildStatus });
   }
 
   post() {
@@ -118,7 +119,29 @@ describe("JenkinsDispatchService", () => {
     http.buildStatus = 500;
 
     await expect(service.dispatch(validInput)).rejects.toThrow(
-      /Failed to dispatch Jenkins build: 500/,
+      /Failed to dispatch Jenkins build.*500/,
+    );
+  });
+
+  it("should keep the Jenkins response body out of the error message", async () => {
+    // Given a Jenkins server that answers with page content. The base URL is
+    // supplied by the customer, so its response must not be echoed back.
+    http.buildStatus = 500;
+    http.buildBody = "<html>internal-stack-trace</html>";
+
+    // When the dispatch fails
+    const error: Error = await service
+      .dispatch(validInput)
+      .then(() => {
+        throw new Error("expected dispatch to reject");
+      })
+      .catch((e: Error) => e);
+
+    // Then the status is reported but the body is not
+    expect(error.message).toContain("500");
+    expect(error.message).not.toContain("internal-stack-trace");
+    expect((error as { responseBody?: string }).responseBody).toContain(
+      "internal-stack-trace",
     );
   });
 });

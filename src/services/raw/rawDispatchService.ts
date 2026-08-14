@@ -1,4 +1,5 @@
 import { IHttpClient, HttpClient } from "../github/githubAppClient";
+import { UpstreamDispatchError } from "../dispatch/upstreamDispatchError";
 
 export type RawDispatchInput = {
   endpointUrl: string;
@@ -24,9 +25,11 @@ export class RawDispatchService {
     });
 
     if (!response.ok) {
-      const errorBody = await response.text();
-      throw new Error(
-        `Failed to dispatch raw deploy: ${response.status} - ${errorBody}`,
+      const errorBody = await response.text().catch(() => "");
+      throw new UpstreamDispatchError(
+        "Failed to dispatch raw deploy",
+        response.status,
+        errorBody,
       );
     }
   }
