@@ -33,6 +33,10 @@ RUN yarn install --frozen-lockfile --production && \
 # Copy built files from builder stage
 COPY --from=builder /app/dist ./dist
 
+# Agent Skills are served as static files from the repo root (see
+# registerPlugins). They are not compiled, so they ship as-is.
+COPY skills ./skills
+
 # Set ownership to non-root user
 RUN chown -R nodejs:nodejs /app
 
