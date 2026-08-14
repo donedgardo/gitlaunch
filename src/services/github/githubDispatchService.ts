@@ -1,5 +1,6 @@
 import { InstallationTokenService } from "./installationTokenService";
 import { IHttpClient, HttpClient } from "./githubAppClient";
+import { UpstreamDispatchError } from "../dispatch/upstreamDispatchError";
 
 export type DispatchInput = {
   installationId: number;
@@ -43,9 +44,11 @@ export class MultiTenantGithubDispatchService {
     );
 
     if (!response.ok) {
-      const errorBody = await response.text();
-      throw new Error(
-        `Failed to dispatch workflow: ${response.status} - ${errorBody}`,
+      const errorBody = await response.text().catch(() => "");
+      throw new UpstreamDispatchError(
+        "Failed to dispatch workflow",
+        response.status,
+        errorBody,
       );
     }
   }
