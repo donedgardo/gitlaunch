@@ -86,16 +86,16 @@ against capabilities and not only paths.
 Recorded because each was considered and rejected, and re-litigating this later
 without the reasoning would be worse than the decision itself.
 
-- **`src/services/apiKey/**`and API key auth.** Every`/api/v1/\*`route sits
-behind`apiKeyAuth`, and that is how the GitHub Action reports builds. Making
-  API keys enterprise would mean a free instance could not receive a build from
-  CI, which is the core product loop. Keys are the CI integration seam, not a
-  seat feature.
-- **`src/services/flag/**` and the feature-flag engine.\*\* Flags are the thing
-  people come for; putting them behind a subscription removes the reason to run
-  the open-core build at all. They stay FSL, and the Competing Use clause
-  already stops someone reselling them as a service.
-- **`src/services/analytics/**`.\*\* Same argument — an install with no insight
-  into its own deploys is not a product anyone adopts.
+- **API keys** (`src/services/apiKey/`). Every `/api/v1/` route sits behind
+  `apiKeyAuth`, and that is how the GitHub Action reports builds. Making API
+  keys enterprise would mean a free instance could not receive a build from CI,
+  which is the core product loop. Keys are the CI integration seam, not a seat
+  feature.
+- **The feature-flag engine** (`src/services/flag/`). Flags are the thing people
+  come for; putting them behind a subscription removes the reason to run the
+  open-core build at all. They stay FSL, and the Competing Use clause already
+  stops someone reselling them as a service.
+- **Product analytics** (`src/services/analytics/`). Same argument — an install
+  with no insight into its own deploys is not a product anyone adopts.
 - **`src/server/middleware/apiKeyAuth.ts`, `sessionAuth.ts`.** Authenticating a
   single user is not a seat feature.

@@ -2,18 +2,17 @@
 
 import { describe, expect, it } from "vitest";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { join, relative, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join, relative } from "node:path";
 
 // The open-core boundary is a licensing claim, and a licensing claim that
 // quietly stops matching the code is worse than none at all: it is what someone
 // points at in a dispute. So the manifest is checked against the tree rather
 // than trusted.
 
-const REPO_ROOT = resolve(
-  fileURLToPath(new URL(".", import.meta.url)),
-  "../../..",
-);
+// Vitest runs with the working directory at the project root. Deriving the root
+// from this file instead would need `import.meta`, which the CommonJS build
+// rejects — and this file is compiled by `yarn build` like any other.
+const REPO_ROOT = process.cwd();
 
 const MANIFEST = "ENTERPRISE-PATHS.md";
 

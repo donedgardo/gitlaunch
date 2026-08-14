@@ -74,6 +74,16 @@ GitLaunch is a multi-tenant SaaS deployment tool: Fastify, HTMX, Handlebars, Mon
 
 `github-action` is a git submodule; run `git submodule update --init` in a fresh clone or worktree or the reporter contract test fails.
 
+### Licensing boundary
+
+This repo is open core. Everything is FSL-1.1-ALv2 (`LICENSE.md`) **except** the paths listed in `ENTERPRISE-PATHS.md`, which are commercial (`LICENSE-enterprise.md`). The line is one account and one seat: multi-seat, SSO, billing and license issuance are sold; deployment tracking, flags, analytics and the API are not.
+
+When you add code:
+
+- Building a seat/SSO/billing/licensing feature? Add its path to `ENTERPRISE-PATHS.md` under **Covered paths** and put `// GitLaunch Enterprise Feature — licensed under LICENSE-enterprise.md, not the FSL.` at the top of each file (`{{!-- … --}}` in `.hbs`).
+- Anything else defaults to FSL. Don't add paths to the manifest to be safe — a wrong claim of coverage is worse than none.
+- `src/services/licensing/licenseBoundary.test.ts` fails the build if the manifest and the tree disagree.
+
 ## Environment Variables
 
 Copy `sample.env` to `.env` — it documents every variable. Required to boot:

@@ -98,23 +98,33 @@ yarn analytics    # internal product/marketing report against $MONGODB_URI
 
 ## License
 
-The server — everything in this repository except the directories listed below —
-is licensed under the [Functional Source License, Version 1.1, ALv2 Future
-License](LICENSE.md) (`FSL-1.1-ALv2`).
+GitLaunch is open core. The line is **one account and one seat**.
 
-In short: you may read, modify, and run it for any purpose except a Competing
-Use — a commercial product or service that substitutes for GitLaunch. Running
-your own instance internally is explicitly permitted, which is what a
-self-hosted licensee buys. Each version converts to Apache 2.0 two years after
-we make it available.
+| Path                                                                             | License                                       |
+| -------------------------------------------------------------------------------- | --------------------------------------------- |
+| Everything not listed below                                                      | [FSL-1.1-ALv2](LICENSE.md)                    |
+| The paths in [ENTERPRISE-PATHS.md](ENTERPRISE-PATHS.md)                          | [GitLaunch Enterprise](LICENSE-enterprise.md) |
+| `sdk/` (`@gitlaunch/flags`)                                                      | MIT                                           |
+| `github-action/` ([separate repo](https://github.com/donedgardo/build-reporter)) | MIT                                           |
 
-The client-side pieces are MIT, because nothing else would be usable:
+**The open core** is under the [Functional Source License, Version 1.1, ALv2
+Future License](LICENSE.md). You may read, modify, and run it for any purpose
+except a Competing Use — a commercial product or service that substitutes for
+GitLaunch. Running your own instance internally is explicitly permitted. Each
+version converts to Apache 2.0 two years after we make it available.
 
-| Path                                                                             | License |
-| -------------------------------------------------------------------------------- | ------- |
-| `sdk/` (`@gitlaunch/flags`)                                                      | MIT     |
-| `github-action/` ([separate repo](https://github.com/donedgardo/build-reporter)) | MIT     |
+Deployment tracking, promote and rollback, live status, providers, feature flags
+and the API are all open core. A single-tenant install is a complete product.
+
+**The Enterprise Features** are under a separate
+[commercial license](LICENSE-enterprise.md): more than one account, more than
+one seat (invitations, memberships, roles), single sign-on, subscription billing
+and plan limits, and license key issuance. Without a subscription you may still
+run them with one account and one seat, and use them freely for development,
+evaluation, education and research. [ENTERPRISE-PATHS.md](ENTERPRISE-PATHS.md)
+lists exactly which files those are, and why some things were deliberately left
+in the core.
 
 A self-hosted license key governs entitlement on a customer instance and is
-separate from this license — see
+separate from both licenses — see
 [ENTERPRISE-DELIVERY.md](docs/ENTERPRISE-DELIVERY.md).
