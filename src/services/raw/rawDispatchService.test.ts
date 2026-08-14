@@ -5,10 +5,11 @@ import { RawDispatchService } from "./rawDispatchService";
 class FakeHttpClient implements IHttpClient {
   public requests: { url: string; options: RequestInit }[] = [];
   public status = 200;
+  public body: string | null = null;
 
   async fetch(url: string, options?: RequestInit): Promise<Response> {
     this.requests.push({ url, options: options ?? {} });
-    return new Response(null, { status: this.status });
+    return new Response(this.body, { status: this.status });
   }
 }
 
@@ -52,5 +53,34 @@ describe("RawDispatchService", () => {
         environment: "staging",
       }),
     ).rejects.toThrow(/Failed to dispatch raw deploy/);
+  });
+
+  it("should keep the endpoint's response body out of the error message", async () => {
+    // Given an endpoint that answers with sensitive content. The endpoint URL
+    // is chosen by the customer, so it can be pointed at anything GitLaunch's
+    // network can reach — its response must never be echoed back to them.
+    http.status = 403;
+    http.body = '{"Token":"internal-credential"}';
+
+    // When the dispatch fails
+    const error: Error = await service
+      .dispatch({
+        endpointUrl: "http://169.254.169.254/latest/meta-data/",
+        buildId: "sha-123",
+        environment: "staging",
+      })
+      .then(() => {
+        throw new Error("expected dispatch to reject");
+      })
+      .catch((e: Error) => e);
+
+    // Then the message carries the status but not the body
+    expect(error.message).toContain("403");
+    expect(error.message).not.toContain("internal-credential");
+
+    // And the body is still available for server-side logging
+    expect((error as { responseBody?: string }).responseBody).toContain(
+      "internal-credential",
+    );
   });
 });

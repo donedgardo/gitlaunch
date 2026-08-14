@@ -463,7 +463,10 @@ export default function (deps: DashboardRoutesDeps) {
             { err: error, serviceId, buildId, env },
             "Failed to dispatch deployment",
           );
-          return reply.status(500).send({ error: message });
+          // Generic on purpose — see the note in routes/api/builds.ts.
+          return reply
+            .status(500)
+            .send({ error: "Failed to trigger deployment" });
         }
       },
     );
