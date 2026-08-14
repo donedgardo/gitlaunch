@@ -29,6 +29,18 @@ export type CreateBuildInput = {
   message?: string;
 };
 
+/**
+ * Newest build first, with `_id` breaking ties.
+ *
+ * `createdAt` alone is not a total order: a CI run reporting a burst of builds
+ * lands several in the same millisecond, and the storage engine is then free to
+ * return them in any order — differently per query. With skip/limit that
+ * silently drops builds off the end of one page without putting them on the
+ * next. ObjectIds are monotonic, so `_id` descending resolves a tie as
+ * insertion order reversed, which is what "newest first" means here.
+ */
+const NEWEST_FIRST = { createdAt: -1, _id: -1 } as const;
+
 export type PaginatedResult = {
   builds: Build[];
   total: number;
@@ -48,11 +60,13 @@ export class BuildRepository {
       { accountId: 1, serviceId: 1, buildId: 1 },
       { unique: true },
     );
-    // Index for listing builds sorted by date
+    // Index for listing builds sorted by date. Carries the `_id` tiebreak too,
+    // so NEWEST_FIRST is served by the index instead of an in-memory sort.
     await this.collection.createIndex({
       accountId: 1,
       serviceId: 1,
       createdAt: -1,
+      _id: -1,
     });
   }
 
@@ -122,7 +136,7 @@ export class BuildRepository {
   ): Promise<Build[]> {
     return this.collection
       .find({ accountId, serviceId })
-      .sort({ createdAt: -1 })
+      .sort(NEWEST_FIRST)
       .toArray();
   }
 
@@ -246,7 +260,7 @@ export class BuildRepository {
     const [builds, total] = await Promise.all([
       this.collection
         .find({ accountId, serviceId })
-        .sort({ createdAt: -1 })
+        .sort(NEWEST_FIRST)
         .skip(skip)
         .limit(sanitizedLimit)
         .toArray(),
