@@ -38,6 +38,7 @@
         {{#if (eq error "unverified")}}Please confirm your email first. Check your inbox for the confirmation link.{{/if}}
         {{#if (eq error "invalid_token")}}That confirmation link is invalid. Try logging in or request a new link.{{/if}}
         {{#if (eq error "expired_token")}}That confirmation link has expired. Log in to request a new one.{{/if}}
+        {{#if (eq error "single_tenant")}}This GitLaunch instance is licensed for a single account. Ask its owner to invite you.{{/if}}
       </div>
     {{/if}}
     {{#if notice}}

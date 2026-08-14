@@ -74,12 +74,30 @@ unrunnable. Those files stay FSL. The capability inside them is still an
 Enterprise Feature under clause 2 of LICENSE-enterprise.md, which is written
 against capabilities and not only paths.
 
-| File                                      | FSL part                                   | Enterprise capability inside it    |
-| ----------------------------------------- | ------------------------------------------ | ---------------------------------- |
-| `src/repositories/accountRepository.ts`   | The account record itself                  | `Plan`, `PlanLimits`, seat caps    |
-| `src/server/middleware/accountContext.ts` | Resolving the one account a request is for | Selecting between several accounts |
-| `src/repositories/userRepository.ts`      | The user record                            | Future IdP identity fields         |
-| `src/server/createAppServer.ts`           | Wiring every route                         | Registering the enterprise routes  |
+| File                                      | FSL part                                     | Enterprise capability inside it    |
+| ----------------------------------------- | -------------------------------------------- | ---------------------------------- |
+| `src/repositories/accountRepository.ts`   | The account record itself                    | `Plan`, `PlanLimits`, seat caps    |
+| `src/server/middleware/accountContext.ts` | Resolving the one account a request is for   | Selecting between several accounts |
+| `src/repositories/userRepository.ts`      | The user record                              | Future IdP identity fields         |
+| `src/server/createAppServer.ts`           | Wiring every route                           | Registering the enterprise routes  |
+| `src/services/auth/accountBootstrap.ts`   | Bootstrapping the one account on first login | The cap that keeps it to one       |
+| `src/server/routes/auth/*.ts`             | Signing a single user in                     | Passing and honouring that cap     |
+
+## How the boundary is enforced at runtime
+
+The license is contractual, but the two things it meters are also enforced in code, so
+nobody drifts past the line without being told:
+
+- **One account.** `maxAccountsFor()` in `src/services/licensing/resolveEntitlement.ts`
+  returns 1 for an unlicensed or lapsed self-hosted instance. `createAppServer` resolves it
+  at boot and passes it to the login routes; `ensureAccountForUser` refuses to bootstrap a
+  second account and the person is told to ask for an invite.
+- **One seat.** `OPEN_CORE_LIMITS.maxUsers` is 1, and the existing
+  `PlanEnforcementService.canAddUser` already meters memberships against it.
+
+Everything else stays unmetered on open core. Expiry returns a customer to open core rather
+than blocking their install: capacity is granted by the FSL, which was never ours to
+withdraw, and no licensing disagreement should be able to break a running pipeline.
 
 ## Deliberately not enterprise
 
