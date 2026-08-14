@@ -4,6 +4,11 @@ import { BuildRepository, Build } from "../../repositories/buildRepository";
 import { ServiceRepository } from "../../repositories/serviceRepository";
 import { DeploymentStatus } from "../service/deploymentStatus";
 import { BuildDispatchServiceI } from "./buildDispatchService";
+import {
+  DeploymentIntent,
+  deriveIntent,
+  intentInFlight,
+} from "../dispatch/deploymentIntent";
 
 export type BuildUpdateEvent = {
   buildId: string;
@@ -104,6 +109,13 @@ export class BuildService {
       throw new Error("Invalid deployment status");
     }
 
+    // Decide why this build is going out before anything changes. Only a
+    // dispatch that starts here can be classified — the alternative is
+    // inferring rollbacks from git after the fact, which is the guesswork
+    // that makes change failure rate and time to restore untrustworthy
+    // everywhere else.
+    const intent = await this.resolveIntent(input);
+
     // Trigger dispatch if status is DISPATCHING
     if (input.status === DeploymentStatus.DISPATCHING) {
       await this.dispatcher.dispatch(
@@ -121,6 +133,7 @@ export class BuildService {
       input.buildId,
       input.environment,
       input.status,
+      intent,
     );
 
     if (!build) {
@@ -170,5 +183,43 @@ export class BuildService {
     this.eventEmitter.emit("build:update", events);
 
     return build;
+  }
+
+  /**
+   * Classify a deployment as a promote or a rollback.
+   *
+   * Decided fresh when the build is dispatched (compare it against whatever
+   * is live in that environment); inherited from that dispatch for every
+   * status that follows, so the entry marking service restored carries it
+   * too.
+   */
+  private async resolveIntent(
+    input: UpdateDeploymentStatusInput,
+  ): Promise<DeploymentIntent | undefined> {
+    const build = await this.buildRepo.findByBuildId(
+      input.accountId,
+      input.serviceId,
+      input.buildId,
+    );
+    if (!build) {
+      return undefined;
+    }
+
+    if (input.status !== DeploymentStatus.DISPATCHING) {
+      return intentInFlight(build.deploymentLogs, input.environment);
+    }
+
+    const current = await this.buildRepo.findLastDeployed(
+      input.accountId,
+      input.serviceId,
+      input.environment,
+    );
+
+    return deriveIntent({
+      target: { buildId: build.buildId, createdAt: build.createdAt },
+      current: current
+        ? { buildId: current.buildId, createdAt: current.createdAt }
+        : null,
+    });
   }
 }

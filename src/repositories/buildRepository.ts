@@ -1,6 +1,7 @@
 import { Db, ObjectId, Collection } from "mongodb";
 import { DeploymentStatus } from "../services/service/deploymentStatus";
 import { DeploymentLogRecord } from "../services/service/deploymentLogsRecord";
+import { DeploymentIntent } from "../services/dispatch/deploymentIntent";
 
 export type Build = {
   _id: ObjectId;
@@ -92,6 +93,29 @@ export class BuildRepository {
     return this.collection.findOne({ accountId, serviceId, buildId });
   }
 
+  /**
+   * The build that most recently went live in an environment.
+   *
+   * Ordered by when it was deployed rather than by current status, so a
+   * failed deploy sitting in ERROR does not make the environment look empty —
+   * what is live is still whatever landed last. Builds that predate the
+   * `deployedAt` stamp are invisible here and read as an empty environment.
+   */
+  async findLastDeployed(
+    accountId: ObjectId,
+    serviceId: ObjectId,
+    environment: string,
+  ): Promise<Build | null> {
+    return this.collection.findOne(
+      {
+        accountId,
+        serviceId,
+        [`deployedAt.${environment}`]: { $exists: true },
+      },
+      { sort: { [`deployedAt.${environment}`]: -1 } },
+    );
+  }
+
   async findByAccountAndService(
     accountId: ObjectId,
     serviceId: ObjectId,
@@ -108,9 +132,15 @@ export class BuildRepository {
     buildId: string,
     environment: string,
     status: DeploymentStatus,
+    intent?: DeploymentIntent,
   ): Promise<Build | null> {
-    const log: DeploymentLogRecord = { environment, status };
     const now = new Date();
+    const log: DeploymentLogRecord = {
+      environment,
+      status,
+      at: now,
+      ...(intent ? { intent } : {}),
+    };
 
     const result = await this.collection.findOneAndUpdate(
       { accountId, serviceId, buildId },
@@ -159,9 +189,11 @@ export class BuildRepository {
       return [];
     }
 
+    const supersededAt = new Date();
     const log: DeploymentLogRecord = {
       environment,
       status: DeploymentStatus.NONE,
+      at: supersededAt,
     };
 
     await this.collection.updateMany(
@@ -174,7 +206,7 @@ export class BuildRepository {
       {
         $set: {
           [`deployments.${environment}`]: DeploymentStatus.NONE,
-          updatedAt: new Date(),
+          updatedAt: supersededAt,
         },
         $push: { deploymentLogs: log },
       },
