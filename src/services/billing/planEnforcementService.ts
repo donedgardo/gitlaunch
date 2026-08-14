@@ -3,7 +3,6 @@
 import { ObjectId } from "mongodb";
 import {
   AccountRepository,
-  Plan,
   Account,
 } from "../../repositories/accountRepository";
 import { RepositoryRepository } from "../../repositories/repositoryRepository";
@@ -14,6 +13,12 @@ import {
   InstanceMode,
   resolveEntitlement,
 } from "../licensing/resolveEntitlement";
+import {
+  AccountLimits,
+  AccountState,
+  LimitCheckResult,
+  UsageInfo,
+} from "../limits/accountPolicy";
 
 export class PlanLimitError extends Error {
   constructor(
@@ -25,41 +30,12 @@ export class PlanLimitError extends Error {
   }
 }
 
-export type LimitCheckResult = {
-  allowed: boolean;
-  reason?: string;
-  upgradeRequired?: boolean;
-};
-
-export type UsageInfo = {
-  repositories: {
-    current: number;
-    limit: number;
-  };
-  services: {
-    current: number;
-    limit: number;
-  };
-  users: {
-    current: number;
-    limit: number;
-  };
-  privateReposAllowed: boolean;
-  plan: Plan;
-};
-
-export type AccountState = {
-  plan: Plan;
-  isReadOnly: boolean;
-  usage: UsageInfo;
-  trialDaysRemaining: number;
-  gracePeriodDaysRemaining: number;
-  paymentFailed: boolean;
-};
-
 export const GRACE_PERIOD_DAYS = 7;
 
-export class PlanEnforcementService {
+// The commercial answer to the open core's limit questions: plan tiers on
+// gitlaunch.com, a license on a self-hosted install. Implements the port so the
+// dashboard and the API routes never learn which of those is behind it.
+export class PlanEnforcementService implements AccountLimits {
   constructor(
     private accountRepo: AccountRepository,
     private repoRepo: RepositoryRepository,

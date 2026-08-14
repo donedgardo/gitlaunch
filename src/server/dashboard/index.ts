@@ -1,3 +1,4 @@
+import { AccountLimits, TrialPolicy } from "../../services/limits/accountPolicy";
 import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { ObjectId } from "mongodb";
 import { ServiceRepository } from "../../repositories/serviceRepository";
@@ -6,8 +7,6 @@ import { RepositoryRepository } from "../../repositories/repositoryRepository";
 import { AccountRepository } from "../../repositories/accountRepository";
 import { BuildService } from "../../services/build/buildService";
 import { DeploymentStatus } from "../../services/service/deploymentStatus";
-import { TrialService } from "../../services/billing/trialService";
-import { PlanEnforcementService } from "../../services/billing/planEnforcementService";
 import { AnalyticsService } from "../../services/analytics/analytics";
 import { FlagServiceI } from "../../services/flag/flagService";
 import {
@@ -25,8 +24,8 @@ export type DashboardRoutesDeps = {
   repositoryRepository: RepositoryRepository;
   accountRepository: AccountRepository;
   buildService: BuildService;
-  trialService: TrialService;
-  planEnforcementService: PlanEnforcementService;
+  trialService: TrialPolicy;
+  planEnforcementService: AccountLimits;
   analytics?: AnalyticsService;
   // Optional: when absent the board renders exactly as before, without flag
   // state. Flags enrich the board; they are never required to read it.

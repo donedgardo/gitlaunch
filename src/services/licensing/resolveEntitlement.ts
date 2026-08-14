@@ -1,6 +1,7 @@
 // GitLaunch Enterprise Feature — licensed under LICENSE-enterprise.md, not the FSL.
 
 import { Plan, PlanLimits } from "../../repositories/accountRepository";
+import { OPEN_CORE_LIMITS } from "../limits/accountPolicy";
 
 // Entitlement answers one question: what may this account do *on this
 // instance*? On gitlaunch.com the answer comes from the plan the customer pays
@@ -39,11 +40,11 @@ const UNMETERED: PlanLimits = {
   publicReposOnly: false,
 };
 
-// Open core, the FSL product: one account, one seat, everything else unmetered.
-// We sell seats and tenancy, not capacity — a single-seat install is a complete
-// product, so throttling its repositories or services would only punish someone
-// using it exactly as licensed.
-export const OPEN_CORE_LIMITS: PlanLimits = { ...UNMETERED, maxUsers: 1 };
+// Open core's limits are defined in the open core itself — see
+// services/limits/accountPolicy.ts. The licensing code reads them so that both
+// sides agree on what "unlicensed" means, and so removing this file does not
+// take the definition of the free product with it.
+export { OPEN_CORE_LIMITS };
 
 // Whether this instance is running the free open-core product rather than
 // something we sold. True for a self-hosted install with no license, and for

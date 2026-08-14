@@ -1,3 +1,4 @@
+import { AccountLimits } from "../../../services/limits/accountPolicy";
 import { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { ObjectId } from "mongodb";
 import { AccountRepository } from "../../../repositories/accountRepository";
@@ -5,7 +6,6 @@ import { RepositoryRepository } from "../../../repositories/repositoryRepository
 import { ServiceRepository } from "../../../repositories/serviceRepository";
 import { ApiKeyService } from "../../../services/apiKey/apiKeyService";
 import { GitHubAppService } from "../../../services/github/githubAppService";
-import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
 import { AnalyticsService } from "../../../services/analytics/analytics";
 import { oneTimeSecretCookieOptions } from "../../cookies";
 
@@ -16,7 +16,7 @@ export type ServiceRoutesDeps = {
   serviceRepository: ServiceRepository;
   apiKeyService: ApiKeyService;
   githubAppService?: GitHubAppService;
-  planEnforcementService: PlanEnforcementService;
+  planEnforcementService: AccountLimits;
   analytics?: AnalyticsService;
 };
 

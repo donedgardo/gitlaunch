@@ -1,8 +1,8 @@
+import { AccountLimits } from "../../../services/limits/accountPolicy";
 import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { ObjectId } from "mongodb";
 import { BuildService } from "../../../services/build/buildService";
 import { ServiceRepository } from "../../../repositories/serviceRepository";
-import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
 import { requireScope } from "../../middleware/apiKeyAuth";
 import { DeploymentStatus } from "../../../services/service/deploymentStatus";
 import { AnalyticsService } from "../../../services/analytics/analytics";
@@ -11,7 +11,7 @@ import { actor, machineActor } from "../../../services/analytics/actorIdentity";
 export type BuildsRoutesDependencies = {
   buildService: BuildService;
   serviceRepo: ServiceRepository;
-  planEnforcementService: PlanEnforcementService;
+  planEnforcementService: AccountLimits;
   analytics?: AnalyticsService;
 };
 
