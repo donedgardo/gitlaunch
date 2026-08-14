@@ -230,7 +230,14 @@ export function registerOnboardingRoutes(
         accountId: account._id,
         createdByUserId: new ObjectId(request.session.userId),
         name: `${name} API Key`,
-        scopes: ["builds:read", "builds:write", "deployments:write"],
+        // services:read lets an onboarding agent read the service's
+        // environments and fetch the canonical setup snippets.
+        scopes: [
+          "builds:read",
+          "builds:write",
+          "deployments:write",
+          "services:read",
+        ],
       });
       // Signed cookie so the reporting guide can show the key once.
       reply.setCookie(

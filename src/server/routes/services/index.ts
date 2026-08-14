@@ -134,7 +134,14 @@ export function registerServiceRoutes(
           accountId: account._id,
           createdByUserId: new ObjectId(request.session.userId),
           name: `${name.trim()} API Key`,
-          scopes: ["builds:read", "builds:write", "deployments:write"],
+          // services:read lets an onboarding agent read the service's
+          // environments and fetch the canonical setup snippets.
+          scopes: [
+            "builds:read",
+            "builds:write",
+            "deployments:write",
+            "services:read",
+          ],
         });
 
         // Store API key in a signed, short-lived cookie for dashboard to display
