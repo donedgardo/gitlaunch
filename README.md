@@ -11,9 +11,9 @@ the CI you already run.
 - **Deployment tracking** — build history per service, with the current state of every environment
 - **One-click promote and rollback** — trigger a deploy from the dashboard or the API
 - **Live status** — the dashboard updates over Server-Sent Events, no refresh
-- **Multi-tenant** — accounts, roles, per-account API keys, plan limits
 - **Feature flags and experiments** — per service and environment, with a ship/no-ship verdict
 - **Providers** — GitHub Actions (via a GitHub App) and Jenkins
+- **Teams** — accounts, roles, invitations, plan limits ([enterprise](#license))
 
 Stack: Fastify · HTMX · Handlebars · MongoDB · TypeScript · Tailwind CSS
 
@@ -22,7 +22,8 @@ Stack: Fastify · HTMX · Handlebars · MongoDB · TypeScript · Tailwind CSS
 [![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/gitlaunch)
 
 The button provisions GitLaunch and a MongoDB instance together. Running your
-own instance is explicitly permitted under the [license](#license). Publishing
+own instance is explicitly permitted under the [license](#license) — free for
+one account and one seat, a subscription beyond that. Publishing
 the Railway template the button points at is a one-time manual step — see
 [docs/railway-template.md](docs/railway-template.md).
 
