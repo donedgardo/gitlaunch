@@ -1670,6 +1670,11 @@ describe("Dashboard Routes", () => {
           { name: "prod", order: 1 },
         ],
       });
+      // Otherwise the board shows the "finish deploy setup" screen instead of
+      // the build rows.
+      await serviceRepo.updateWorkflowConfiguration(service._id, {
+        workflowFile: "deploy.yml",
+      });
 
       const sessionToken = sessionService.createSession({
         userId: new ObjectId(),
