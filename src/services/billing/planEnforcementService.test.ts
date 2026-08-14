@@ -1255,20 +1255,42 @@ describe("PlanEnforcementService", () => {
       expect(result.allowed).toBe(false);
     });
 
-    it("should block new resources on an unlicensed instance", async () => {
-      // Given someone running the image with no license
+    it("should let an unlicensed instance add services freely", async () => {
+      // Given someone running open core with no license
       const account = await freeAccount();
 
-      // When they try to add a service
+      // When they add a service
       const result = await selfHosted({
         kind: "self-hosted",
         license: null,
       }).canAddService(account._id);
 
-      // Then growth is blocked, and not with a "buy a plan" message — there is
-      // no plan to buy on a self-hosted install
+      // Then nothing stops them — open core sells seats, not capacity, and a
+      // single-seat install has to be a complete product
+      expect(result.allowed).toBe(true);
+    });
+
+    it("should hold an unlicensed instance to a single seat", async () => {
+      // Given open core, whose one seat is taken by the owner
+      const account = await freeAccount();
+      await membershipRepo.create({
+        accountId: account._id,
+        userId: new ObjectId(),
+        role: MembershipRole.Owner,
+      });
+
+      // When a second person is invited
+      const result = await selfHosted({
+        kind: "self-hosted",
+        license: null,
+      }).canAddUser(account._id);
+
+      // Then the seat cap bites, and not with a "buy a plan" message — there is
+      // no Stripe checkout on a self-hosted install
       expect(result.allowed).toBe(false);
-      expect(result.reason).toBe("This GitLaunch instance is not licensed");
+      expect(result.reason).toBe(
+        "Seat limit reached (1/1). Additional seats require a GitLaunch license.",
+      );
       expect(result.upgradeRequired).toBe(false);
     });
 

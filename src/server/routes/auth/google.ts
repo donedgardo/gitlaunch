@@ -6,7 +6,10 @@ import { UserRepository } from "../../../repositories/userRepository";
 import { AccountRepository } from "../../../repositories/accountRepository";
 import { MembershipRepository } from "../../../repositories/membershipRepository";
 import { AnalyticsService } from "../../../services/analytics/analytics";
-import { ensureAccountForUser } from "../../../services/auth/accountBootstrap";
+import {
+  AccountLimitReachedError,
+  ensureAccountForUser,
+} from "../../../services/auth/accountBootstrap";
 import {
   SignupGate,
   googleSignupEntityKey,
@@ -26,6 +29,9 @@ export type GoogleAuthRoutesConfig = {
   // email/password). Absent => signups always open.
   signupGate?: SignupGate;
   analytics?: AnalyticsService;
+  // How many accounts this instance may hold. 1 on an unlicensed self-hosted
+  // install; absent (uncapped) on the hosted product and licensed installs.
+  maxAccounts?: number;
 };
 
 export function registerGoogleAuthRoutes(
@@ -42,6 +48,7 @@ export function registerGoogleAuthRoutes(
     membershipRepository,
     signupGate,
     analytics,
+    maxAccounts,
   } = config;
 
   // GET /auth/google - Redirect to Google OAuth
@@ -135,6 +142,7 @@ export function registerGoogleAuthRoutes(
           slugSeed: seed,
           accountRepository,
           membershipRepository,
+          maxAccounts,
         });
 
         const sessionToken = sessionService.createSession({
@@ -163,6 +171,9 @@ export function registerGoogleAuthRoutes(
 
         return reply.redirect("/dashboard");
       } catch (error) {
+        if (error instanceof AccountLimitReachedError) {
+          return reply.redirect("/login?error=single_tenant");
+        }
         console.error("Google OAuth error:", error);
         return reply.redirect("/?error=auth_failed");
       }

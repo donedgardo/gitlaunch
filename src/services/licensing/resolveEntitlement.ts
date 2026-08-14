@@ -24,9 +24,9 @@ export type Entitlement = {
   // Whether Stripe governs this account. False self-hosted, which is what keeps
   // trial countdowns and payment-failure read-only off a customer's own install.
   billingEnforced: boolean;
-  // Set when the instance may not create new resources — an unlicensed or
-  // lapsed install. Existing resources are deliberately untouched.
-  blockedReason: string | null;
+  // Something the operator should know about their license — today, only that it
+  // lapsed. Informational: it never blocks anything on its own.
+  licenseNotice: string | null;
 };
 
 // A self-hosted customer bought the software; per-resource SaaS tiers are not
@@ -39,6 +39,28 @@ const UNMETERED: PlanLimits = {
   publicReposOnly: false,
 };
 
+// Open core, the FSL product: one account, one seat, everything else unmetered.
+// We sell seats and tenancy, not capacity — a single-seat install is a complete
+// product, so throttling its repositories or services would only punish someone
+// using it exactly as licensed.
+export const OPEN_CORE_LIMITS: PlanLimits = { ...UNMETERED, maxUsers: 1 };
+
+// Whether this instance is running the free open-core product rather than
+// something we sold. True for a self-hosted install with no license, and for
+// one whose license has lapsed — expiry returns a customer to open core, it
+// does not strip them of the FSL grant, which was never ours to withdraw.
+export function isOpenCore(mode: InstanceMode, now: Date): boolean {
+  if (mode.kind === "saas") return false;
+  return !mode.license || hasExpired(mode.license, now);
+}
+
+// How many accounts this *instance* may hold. Instance-wide rather than
+// per-account, so it does not belong in PlanLimits, which is persisted on each
+// account record.
+export function maxAccountsFor(mode: InstanceMode, now: Date): number {
+  return isOpenCore(mode, now) ? 1 : Number.MAX_SAFE_INTEGER;
+}
+
 export function resolveEntitlement(
   mode: InstanceMode,
   account: { plan: Plan; planLimits: PlanLimits },
@@ -48,38 +70,46 @@ export function resolveEntitlement(
     return {
       limits: account.planLimits,
       billingEnforced: true,
-      blockedReason: null,
+      licenseNotice: null,
     };
   }
 
-  // Self-hosted from here down. Limits stay unmetered in every branch,
-  // including unlicensed and lapsed: revoking capacity would take a customer's
-  // production install read-only, and a licensing disagreement must never be
-  // able to break a running deployment pipeline. Enforcement is on *growth*
-  // only, via blockedReason.
-  const limits: PlanLimits = {
-    ...UNMETERED,
-    maxUsers: mode.license?.maxUsers ?? UNMETERED.maxUsers,
-  };
+  // Self-hosted from here down. Capacity stays unmetered in every branch —
+  // revoking it would take a customer's production install read-only, and a
+  // licensing disagreement must never be able to break a running deployment
+  // pipeline. What a license buys is seats and tenancy, so that is all that
+  // moves between open core and a sold install.
+  if (isOpenCore(mode, now)) {
+    return {
+      limits: OPEN_CORE_LIMITS,
+      billingEnforced: false,
+      licenseNotice: lapseNotice(mode.license, now),
+    };
+  }
 
   return {
-    limits,
+    limits: {
+      ...UNMETERED,
+      maxUsers: mode.license?.maxUsers ?? UNMETERED.maxUsers,
+    },
     billingEnforced: false,
-    blockedReason: licenseBlock(mode.license, now),
+    licenseNotice: null,
   };
 }
 
-function licenseBlock(
+// Expiry is exclusive — a license is honoured through its final instant.
+function hasExpired(license: SelfHostedLicense, now: Date): boolean {
+  return !!license.expiresAt && license.expiresAt.getTime() < now.getTime();
+}
+
+// Only a customer whose license lapsed gets told anything. Running unlicensed
+// is a supported configuration, and nagging someone using open core as intended
+// would be nagging them for doing nothing wrong.
+function lapseNotice(
   license: SelfHostedLicense | null,
   now: Date,
 ): string | null {
-  if (!license) {
-    return "This GitLaunch instance is not licensed";
-  }
-  // Expiry is exclusive — a license is honoured through its final instant.
-  if (license.expiresAt && license.expiresAt.getTime() < now.getTime()) {
-    const on = license.expiresAt.toISOString().slice(0, 10);
-    return `GitLaunch license for ${license.licensedTo} expired on ${on}`;
-  }
-  return null;
+  if (!license || !hasExpired(license, now)) return null;
+  const on = license.expiresAt!.toISOString().slice(0, 10);
+  return `GitLaunch license for ${license.licensedTo} expired on ${on} — running as open core`;
 }

@@ -78,7 +78,10 @@ import { GithubConnectionService } from "../services/github/githubConnectionServ
 import { assertEncryptionKey } from "../services/crypto/secretBox";
 import { registerSetupRoutes } from "./routes/dashboard/setup";
 import { DbClientI } from "./health/dbClientI";
-import { InstanceMode } from "../services/licensing/resolveEntitlement";
+import {
+  InstanceMode,
+  maxAccountsFor,
+} from "../services/licensing/resolveEntitlement";
 import { resolveInstanceMode } from "../services/licensing/instanceMode";
 import {
   AnalyticsService,
@@ -165,6 +168,11 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
       `GitLaunch license was not honoured: ${licensing.licenseError}`,
     );
   }
+
+  // Open core is single-tenant, so an unlicensed install may bootstrap exactly
+  // one account. Resolved once at boot: a license cannot appear or lapse
+  // without a restart, and re-deriving it per login would only invite drift.
+  const maxAccounts = maxAccountsFor(instanceMode, new Date());
 
   assertEncryptionKey();
 
@@ -450,6 +458,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     invitationRepository,
     signupGate,
     analytics,
+    maxAccounts,
   });
 
   // Google OAuth routes (only when a Google client is configured)
@@ -464,6 +473,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
       membershipRepository,
       signupGate,
       analytics,
+      maxAccounts,
     });
   }
 
@@ -480,6 +490,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     googleEnabled: !!googleOAuthService,
     signupGate,
     analytics,
+    maxAccounts,
   });
 
   // GitHub App installation routes

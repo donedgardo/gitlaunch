@@ -8,7 +8,10 @@ import { MembershipRepository } from "../../../repositories/membershipRepository
 import { PasswordService } from "../../../services/auth/passwordService";
 import { EmailSender } from "../../../services/email/emailSender";
 import { AnalyticsService } from "../../../services/analytics/analytics";
-import { ensureAccountForUser } from "../../../services/auth/accountBootstrap";
+import {
+  AccountLimitReachedError,
+  ensureAccountForUser,
+} from "../../../services/auth/accountBootstrap";
 import {
   SignupGate,
   emailSignupEntityKey,
@@ -30,6 +33,9 @@ export type EmailPasswordAuthRoutesConfig = {
   // Google). Absent => signups always open.
   signupGate?: SignupGate;
   analytics?: AnalyticsService;
+  // How many accounts this instance may hold. 1 on an unlicensed self-hosted
+  // install; absent (uncapped) on the hosted product and licensed installs.
+  maxAccounts?: number;
 };
 
 const LAYOUT = { layout: "/layouts/main.hbs" };
@@ -61,7 +67,27 @@ export function registerEmailPasswordAuthRoutes(
     googleEnabled = false,
     signupGate,
     analytics,
+    maxAccounts,
   } = config;
+
+  // Both entry points below bootstrap an account the same way, and both can be
+  // refused on a single-tenant instance. Returns null on refusal so the caller
+  // shows an explanation rather than a 500.
+  async function bootstrapAccount(userId: ObjectId, seed: string) {
+    try {
+      return await ensureAccountForUser({
+        userId,
+        accountName: `${seed}'s Account`,
+        slugSeed: seed,
+        accountRepository,
+        membershipRepository,
+        maxAccounts,
+      });
+    } catch (error) {
+      if (error instanceof AccountLimitReachedError) return null;
+      throw error;
+    }
+  }
 
   async function sendVerificationEmail(
     userId: ObjectId,
@@ -190,13 +216,11 @@ export function registerEmailPasswordAuthRoutes(
       await userRepository.markEmailVerified(user._id);
 
       const seed = user.email ? user.email.split("@")[0] : "user";
-      const { accountId, isNewUser } = await ensureAccountForUser({
-        userId: user._id,
-        accountName: `${seed}'s Account`,
-        slugSeed: seed,
-        accountRepository,
-        membershipRepository,
-      });
+      const bootstrap = await bootstrapAccount(user._id, seed);
+      if (!bootstrap) {
+        return reply.redirect("/login?error=single_tenant");
+      }
+      const { accountId, isNewUser } = bootstrap;
 
       const sessionToken = sessionService.createSession({
         userId: user._id,
@@ -244,13 +268,11 @@ export function registerEmailPasswordAuthRoutes(
       }
 
       const seed = user.email ? user.email.split("@")[0] : "user";
-      const { accountId } = await ensureAccountForUser({
-        userId: user._id,
-        accountName: `${seed}'s Account`,
-        slugSeed: seed,
-        accountRepository,
-        membershipRepository,
-      });
+      const bootstrap = await bootstrapAccount(user._id, seed);
+      if (!bootstrap) {
+        return reply.redirect("/login?error=single_tenant");
+      }
+      const { accountId } = bootstrap;
 
       const sessionToken = sessionService.createSession({
         userId: user._id,

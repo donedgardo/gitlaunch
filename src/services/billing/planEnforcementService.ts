@@ -25,13 +25,6 @@ export class PlanLimitError extends Error {
   }
 }
 
-// A licensing block is not an upsell: on a self-hosted install there is no
-// plan to buy, so upgradeRequired stays false and the UI shows the operator a
-// licensing message rather than a Stripe CTA.
-function licenseBlocked(reason: string): LimitCheckResult {
-  return { allowed: false, reason, upgradeRequired: false };
-}
-
 export type LimitCheckResult = {
   allowed: boolean;
   reason?: string;
@@ -90,9 +83,6 @@ export class PlanEnforcementService {
     }
 
     const entitlement = this.entitlementFor(account);
-    if (entitlement.blockedReason) {
-      return licenseBlocked(entitlement.blockedReason);
-    }
 
     const repos = await this.repoRepo.findByAccountId(accountId);
     const currentCount = repos.length;
@@ -118,9 +108,6 @@ export class PlanEnforcementService {
     }
 
     const entitlement = this.entitlementFor(account);
-    if (entitlement.blockedReason) {
-      return licenseBlocked(entitlement.blockedReason);
-    }
 
     if (entitlement.limits.publicReposOnly) {
       return {
@@ -141,20 +128,26 @@ export class PlanEnforcementService {
     }
 
     const entitlement = this.entitlementFor(account);
-    if (entitlement.blockedReason) {
-      return licenseBlocked(entitlement.blockedReason);
-    }
 
     const memberships = await this.membershipRepo.findByAccountId(accountId);
     const currentCount = memberships.length;
     const limit = entitlement.limits.maxUsers;
 
     if (currentCount >= limit) {
-      return {
-        allowed: false,
-        reason: `User limit reached (${currentCount}/${limit}). Upgrade to add more team members.`,
-        upgradeRequired: true,
-      };
+      // A seat limit on a self-hosted install is not an upsell: there is no
+      // Stripe plan to buy, so point the operator at their license instead of
+      // showing them a checkout CTA that goes nowhere.
+      return entitlement.billingEnforced
+        ? {
+            allowed: false,
+            reason: `User limit reached (${currentCount}/${limit}). Upgrade to add more team members.`,
+            upgradeRequired: true,
+          }
+        : {
+            allowed: false,
+            reason: `Seat limit reached (${currentCount}/${limit}). Additional seats require a GitLaunch license.`,
+            upgradeRequired: false,
+          };
     }
 
     return { allowed: true };
@@ -167,9 +160,6 @@ export class PlanEnforcementService {
     }
 
     const entitlement = this.entitlementFor(account);
-    if (entitlement.blockedReason) {
-      return licenseBlocked(entitlement.blockedReason);
-    }
 
     const services = await this.serviceRepo.findByAccountId(accountId);
     const currentCount = services.length;
@@ -201,9 +191,6 @@ export class PlanEnforcementService {
     }
 
     const entitlement = this.entitlementFor(account);
-    if (entitlement.blockedReason) {
-      return licenseBlocked(entitlement.blockedReason);
-    }
 
     const currentCount = service.environments.length;
     const limit = entitlement.limits.maxEnvironments;

@@ -12,7 +12,10 @@ import {
   SignupGate,
   signupEntityKey,
 } from "../../../services/account/signupGate";
-import { ensureAccountForUser } from "../../../services/auth/accountBootstrap";
+import {
+  AccountLimitReachedError,
+  ensureAccountForUser,
+} from "../../../services/auth/accountBootstrap";
 import { sessionCookieOptions, oauthStateCookieOptions } from "../../cookies";
 
 export type GitHubAuthRoutesConfig = {
@@ -30,6 +33,9 @@ export type GitHubAuthRoutesConfig = {
   // own feature flag (dogfooding). Absent => signups always open.
   signupGate?: SignupGate;
   analytics?: AnalyticsService;
+  // How many accounts this instance may hold. 1 on an unlicensed self-hosted
+  // install; absent (uncapped) on the hosted product and licensed installs.
+  maxAccounts?: number;
 };
 
 export function registerGitHubAuthRoutes(
@@ -47,6 +53,7 @@ export function registerGitHubAuthRoutes(
     invitationRepository,
     signupGate,
     analytics,
+    maxAccounts,
   } = config;
 
   // GET /auth/github - Redirect to GitHub OAuth
@@ -155,6 +162,7 @@ export function registerGitHubAuthRoutes(
           slugSeed: githubUser.login,
           accountRepository,
           membershipRepository,
+          maxAccounts,
         });
         let accountId = bootstrap.accountId;
         const isNewUser = bootstrap.isNewUser;
@@ -225,6 +233,9 @@ export function registerGitHubAuthRoutes(
 
         return reply.redirect("/dashboard");
       } catch (error) {
+        if (error instanceof AccountLimitReachedError) {
+          return reply.redirect("/login?error=single_tenant");
+        }
         console.error("GitHub OAuth error:", error);
         return reply.redirect("/?error=auth_failed");
       }
