@@ -202,7 +202,52 @@ exist on the **default branch**. Until this PR is merged, GitLaunch cannot
 dispatch the deploy — the button will fail. Build reporting, by contrast, starts
 working as soon as CI runs on the branch. Put this in the PR body.
 
-## Step 6 — Open the PR
+## Step 6 — Bind the deploy provider
+
+GitLaunch needs to know _what to trigger_ when someone clicks deploy. You can
+set this yourself:
+
+```bash
+curl --fail-with-body -sS -X POST \
+  "<host>/api/v1/services/<serviceId>/deployment" \
+  -H "Authorization: Bearer <apiKey>" \
+  -H "Content-Type: application/json" \
+  -d '{"provider":"github","repository":"<owner>/<repo>","workflowFile":"deploy.yml"}'
+```
+
+`repository` is the `owner/repo` you already know from the checkout —
+`gh repo view --json nameWithOwner -q .nameWithOwner`, or parse
+`git remote get-url origin`. GitLaunch registers the repository for the account
+if it is not registered already, so there is no separate repo-selection step.
+
+Other providers:
+
+```jsonc
+{ "provider": "jenkins", "jobName": "deploy-api" }
+{ "provider": "raw",     "endpointUrl": "https://deploy.example.com/hook" }
+```
+
+Responses worth handling:
+
+- **`409` with `installRequired: true`** — the account has no GitLaunch GitHub
+  App installation. This is the one step that genuinely cannot be done from
+  here: installing a GitHub App is a consent screen on github.com with no API
+  equivalent. Tell the user to install it at `<host>/settings`, then re-run this
+  one command. Do not treat it as a failure of the integration — everything else
+  you wrote is still correct.
+- **`409` on Jenkins** — no Jenkins server is connected; point the user at
+  `<host>/settings/jenkins`.
+- **`404`** — the App is installed but cannot see this repository. The user must
+  grant it access to the repo in their GitHub App settings.
+- **`403` with `upgradeRequired: true`** — the account hit a plan limit (repo
+  count, or a private repo on a public-only plan). Report it plainly; do not
+  retry.
+
+If the user only wants build reporting for now, skip this step. A service with
+builds and no deploy binding is a valid state — GitLaunch shows the builds and
+the deploy button simply is not wired yet.
+
+## Step 7 — Open the PR
 
 ```bash
 git checkout -b gitlaunch-integration
@@ -220,7 +265,7 @@ changed, whether the deploy step is real or a placeholder, that the secret and
 variable must be set (or that you set them), and the default-branch caveat from
 Step 5.
 
-## Step 7 — Verify
+## Step 8 — Verify
 
 Onboarding step 2 in the GitLaunch UI advances by itself the moment the first
 build lands, so the honest verification is a real CI run.

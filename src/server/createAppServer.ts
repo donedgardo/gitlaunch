@@ -22,6 +22,7 @@ import { registerSettingsRoutes } from "./routes/services/settings";
 import { registerBuildsRoutes } from "./routes/api/builds";
 import { registerEnvironmentsRoutes } from "./routes/api/environments";
 import { registerSetupSnippetsRoutes } from "./routes/api/setupSnippets";
+import { registerDeploymentRoutes } from "./routes/api/deployment";
 import { registerFlagsRoutes } from "./routes/api/flags";
 import { registerFlagsSettingsRoutes } from "./routes/settings/flags";
 import { registerSessionMiddleware } from "./middleware/sessionAuth";
@@ -566,6 +567,17 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
       registerSetupSnippetsRoutes(apiServer, {
         serviceRepository,
         apiUrl: config.publicUrl,
+      });
+
+      // Lets an onboarding agent bind the deploy provider itself, so only the
+      // GitHub App install still needs a browser.
+      registerDeploymentRoutes(apiServer, {
+        serviceRepository,
+        repositoryRepository,
+        accountRepository,
+        planEnforcementService,
+        gitHubAppService,
+        analytics,
       });
 
       // Register feature flags API routes (CRUD + evaluation)

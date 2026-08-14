@@ -20,6 +20,25 @@ key instead.
 account than the service. Both look identical from outside; have the user
 re-copy both values from the same onboarding page.
 
+## Binding the deploy provider
+
+**`409` with `installRequired: true`** — the account has no GitLaunch GitHub App
+installation. There is no API to install a GitHub App on someone's behalf; it is
+a consent screen on github.com. Send the user to `<host>/settings` to install it,
+then re-run the one `POST .../deployment` call. Nothing else needs redoing.
+
+**`404 … is not accessible by the GitLaunch GitHub App installation`** — the App
+is installed but was not granted this repository. The user picks repositories
+when installing; they can add one later under GitHub → Settings → Applications →
+GitLaunch → Configure.
+
+**`400 workflowFile must be a bare .yml filename`** — pass `deploy.yml`, not a
+path. GitLaunch stores the filename and GitHub resolves it inside
+`.github/workflows/`.
+
+**`403` with `upgradeRequired: true`** — a plan limit, not a wiring problem.
+Free allows 3 repositories and public repos only.
+
 ## Builds not appearing
 
 Work down this list:

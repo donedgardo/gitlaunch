@@ -11,9 +11,16 @@ _control_ is the part that differs, because GitLaunch has to trigger something.
 | `jenkins` | `buildWithParameters` on a job         | job name                       |
 | `raw`     | HTTP POST to a URL you own             | endpoint URL                   |
 
-The provider is bound in the GitLaunch web UI (onboarding step 3, or the
-service's settings page) — **not** from this skill and not over the API. Your job
-is to make the repo ready and tell the user which option to pick.
+You bind the provider yourself with `POST /api/v1/services/:serviceId/deployment`
+(see Step 6 of the skill). What each provider needs from the _account_ differs,
+and that part may still need the user:
+
+- `github` — a GitLaunch GitHub App installation. Browser-only, once per account.
+- `jenkins` — a Jenkins connection in settings (server URL, user, API token).
+- `raw` — nothing; the endpoint URL is the whole configuration.
+
+So `raw` is the only provider an agent can set up end to end with no browser trip
+at all, and `github` needs one the first time an account ever uses it.
 
 ## Jenkins
 

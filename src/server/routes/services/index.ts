@@ -135,12 +135,15 @@ export function registerServiceRoutes(
           createdByUserId: new ObjectId(request.session.userId),
           name: `${name.trim()} API Key`,
           // services:read lets an onboarding agent read the service's
-          // environments and fetch the canonical setup snippets.
+          // environments and fetch the canonical setup snippets;
+          // services:write lets it bind the deploy provider itself, instead of
+          // sending the user back to the browser for it.
           scopes: [
             "builds:read",
             "builds:write",
             "deployments:write",
             "services:read",
+            "services:write",
           ],
         });
 
