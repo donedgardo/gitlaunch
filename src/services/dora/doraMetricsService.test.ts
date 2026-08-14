@@ -203,4 +203,108 @@ describe("DoraMetricsService", () => {
     expect(keys.sample.failures).toBe(0);
     expect(keys.changeFailureRate).toBe(0);
   });
+
+  describe("forEnvironments", () => {
+    it("should report each environment's numbers separately", async () => {
+      // Given: a build that reached staging quickly and prod a day later
+      await givenBuild("v1", "2026-08-02T11:00:00Z", [
+        {
+          environment: "staging",
+          status: DeploymentStatus.DEPLOYED,
+          at: "2026-08-02T12:00:00Z",
+          intent: "promote",
+        },
+        {
+          environment: "prod",
+          status: DeploymentStatus.DEPLOYED,
+          at: "2026-08-03T11:00:00Z",
+          intent: "promote",
+        },
+      ]);
+
+      // When: we ask about both environments at once
+      const keys = await service.forEnvironments(
+        accountId,
+        serviceId,
+        ["staging", "prod"],
+        window,
+      );
+
+      // Then: each environment answers for itself
+      expect(keys.staging.medianLeadTimeMs).toBe(1 * HOUR);
+      expect(keys.staging.sample.deployments).toBe(1);
+      expect(keys.prod.medianLeadTimeMs).toBe(24 * HOUR);
+      expect(keys.prod.sample.deployments).toBe(1);
+    });
+
+    it("should report an environment that has never deployed", async () => {
+      // Given: delivery to staging only
+      await givenBuild("v1", "2026-08-02T11:00:00Z", [
+        {
+          environment: "staging",
+          status: DeploymentStatus.DEPLOYED,
+          at: "2026-08-02T12:00:00Z",
+          intent: "promote",
+        },
+      ]);
+
+      // When: we ask about an environment nothing has reached
+      const keys = await service.forEnvironments(
+        accountId,
+        serviceId,
+        ["staging", "prod"],
+        window,
+      );
+
+      // Then: it is present and empty, not missing — a column with no
+      // deploys still has to render
+      expect(keys.prod.sample.deployments).toBe(0);
+      expect(keys.prod.medianLeadTimeMs).toBeNull();
+    });
+
+    it("should agree with asking for one environment at a time", async () => {
+      // Given: a mixed history in prod
+      await givenBuild("v1", "2026-08-02T11:00:00Z", [
+        {
+          environment: "prod",
+          status: DeploymentStatus.DEPLOYED,
+          at: "2026-08-02T12:00:00Z",
+          intent: "promote",
+        },
+      ]);
+      await givenBuild("v2", "2026-08-04T09:00:00Z", [
+        {
+          environment: "prod",
+          status: DeploymentStatus.ERROR,
+          at: "2026-08-04T12:00:00Z",
+          intent: "promote",
+        },
+      ]);
+      await givenBuild("v3", "2026-08-06T10:00:00Z", [
+        {
+          environment: "prod",
+          status: DeploymentStatus.DEPLOYED,
+          at: "2026-08-06T12:00:00Z",
+          intent: "promote",
+        },
+      ]);
+
+      // When: we ask both ways
+      const batched = await service.forEnvironments(
+        accountId,
+        serviceId,
+        ["prod"],
+        window,
+      );
+      const single = await service.forService(
+        accountId,
+        serviceId,
+        "prod",
+        window,
+      );
+
+      // Then: the batch is a shortcut, not a different measurement
+      expect(batched.prod).toEqual(single);
+    });
+  });
 });
