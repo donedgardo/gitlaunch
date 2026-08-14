@@ -21,6 +21,8 @@ import { registerServiceRoutes } from "./routes/services";
 import { registerSettingsRoutes } from "./routes/services/settings";
 import { registerBuildsRoutes } from "./routes/api/builds";
 import { registerEnvironmentsRoutes } from "./routes/api/environments";
+import { registerDoraRoutes } from "./routes/api/dora";
+import { DoraMetricsService } from "../services/dora/doraMetricsService";
 import { registerFlagsRoutes } from "./routes/api/flags";
 import { registerFlagsSettingsRoutes } from "./routes/settings/flags";
 import { registerSessionMiddleware } from "./middleware/sessionAuth";
@@ -238,6 +240,9 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     buildDispatchService,
   );
   const environmentService = new EnvironmentService(serviceRepository);
+  // The four keys, measured from the deployment event log the build
+  // repository already writes. Read-only over stored builds.
+  const doraMetricsService = new DoraMetricsService(buildRepository);
   const flagService = new FlagService(
     flagRepository,
     serviceRepository,
@@ -424,6 +429,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
       planEnforcementService,
       analytics,
       flagService,
+      doraMetricsService,
     }),
   );
   server.register(
@@ -558,6 +564,12 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
       registerEnvironmentsRoutes(apiServer, {
         environmentService,
         planEnforcementService,
+      });
+
+      // Register DORA metrics API routes (the four keys, per environment)
+      registerDoraRoutes(apiServer, {
+        doraMetricsService,
+        serviceRepo: serviceRepository,
       });
 
       // Register feature flags API routes (CRUD + evaluation)
