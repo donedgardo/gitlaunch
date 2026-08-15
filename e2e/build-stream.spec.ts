@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { authenticateTestUser, TEST_USERS } from "./helpers/auth";
+import { createService } from "./helpers/service";
 
 /**
  * Build Streaming E2E Tests
@@ -16,23 +17,7 @@ test.describe("Build Streaming", () => {
     await authenticateTestUser(page, TEST_USERS.userForBuildStream);
 
     const serviceName = `stream-test-${Date.now()}`;
-    await page.goto("/services/new");
-    await page.locator("#name").fill(serviceName);
-    await page.getByRole("button", { name: /create service/i }).click();
-
-    // Should be on the dashboard
-    await expect(page).toHaveURL(/\/dashboard/);
-
-    // Extract API key from the dashboard banner
-    const apiKey = (await page.locator("#new-api-key").textContent())?.trim();
-    expect(apiKey).toMatch(/^sk_/);
-
-    // Get service ID from settings link
-    const settingsLink = page.locator(`a[href*="/settings"][title="Settings"]`);
-    await expect(settingsLink).toBeVisible();
-    const settingsHref = (await settingsLink.getAttribute("href"))!;
-    const serviceId = settingsHref.split("/services/")[1].split("/settings")[0];
-    expect(serviceId).toBeTruthy();
+    const { serviceId, apiKey } = await createService(page, serviceName);
 
     // Configure a raw deploy target so builds are dispatchable (Deploy buttons)
     // — a report-only service starts with no CD provider.

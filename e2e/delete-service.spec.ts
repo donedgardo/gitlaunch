@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { authenticateTestUser, TEST_USERS } from "./helpers/auth";
+import { createService } from "./helpers/service";
 
 /**
  * Delete Service E2E Tests
@@ -11,18 +12,9 @@ test.describe("Delete Service", () => {
     await authenticateTestUser(page, TEST_USERS.userForDeleteService);
 
     const serviceName = `delete-test-${Date.now()}`;
-    await page.goto("/services/new");
-    await page.locator("#name").fill(serviceName);
-    await page.getByRole("button", { name: /create service/i }).click();
+    const { serviceId } = await createService(page, serviceName);
 
-    // Should be on the dashboard
-    await expect(page).toHaveURL(/\/dashboard/);
-
-    // Navigate to settings via the settings gear icon
-    const settingsLink = page.locator(`a[href*="/settings"][title="Settings"]`);
-    await expect(settingsLink).toBeVisible();
-    const settingsHref = await settingsLink.getAttribute("href");
-    await page.goto(settingsHref!);
+    await page.goto(`/services/${serviceId}/settings`);
 
     await expect(page.getByText("Danger Zone")).toBeVisible();
 

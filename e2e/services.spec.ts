@@ -1,132 +1,103 @@
 import { test, expect } from "@playwright/test";
 import { authenticateTestUser, TEST_USERS } from "./helpers/auth";
+import { createService } from "./helpers/service";
 
 test.describe("Service Creation", () => {
-  test("create service form asks only for a name (report-only)", async ({
+  test("adding a service always enters the onboarding flow", async ({
     page,
   }) => {
     await authenticateTestUser(page, TEST_USERS.userWithRepos);
 
+    // The dashboard's "new service" link is the old URL; it must land on the
+    // same first step a brand-new account sees.
     await page.goto("/services/new");
+    await expect(page).toHaveURL(/\/onboarding\/service/);
 
-    // Should see the create service form
     await expect(
-      page.getByRole("heading", { name: /create.*service/i }),
+      page.getByRole("heading", { name: /create a service/i }),
     ).toBeVisible();
 
-    // Name is required; there's an optional repo URL — no deploy-provider
-    // picker (CD is chosen later in deploy setup).
+    // Name only — no deploy-provider picker, no repo selection. CD is set up
+    // after the first build is reported.
     await expect(page.locator("#name")).toBeVisible();
-    await expect(page.locator("#repoUrl")).toBeVisible();
+    await expect(page.locator("#name")).toHaveAttribute("required", "");
     await expect(page.locator("#provider")).toHaveCount(0);
     await expect(page.locator("#repositoryId")).toHaveCount(0);
   });
 
-  test("can create a service and see API key on dashboard", async ({
+  test("an account that already has services gets the same flow", async ({
     page,
   }) => {
-    // Authenticate as user with repositories
     await authenticateTestUser(page, TEST_USERS.userWithRepos);
 
-    // Visit create service page
+    // Given: a service already exists on this account...
+    await createService(page, `first-service-${Date.now()}`);
+
+    // When: I add another one
     await page.goto("/services/new");
 
-    // Enter service name (use timestamp for uniqueness) — no repo selection
-    const serviceName = `my-api-service-${Date.now()}`;
-    await page.locator("#name").fill(serviceName);
+    // Then: it's the same first step, not a different form.
+    await expect(page).toHaveURL(/\/onboarding\/service/);
+    await expect(
+      page.getByRole("heading", { name: /create a service/i }),
+    ).toBeVisible();
+  });
 
-    // Submit form
-    await page.getByRole("button", { name: /create service/i }).click();
+  test("offers to hand the setup to an AI agent, with the key baked in", async ({
+    page,
+  }) => {
+    await authenticateTestUser(page, TEST_USERS.userWithRepos);
 
-    // Should be redirected to dashboard
-    await expect(page).toHaveURL(/\/dashboard/);
+    const { serviceId, apiKey } = await createService(
+      page,
+      `agent-service-${Date.now()}`,
+    );
 
-    // Should see the API key banner (one-time display)
-    await expect(page.locator("#new-api-key")).toBeVisible();
-    const apiKeyText = (
-      await page.locator("#new-api-key").textContent()
-    )?.trim();
-    expect(apiKeyText).toMatch(/^sk_/); // Service keys are secret keys
+    // The agent handoff is the recommended path...
+    await expect(
+      page.getByRole("heading", { name: /let an ai agent set this up/i }),
+    ).toBeVisible();
 
-    // Should see a build-reporting guide (defaults to GitHub for report-only)
+    const prompt = (await page.locator("#ai_agent_prompt").textContent())!;
+    expect(prompt).toContain("/skills/gitlaunch-onboarding/SKILL.md");
+    expect(prompt).toContain(serviceId);
+    expect(prompt).toContain(apiKey);
+
+    // ...and setting it up by hand is still there underneath.
     await expect(page.getByText(/add secrets to github/i)).toBeVisible();
   });
 
   test("API key is never exposed in URL (security)", async ({ page }) => {
-    // Authenticate as user with repositories
     await authenticateTestUser(page, TEST_USERS.userWithRepos);
 
-    // Visit create service page
-    await page.goto("/services/new");
+    const { apiKey } = await createService(
+      page,
+      `secure-service-${Date.now()}`,
+    );
 
-    // Create a service (name only)
-    await page.locator("#name").fill(`secure-service-${Date.now()}`);
-    await page.getByRole("button", { name: /create service/i }).click();
-
-    // Wait for dashboard
-    await expect(page).toHaveURL(/\/dashboard/);
-
-    // SECURITY CHECK: URL must NOT contain the API key
     const currentUrl = page.url();
     expect(currentUrl).not.toContain("key=");
     expect(currentUrl).not.toContain("sk_");
-
-    // Verify the API key IS displayed on the page
-    const apiKeyElement = page.locator("#new-api-key");
-    await expect(apiKeyElement).toBeVisible();
-    const apiKeyText = (await apiKeyElement.textContent())?.trim();
-    expect(apiKeyText).toMatch(/^sk_/);
-
-    // Double-check: the displayed key is NOT in the URL
-    expect(currentUrl).not.toContain(apiKeyText!);
+    expect(currentUrl).not.toContain(apiKey);
   });
 
-  test("refreshing dashboard clears API key banner (one-time display)", async ({
+  test("a refresh mid-onboarding does not strand you without the key", async ({
     page,
   }) => {
-    // Authenticate as user with repositories
     await authenticateTestUser(page, TEST_USERS.userWithRepos);
 
-    // Create a service
-    await page.goto("/services/new");
-    await page.locator("#name").fill(`one-time-service-${Date.now()}`);
-    await page.getByRole("button", { name: /create service/i }).click();
-    await expect(page).toHaveURL(/\/dashboard/);
+    const { apiKey } = await createService(page, `reload-svc-${Date.now()}`);
 
-    // Verify API key is shown
-    await expect(page.locator("#new-api-key")).toBeVisible();
-
-    // Refresh the page
     await page.reload();
 
-    // API key banner should be gone (cookie was cleared)
-    await expect(page.locator("#new-api-key")).not.toBeVisible();
-  });
-
-  test("requires a name (deploy provider is chosen later)", async ({
-    page,
-  }) => {
-    // Authenticate as user with repositories
-    await authenticateTestUser(page, TEST_USERS.userWithRepos);
-
-    // Visit create service page
-    await page.goto("/services/new");
-
-    const submitButton = page.getByRole("button", { name: /create service/i });
-    await expect(submitButton).toBeVisible();
-
-    // Service name is required at the form level.
-    await expect(page.locator("#name")).toHaveAttribute("required", "");
-
-    // No CI/CD provider picker here — deployment is set up after reporting a
-    // build, so creation never assumes a deploy provider.
-    await expect(page.locator("#provider")).toHaveCount(0);
+    // Reloading while an agent is working must not lose the one thing you
+    // cannot get back from the database.
+    await expect(page.locator("#api-key")).toHaveText(apiKey);
   });
 
   test("unauthenticated user is redirected from create service page", async ({
     page,
   }) => {
-    // Visit create service page without authentication
     await page.goto("/services/new");
 
     // Should be redirected off the create page to log in. In real mode that's
@@ -134,19 +105,5 @@ test.describe("Service Creation", () => {
     // locally and lands on the dashboard. Either way, not /services/new.
     await expect(page).not.toHaveURL(/\/services\/new/);
     await expect(page).toHaveURL(/github|\/dashboard/);
-  });
-
-  test("cancel link returns to dashboard", async ({ page }) => {
-    // Authenticate as user with repositories
-    await authenticateTestUser(page, TEST_USERS.userWithRepos);
-
-    // Visit create service page
-    await page.goto("/services/new");
-
-    // Click cancel link
-    await page.getByRole("link", { name: /cancel/i }).click();
-
-    // Should be redirected to dashboard
-    await expect(page).toHaveURL(/\/dashboard/);
   });
 });

@@ -323,15 +323,6 @@ export default function (deps: DashboardRoutesDeps) {
           );
         }
 
-        // Check for new API key cookie (set after service creation)
-        const apiKeyCookie = req.cookies.new_api_key;
-        const newApiKey = apiKeyCookie
-          ? reply.unsignCookie(apiKeyCookie).value
-          : null;
-        if (newApiKey) {
-          reply.clearCookie("new_api_key", { path: "/" });
-        }
-
         // Full page render
         return reply.view(
           "dashboard",
@@ -346,7 +337,6 @@ export default function (deps: DashboardRoutesDeps) {
             provider,
             apiUrl,
             needsDeploymentSetup,
-            newApiKey,
             showSimulateBuild: buildSimulationEnabled,
             pagination,
             trialDaysRemaining: accountState.trialDaysRemaining,
