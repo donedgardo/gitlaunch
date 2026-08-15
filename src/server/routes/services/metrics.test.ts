@@ -75,6 +75,7 @@ describe("Delivery metrics page", () => {
         partials: {
           navigation: "/partials/navigation.hbs",
           doraPanel: "/partials/doraPanel.hbs",
+          deploymentHistory: "/partials/deploymentHistory.hbs",
         },
       },
     });
@@ -146,6 +147,146 @@ describe("Delivery metrics page", () => {
       updatedAt: new Date(now - opts.reportedAgoMs),
     });
   };
+
+  /**
+   * A build whose deployment log is written out in full, so the history has
+   * a dispatch to measure a duration from.
+   */
+  const givenDeployLog = async (
+    accountId: ObjectId,
+    serviceId: ObjectId,
+    buildId: string,
+    opts: {
+      reportedAgoMs: number;
+      environment: string;
+      log: Array<{
+        status: DeploymentStatus;
+        agoMs: number;
+        intent?: "promote" | "rollback";
+      }>;
+    },
+  ) => {
+    const now = Date.now();
+    await db.collection("builds").insertOne({
+      accountId,
+      serviceId,
+      buildId,
+      deployments: {},
+      deploymentLogs: opts.log.map((entry) => ({
+        environment: opts.environment,
+        status: entry.status,
+        at: new Date(now - entry.agoMs),
+        ...(entry.intent ? { intent: entry.intent } : {}),
+      })),
+      createdAt: new Date(now - opts.reportedAgoMs),
+      updatedAt: new Date(now - opts.reportedAgoMs),
+    });
+  };
+
+  it("should list what was deployed, where, and how it went", async () => {
+    // Given: a build that took four minutes to reach prod
+    const { accountId, service, sessionToken } =
+      await metricsService("shipped-service");
+    await givenDeployLog(accountId, service._id, "abc1234def5678", {
+      environment: "prod",
+      reportedAgoMs: 2 * DAY + 1 * HOUR,
+      log: [
+        {
+          status: DeploymentStatus.DISPATCHING,
+          agoMs: 2 * DAY + 4 * 60 * 1000,
+          intent: "promote",
+        },
+        { status: DeploymentStatus.DEPLOYED, agoMs: 2 * DAY },
+      ],
+    });
+
+    // When: opening the delivery metrics page
+    const response = await app.inject({
+      method: "GET",
+      url: `/services/${service._id}/metrics`,
+      cookies: { session: sessionToken },
+    });
+
+    // Then: the deployment itself is on the page, not only the averages
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toContain("Deployment history");
+    expect(response.body).toContain("abc1234");
+    expect(response.body).toContain("Deployed");
+    expect(response.body).toContain("4m");
+  });
+
+  it("should keep a failed deployment on the record", async () => {
+    // Given: a deploy that broke, then a fix that landed
+    const { accountId, service, sessionToken } =
+      await metricsService("recovered-service");
+    await givenDeploy(accountId, service._id, "bad0001", {
+      environment: "prod",
+      reportedAgoMs: 3 * DAY + 1 * HOUR,
+      deployedAgoMs: 3 * DAY,
+      status: DeploymentStatus.ERROR,
+    });
+    await givenDeploy(accountId, service._id, "fix0002", {
+      environment: "prod",
+      reportedAgoMs: 2 * DAY + 1 * HOUR,
+      deployedAgoMs: 2 * DAY,
+    });
+
+    // When: opening the delivery metrics page
+    const response = await app.inject({
+      method: "GET",
+      url: `/services/${service._id}/metrics`,
+      cookies: { session: sessionToken },
+    });
+
+    // Then: both are listed — a change failure rate that cannot be traced to
+    // a deployment is a number nobody can act on
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toContain("bad0001");
+    expect(response.body).toContain("fix0002");
+    expect(response.body).toContain("Failed");
+  });
+
+  it("should point out a rollback in the history", async () => {
+    // Given: a build that was put back after a bad release
+    const { accountId, service, sessionToken } = await metricsService(
+      "rolled-back-service",
+    );
+    await givenDeploy(accountId, service._id, "olde001", {
+      environment: "prod",
+      reportedAgoMs: 6 * DAY,
+      deployedAgoMs: 1 * DAY,
+      intent: "rollback",
+    });
+
+    // When: opening the delivery metrics page
+    const response = await app.inject({
+      method: "GET",
+      url: `/services/${service._id}/metrics`,
+      cookies: { session: sessionToken },
+    });
+
+    // Then: it is called what it is — the most interesting line in any
+    // deployment history
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toContain("Rollback");
+  });
+
+  it("should say the history is empty rather than show an empty table", async () => {
+    // Given: a service nobody has deployed
+    const { service, sessionToken } = await metricsService("never-deployed");
+
+    // When: opening the delivery metrics page
+    const response = await app.inject({
+      method: "GET",
+      url: `/services/${service._id}/metrics`,
+      cookies: { session: sessionToken },
+    });
+
+    // Then: the section answers the question instead of showing headings
+    // over nothing
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toContain("Nothing has been deployed yet");
+  });
 
   it("should show each environment's four keys", async () => {
     // Given: a service that shipped to prod an hour after the build landed
