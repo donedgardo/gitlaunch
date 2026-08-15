@@ -59,6 +59,29 @@ describe("toDeploymentAttempts", () => {
     expect(attempts[1].status).toBe(DeploymentStatus.ERROR);
   });
 
+  it("should not reopen a deployment that already finished", () => {
+    // Given: a deploy that landed, and a much later report about the same
+    // build in the same environment — a reporter calling in, not a redeploy
+    // we dispatched
+    const events = [
+      event({ at: at("10:00"), status: DeploymentStatus.DISPATCHING }),
+      event({ at: at("10:05"), status: DeploymentStatus.DEPLOYED }),
+      event({ at: at("15:00"), status: DeploymentStatus.ERROR }),
+    ];
+
+    // When: reading it as history
+    const attempts = toDeploymentAttempts(events);
+
+    // Then: the successful deploy keeps its five minutes instead of being
+    // stretched into a five-hour failure
+    expect(attempts).toHaveLength(2);
+    expect(attempts[1]).toMatchObject({
+      status: DeploymentStatus.DEPLOYED,
+      durationMs: 5 * 60 * 1000,
+    });
+    expect(attempts[0].status).toBe(DeploymentStatus.ERROR);
+  });
+
   it("should list the most recent deployment first", () => {
     // Given: deploys to two environments at different times
     const events = [
