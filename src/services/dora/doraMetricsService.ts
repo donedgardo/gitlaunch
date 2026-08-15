@@ -23,17 +23,17 @@ export class DoraMetricsService {
     environment: string,
     window: MeasurementWindow,
   ): Promise<FourKeys> {
-    const events = await this.eventsFor(accountId, serviceId);
+    const events = await this.timelineFor(accountId, serviceId);
     return computeFourKeys(events, environment, window);
   }
 
   /**
    * The four keys for several environments, from a single read.
    *
-   * A release board asks about every column at once. Answering it with one
-   * `forService` call per environment would re-read the whole build history
-   * per column; the measurement is identical either way, so the only thing
-   * that differs here is how often we hit the database.
+   * A metrics page asks about every environment at once. Answering it with
+   * one `forService` call per environment would re-read the whole build
+   * history per environment; the measurement is identical either way, so the
+   * only thing that differs here is how often we hit the database.
    */
   async forEnvironments(
     accountId: ObjectId,
@@ -41,8 +41,16 @@ export class DoraMetricsService {
     environments: readonly string[],
     window: MeasurementWindow,
   ): Promise<Record<string, FourKeys>> {
-    const events = await this.eventsFor(accountId, serviceId);
+    const events = await this.timelineFor(accountId, serviceId);
+    return this.keysByEnvironment(events, environments, window);
+  }
 
+  /** The same measurement as `forEnvironments`, over a timeline already read. */
+  keysByEnvironment(
+    events: readonly DeploymentEvent[],
+    environments: readonly string[],
+    window: MeasurementWindow,
+  ): Record<string, FourKeys> {
     const byEnvironment: Record<string, FourKeys> = {};
     for (const environment of environments) {
       byEnvironment[environment] = computeFourKeys(events, environment, window);
@@ -50,8 +58,14 @@ export class DoraMetricsService {
     return byEnvironment;
   }
 
-  /** Every deployment outcome this service has recorded, as a flat timeline. */
-  private async eventsFor(
+  /**
+   * Every deployment outcome this service has recorded, as a flat timeline.
+   *
+   * Public because the four keys are not the only thing measured from it: the
+   * metrics page also lists the deployments themselves, and reading the build
+   * history twice to answer one page would double an unbounded query.
+   */
+  async timelineFor(
     accountId: ObjectId,
     serviceId: ObjectId,
   ): Promise<DeploymentEvent[]> {
