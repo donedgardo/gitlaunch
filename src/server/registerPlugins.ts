@@ -57,6 +57,7 @@ export function registerPlugins(server: FastifyInstance, cookieSecret: string) {
         waitlistResult: "/partials/waitlistResult.hbs",
         analyticsPanel: "/partials/analyticsPanel.hbs",
         doraPanel: "/partials/doraPanel.hbs",
+        deploymentHistory: "/partials/deploymentHistory.hbs",
         legalStyles: "/partials/legalStyles.hbs",
         aiAgentSetup: "/partials/aiAgentSetup.hbs",
       },

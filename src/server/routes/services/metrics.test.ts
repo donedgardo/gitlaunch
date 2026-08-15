@@ -397,7 +397,7 @@ describe("Delivery metrics page", () => {
     const { service, sessionToken } = await metricsService(
       "unreadable-metrics-service",
     );
-    vi.spyOn(doraMetricsService, "forEnvironments").mockRejectedValue(
+    vi.spyOn(doraMetricsService, "timelineFor").mockRejectedValue(
       new Error("metrics unavailable"),
     );
 
