@@ -12,46 +12,10 @@
     </h1>
   </div>
 
-  {{#if newApiKey}}
-  <!-- API Key - shown once after service creation -->
-  <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl p-6 mb-6">
-    <div style="display: flex; align-items: flex-start;">
-      <svg style="width: 24px; height: 24px; min-width: 24px;" class="text-amber-600 dark:text-amber-400 mr-3 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
-      </svg>
-      <div style="flex: 1;">
-        <h3 class="font-semibold text-amber-800 dark:text-amber-200 mb-1">Save Your API Key Now</h3>
-        <p class="text-sm text-amber-700 dark:text-amber-300 mb-3">
-          This key will only be shown once. You can generate a new one in <a href="/settings/api-keys" class="underline font-medium">API Keys settings</a>.
-        </p>
-        <div class="relative">
-          <div id="new-api-key" class="bg-gray-900 rounded-xl p-4 font-mono text-sm text-green-400 break-all pr-12">{{newApiKey}}</div>
-          <button onclick="copyNewApiKey()" class="absolute top-3 right-3 p-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors" title="Copy API key">
-            <svg id="new-key-copy-icon" style="width: 20px; height: 20px;" class="text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
-            </svg>
-            <svg id="new-key-check-icon" style="width: 20px; height: 20px; display: none;" class="text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-            </svg>
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-  <script>
-  function copyNewApiKey() {
-    var key = document.getElementById('new-api-key').textContent.trim();
-    navigator.clipboard.writeText(key).then(function() {
-      document.getElementById('new-key-copy-icon').style.display = 'none';
-      document.getElementById('new-key-check-icon').style.display = 'block';
-      setTimeout(function() {
-        document.getElementById('new-key-copy-icon').style.display = 'block';
-        document.getElementById('new-key-check-icon').style.display = 'none';
-      }, 2000);
-    });
-  }
-  </script>
-  {{/if}}
+
+  <!-- Same offer as onboarding: hand the setup to an agent, or do it by hand.
+       A service created before this existed reaches it here. -->
+  {{> aiAgentSetup apiUrl=apiUrl serviceId=serviceId}}
 
   <!-- Report your first build — guide matches this service's CI provider -->
   {{#if (eq provider "jenkins")}}

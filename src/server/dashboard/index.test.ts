@@ -130,6 +130,7 @@ describe("Dashboard Routes", () => {
           rawBuildReportingGuide: "/partials/rawBuildReportingGuide.hbs",
           paginationControls: "/partials/paginationControls.hbs",
           setupStep: "/partials/setupStep.hbs",
+          aiAgentSetup: "/partials/aiAgentSetup.hbs",
         },
       },
     });
@@ -224,6 +225,37 @@ describe("Dashboard Routes", () => {
       // Then: response contains href="/services/new"
       expect(response.statusCode).toBe(200);
       expect(response.body).toContain('href="/services/new"');
+    });
+
+    // A service that predates the agent onboarding — or one whose CI never
+    // reported — must still be able to hand the setup to an agent.
+    it("should offer the AI agent handoff to a service with no builds yet", async () => {
+      const account = await accountRepo.create({
+        name: "Test Org",
+        slug: `test-org-${Date.now()}-${Math.random()}`,
+      });
+      const service = await serviceRepo.create({
+        accountId: account._id,
+        repositoryId: new ObjectId(),
+        name: "agentless-service",
+      });
+      const sessionToken = sessionService.createSession({
+        userId: new ObjectId(),
+        accountId: account._id,
+      });
+
+      const response = await app.inject({
+        method: "GET",
+        url: "/dashboard/agentless-service",
+        cookies: { session: sessionToken },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain("Let an AI agent set this up");
+      expect(response.body).toContain(
+        "http://localhost:3050/skills/gitlaunch-onboarding/SKILL.md",
+      );
+      expect(response.body).toContain(service._id.toString());
     });
 
     it("should show deployment setup guide when builds exist but workflow not configured", async () => {

@@ -5,6 +5,7 @@ import { BuildRepository } from "../../../repositories/buildRepository";
 import { AnalyticsService } from "../../../services/analytics/analytics";
 
 export type SetupRoutesDeps = {
+  publicUrl: string;
   buildSimulationEnabled: boolean;
   serviceRepo: ServiceRepository;
   buildRepo: BuildRepository;
@@ -17,7 +18,13 @@ export function registerSetupRoutes(
   app: FastifyInstance,
   deps: SetupRoutesDeps,
 ): void {
-  const { serviceRepo, buildRepo, analytics, buildSimulationEnabled } = deps;
+  const {
+    publicUrl,
+    serviceRepo,
+    buildRepo,
+    analytics,
+    buildSimulationEnabled,
+  } = deps;
 
   app.get<{ Params: { serviceName: string; step: string } }>(
     "/dashboard/:serviceName/setup/:step",
@@ -70,6 +77,8 @@ export function registerSetupRoutes(
           totalSteps: TOTAL_STEPS,
           serviceId: service._id.toString(),
           serviceName: service.name,
+          // The agent handoff needs an absolute host to point the skill URL at.
+          apiUrl: publicUrl,
           environments,
           hasBuilds,
           showSimulateBuild: buildSimulationEnabled,
