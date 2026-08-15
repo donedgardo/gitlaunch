@@ -164,14 +164,14 @@ describe("Critical Path Analytics Integration", () => {
       });
       expect(analytics.hasEvent("repositories_selected")).toBe(true);
 
-      // 5. Create service
+      // 5. Create service — one canonical path, whether or not this is the
+      // account's first service.
       const account = await accountRepo.findBySlug("dev-user");
-      const repos = await repositoryRepo.findByAccountId(account!._id);
       await app.inject({
         method: "POST",
-        url: "/services/new",
+        url: "/onboarding/service",
         cookies: { session },
-        payload: { name: "my-api", repositoryId: repos[0]._id.toString() },
+        payload: { name: "my-api" },
       });
       expect(analytics.hasEvent("service_created")).toBe(true);
 

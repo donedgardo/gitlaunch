@@ -28,6 +28,7 @@
   {{/if}}
 
   {{#if (eq step 2)}}
+{{> aiAgentSetup apiUrl=apiUrl serviceId=serviceId}}
 {{> buildReportingInstructions idPrefix="setup_" stepNumber="2" }}
   {{/if}}
 

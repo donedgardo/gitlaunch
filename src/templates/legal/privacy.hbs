@@ -220,7 +220,7 @@
             <tr><td><code>session</code></td><td>Keeps you signed in</td><td>Session / expiry of token</td><td>Strictly necessary</td></tr>
             <tr><td><code>oauth_state</code></td><td>Protects the GitHub sign-in flow against cross-site request forgery</td><td>Minutes</td><td>Strictly necessary</td></tr>
             <tr><td><code>pending_invite</code></td><td>Carries a team invitation through the sign-in redirect</td><td>Short-lived</td><td>Strictly necessary</td></tr>
-            <tr><td><code>new_api_key</code>, <code>onboarding_api_key</code>, <code>service_api_key</code>, <code>created_service</code></td><td>Shows a newly generated API key once, immediately after you create it</td><td>Single use, cleared on display</td><td>Strictly necessary</td></tr>
+            <tr><td><code>onboarding_api_key</code></td><td>Shows a newly generated API key while you finish setting up the service you just created</td><td>1 hour</td><td>Strictly necessary</td></tr>
             <tr><td><code>gl_vid</code></td><td>An anonymous identifier that keeps our landing-page wording consistent for you while we test which version explains the product better, and lets us count a signup once rather than twice</td><td>30 days</td><td>Measurement</td></tr>
           </tbody>
         </table>

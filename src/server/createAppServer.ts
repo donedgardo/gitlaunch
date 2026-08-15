@@ -340,6 +340,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
 
   // Setup wizard routes
   registerSetupRoutes(server, {
+    publicUrl: config.publicUrl,
     buildSimulationEnabled: config.features.buildSimulation.enabled,
     serviceRepo: serviceRepository,
     buildRepo: buildRepository,
@@ -523,14 +524,9 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
 
   // Service management routes
   registerServiceRoutes(server, {
-    cookieSecure: config.cookies.secure,
-    accountRepository,
     repositoryRepository,
     serviceRepository,
-    apiKeyService,
     githubAppService: gitHubAppService,
-    planEnforcementService,
-    analytics,
   });
 
   // Service settings routes (environments management)
