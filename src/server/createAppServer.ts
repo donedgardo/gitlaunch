@@ -183,7 +183,9 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
         ? false
         : { level: process.env.LOG_LEVEL ?? "info" },
   });
-  registerPlugins(server, config.cookieSecret);
+  registerPlugins(server, config.cookieSecret, {
+    posthog: config.features.analytics.posthog,
+  });
   registerErrorReporting(server, errorReporter);
   // After error reporting: the onError hook above still sees the real error,
   // this only decides what the caller is told.

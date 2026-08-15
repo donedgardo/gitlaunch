@@ -16,7 +16,19 @@ declare module "fastify" {
   }
 }
 
-export function registerPlugins(server: FastifyInstance, cookieSecret: string) {
+// Values every rendered page gets, on top of whatever the route passes. The
+// layout needs the PostHog project token in its <head>, and threading it
+// through several dozen reply.view() calls would mean every new route has to
+// remember to pass it.
+export interface ViewDefaults {
+  posthog?: { projectToken: string; host: string };
+}
+
+export function registerPlugins(
+  server: FastifyInstance,
+  cookieSecret: string,
+  viewDefaults: ViewDefaults = {},
+) {
   registerHandlebarsHelpers();
   server.register(fastifyFormbody);
   server.register(rawBody, {
@@ -30,6 +42,7 @@ export function registerPlugins(server: FastifyInstance, cookieSecret: string) {
       handlebars,
     },
     root: path.join(__dirname, "../templates"),
+    defaultContext: viewDefaults,
     options: {
       compileOptions: {
         preventIndent: true,
@@ -59,6 +72,7 @@ export function registerPlugins(server: FastifyInstance, cookieSecret: string) {
         doraPanel: "/partials/doraPanel.hbs",
         legalStyles: "/partials/legalStyles.hbs",
         aiAgentSetup: "/partials/aiAgentSetup.hbs",
+        posthogSnippet: "/partials/posthogSnippet.hbs",
       },
     },
   });
