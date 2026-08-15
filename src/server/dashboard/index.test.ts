@@ -20,15 +20,15 @@ import { BuildRepository } from "../../repositories/buildRepository";
 import { RepositoryRepository } from "../../repositories/repositoryRepository";
 import { AccountRepository } from "../../repositories/accountRepository";
 import { MembershipRepository } from "../../repositories/membershipRepository";
-import { TrialRegistryRepository } from "../../repositories/trialRegistryRepository";
 import { DeploymentStatus } from "../../services/service/deploymentStatus";
 import { SessionService } from "../../services/auth/sessionService";
 import { sessionAuthMiddleware } from "../middleware/sessionAuth";
 import { registerHandlebarsHelpers } from "../registerHandlebarsHelpers";
 import { BuildService } from "../../services/build/buildService";
 import { BuildDispatchServiceI } from "../../services/build/buildDispatchService";
-import { PlanEnforcementService } from "../../services/billing/planEnforcementService";
-import { TrialService } from "../../services/billing/trialService";
+import { AccountLimits } from "../../services/limits/accountPolicy";
+import { OpenCoreLimits } from "../../services/limits/openCorePolicy";
+import { NO_TRIALS } from "../../services/limits/openCorePolicy";
 import { FlagRepository } from "../../repositories/flagRepository";
 import { FlagService } from "../../services/flag/flagService";
 import dashboardRoutes from "./index";
@@ -43,11 +43,9 @@ describe("Dashboard Routes", () => {
   let repositoryRepo: RepositoryRepository;
   let accountRepo: AccountRepository;
   let membershipRepo: MembershipRepository;
-  let trialRegistryRepo: TrialRegistryRepository;
   let sessionService: SessionService;
   let buildService: BuildService;
-  let planEnforcementService: PlanEnforcementService;
-  let trialService: TrialService;
+  let planEnforcementService: AccountLimits;
   let flagRepo: FlagRepository;
   let flagService: FlagService;
   let mockDispatcher: BuildDispatchServiceI;
@@ -75,7 +73,6 @@ describe("Dashboard Routes", () => {
     await db.collection("repositories").deleteMany({});
     await db.collection("accounts").deleteMany({});
     await db.collection("memberships").deleteMany({});
-    await db.collection("trialRegistry").deleteMany({});
     await db.collection("flags").deleteMany({});
     vi.clearAllMocks();
 
@@ -84,16 +81,12 @@ describe("Dashboard Routes", () => {
     repositoryRepo = new RepositoryRepository(db);
     accountRepo = new AccountRepository(db);
     membershipRepo = new MembershipRepository(db);
-    trialRegistryRepo = new TrialRegistryRepository(db);
-    await trialRegistryRepo.ensureIndexes();
-
-    planEnforcementService = new PlanEnforcementService(
-      accountRepo,
-      repositoryRepo,
-      serviceRepo,
-      membershipRepo,
-    );
-    trialService = new TrialService(accountRepo, trialRegistryRepo);
+    planEnforcementService = new OpenCoreLimits({
+      accountRepository: accountRepo,
+      repositoryRepository: repositoryRepo,
+      serviceRepository: serviceRepo,
+      membershipRepository: membershipRepo,
+    });
     flagRepo = new FlagRepository(db);
     flagService = new FlagService(flagRepo, serviceRepo);
 
@@ -144,7 +137,7 @@ describe("Dashboard Routes", () => {
         repositoryRepository: repositoryRepo,
         accountRepository: accountRepo,
         buildService,
-        trialService,
+        trialService: NO_TRIALS,
         planEnforcementService,
         flagService,
       }),

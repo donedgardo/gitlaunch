@@ -15,12 +15,12 @@ import { RepositoryRepository } from "../../../repositories/repositoryRepository
 import { ServiceRepository } from "../../../repositories/serviceRepository";
 import { MembershipRepository } from "../../../repositories/membershipRepository";
 import { UserRepository } from "../../../repositories/userRepository";
-import { TrialRegistryRepository } from "../../../repositories/trialRegistryRepository";
+import { TrialRegistryRepository } from "../../../../ee/repositories/trialRegistryRepository";
 import { ApiKeyRepository } from "../../../repositories/apiKeyRepository";
 import { ApiKeyService } from "../../../services/apiKey/apiKeyService";
 import { GitHubAppService } from "../../../services/github/githubAppService";
-import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
-import { TrialService } from "../../../services/billing/trialService";
+import { PlanEnforcementService } from "../../../../ee/services/billing/planEnforcementService";
+import { TrialService } from "../../../../ee/services/billing/trialService";
 import { SessionService } from "../../../services/auth/sessionService";
 import { sessionAuthMiddleware } from "../../middleware/sessionAuth";
 import { mockViewPlugin } from "../../testing/mockViewPlugin";

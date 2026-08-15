@@ -10,7 +10,8 @@ import { AccountRepository } from "../../../repositories/accountRepository";
 import { RepositoryRepository } from "../../../repositories/repositoryRepository";
 import { ServiceRepository } from "../../../repositories/serviceRepository";
 import { MembershipRepository } from "../../../repositories/membershipRepository";
-import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
+import { OpenCoreLimits } from "../../../services/limits/openCorePolicy";
+import { FakeAccountLimits } from "../../../services/limits/fakes";
 import { GitHubRepo } from "../../../services/github/githubAppService";
 import { registerDeploymentRoutes } from "./deployment";
 import { ApiKeyScope } from "../../../repositories/apiKeyRepository";
@@ -50,7 +51,7 @@ describe("Deployment configuration API", () => {
   let repositoryRepo: RepositoryRepository;
   let serviceRepo: ServiceRepository;
   let membershipRepo: MembershipRepository;
-  let planEnforcementService: PlanEnforcementService;
+  let planEnforcementService: FakeAccountLimits;
 
   let testAccountId: ObjectId;
   let testServiceId: ObjectId;
@@ -66,12 +67,6 @@ describe("Deployment configuration API", () => {
     repositoryRepo = new RepositoryRepository(db);
     serviceRepo = new ServiceRepository(db);
     membershipRepo = new MembershipRepository(db);
-    planEnforcementService = new PlanEnforcementService(
-      accountRepo,
-      repositoryRepo,
-      serviceRepo,
-      membershipRepo,
-    );
   });
 
   afterAll(async () => {
@@ -85,6 +80,17 @@ describe("Deployment configuration API", () => {
     await db.collection("services").deleteMany({});
 
     installationRepos = [repo(1, "acme/api"), repo(2, "acme/secret", true)];
+
+    // Rebuilt per test alongside the app: refusals are set by the test that
+    // needs them and must not leak into the next one.
+    planEnforcementService = new FakeAccountLimits(
+      new OpenCoreLimits({
+        accountRepository: accountRepo,
+        repositoryRepository: repositoryRepo,
+        serviceRepository: serviceRepo,
+        membershipRepository: membershipRepo,
+      }),
+    );
 
     app = Fastify();
     app.addHook(
@@ -234,8 +240,17 @@ describe("Deployment configuration API", () => {
       expect(response.json().error).toMatch(/install/i);
     });
 
-    it("should refuse a private repo on a plan that does not allow one", async () => {
-      // Given the Free plan, which is public-repos-only
+    it("should refuse a private repo when limits do not allow one", async () => {
+      // Given private repositories are not allowed. Which plans allow them is
+      // commercial policy, covered in
+      // ee/services/billing/planEnforcementService.test.ts — this route owns
+      // honouring the refusal.
+      planEnforcementService.refuse("canAddPrivateRepository", {
+        allowed: false,
+        reason: "Private repositories require an upgrade.",
+        upgradeRequired: true,
+      });
+
       // When an agent configures a private repository
       const response = await configure({
         provider: "github",
@@ -249,8 +264,9 @@ describe("Deployment configuration API", () => {
       );
     });
 
-    it("should enforce the plan's repository limit", async () => {
-      // Given the account is already at its repository limit
+    it("should enforce the metered repository limit", async () => {
+      // Given a repository allowance the account has already filled
+      planEnforcementService.setRepositoryLimit(2);
       const usage = await planEnforcementService.getUsage(testAccountId);
       for (let i = 0; i < usage.repositories.limit; i++) {
         await repositoryRepo.create({
