@@ -88,10 +88,12 @@ export class DoraMetricsService {
           environment: log.environment,
           status: log.status,
           at: log.at,
-          // Lead time starts when GitLaunch first heard about the build, not
-          // when the change was committed. That makes it a floor on the real
-          // DORA number — see `DeploymentEvent.changeAt`.
-          changeAt: build.createdAt,
+          // Lead time starts when the change was committed, when CI told us.
+          // A reporter that sends nothing leaves us measuring from when we
+          // first heard about the build — a floor on the real DORA number,
+          // since it drops however long the commit waited for a runner.
+          changeAt: build.commitAt ?? build.createdAt,
+          changeAtSource: build.commitAt ? "commit" : "first-seen",
           intent: log.intent,
         });
       }

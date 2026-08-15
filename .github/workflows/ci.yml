@@ -249,17 +249,24 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
       # Dogfoods the same curl guidance we give users (buildReportingInstructions.hbs):
-      # send the commit message too, built with jq so arbitrary commit text can't
-      # break the JSON.
+      # send the commit message and the commit time too, built with jq so
+      # arbitrary commit text can't break the JSON. `commitAt` is what makes our
+      # own lead time commit-to-live rather than starting when this job runs —
+      # which, sitting behind quality/integration/docker-build, is a good while
+      # after the commit landed. ownCiDogfood.test.ts holds this to the snippet.
+      #
+      # No `git show` fallback: this job has no checkout, and the job-level `if`
+      # gates it to pushes, where `head_commit` is always populated.
       - name: Report build to GitLaunch
         env:
           GITLAUNCH_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+          GITLAUNCH_COMMIT_AT: ${{ github.event.head_commit.timestamp }}
         run: |
           curl --fail-with-body -sS -X POST \
             "https://gitlaunch.dev/api/v1/services/${{ vars.GITLAUNCH_SERVICE_ID }}/builds" \
             -H "Authorization: Bearer ${{ secrets.GITLAUNCH_API_KEY }}" \
             -H "Content-Type: application/json" \
-            -d "$(jq -nc --arg buildId "${{ github.sha }}" --arg message "$GITLAUNCH_COMMIT_MESSAGE" '{buildId:$buildId,message:$message}')"
+            -d "$(jq -nc --arg buildId "${{ github.sha }}" --arg message "$GITLAUNCH_COMMIT_MESSAGE" --arg commitAt "$GITLAUNCH_COMMIT_AT" '{buildId:$buildId,message:$message,commitAt:$commitAt}')"
 
   deploy-dev:
     name: Deploy to Dev

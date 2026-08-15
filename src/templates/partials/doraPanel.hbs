@@ -24,7 +24,21 @@
           <dd class="text-lg font-semibold text-gray-900 dark:text-gray-100">{{this.deploymentFrequency}}</dd>
         </div>
         <div class="rounded-lg bg-gray-50 dark:bg-gray-800/60 px-3 py-2">
-          <dt class="text-xs text-gray-500 dark:text-gray-400">Lead time</dt>
+          <dt class="text-xs text-gray-500 dark:text-gray-400">
+            Lead time
+            {{#if (eq this.leadTimeBasis "reported")}}
+            <span
+              class="text-yellow-700 dark:text-yellow-400 cursor-help"
+              title="Measured from when the build was reported, not when it was committed — so time spent waiting for CI is missing. Send commitAt with your build report to measure commit-to-live."
+            >&#9888;</span>
+            {{/if}}
+            {{#if (eq this.leadTimeBasis "mixed")}}
+            <span
+              class="text-yellow-700 dark:text-yellow-400 cursor-help"
+              title="Only {{this.sample.leadTimesFromCommit}} of {{this.sample.leadTimes}} builds reported a commit time. The rest are measured from when the build was reported, so this median mixes the two."
+            >&#9888;</span>
+            {{/if}}
+          </dt>
           <dd class="text-lg font-semibold text-gray-900 dark:text-gray-100">{{this.leadTime}}</dd>
         </div>
         <div class="rounded-lg bg-gray-50 dark:bg-gray-800/60 px-3 py-2">
@@ -44,7 +58,7 @@
 
     <p class="text-xs text-gray-400 dark:text-gray-500 mt-4">
       Measured from this service's own deployment history — rollbacks are recorded, not inferred.
-      Lead time is measured from when the build was reported.
+      Lead time runs from the commit time your CI reports to when the build went live.
     </p>
 </div>
 {{/if}}

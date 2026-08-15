@@ -48,16 +48,23 @@ const buildsPath = (serviceId: string) =>
 function githubBuildReport(apiUrl: string): string {
   // Uses vars/secrets rather than the literal service id so the snippet keeps
   // working if the repo is pointed at a different service.
+  //
+  // `commitAt` is what makes lead time mean commit-to-live. `head_commit` is
+  // only populated on a push event, so it falls back to asking git — on a
+  // pull_request or a manual run there is no head_commit and an empty string
+  // would be rejected.
   return `- name: Report build to GitLaunch
   if: github.ref == 'refs/heads/main'
   env:
     GITLAUNCH_COMMIT_MESSAGE: \${{ github.event.head_commit.message }}
+    GITLAUNCH_COMMIT_AT: \${{ github.event.head_commit.timestamp }}
   run: |
+    COMMIT_AT="\${GITLAUNCH_COMMIT_AT:-$(git show -s --format=%cI \${{ github.sha }})}"
     curl --fail-with-body -sS -X POST \\
       "${apiUrl}/api/v1/services/\${{ vars.GITLAUNCH_SERVICE_ID }}/builds" \\
       -H "Authorization: Bearer \${{ secrets.GITLAUNCH_API_KEY }}" \\
       -H "Content-Type: application/json" \\
-      -d "$(jq -nc --arg buildId "\${{ github.sha }}" --arg message "$GITLAUNCH_COMMIT_MESSAGE" '{buildId:$buildId,message:$message}')"`;
+      -d "$(jq -nc --arg buildId "\${{ github.sha }}" --arg message "$GITLAUNCH_COMMIT_MESSAGE" --arg commitAt "$COMMIT_AT" '{buildId:$buildId,message:$message,commitAt:$commitAt}')"`;
 }
 
 function jenkinsBuildReport(apiUrl: string, serviceId: string): string {
@@ -65,11 +72,12 @@ function jenkinsBuildReport(apiUrl: string, serviceId: string): string {
   steps {
     withCredentials([string(credentialsId: 'gitlaunch-api-key', variable: 'GITLAUNCH_API_KEY')]) {
       sh '''
+        COMMIT_AT="$(git show -s --format=%cI $GIT_COMMIT)"
         curl --fail-with-body -sS -X POST \\
           "${apiUrl}${buildsPath(serviceId)}" \\
           -H "Authorization: Bearer $GITLAUNCH_API_KEY" \\
           -H "Content-Type: application/json" \\
-          -d "{\\"buildId\\":\\"$GIT_COMMIT\\"}"
+          -d "{\\"buildId\\":\\"$GIT_COMMIT\\",\\"commitAt\\":\\"$COMMIT_AT\\"}"
       '''
     }
   }
@@ -77,11 +85,14 @@ function jenkinsBuildReport(apiUrl: string, serviceId: string): string {
 }
 
 function rawBuildReport(apiUrl: string, serviceId: string): string {
-  return `curl --fail-with-body -sS -X POST \\
+  // COMMIT_AT is what turns lead time into commit-to-live. Any ISO-8601
+  // timestamp will do if the build runs somewhere without the git checkout.
+  return `COMMIT_AT="$(git show -s --format=%cI $COMMIT_SHA)"
+curl --fail-with-body -sS -X POST \\
   "${apiUrl}${buildsPath(serviceId)}" \\
   -H "Authorization: Bearer $GITLAUNCH_API_KEY" \\
   -H "Content-Type: application/json" \\
-  -d "{\\"buildId\\":\\"$COMMIT_SHA\\"}"`;
+  -d "{\\"buildId\\":\\"$COMMIT_SHA\\",\\"commitAt\\":\\"$COMMIT_AT\\"}"`;
 }
 
 function githubDeployWorkflow(apiUrl: string, environments: string[]): string {

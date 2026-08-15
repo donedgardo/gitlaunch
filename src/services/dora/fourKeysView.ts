@@ -27,8 +27,19 @@ export type FourKeysView = {
    * has to be able to say how much is behind it.
    */
   lowConfidence: boolean;
+  /**
+   * What the lead time actually measures.
+   *
+   * `"commit"` is the DORA definition. `"reported"` means no pipeline sent a
+   * commit time, so the number starts when we first heard about the build and
+   * hides however long the change waited for a runner — a flattering figure
+   * we must not present as delivery time. `"mixed"` is a median over both.
+   */
+  leadTimeBasis: LeadTimeBasis;
   sample: FourKeys["sample"];
 };
+
+export type LeadTimeBasis = "commit" | "reported" | "mixed" | "none";
 
 /** What we print when a metric has genuinely never been measured. */
 const NO_DATA = "—";
@@ -98,6 +109,16 @@ export function formatRate(rate: number | null): string {
   return `${Math.round(rate * 100)}%`;
 }
 
+function leadTimeBasisOf(sample: FourKeys["sample"]): LeadTimeBasis {
+  if (sample.leadTimes === 0) {
+    return "none";
+  }
+  if (sample.leadTimesFromCommit === 0) {
+    return "reported";
+  }
+  return sample.leadTimesFromCommit === sample.leadTimes ? "commit" : "mixed";
+}
+
 export function toFourKeysView(keys: FourKeys): FourKeysView {
   const hasData = keys.sample.deployments > 0;
 
@@ -109,6 +130,7 @@ export function toFourKeysView(keys: FourKeys): FourKeysView {
     hasData,
     lowConfidence:
       hasData && keys.sample.deployments < LOW_CONFIDENCE_DEPLOYMENTS,
+    leadTimeBasis: leadTimeBasisOf(keys.sample),
     sample: keys.sample,
   };
 }

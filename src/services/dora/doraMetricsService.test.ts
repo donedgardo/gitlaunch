@@ -54,11 +54,13 @@ describe("DoraMetricsService", () => {
       at: string;
       intent?: "promote" | "rollback";
     }>,
+    commitAt?: string,
   ) => {
     await db.collection("builds").insertOne({
       accountId,
       serviceId,
       buildId,
+      ...(commitAt ? { commitAt: new Date(commitAt) } : {}),
       deployments: {},
       deploymentLogs: logs.map((l) => ({
         environment: l.environment,
@@ -116,8 +118,36 @@ describe("DoraMetricsService", () => {
     expect(keys.sample.deployments).toBe(4);
   });
 
-  it("should measure lead time from when the build was first seen", async () => {
-    // Given: a build reported an hour before it went live
+  it("should measure lead time from the reported commit time", async () => {
+    // Given: a commit authored at 08:00, reported to GitLaunch at 11:00 (CI
+    // queued for three hours), live at 12:00
+    await givenBuild(
+      "v1",
+      "2026-08-02T11:00:00Z",
+      [
+        {
+          environment: "prod",
+          status: DeploymentStatus.DEPLOYED,
+          at: "2026-08-02T12:00:00Z",
+          intent: "promote",
+        },
+      ],
+      "2026-08-02T08:00:00Z",
+    );
+
+    // When: we ask for the numbers
+    const keys = await service.forService(accountId, serviceId, "prod", window);
+
+    // Then: four hours — commit to live, which is what DORA lead time means.
+    // The three hours the change spent waiting for a runner are part of the
+    // delivery time, and measuring from when we first heard about the build
+    // would hide exactly that.
+    expect(keys.medianLeadTimeMs).toBe(4 * HOUR);
+  });
+
+  it("should fall back to when the build was first seen if no commit time was reported", async () => {
+    // Given: a build reported an hour before it went live, by a reporter that
+    // sends no commit time
     await givenBuild("v1", "2026-08-02T11:00:00Z", [
       {
         environment: "prod",
@@ -130,7 +160,7 @@ describe("DoraMetricsService", () => {
     // When: we ask for the numbers
     const keys = await service.forService(accountId, serviceId, "prod", window);
 
-    // Then: one hour
+    // Then: one hour — a floor on the real number rather than no number at all
     expect(keys.medianLeadTimeMs).toBe(1 * HOUR);
   });
 

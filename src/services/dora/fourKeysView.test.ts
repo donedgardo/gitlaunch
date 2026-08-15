@@ -6,13 +6,27 @@ const MINUTE = 60 * 1000;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
 
-const keys = (overrides: Partial<FourKeys> = {}): FourKeys => ({
+// The sample merges rather than replaces, so a test only states the
+// denominators it is actually about.
+const keys = ({
+  sample,
+  ...overrides
+}: Partial<Omit<FourKeys, "sample">> & {
+  sample?: Partial<FourKeys["sample"]>;
+} = {}): FourKeys => ({
   deploymentFrequencyPerDay: 0,
   medianLeadTimeMs: null,
   changeFailureRate: null,
   medianTimeToRestoreMs: null,
-  sample: { deployments: 0, failures: 0, restores: 0, leadTimes: 0 },
   ...overrides,
+  sample: {
+    deployments: 0,
+    failures: 0,
+    restores: 0,
+    leadTimes: 0,
+    leadTimesFromCommit: 0,
+    ...sample,
+  },
 });
 
 describe("toFourKeysView", () => {
@@ -39,6 +53,72 @@ describe("toFourKeysView", () => {
       expect(view.leadTime).toBe("2h 15m");
       expect(view.changeFailureRate).toBe("13%");
       expect(view.timeToRestore).toBe("45m");
+    });
+
+    it("should say lead time is commit-to-live when every build reported a commit time", () => {
+      // Given: every lead-time sample came from a reported commit time
+      const view = toFourKeysView(
+        keys({
+          medianLeadTimeMs: 2 * HOUR,
+          sample: {
+            deployments: 10,
+            failures: 0,
+            restores: 0,
+            leadTimes: 10,
+            leadTimesFromCommit: 10,
+          },
+        }),
+      );
+
+      // Then: the number means what DORA says it means
+      expect(view.leadTimeBasis).toBe("commit");
+    });
+
+    it("should admit lead time only counts from the report when no commit time was sent", () => {
+      // Given: a CI that reports builds but not when they were committed
+      const view = toFourKeysView(
+        keys({
+          medianLeadTimeMs: 30 * MINUTE,
+          sample: {
+            deployments: 10,
+            failures: 0,
+            restores: 0,
+            leadTimes: 10,
+            leadTimesFromCommit: 0,
+          },
+        }),
+      );
+
+      // Then: the panel can say so. "30m" that silently excludes an hour of
+      // CI queue is worse than no number, because it looks like good news.
+      expect(view.leadTimeBasis).toBe("reported");
+    });
+
+    it("should flag a lead time built from both kinds of report", () => {
+      // Given: one pipeline sends a commit time and another does not
+      const view = toFourKeysView(
+        keys({
+          medianLeadTimeMs: HOUR,
+          sample: {
+            deployments: 10,
+            failures: 0,
+            restores: 0,
+            leadTimes: 10,
+            leadTimesFromCommit: 4,
+          },
+        }),
+      );
+
+      // Then: the median mixes two different measurements, and says so
+      expect(view.leadTimeBasis).toBe("mixed");
+    });
+
+    it("should claim no basis at all when nothing has been measured", () => {
+      // Given: an environment with no lead-time samples
+      const view = toFourKeysView(keys());
+
+      // Then: there is no measurement to describe
+      expect(view.leadTimeBasis).toBe("none");
     });
 
     it("should not warn about confidence once enough has shipped", () => {
