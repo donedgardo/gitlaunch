@@ -391,6 +391,8 @@ describe("fourKeys", () => {
         failures: 1,
         restores: 1,
         leadTimes: 3,
+        // None of these reporters sent a commit time
+        leadTimesFromCommit: 0,
       });
     });
 

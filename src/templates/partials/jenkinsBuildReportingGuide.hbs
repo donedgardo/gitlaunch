@@ -16,10 +16,11 @@
   environment { GITLAUNCH_API_KEY = credentials('gitlaunch-api-key') }
   steps {
     sh '''
+      COMMIT_AT="$(git show -s --format=%cI $GIT_COMMIT)"
       curl -fsS -X POST "{{apiUrl}}/api/v1/services/{{serviceId}}/builds" \
         -H "Authorization: Bearer $GITLAUNCH_API_KEY" \
         -H "Content-Type: application/json" \
-        -d "{\"buildId\":\"$GIT_COMMIT\"}"
+        -d "{\"buildId\":\"$GIT_COMMIT\",\"commitAt\":\"$COMMIT_AT\"}"
     '''
   }
 }</code></pre>
@@ -48,7 +49,7 @@
 
 <script>
 function copyJenkinsBuildCode() {
-  var code = "stage('Report build to GitLaunch') {\n  when { branch 'main' }\n  environment { GITLAUNCH_API_KEY = credentials('gitlaunch-api-key') }\n  steps {\n    sh '''\n      curl -fsS -X POST \"{{apiUrl}}/api/v1/services/{{serviceId}}/builds\" \\\n        -H \"Authorization: Bearer $GITLAUNCH_API_KEY\" \\\n        -H \"Content-Type: application/json\" \\\n        -d \"{\\\"buildId\\\":\\\"$GIT_COMMIT\\\"}\"\n    '''\n  }\n}";
+  var code = "stage('Report build to GitLaunch') {\n  when { branch 'main' }\n  environment { GITLAUNCH_API_KEY = credentials('gitlaunch-api-key') }\n  steps {\n    sh '''\n      COMMIT_AT=\"$(git show -s --format=%cI $GIT_COMMIT)\"\n      curl -fsS -X POST \"{{apiUrl}}/api/v1/services/{{serviceId}}/builds\" \\\n        -H \"Authorization: Bearer $GITLAUNCH_API_KEY\" \\\n        -H \"Content-Type: application/json\" \\\n        -d \"{\\\"buildId\\\":\\\"$GIT_COMMIT\\\",\\\"commitAt\\\":\\\"$COMMIT_AT\\\"}\"\n    '''\n  }\n}";
   var copyIcon = document.getElementById('jenkins_build_copy_icon');
   var checkIcon = document.getElementById('jenkins_build_check_icon');
   navigator.clipboard.writeText(code).then(function() {

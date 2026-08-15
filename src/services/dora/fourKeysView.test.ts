@@ -6,13 +6,27 @@ const MINUTE = 60 * 1000;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
 
-const keys = (overrides: Partial<FourKeys> = {}): FourKeys => ({
+// The sample merges rather than replaces, so a test only states the
+// denominators it is actually about.
+const keys = ({
+  sample,
+  ...overrides
+}: Partial<Omit<FourKeys, "sample">> & {
+  sample?: Partial<FourKeys["sample"]>;
+} = {}): FourKeys => ({
   deploymentFrequencyPerDay: 0,
   medianLeadTimeMs: null,
   changeFailureRate: null,
   medianTimeToRestoreMs: null,
-  sample: { deployments: 0, failures: 0, restores: 0, leadTimes: 0 },
   ...overrides,
+  sample: {
+    deployments: 0,
+    failures: 0,
+    restores: 0,
+    leadTimes: 0,
+    leadTimesFromCommit: 0,
+    ...sample,
+  },
 });
 
 describe("toFourKeysView", () => {

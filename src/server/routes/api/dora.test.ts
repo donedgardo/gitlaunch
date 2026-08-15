@@ -222,6 +222,9 @@ describe("DORA API Routes", () => {
         failures: 1,
         restores: 1,
         leadTimes: 2,
+        // None of these builds reported a commit time, so the caller can see
+        // the lead time is measured from when we heard about them
+        leadTimesFromCommit: 0,
       });
     });
 

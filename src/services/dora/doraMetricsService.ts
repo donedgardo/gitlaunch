@@ -79,6 +79,7 @@ export class DoraMetricsService {
           // first heard about the build — a floor on the real DORA number,
           // since it drops however long the commit waited for a runner.
           changeAt: build.commitAt ?? build.createdAt,
+          changeAtSource: build.commitAt ? "commit" : "first-seen",
           intent: log.intent,
         });
       }

@@ -23,6 +23,13 @@ export type DeploymentEvent = {
    * as a floor on the real number.
    */
   changeAt: Date;
+  /**
+   * Where `changeAt` came from. `"commit"` means CI reported when the change
+   * was authored, so the lead time it produces is the DORA number. Anything
+   * else means we fell back to our own clock, and the panel has to say so
+   * rather than pass a floor off as the real thing.
+   */
+  changeAtSource?: "commit" | "first-seen";
   intent?: DeploymentIntent;
 };
 
@@ -49,6 +56,12 @@ export type FourKeys = {
     failures: number;
     restores: number;
     leadTimes: number;
+    /**
+     * How many of those lead times were measured from a reported commit time.
+     * Short of `leadTimes`, the median is partly our receive clock and the
+     * panel says which — see `DeploymentEvent.changeAtSource`.
+     */
+    leadTimesFromCommit: number;
   };
 };
 
@@ -101,6 +114,7 @@ export function computeFourKeys(
   // Lead time: first time each change reached the environment.
   const seen = new Set<string>();
   const leadTimes: number[] = [];
+  let leadTimesFromCommit = 0;
   for (const e of landed) {
     if (isRollback(e) || seen.has(e.buildId)) {
       continue;
@@ -115,6 +129,9 @@ export function computeFourKeys(
       continue;
     }
     leadTimes.push(leadTime);
+    if (e.changeAtSource === "commit") {
+      leadTimesFromCommit += 1;
+    }
   }
 
   // Failures: a change that errored on the way out, or one that had to be
@@ -160,6 +177,7 @@ export function computeFourKeys(
       failures: failures.size,
       restores: restores.length,
       leadTimes: leadTimes.length,
+      leadTimesFromCommit,
     },
   };
 }
