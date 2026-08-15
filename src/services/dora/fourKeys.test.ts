@@ -129,6 +129,36 @@ describe("fourKeys", () => {
       const keys = computeFourKeys([], "prod", window);
       expect(keys.medianLeadTimeMs).toBeNull();
     });
+
+    it("should ignore a change that appears to have shipped before it was made", () => {
+      // Given: one honest change, and one whose reported commit time is an
+      // hour *after* it went live — a CI runner with a skewed clock, or a
+      // reporter sending the wrong field
+      const events = [
+        event({
+          buildId: "honest",
+          at: "2026-08-02T12:00:00Z",
+          changeAt: t("2026-08-02T10:00:00Z"),
+        }),
+        event({
+          buildId: "skewed",
+          at: "2026-08-03T12:00:00Z",
+          changeAt: t("2026-08-03T13:00:00Z"),
+        }),
+      ];
+
+      // When: we measure
+      const keys = computeFourKeys(events, "prod", window);
+
+      // Then: only the honest one is a lead-time sample. A negative lead time
+      // is not a fast delivery, and averaging it in would quietly flatter the
+      // number for every team whose clocks disagree.
+      expect(keys.sample.leadTimes).toBe(1);
+      expect(keys.medianLeadTimeMs).toBe(2 * HOUR);
+
+      // And it still counts as a deployment — the deploy really happened
+      expect(keys.sample.deployments).toBe(2);
+    });
   });
 
   describe("change failure rate", () => {

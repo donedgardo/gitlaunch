@@ -158,6 +158,39 @@ describe("buildSetupSnippets", () => {
       expect(snippets.buildReport.github).toContain("--fail-with-body");
     });
 
+    it("should report when the commit was authored so lead time is commit-to-live", () => {
+      // Given the snippets for a service
+      const snippets = buildSetupSnippets(input);
+
+      // Then every variant sends a commit time. Without it GitLaunch can only
+      // measure from when it first heard about the build, which silently drops
+      // however long the change sat waiting for CI.
+      expect(snippets.buildReport.github).toContain("commitAt");
+      expect(snippets.buildReport.github).toContain(
+        "github.event.head_commit.timestamp",
+      );
+
+      // Jenkins and plain shells have no such variable, so they ask git
+      expect(snippets.buildReport.jenkins).toContain("commitAt");
+      expect(snippets.buildReport.jenkins).toContain("git show");
+      expect(snippets.buildReport.raw).toContain("commitAt");
+      expect(snippets.buildReport.raw).toContain("git show");
+    });
+
+    it("should stay valid YAML once the commit time is threaded through", () => {
+      // Given the GitHub build-report snippet, which is pasted into a job's
+      // steps: — an unquoted commit message or timestamp would break the file
+      const snippets = buildSetupSnippets(input);
+
+      // When it is parsed as the step list it is meant to be
+      const steps = parse(snippets.buildReport.github);
+
+      // Then it is one well-formed step
+      expect(Array.isArray(steps)).toBe(true);
+      expect(steps).toHaveLength(1);
+      expect(steps[0].name).toBeTruthy();
+    });
+
     it("should provide non-GitHub variants for Jenkins and plain shells", () => {
       // Given the snippets for a service
       const snippets = buildSetupSnippets(input);

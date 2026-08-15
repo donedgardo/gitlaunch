@@ -223,6 +223,65 @@ describe("Builds API Routes", () => {
       expect(body.accountId).toBe(testAccountId.toString());
     });
 
+    it("should record when the change was committed so lead time can be measured", async () => {
+      // Given: a reporter that knows when the commit was authored — hours
+      // before CI got around to reporting the build
+      const response = await app.inject({
+        method: "POST",
+        url: `/api/v1/services/${testServiceId}/builds`,
+        headers: {
+          authorization: "Bearer test-key",
+          "content-type": "application/json",
+        },
+        payload: {
+          buildId: "with-commit-time",
+          commitAt: "2026-08-14T09:30:00.000Z",
+        },
+      });
+
+      // Then: the build carries that moment back, and keeps it
+      expect(response.statusCode).toBe(201);
+      const body = JSON.parse(response.body);
+      expect(new Date(body.commitAt).toISOString()).toBe(
+        "2026-08-14T09:30:00.000Z",
+      );
+
+      const stored = await buildRepo.findByBuildId(
+        testAccountId,
+        testServiceId,
+        "with-commit-time",
+      );
+      expect(stored?.commitAt?.toISOString()).toBe("2026-08-14T09:30:00.000Z");
+    });
+
+    it("should reject a commit time that is not a timestamp", async () => {
+      // Given: a reporter that interpolated an empty or malformed variable
+      const response = await app.inject({
+        method: "POST",
+        url: `/api/v1/services/${testServiceId}/builds`,
+        headers: {
+          authorization: "Bearer test-key",
+          "content-type": "application/json",
+        },
+        payload: {
+          buildId: "bad-commit-time",
+          commitAt: "not-a-date",
+        },
+      });
+
+      // Then: we say so rather than storing a build whose lead time is NaN
+      expect(response.statusCode).toBe(400);
+      expect(JSON.parse(response.body).error).toMatch(/commitAt/i);
+
+      // And nothing was written — a rejected report is not a half-made build
+      const stored = await buildRepo.findByBuildId(
+        testAccountId,
+        testServiceId,
+        "bad-commit-time",
+      );
+      expect(stored).toBeNull();
+    });
+
     it("should reject without API key", async () => {
       const response = await app.inject({
         method: "POST",
