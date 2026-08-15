@@ -270,7 +270,12 @@ export function registerBuildsRoutes(
           { err: error, serviceId: serviceIdParam, buildId, env },
           "Failed to dispatch deployment",
         );
-        return reply.status(500).send({ error: message });
+        // Deliberately generic: `message` can carry a CI provider's response
+        // body, and for raw/Jenkins the customer chooses that URL. Details go
+        // to the log above, not to the caller.
+        return reply
+          .status(500)
+          .send({ error: "Failed to trigger deployment" });
       }
     },
   );

@@ -10,14 +10,10 @@ import path from "node:path";
 import { ServiceRepository } from "../../../repositories/serviceRepository";
 import { RepositoryRepository } from "../../../repositories/repositoryRepository";
 import { AccountRepository } from "../../../repositories/accountRepository";
-import { MembershipRepository } from "../../../repositories/membershipRepository";
 import { SessionService } from "../../../services/auth/sessionService";
-import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
 import { sessionAuthMiddleware } from "../../middleware/sessionAuth";
 import { registerHandlebarsHelpers } from "../../registerHandlebarsHelpers";
 import { registerServiceRoutes } from "./index";
-import { ApiKeyService } from "../../../services/apiKey/apiKeyService";
-import { ApiKeyRepository } from "../../../repositories/apiKeyRepository";
 import {
   GitHubAppService,
   IGitHubApiClient,
@@ -72,10 +68,7 @@ describe("Service Routes - Workflow Configuration", () => {
   let serviceRepo: ServiceRepository;
   let repositoryRepo: RepositoryRepository;
   let accountRepo: AccountRepository;
-  let apiKeyRepo: ApiKeyRepository;
   let sessionService: SessionService;
-  let apiKeyService: ApiKeyService;
-  let planEnforcementService: PlanEnforcementService;
   let githubAppService: GitHubAppService;
   let fakeApiClient: FakeGitHubApiClient;
 
@@ -105,16 +98,7 @@ describe("Service Routes - Workflow Configuration", () => {
     serviceRepo = new ServiceRepository(db);
     repositoryRepo = new RepositoryRepository(db);
     accountRepo = new AccountRepository(db);
-    apiKeyRepo = new ApiKeyRepository(db);
-    const membershipRepo = new MembershipRepository(db);
     sessionService = new SessionService(TEST_SECRET);
-    apiKeyService = new ApiKeyService(apiKeyRepo, accountRepo);
-    planEnforcementService = new PlanEnforcementService(
-      accountRepo,
-      repositoryRepo,
-      serviceRepo,
-      membershipRepo,
-    );
 
     // Setup GitHub app service with fakes
     fakeApiClient = new FakeGitHubApiClient();
@@ -145,13 +129,9 @@ describe("Service Routes - Workflow Configuration", () => {
     });
     sessionAuthMiddleware(app, sessionService);
     registerServiceRoutes(app, {
-      cookieSecure: false,
-      accountRepository: accountRepo,
       repositoryRepository: repositoryRepo,
       serviceRepository: serviceRepo,
-      apiKeyService,
       githubAppService,
-      planEnforcementService,
     });
     await app.ready();
   });
@@ -314,7 +294,10 @@ describe("Service Routes - Workflow Configuration", () => {
     });
   });
 
-  describe("POST /services/new — report-only creation", () => {
+  // Adding a service must not fork by "is this your first one?" — an account
+  // that already has services gets the same reporting-first onboarding (and the
+  // same AI-agent handoff) as a brand new one.
+  describe("/services/new — canonical entry into onboarding", () => {
     async function seedAccount(slug: string) {
       const account = await accountRepo.create({ name: slug, slug });
       const session = sessionService.createSession({
@@ -324,8 +307,21 @@ describe("Service Routes - Workflow Configuration", () => {
       return { account, session };
     }
 
-    it("creates a report-only service from just a name (CD picked later)", async () => {
-      const { account, session } = await seedAccount("report-org");
+    it("sends someone who wants a new service into the onboarding flow", async () => {
+      const { session } = await seedAccount("report-org");
+
+      const response = await app.inject({
+        method: "GET",
+        url: "/services/new",
+        cookies: { session },
+      });
+
+      expect(response.statusCode).toBe(302);
+      expect(response.headers.location).toBe("/onboarding/service");
+    });
+
+    it("sends a stale create-service form submission into the onboarding flow", async () => {
+      const { account, session } = await seedAccount("stale-org");
 
       const response = await app.inject({
         method: "POST",
@@ -334,39 +330,20 @@ describe("Service Routes - Workflow Configuration", () => {
         payload: { name: "api" },
       });
 
-      // Redirects to the dashboard for the new service...
-      expect(response.statusCode).toBe(302);
-      expect(response.headers.location).toBe("/dashboard/api");
-
-      const created = await serviceRepo.findByAccountIdAndName(
-        account._id,
-        "api",
-      );
-      expect(created).not.toBeNull();
-      // ...with NO deployment — the CI choice must not assume a CD provider.
-      expect(created?.deployment).toBeNull();
-
-      // And a one-time API key cookie is set for the dashboard to display.
-      const setCookies = response.headers["set-cookie"];
-      const cookieStr = Array.isArray(setCookies)
-        ? setCookies.join(";")
-        : setCookies ?? "";
-      expect(cookieStr).toContain("new_api_key");
+      expect(response.statusCode).toBe(303);
+      expect(response.headers.location).toBe("/onboarding/service");
+      // Nothing is created down this path — creation has one home now.
+      expect(await serviceRepo.findByAccountId(account._id)).toHaveLength(0);
     });
 
-    it("re-renders with an error when the name is missing", async () => {
-      const { account, session } = await seedAccount("noname-org");
-
+    it("asks for a login before starting onboarding", async () => {
       const response = await app.inject({
-        method: "POST",
+        method: "GET",
         url: "/services/new",
-        cookies: { session },
-        payload: { name: "" },
       });
 
-      expect(response.statusCode).toBe(200);
-      const services = await serviceRepo.findByAccountId(account._id);
-      expect(services).toHaveLength(0);
+      expect(response.statusCode).toBe(302);
+      expect(response.headers.location).toBe("/auth/github");
     });
   });
 });

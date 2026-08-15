@@ -145,6 +145,26 @@ describe("createAppServer configuration", () => {
     });
   });
 
+  describe("delivery metrics", () => {
+    it("should serve the DORA metrics route", async () => {
+      // A metric nothing can ask for is not a feature. The four keys shipped
+      // computable but unreachable, so the assembled server — not just the
+      // route module — has to be the thing under test.
+      const app = await buildServer(testConfig());
+
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/v1/services/000000000000000000000000/dora?environment=prod",
+      });
+
+      // Unauthenticated, so it will not succeed — but it must not 404, which
+      // is what proves the route was registered.
+      expect(response.statusCode).not.toBe(404);
+      expect(response.statusCode).toBe(401);
+      await app.close();
+    });
+  });
+
   describe("configuration source", () => {
     it("should take settings from the injected config rather than the ambient environment", async () => {
       // The whole point of the config module: what the server does is decided

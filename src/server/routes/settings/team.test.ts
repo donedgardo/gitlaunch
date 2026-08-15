@@ -22,12 +22,14 @@ import { SessionService } from "../../../services/auth/sessionService";
 import { sessionAuthMiddleware } from "../../middleware/sessionAuth";
 import { registerHandlebarsHelpers } from "../../registerHandlebarsHelpers";
 import { registerTeamRoutes } from "./team";
+import { RecordingAnalytics } from "../../../services/analytics/fakes";
 
 describe("Team Routes", () => {
   let mongoServer: MongoMemoryServer;
   let client: MongoClient;
   let db: Db;
   let app: FastifyInstance;
+  let analytics: RecordingAnalytics;
   let userRepo: UserRepository;
   let accountRepo: AccountRepository;
   let membershipRepo: MembershipRepository;
@@ -107,6 +109,7 @@ describe("Team Routes", () => {
       options: { partials: { navigation: "/partials/navigation.hbs" } },
     });
     sessionAuthMiddleware(app, sessionService);
+    analytics = new RecordingAnalytics();
     registerTeamRoutes(app, {
       publicUrl: "http://localhost:3050",
       teamManagementService: new TeamManagementService(
@@ -119,6 +122,7 @@ describe("Team Routes", () => {
         userRepo,
       ),
       invitationRepository: invitationRepo,
+      analytics,
     });
     await app.ready();
   });
@@ -154,6 +158,38 @@ describe("Team Routes", () => {
     expect(invites).toHaveLength(1);
     expect(invites[0].status).toBe("pending");
     expect(invites[0].role).toBe(MembershipRole.Member);
+  });
+
+  it("reports the invite to analytics when an owner invites someone", async () => {
+    await app.inject({
+      method: "POST",
+      url: "/settings/team/invite",
+      cookies: { session: sessionFor(ownerId) },
+      payload: { email: "newdev@acme.dev", role: "member" },
+    });
+
+    // Collaboration is a funnel step, so the event carries tenant and actor —
+    // and the invitee's address stays out of it.
+    const event = analytics.tracked.find(
+      (e) => e.event === "team_member_invited",
+    );
+    expect(event).toBeDefined();
+    expect(event?.context?.accountId).toBe(accountId.toString());
+    expect(event?.context?.distinctId).toBe(ownerId.toString());
+    expect(event?.properties?.role).toBe(MembershipRole.Member);
+    expect(JSON.stringify(event?.properties)).not.toContain("newdev@acme.dev");
+  });
+
+  it("reports nothing to analytics when the invite is refused", async () => {
+    await app.inject({
+      method: "POST",
+      url: "/settings/team/invite",
+      cookies: { session: sessionFor(memberId) },
+      payload: { email: "sneaky@acme.dev", role: "admin" },
+    });
+
+    // A rejected attempt is not an invite; counting it would inflate the funnel
+    expect(analytics.tracked).toHaveLength(0);
   });
 
   it("refuses to create an invite for a plain member and stores nothing", async () => {

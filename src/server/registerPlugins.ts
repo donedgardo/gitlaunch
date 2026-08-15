@@ -56,7 +56,9 @@ export function registerPlugins(server: FastifyInstance, cookieSecret: string) {
         setupStep: "/partials/setupStep.hbs",
         waitlistResult: "/partials/waitlistResult.hbs",
         analyticsPanel: "/partials/analyticsPanel.hbs",
+        doraPanel: "/partials/doraPanel.hbs",
         legalStyles: "/partials/legalStyles.hbs",
+        aiAgentSetup: "/partials/aiAgentSetup.hbs",
       },
     },
   });
@@ -64,6 +66,16 @@ export function registerPlugins(server: FastifyInstance, cookieSecret: string) {
     root: path.join(__dirname, "../public"),
     prefix: "/public",
     list: true,
+  });
+  // Agent Skills, served so a coding agent can read them straight off the
+  // instance it is onboarding against — no install step, and a self-hosted
+  // instance serves the skill matching its own version. Two levels up from
+  // __dirname is the repo root in both src/ (dev) and dist/ (prod).
+  server.register(fastifyStatic, {
+    root: path.join(__dirname, "../../skills"),
+    prefix: "/skills",
+    list: true,
+    decorateReply: false,
   });
   server.register(fastifyCookie, {
     secret: cookieSecret,

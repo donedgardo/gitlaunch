@@ -278,9 +278,110 @@ describe("BuildRepository", () => {
 
       // Then: a log entry is added
       expect(updated!.deploymentLogs).toHaveLength(1);
-      expect(updated!.deploymentLogs[0]).toEqual({
+      expect(updated!.deploymentLogs[0]).toMatchObject({
         environment: "staging",
         status: DeploymentStatus.DEPLOYED,
+      });
+    });
+
+    it("should stamp every log entry with the time it happened", async () => {
+      // Given: a build exists
+      await repo.create({
+        accountId: testAccountId,
+        serviceId: testServiceId,
+        buildId: "stamp-me",
+      });
+      const before = new Date();
+
+      // When: it moves through two statuses
+      await repo.updateDeploymentStatus(
+        testAccountId,
+        testServiceId,
+        "stamp-me",
+        "staging",
+        DeploymentStatus.DEPLOYING,
+      );
+      const updated = await repo.updateDeploymentStatus(
+        testAccountId,
+        testServiceId,
+        "stamp-me",
+        "staging",
+        DeploymentStatus.DEPLOYED,
+      );
+      const after = new Date();
+
+      // Then: each entry carries when it happened, so the four keys can be
+      // measured from the log rather than guessed at
+      expect(updated!.deploymentLogs).toHaveLength(2);
+      for (const log of updated!.deploymentLogs) {
+        expect(log.at).toBeInstanceOf(Date);
+        expect(log.at.getTime()).toBeGreaterThanOrEqual(before.getTime());
+        expect(log.at.getTime()).toBeLessThanOrEqual(after.getTime());
+      }
+      expect(updated!.deploymentLogs[0].at.getTime()).toBeLessThanOrEqual(
+        updated!.deploymentLogs[1].at.getTime(),
+      );
+    });
+
+    it("should record the intent when a deployment is a rollback", async () => {
+      // Given: a build exists
+      await repo.create({
+        accountId: testAccountId,
+        serviceId: testServiceId,
+        buildId: "undo-me",
+      });
+
+      // When: it is dispatched as a rollback
+      const updated = await repo.updateDeploymentStatus(
+        testAccountId,
+        testServiceId,
+        "undo-me",
+        "production",
+        DeploymentStatus.DISPATCHING,
+        "rollback",
+      );
+
+      // Then: the log says so — this is what change failure rate and time to
+      // restore are counted from
+      expect(updated!.deploymentLogs[0]).toMatchObject({
+        environment: "production",
+        status: DeploymentStatus.DISPATCHING,
+        intent: "rollback",
+      });
+    });
+
+    it("should carry the intent forward to the statuses that follow it", async () => {
+      // Given: a rollback was dispatched
+      await repo.create({
+        accountId: testAccountId,
+        serviceId: testServiceId,
+        buildId: "carry-me",
+      });
+      await repo.updateDeploymentStatus(
+        testAccountId,
+        testServiceId,
+        "carry-me",
+        "production",
+        DeploymentStatus.DISPATCHING,
+        "rollback",
+      );
+
+      // When: the reporter later says it landed
+      const updated = await repo.updateDeploymentStatus(
+        testAccountId,
+        testServiceId,
+        "carry-me",
+        "production",
+        DeploymentStatus.DEPLOYED,
+        "rollback",
+      );
+
+      // Then: the deployed entry is a rollback too — restore time is measured
+      // from when service actually came back, not when the undo was requested
+      const last = updated!.deploymentLogs[updated!.deploymentLogs.length - 1];
+      expect(last).toMatchObject({
+        status: DeploymentStatus.DEPLOYED,
+        intent: "rollback",
       });
     });
 
@@ -707,7 +808,7 @@ describe("BuildRepository", () => {
       );
       const lastLog =
         logBuild!.deploymentLogs[logBuild!.deploymentLogs.length - 1];
-      expect(lastLog).toEqual({
+      expect(lastLog).toMatchObject({
         environment: "staging",
         status: DeploymentStatus.NONE,
       });
@@ -972,6 +1073,76 @@ describe("BuildRepository", () => {
       expect(result.builds[0].buildId).toBe("build-15");
       expect(result.total).toBe(15);
       expect(result.hasMore).toBe(true);
+    });
+
+    it("should show every build exactly once across pages when builds share a timestamp", async () => {
+      // Given: 25 builds reported in the same millisecond — one CI run
+      // reporting a burst, which is how ties actually happen in production
+      for (let i = 1; i <= 25; i++) {
+        await repo.create({
+          accountId: testAccountId,
+          serviceId: testServiceId,
+          buildId: `build-${i}`,
+        });
+      }
+      await db
+        .collection("builds")
+        .updateMany({}, { $set: { createdAt: new Date("2026-01-01") } });
+
+      // When: I page through all of them
+      const seen: string[] = [];
+      for (const page of [1, 2, 3]) {
+        const result = await repo.findPaginated(
+          testAccountId,
+          testServiceId,
+          page,
+          10,
+        );
+        seen.push(...result.builds.map((b) => b.buildId));
+      }
+
+      // Then: nobody is shown twice and nobody is lost between pages. Without a
+      // tiebreak, ties come back in an arbitrary order per query, so a build on
+      // a page boundary can appear on both pages — or on neither.
+      expect(seen).toHaveLength(25);
+      expect(new Set(seen).size).toBe(25);
+    });
+
+    it("should keep newest-first order among builds sharing a timestamp", async () => {
+      // Given: 25 builds reported in the same millisecond
+      for (let i = 1; i <= 25; i++) {
+        await repo.create({
+          accountId: testAccountId,
+          serviceId: testServiceId,
+          buildId: `build-${i}`,
+        });
+      }
+      await db
+        .collection("builds")
+        .updateMany({}, { $set: { createdAt: new Date("2026-01-01") } });
+
+      // When: I read the first page
+      const result = await repo.findPaginated(
+        testAccountId,
+        testServiceId,
+        1,
+        10,
+      );
+
+      // Then: the most recently reported build still leads. A tie is broken by
+      // insertion order, not left to the storage engine.
+      expect(result.builds.map((b) => b.buildId)).toEqual([
+        "build-25",
+        "build-24",
+        "build-23",
+        "build-22",
+        "build-21",
+        "build-20",
+        "build-19",
+        "build-18",
+        "build-17",
+        "build-16",
+      ]);
     });
 
     it("should treat negative page as page 1", async () => {

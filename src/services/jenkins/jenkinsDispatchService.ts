@@ -1,4 +1,5 @@
 import { IHttpClient, HttpClient } from "../github/githubAppClient";
+import { UpstreamDispatchError } from "../dispatch/upstreamDispatchError";
 
 export type JenkinsDispatchInput = {
   baseUrl: string;
@@ -43,9 +44,11 @@ export class JenkinsDispatchService {
     );
 
     if (!response.ok) {
-      const errorBody = await response.text();
-      throw new Error(
-        `Failed to dispatch Jenkins build: ${response.status} - ${errorBody}`,
+      const errorBody = await response.text().catch(() => "");
+      throw new UpstreamDispatchError(
+        "Failed to dispatch Jenkins build",
+        response.status,
+        errorBody,
       );
     }
   }
