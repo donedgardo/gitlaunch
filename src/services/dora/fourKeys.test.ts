@@ -130,6 +130,33 @@ describe("fourKeys", () => {
       expect(keys.medianLeadTimeMs).toBeNull();
     });
 
+    it("should say how many lead times were measured from a real commit time", () => {
+      // Given: one build whose CI reported when the commit was authored, and
+      // one from a reporter that sends nothing
+      const events = [
+        event({
+          buildId: "reports-commit",
+          at: "2026-08-02T12:00:00Z",
+          changeAt: t("2026-08-02T08:00:00Z"),
+          changeAtSource: "commit",
+        }),
+        event({
+          buildId: "silent",
+          at: "2026-08-03T12:00:00Z",
+          changeAt: t("2026-08-03T11:00:00Z"),
+        }),
+      ];
+
+      // When: we measure
+      const keys = computeFourKeys(events, "prod", window);
+
+      // Then: both are lead times, but only one is commit-to-live. The panel
+      // needs the split to avoid claiming a number it cannot back — a team
+      // reading "1h" should know whether that is delivery or just our clock.
+      expect(keys.sample.leadTimes).toBe(2);
+      expect(keys.sample.leadTimesFromCommit).toBe(1);
+    });
+
     it("should ignore a change that appears to have shipped before it was made", () => {
       // Given: one honest change, and one whose reported commit time is an
       // hour *after* it went live — a CI runner with a skewed clock, or a

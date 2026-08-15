@@ -17,11 +17,10 @@ export type DeploymentEvent = {
   /**
    * When the change being deployed was authored.
    *
-   * Today the caller passes the build's `createdAt` — the moment GitLaunch
-   * first heard about the build — which makes lead time "reported to live"
-   * rather than the DORA definition of "committed to live". Feeding a real
-   * commit timestamp in here is the only change needed to close that gap;
-   * the arithmetic below does not move.
+   * The caller passes the commit time the reporter sent, falling back to the
+   * build's `createdAt` when it sent none. On the fallback path lead time is
+   * "reported to live" rather than the DORA "committed to live", and so reads
+   * as a floor on the real number.
    */
   changeAt: Date;
   intent?: DeploymentIntent;
@@ -107,7 +106,15 @@ export function computeFourKeys(
       continue;
     }
     seen.add(e.buildId);
-    leadTimes.push(e.at.getTime() - e.changeAt.getTime());
+    const leadTime = e.at.getTime() - e.changeAt.getTime();
+    // A change cannot go live before it was written. When it looks that way
+    // the commit time came off a clock that disagrees with ours, and the
+    // honest thing is to drop the sample: counting it would subtract from the
+    // median and make delivery look faster than it is.
+    if (leadTime < 0) {
+      continue;
+    }
+    leadTimes.push(leadTime);
   }
 
   // Failures: a change that errored on the way out, or one that had to be

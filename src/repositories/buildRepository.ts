@@ -12,6 +12,12 @@ export type Build = {
   // Optional: builds reported before this existed (or by reporters that don't
   // send it) simply show the SHA on its own.
   message?: string;
+  // When the change this build carries was authored, as reported by CI.
+  // Lead time is measured from here, so it deliberately is not our clock:
+  // the hours a commit spends queued for a runner are part of the delivery.
+  // Absent for builds reported by a reporter that doesn't send it, and for
+  // everything recorded before this existed.
+  commitAt?: Date;
   deployments: Record<string, DeploymentStatus>;
   // When this build last went live per environment, so the board can show
   // "3d ago" next to a Live pill. Only written on the deployed transition, and
@@ -27,6 +33,7 @@ export type CreateBuildInput = {
   serviceId: ObjectId;
   buildId: string;
   message?: string;
+  commitAt?: Date;
 };
 
 /**
@@ -89,6 +96,9 @@ export class BuildRepository {
       // Only persist a message when the reporter sent one, so we don't write
       // empty strings for the SHA-only case.
       ...(input.message ? { message: input.message } : {}),
+      // Same reasoning as the message: absent means "not reported", which is
+      // what the metrics check before falling back to `createdAt`.
+      ...(input.commitAt ? { commitAt: input.commitAt } : {}),
       deployments: {},
       deploymentLogs: [],
       createdAt: now,

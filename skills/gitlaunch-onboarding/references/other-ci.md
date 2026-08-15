@@ -3,6 +3,15 @@
 Build reporting is just an HTTP POST, so every CI system can do it. Deploy
 _control_ is the part that differs, because GitLaunch has to trigger something.
 
+## Always send `commitAt`
+
+Every build report below carries `commitAt` — an ISO-8601 timestamp of when the
+commit was authored. DORA lead time is measured from it. Leave it out and
+GitLaunch can only measure from the moment the report arrived, which silently
+drops however long the change sat waiting for a runner, so a slow queue reads as
+fast delivery. `git show -s --format=%cI <sha>` produces it anywhere there is a
+checkout.
+
 ## How GitLaunch triggers a deploy
 
 | Provider  | How                                    | Configured in the UI as        |
@@ -101,8 +110,10 @@ report-build:
         "<host>/api/v1/services/<serviceId>/builds" \
         -H "Authorization: Bearer $GITLAUNCH_API_KEY" \
         -H "Content-Type: application/json" \
-        -d "{\"buildId\":\"$CI_COMMIT_SHA\"}"
+        -d "{\"buildId\":\"$CI_COMMIT_SHA\",\"commitAt\":\"$CI_COMMIT_TIMESTAMP\"}"
 ```
+
+`$CI_COMMIT_TIMESTAMP` is already ISO-8601, so GitLab needs no git call.
 
 Set `GITLAUNCH_API_KEY` as a **masked, protected** CI/CD variable in
 Settings → CI/CD → Variables.
@@ -117,14 +128,16 @@ jobs:
     docker:
       - image: cimg/base:stable
     steps:
+      - checkout
       - run:
           name: Report build to GitLaunch
           command: |
+            COMMIT_AT="$(git show -s --format=%cI $CIRCLE_SHA1)"
             curl --fail-with-body -sS -X POST \
               "<host>/api/v1/services/<serviceId>/builds" \
               -H "Authorization: Bearer $GITLAUNCH_API_KEY" \
               -H "Content-Type: application/json" \
-              -d "{\"buildId\":\"$CIRCLE_SHA1\"}"
+              -d "{\"buildId\":\"$CIRCLE_SHA1\",\"commitAt\":\"$COMMIT_AT\"}"
 
 workflows:
   main:
