@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { loadConfig, summarizeConfig } from "./loadConfig";
-import { BuildIdentity } from "../services/licensing/distribution";
+import { BuildIdentity } from "./distribution";
 
 const saasBuild: BuildIdentity = { distribution: "saas", issuerPublicKey: "" };
 const selfHostedBuild: BuildIdentity = {

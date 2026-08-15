@@ -1,6 +1,8 @@
 #!/usr/bin/env tsx
+// GitLaunch Enterprise Feature — licensed under LICENSE-enterprise.md, not the FSL.
+
 /**
- * Stamps the build identity into src/services/licensing/distribution.ts before
+ * Stamps the build identity into src/config/distribution.ts before
  * a release build. Run by the distribution image build — see
  * docs/ENTERPRISE-DELIVERY.md.
  *
@@ -19,8 +21,7 @@ const TARGET = resolve(
   __dirname,
   "..",
   "src",
-  "services",
-  "licensing",
+  "config",
   "distribution.ts",
 );
 

@@ -1,3 +1,5 @@
+// GitLaunch Enterprise Feature — licensed under LICENSE-enterprise.md, not the FSL.
+
 import { ObjectId } from "mongodb";
 import { InvitationRepository } from "../../../repositories/invitationRepository";
 import { MembershipRepository } from "../../../repositories/membershipRepository";

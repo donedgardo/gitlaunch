@@ -1,3 +1,5 @@
+// GitLaunch Enterprise Feature — licensed under LICENSE-enterprise.md, not the FSL.
+
 import { describe, it, expect, beforeEach } from "vitest";
 import { ObjectId } from "mongodb";
 import { StripeService, StripeClient } from "./stripeService";

@@ -5,14 +5,16 @@ import { SessionService } from "../../../services/auth/sessionService";
 import { UserRepository } from "../../../repositories/userRepository";
 import { AccountRepository } from "../../../repositories/accountRepository";
 import { MembershipRepository } from "../../../repositories/membershipRepository";
-import { InvitationRepository } from "../../../repositories/invitationRepository";
-import { acceptInvitation } from "../invite/acceptInvitation";
+import { PendingInviteRedeemer } from "../../../services/auth/pendingInvite";
 import { AnalyticsService } from "../../../services/analytics/analytics";
 import {
   SignupGate,
   signupEntityKey,
 } from "../../../services/account/signupGate";
-import { ensureAccountForUser } from "../../../services/auth/accountBootstrap";
+import {
+  AccountLimitReachedError,
+  ensureAccountForUser,
+} from "../../../services/auth/accountBootstrap";
 import { sessionCookieOptions, oauthStateCookieOptions } from "../../cookies";
 
 export type GitHubAuthRoutesConfig = {
@@ -25,11 +27,15 @@ export type GitHubAuthRoutesConfig = {
   useFakeGitHub: boolean;
   // Optional: when present, a pending_invite cookie is redeemed right after
   // sign-in so a logged-out invitee joins the workspace they were invited to.
-  invitationRepository?: InvitationRepository;
+  // Supplied only by builds that have the invitation feature.
+  redeemPendingInvite?: PendingInviteRedeemer;
   // Optional: when present, creating a *new* account is gated by GitLaunch's
   // own feature flag (dogfooding). Absent => signups always open.
   signupGate?: SignupGate;
   analytics?: AnalyticsService;
+  // How many accounts this instance may hold. 1 on an unlicensed self-hosted
+  // install; absent (uncapped) on the hosted product and licensed installs.
+  maxAccounts?: number;
 };
 
 export function registerGitHubAuthRoutes(
@@ -44,9 +50,10 @@ export function registerGitHubAuthRoutes(
     membershipRepository,
     cookieSecure,
     useFakeGitHub,
-    invitationRepository,
+    redeemPendingInvite,
     signupGate,
     analytics,
+    maxAccounts,
   } = config;
 
   // GET /auth/github - Redirect to GitHub OAuth
@@ -113,7 +120,7 @@ export function registerGitHubAuthRoutes(
         // An invitee is vouched for by an existing customer, so they join their
         // workspace even while the public front door is shut.
         const hasPendingInvite = !!(
-          request.cookies?.pending_invite && invitationRepository
+          request.cookies?.pending_invite && redeemPendingInvite
         );
 
         // Dogfooding our own feature flags: a visitor with no membership is a
@@ -155,6 +162,7 @@ export function registerGitHubAuthRoutes(
           slugSeed: githubUser.login,
           accountRepository,
           membershipRepository,
+          maxAccounts,
         });
         let accountId = bootstrap.accountId;
         const isNewUser = bootstrap.isNewUser;
@@ -163,15 +171,13 @@ export function registerGitHubAuthRoutes(
         // invited workspace their active account.
         let joinedViaInvite = false;
         const pendingInviteToken = request.cookies?.pending_invite;
-        if (pendingInviteToken && invitationRepository) {
-          const accepted = await acceptInvitation(
-            invitationRepository,
-            membershipRepository,
+        if (pendingInviteToken && redeemPendingInvite) {
+          const accepted = await redeemPendingInvite(
             pendingInviteToken,
             user._id,
           );
           reply.clearCookie("pending_invite", { path: "/" });
-          if (accepted.ok) {
+          if (accepted.joined && accepted.accountId) {
             accountId = accepted.accountId;
             joinedViaInvite = true;
           }
@@ -225,6 +231,9 @@ export function registerGitHubAuthRoutes(
 
         return reply.redirect("/dashboard");
       } catch (error) {
+        if (error instanceof AccountLimitReachedError) {
+          return reply.redirect("/login?error=single_tenant");
+        }
         console.error("GitHub OAuth error:", error);
         return reply.redirect("/?error=auth_failed");
       }

@@ -1,3 +1,20 @@
+> **Scope of this license.** This note is not part of the Functional Source
+> License text that follows, which is reproduced verbatim.
+>
+> This license covers GitLaunch's open core: everything in this repository
+> except the Enterprise Features and the MIT-licensed client pieces.
+>
+> - **Enterprise Features** — the paths listed in
+>   [ENTERPRISE-PATHS.md](ENTERPRISE-PATHS.md), and the capabilities named in
+>   [LICENSE-enterprise.md](LICENSE-enterprise.md), which governs them instead.
+>   In short: more than one account, more than one seat, single sign-on,
+>   subscription billing, and license key issuance. A single-account,
+>   single-seat instance needs no subscription.
+> - **MIT** — `sdk/` and `github-action/`, each carrying its own LICENSE.
+>
+> Anything not listed as an Enterprise Feature is under this license, including
+> anything added later. The default is open core.
+
 # Functional Source License, Version 1.1, ALv2 Future License
 
 ## Abbreviation

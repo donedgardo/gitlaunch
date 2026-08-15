@@ -1,23 +1,28 @@
+// GitLaunch Enterprise Feature — licensed under LICENSE-enterprise.md, not the FSL.
+
 import { ObjectId } from "mongodb";
 import { AccountRepository, Plan } from "../../repositories/accountRepository";
 import { TrialRegistryRepository } from "../../repositories/trialRegistryRepository";
+import {
+  TrialExpiryResult,
+  TrialPolicy,
+  TrialStartResult,
+} from "../limits/accountPolicy";
 
 const TRIAL_DURATION_DAYS = 14;
 
-export type TrialStartResult =
-  | { started: true; trialEndsAt: Date }
-  | { started: false; reason: string };
+export type {
+  TrialStartResult,
+  TrialExpiryResult,
+} from "../limits/accountPolicy";
 
 export type TrialStatus =
   | { onTrial: false; expired?: boolean }
   | { onTrial: true; daysRemaining: number; trialEndsAt: Date };
 
-export type TrialExpiryResult = {
-  expired: boolean;
-  downgraded?: boolean;
-};
-
-export class TrialService {
+// The commercial trial. Implements the port so onboarding and the dashboard can
+// ask about trials without the answer having to exist.
+export class TrialService implements TrialPolicy {
   constructor(
     private accountRepo: AccountRepository,
     private trialRegistryRepo: TrialRegistryRepository,

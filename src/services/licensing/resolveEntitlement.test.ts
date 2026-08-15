@@ -1,5 +1,11 @@
+// GitLaunch Enterprise Feature — licensed under LICENSE-enterprise.md, not the FSL.
+
 import { describe, it, expect } from "vitest";
-import { resolveEntitlement, SelfHostedLicense } from "./resolveEntitlement";
+import {
+  maxAccountsFor,
+  resolveEntitlement,
+  SelfHostedLicense,
+} from "./resolveEntitlement";
 import { Plan, PRO_PLAN_LIMITS } from "../../repositories/accountRepository";
 
 describe("resolveEntitlement", () => {
@@ -15,6 +21,13 @@ describe("resolveEntitlement", () => {
     maxUsers: 50,
     expiresAt: new Date("2027-01-01T00:00:00Z"),
   };
+
+  const lapsed = {
+    kind: "self-hosted" as const,
+    license: { ...license, expiresAt: new Date("2026-07-26T00:00:00Z") },
+  };
+
+  const unlicensed = { kind: "self-hosted" as const, license: null };
 
   describe("hosted SaaS instance", () => {
     it("should keep the account's own plan limits", () => {
@@ -33,7 +46,16 @@ describe("resolveEntitlement", () => {
 
       // Then trial countdown and payment-failure read-only still apply
       expect(entitlement.billingEnforced).toBe(true);
-      expect(entitlement.blockedReason).toBeNull();
+      expect(entitlement.licenseNotice).toBeNull();
+    });
+
+    it("should never cap how many accounts the hosted product signs up", () => {
+      // Given gitlaunch.com, which is multi-tenant by definition
+      // When I ask how many accounts this instance may hold
+      // Then there is no cap
+      expect(maxAccountsFor({ kind: "saas" }, now)).toBe(
+        Number.MAX_SAFE_INTEGER,
+      );
     });
   });
 
@@ -90,7 +112,7 @@ describe("resolveEntitlement", () => {
 
       // Then trials, payment failures and read-only downgrades do not apply
       expect(entitlement.billingEnforced).toBe(false);
-      expect(entitlement.blockedReason).toBeNull();
+      expect(entitlement.licenseNotice).toBeNull();
     });
 
     it("should treat a perpetual license as always current", () => {
@@ -108,66 +130,93 @@ describe("resolveEntitlement", () => {
       );
 
       // Then it never lapses
-      expect(entitlement.blockedReason).toBeNull();
+      expect(entitlement.licenseNotice).toBeNull();
+    });
+
+    it("should let a licensed instance host as many accounts as it likes", () => {
+      // Given a licensed install
+      const mode = { kind: "self-hosted" as const, license };
+
+      // When I ask how many accounts it may hold
+      // Then multi-tenancy is what the license bought
+      expect(maxAccountsFor(mode, now)).toBe(Number.MAX_SAFE_INTEGER);
     });
   });
 
-  describe("expired or missing license", () => {
-    it("should stop new resources from being created once the license lapses", () => {
-      // Given a license that expired yesterday
-      const mode = {
-        kind: "self-hosted" as const,
-        license: { ...license, expiresAt: new Date("2026-07-26T00:00:00Z") },
-      };
-
+  // Open core is the FSL product: one account, one seat, everything else
+  // unmetered. Running it without a license is a supported configuration, not a
+  // violation — so it must be a working install, not a blocked one.
+  describe("unlicensed instance running open core", () => {
+    it("should meter an unlicensed instance to a single seat", () => {
+      // Given someone running the image with no license at all
       // When I resolve entitlement
-      const entitlement = resolveEntitlement(mode, account, now);
+      const entitlement = resolveEntitlement(unlicensed, account, now);
 
-      // Then growth stops, and the operator is told why
-      expect(entitlement.blockedReason).toBe(
-        "GitLaunch license for Acme Corp expired on 2026-07-26",
-      );
+      // Then seats are the thing that is sold, so there is exactly one
+      expect(entitlement.limits.maxUsers).toBe(1);
     });
 
-    it("should never shrink limits on a lapsed license", () => {
-      // Given an expired license on a large install
-      const mode = {
-        kind: "self-hosted" as const,
-        license: { ...license, expiresAt: new Date("2026-07-26T00:00:00Z") },
-      };
+    it("should hold an unlicensed instance to a single account", () => {
+      // Given an unlicensed instance
+      // When I ask how many accounts it may hold
+      // Then open core is single-tenant
+      expect(maxAccountsFor(unlicensed, now)).toBe(1);
+    });
 
+    it("should leave everything except seats and accounts unmetered", () => {
+      // Given an unlicensed instance
       // When I resolve entitlement
-      const entitlement = resolveEntitlement(mode, account, now);
+      const entitlement = resolveEntitlement(unlicensed, account, now);
 
-      // Then everything already running stays within limits — a lapsed licence
-      // must never take a customer's production install read-only
+      // Then the open-core product is complete — we sell seats, not capacity
+      expect(entitlement.limits.maxRepositories).toBe(Number.MAX_SAFE_INTEGER);
+      expect(entitlement.limits.maxServices).toBe(Number.MAX_SAFE_INTEGER);
+      expect(entitlement.limits.maxEnvironments).toBe(Number.MAX_SAFE_INTEGER);
+      expect(entitlement.limits.publicReposOnly).toBe(false);
+    });
+
+    it("should treat running unlicensed as legitimate rather than an error", () => {
+      // Given an unlicensed instance
+      // When I resolve entitlement
+      const entitlement = resolveEntitlement(unlicensed, account, now);
+
+      // Then there is nothing to report — this is a product we ship, and
+      // nagging an open-core user is nagging someone using it as intended
+      expect(entitlement.licenseNotice).toBeNull();
+      expect(entitlement.billingEnforced).toBe(false);
+    });
+  });
+
+  describe("lapsed license", () => {
+    it("should fall back to open core rather than blocking the install", () => {
+      // Given a license that expired yesterday
+      // When I resolve entitlement
+      const entitlement = resolveEntitlement(lapsed, account, now);
+
+      // Then they keep the open-core product — a lapsed renewal must never take
+      // a customer's production install read-only, and the FSL grant is theirs
+      // whether or not they ever pay us again
+      expect(entitlement.limits.maxUsers).toBe(1);
       expect(entitlement.limits.maxServices).toBe(Number.MAX_SAFE_INTEGER);
       expect(entitlement.billingEnforced).toBe(false);
     });
 
-    it("should block growth on an unlicensed instance", () => {
-      // Given someone running the image with no license at all
-      const mode = { kind: "self-hosted" as const, license: null };
-
+    it("should tell the operator why their seats dropped", () => {
+      // Given a lapsed license
       // When I resolve entitlement
-      const entitlement = resolveEntitlement(mode, account, now);
+      const entitlement = resolveEntitlement(lapsed, account, now);
 
-      // Then they cannot grow the install
-      expect(entitlement.blockedReason).toBe(
-        "This GitLaunch instance is not licensed",
+      // Then the reason is available to the boot log and the settings page
+      expect(entitlement.licenseNotice).toBe(
+        "GitLaunch license for Acme Corp expired on 2026-07-26 — running as open core",
       );
     });
 
-    it("should still let an unlicensed instance run what it already has", () => {
-      // Given an unlicensed instance
-      const mode = { kind: "self-hosted" as const, license: null };
-
-      // When I resolve entitlement
-      const entitlement = resolveEntitlement(mode, account, now);
-
-      // Then existing services keep deploying — evaluation installs degrade to
-      // read-only growth, not a broken product
-      expect(entitlement.limits.maxServices).toBe(Number.MAX_SAFE_INTEGER);
+    it("should stop hosting extra accounts once the license lapses", () => {
+      // Given a lapsed license
+      // When I ask how many accounts the instance may hold
+      // Then it is back to single-tenant, though existing accounts are untouched
+      expect(maxAccountsFor(lapsed, now)).toBe(1);
     });
 
     it("should lapse exactly at the expiry instant", () => {
@@ -181,7 +230,8 @@ describe("resolveEntitlement", () => {
       const entitlement = resolveEntitlement(mode, account, now);
 
       // Then it is still honoured — expiry is exclusive
-      expect(entitlement.blockedReason).toBeNull();
+      expect(entitlement.licenseNotice).toBeNull();
+      expect(entitlement.limits.maxUsers).toBe(50);
     });
   });
 });
