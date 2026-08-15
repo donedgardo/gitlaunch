@@ -14,24 +14,7 @@ import {
   summarizeEnvironmentFlags,
   EnvFlagSummary,
 } from "../../services/flag/flagBoardSummary";
-import { DoraMetricsService } from "../../services/dora/doraMetricsService";
-import { toFourKeysView, FourKeysView } from "../../services/dora/fourKeysView";
-
 const DEFAULT_PAGE_SIZE = 20;
-
-/**
- * How far back the board's delivery metrics look.
- *
- * Long enough that a weekly-shipping team has something to show, short enough
- * that the numbers describe how the team works now rather than last quarter.
- */
-const DORA_WINDOW_DAYS = 30;
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-type DoraPanel = {
-  windowDays: number;
-  environments: Array<{ name: string } & FourKeysView>;
-};
 
 export type DashboardRoutesDeps = {
   publicUrl: string;
@@ -47,9 +30,6 @@ export type DashboardRoutesDeps = {
   // Optional: when absent the board renders exactly as before, without flag
   // state. Flags enrich the board; they are never required to read it.
   flagService?: FlagServiceI;
-  // Optional on the same terms: the delivery metrics panel is an addition to
-  // the board, never a prerequisite for seeing what is deployed.
-  doraMetricsService?: DoraMetricsService;
 };
 
 export default function (deps: DashboardRoutesDeps) {
@@ -65,7 +45,6 @@ export default function (deps: DashboardRoutesDeps) {
     planEnforcementService,
     analytics,
     flagService,
-    doraMetricsService,
   } = deps;
 
   // Flag state for each environment column of the release board.
@@ -82,44 +61,6 @@ export default function (deps: DashboardRoutesDeps) {
     try {
       const flags = await flagService.listFlags(accountId, serviceId);
       return summarizeEnvironmentFlags(flags, environmentNames);
-    } catch {
-      return null;
-    }
-  };
-
-  /**
-   * The four keys for each environment column, ready to render.
-   *
-   * Fail-soft for the same reason as flags: a metrics problem must never cost
-   * the customer the answer to "what is live". Returns null — meaning "render
-   * no panel" — both on failure and when nothing has ever deployed, since a
-   * panel of blanks on a brand-new service is noise, not information.
-   */
-  const loadDeliveryMetrics = async (
-    accountId: ObjectId,
-    serviceId: ObjectId,
-    environmentNames: string[],
-  ): Promise<DoraPanel | null> => {
-    if (!doraMetricsService) return null;
-    try {
-      const to = new Date();
-      const from = new Date(to.getTime() - DORA_WINDOW_DAYS * DAY_MS);
-      const keys = await doraMetricsService.forEnvironments(
-        accountId,
-        serviceId,
-        environmentNames,
-        { from, to },
-      );
-
-      const environments = environmentNames.map((name) => ({
-        name,
-        ...toFourKeysView(keys[name]),
-      }));
-
-      if (!environments.some((e) => e.hasData)) {
-        return null;
-      }
-      return { windowDays: DORA_WINDOW_DAYS, environments };
     } catch {
       return null;
     }
@@ -295,16 +236,6 @@ export default function (deps: DashboardRoutesDeps) {
           flags: flagSummaries?.[index] ?? null,
         }));
 
-        // What is live and what is switched on inside it, plus how well the
-        // team gets it there. The four keys sit above the board rather than
-        // in a separate report, so the numbers stay attached to the delivery
-        // they describe.
-        const doraMetrics = await loadDeliveryMetrics(
-          accountId,
-          activeService._id,
-          environments.map((e) => e.name),
-        );
-
         // Commit-link source: prefer the service's own repoUrl; fall back to
         // the connected repository's GitHub URL for legacy GitHub services that
         // predate repoUrl (no migration needed).
@@ -376,7 +307,6 @@ export default function (deps: DashboardRoutesDeps) {
               serviceId: activeService._id.toString(),
               serviceName: serviceName,
               environments: boardEnvironments,
-              doraMetrics,
               builds: formattedBuilds,
               repoUrl,
               canDispatch,
@@ -401,7 +331,6 @@ export default function (deps: DashboardRoutesDeps) {
             activeService: serviceName,
             serviceId: activeService._id.toString(),
             environments: boardEnvironments,
-            doraMetrics,
             builds: formattedBuilds,
             repoUrl,
             canDispatch,

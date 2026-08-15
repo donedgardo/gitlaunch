@@ -31,7 +31,6 @@ import { PlanEnforcementService } from "../../services/billing/planEnforcementSe
 import { TrialService } from "../../services/billing/trialService";
 import { FlagRepository } from "../../repositories/flagRepository";
 import { FlagService } from "../../services/flag/flagService";
-import { DoraMetricsService } from "../../services/dora/doraMetricsService";
 import dashboardRoutes from "./index";
 
 describe("Dashboard Routes", () => {
@@ -51,7 +50,6 @@ describe("Dashboard Routes", () => {
   let trialService: TrialService;
   let flagRepo: FlagRepository;
   let flagService: FlagService;
-  let doraMetricsService: DoraMetricsService;
   let mockDispatcher: BuildDispatchServiceI;
   let eventEmitter: EventEmitter;
 
@@ -98,7 +96,6 @@ describe("Dashboard Routes", () => {
     trialService = new TrialService(accountRepo, trialRegistryRepo);
     flagRepo = new FlagRepository(db);
     flagService = new FlagService(flagRepo, serviceRepo);
-    doraMetricsService = new DoraMetricsService(buildRepo);
 
     sessionService = new SessionService(TEST_SECRET);
     eventEmitter = new EventEmitter();
@@ -134,7 +131,6 @@ describe("Dashboard Routes", () => {
           paginationControls: "/partials/paginationControls.hbs",
           setupStep: "/partials/setupStep.hbs",
           aiAgentSetup: "/partials/aiAgentSetup.hbs",
-          doraPanel: "/partials/doraPanel.hbs",
         },
       },
     });
@@ -151,7 +147,6 @@ describe("Dashboard Routes", () => {
         trialService,
         planEnforcementService,
         flagService,
-        doraMetricsService,
       }),
     );
     await app.ready();
@@ -1667,202 +1662,38 @@ describe("Dashboard Routes", () => {
     });
   });
 
-  describe("delivery metrics on the release board", () => {
-    // The board says what is live. These say how well it gets there — the
-    // DORA four keys, measured from the deployment event log rather than
-    // guessed at from git history.
-    const HOUR = 60 * 60 * 1000;
-    const DAY = 24 * HOUR;
-
-    const metricsService = async (name: string) => {
+  describe("delivery metrics reached from the board", () => {
+    it("should link to the metrics page from the active service instead of showing the panel", async () => {
+      // Given: a service on the board
       const account = await accountRepo.create({
         name: "Test Org",
         slug: `test-org-${Date.now()}-${Math.random()}`,
       });
-      const accountId = account._id;
-      const repositoryId = new ObjectId();
-
-      await db.collection("repositories").insertOne({
-        _id: repositoryId,
-        accountId,
-        githubId: 12345,
-        githubFullName: "my-org/my-repo",
-        name: "my-repo",
-        owner: "my-org",
-        private: false,
-        createdAt: new Date(),
-      });
-
       const service = await serviceRepo.create({
-        accountId,
-        repositoryId,
-        name,
-        environments: [
-          { name: "staging", order: 0 },
-          { name: "prod", order: 1 },
-        ],
+        accountId: account._id,
+        repositoryId: new ObjectId(),
+        name: "iconned-service",
+        environments: [{ name: "prod", order: 0 }],
       });
-      // Otherwise the board shows the "finish deploy setup" screen instead of
-      // the build rows.
-      await serviceRepo.updateWorkflowConfiguration(service._id, {
-        workflowFile: "deploy.yml",
-      });
-
       const sessionToken = sessionService.createSession({
         userId: new ObjectId(),
-        accountId,
-      });
-
-      return { accountId, service, sessionToken };
-    };
-
-    /**
-     * A build with a hand-placed deployment history, written straight to the
-     * collection. Times are relative to now so the 30-day board window keeps
-     * covering them as real time passes.
-     */
-    const givenDeploy = async (
-      accountId: ObjectId,
-      serviceId: ObjectId,
-      buildId: string,
-      opts: {
-        reportedAgoMs: number;
-        deployedAgoMs: number;
-        environment: string;
-        status?: DeploymentStatus;
-        intent?: "promote" | "rollback";
-      },
-    ) => {
-      const now = Date.now();
-      await db.collection("builds").insertOne({
-        accountId,
-        serviceId,
-        buildId,
-        deployments: {},
-        deploymentLogs: [
-          {
-            environment: opts.environment,
-            status: opts.status ?? DeploymentStatus.DEPLOYED,
-            at: new Date(now - opts.deployedAgoMs),
-            intent: opts.intent ?? "promote",
-          },
-        ],
-        createdAt: new Date(now - opts.reportedAgoMs),
-        updatedAt: new Date(now - opts.reportedAgoMs),
-      });
-    };
-
-    it("should show each environment's four keys", async () => {
-      // Given: a service that shipped to prod an hour after the build landed
-      const { accountId, service, sessionToken } =
-        await metricsService("measured-service");
-      await givenDeploy(accountId, service._id, "abc123", {
-        environment: "prod",
-        reportedAgoMs: 2 * DAY + 1 * HOUR,
-        deployedAgoMs: 2 * DAY,
+        accountId: account._id,
       });
 
       // When: looking at the release board
       const response = await app.inject({
         method: "GET",
-        url: "/dashboard/measured-service",
+        url: "/dashboard/iconned-service",
         cookies: { session: sessionToken },
       });
 
-      // Then: the four keys are on the same screen as what is deployed
+      // Then: the board stays about what is live, and the four keys are one
+      // click away behind their own icon — like settings and flags
       expect(response.statusCode).toBe(200);
-      expect(response.body).toContain("Lead time");
-      expect(response.body).toContain("Change failure rate");
-      expect(response.body).toContain("Time to restore");
-      expect(response.body).toContain("Deploy frequency");
-      expect(response.body).toContain("1h");
-    });
-
-    it("should say an environment has no history rather than score it zero", async () => {
-      // Given: delivery to staging only
-      const { accountId, service, sessionToken } = await metricsService(
-        "half-measured-service",
+      expect(response.body).toContain(
+        `href="/services/${service._id}/metrics"`,
       );
-      await givenDeploy(accountId, service._id, "abc123", {
-        environment: "staging",
-        reportedAgoMs: 2 * DAY + 1 * HOUR,
-        deployedAgoMs: 2 * DAY,
-      });
-
-      // When: looking at the release board
-      const response = await app.inject({
-        method: "GET",
-        url: "/dashboard/half-measured-service",
-        cookies: { session: sessionToken },
-      });
-
-      // Then: prod says so, instead of showing a 0% failure rate that reads
-      // as a perfect score
-      expect(response.statusCode).toBe(200);
-      expect(response.body).toContain("No deployments yet");
-    });
-
-    it("should own up to a sample too small to be a trend", async () => {
-      // Given: three deploys, one of which failed — a "33% change failure
-      // rate" that is really one bad afternoon
-      const { accountId, service, sessionToken } = await metricsService(
-        "thin-sample-service",
-      );
-      await givenDeploy(accountId, service._id, "v1", {
-        environment: "prod",
-        reportedAgoMs: 5 * DAY + 1 * HOUR,
-        deployedAgoMs: 5 * DAY,
-      });
-      await givenDeploy(accountId, service._id, "v2", {
-        environment: "prod",
-        reportedAgoMs: 3 * DAY + 1 * HOUR,
-        deployedAgoMs: 3 * DAY,
-        status: DeploymentStatus.ERROR,
-      });
-      await givenDeploy(accountId, service._id, "v3", {
-        environment: "prod",
-        reportedAgoMs: 1 * DAY + 1 * HOUR,
-        deployedAgoMs: 1 * DAY,
-      });
-
-      // When: looking at the release board
-      const response = await app.inject({
-        method: "GET",
-        url: "/dashboard/thin-sample-service",
-        cookies: { session: sessionToken },
-      });
-
-      // Then: the number is shown with how little is behind it
-      expect(response.statusCode).toBe(200);
-      expect(response.body).toContain("n=2");
-    });
-
-    it("should still render the board when metrics cannot be loaded", async () => {
-      // Given: the metrics lookup is broken
-      const { accountId, service, sessionToken } = await metricsService(
-        "resilient-metrics-service",
-      );
-      await givenDeploy(accountId, service._id, "abc123", {
-        environment: "prod",
-        reportedAgoMs: 2 * DAY + 1 * HOUR,
-        deployedAgoMs: 2 * DAY,
-      });
-      vi.spyOn(doraMetricsService, "forEnvironments").mockRejectedValue(
-        new Error("metrics unavailable"),
-      );
-
-      // When: looking at the release board
-      const response = await app.inject({
-        method: "GET",
-        url: "/dashboard/resilient-metrics-service",
-        cookies: { session: sessionToken },
-      });
-
-      // Then: deployments are still visible — metrics enrich the board, they
-      // are never a prerequisite for seeing what is deployed
-      expect(response.statusCode).toBe(200);
-      expect(response.body).toContain("abc123");
-      expect(response.body).not.toContain("Lead time");
+      expect(response.body).not.toContain("Change failure rate");
     });
   });
 });

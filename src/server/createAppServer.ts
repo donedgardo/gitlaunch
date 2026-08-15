@@ -20,6 +20,7 @@ import { registerInstallationRoutes } from "./routes/github/installation";
 import { registerOnboardingRoutes } from "./routes/onboarding";
 import { registerServiceRoutes } from "./routes/services";
 import { registerSettingsRoutes } from "./routes/services/settings";
+import { registerMetricsRoutes } from "./routes/services/metrics";
 import { registerBuildsRoutes } from "./routes/api/builds";
 import { registerEnvironmentsRoutes } from "./routes/api/environments";
 import { registerDoraRoutes } from "./routes/api/dora";
@@ -444,7 +445,6 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
       planEnforcementService,
       analytics,
       flagService,
-      doraMetricsService,
     }),
   );
   server.register(
@@ -543,6 +543,12 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     environmentService,
     planEnforcementService,
     analytics,
+  });
+
+  // Delivery metrics (the DORA four keys) — its own per-service page
+  registerMetricsRoutes(server, {
+    serviceRepository,
+    doraMetricsService,
   });
 
   // Feature flags management UI (per-service)

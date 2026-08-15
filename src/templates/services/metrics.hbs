@@ -1,0 +1,32 @@
+{{> navigation }}
+
+<div class="min-h-screen bg-gray-50 dark:bg-gray-900" data-page="metrics">
+  <div class="max-w-5xl mx-auto px-4 py-8">
+    <div class="mb-6 flex items-center justify-between">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
+          {{serviceName}} Delivery Metrics
+        </h1>
+        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+          How well this service gets change into production.
+        </p>
+      </div>
+      <a
+        href="/dashboard/{{serviceName}}"
+        class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+      >
+        &larr; Back to builds
+      </a>
+    </div>
+
+    {{#if doraMetrics}}
+    {{> doraPanel }}
+    {{else}}
+    <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-5">
+      <p class="text-sm text-gray-500 dark:text-gray-400">
+        Delivery metrics are unavailable right now. Your builds and deployments are unaffected.
+      </p>
+    </div>
+    {{/if}}
+  </div>
+</div>
