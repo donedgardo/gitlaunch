@@ -165,6 +165,70 @@ describe("createAppServer configuration", () => {
     });
   });
 
+  describe("browser analytics snippet", () => {
+    it("should load PostHog in the page when a project token is configured", async () => {
+      // Session recordings and autocapture happen in the browser, so the
+      // marketing pages have to actually ship the loader — a server-side sink
+      // alone records nothing of what a visitor saw.
+      const app = await buildServer(
+        testConfig({ POSTHOG_PROJECT_TOKEN: "phc_test_token" }),
+      );
+
+      const response = await app.inject({ method: "GET", url: "/" });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain("posthog.init('phc_test_token'");
+      expect(response.body).toContain("https://us.i.posthog.com");
+      await app.close();
+    });
+
+    it("should point the loader at the configured PostHog host", async () => {
+      const app = await buildServer(
+        testConfig({
+          POSTHOG_PROJECT_TOKEN: "phc_test_token",
+          POSTHOG_HOST: "https://eu.i.posthog.com",
+        }),
+      );
+
+      const response = await app.inject({ method: "GET", url: "/" });
+
+      expect(response.body).toContain("https://eu.i.posthog.com");
+      await app.close();
+    });
+
+    it("should not load PostHog when no project token is configured", async () => {
+      const app = await buildServer(testConfig());
+
+      const response = await app.inject({ method: "GET", url: "/" });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.body).not.toContain("posthog.init");
+      await app.close();
+    });
+
+    it("should not load PostHog on a self-hosted install", async () => {
+      // A customer's own install must never report their visitors to our
+      // project, whatever token happens to be sitting in their environment.
+      const selfHosted = loadConfig(
+        {
+          PUBLIC_URL: "http://localhost:3050",
+          MONGODB_URI: "mongodb://localhost:27017",
+          COOKIE_SECRET_SIGNATURE: "test-secret",
+          ENCRYPTION_KEY: Buffer.alloc(32, 7).toString("base64"),
+          POSTHOG_PROJECT_TOKEN: "phc_test_token",
+        } as NodeJS.ProcessEnv,
+        { distribution: "self-hosted", issuerPublicKey: "pk" },
+      );
+
+      const app = await buildServer(selfHosted);
+
+      const response = await app.inject({ method: "GET", url: "/" });
+
+      expect(response.body).not.toContain("posthog.init");
+      await app.close();
+    });
+  });
+
   describe("configuration source", () => {
     it("should take settings from the injected config rather than the ambient environment", async () => {
       // The whole point of the config module: what the server does is decided

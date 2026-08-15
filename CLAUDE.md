@@ -107,8 +107,8 @@ Optional, for keeping our own traffic out of analytics (unset = nothing is exclu
 
 Optional, to also stream the same product events to PostHog (an additional destination, independent of `ANALYTICS_WAREHOUSE`):
 
-- `POSTHOG_PROJECT_TOKEN` - enables the PostHog sink. Ignored on a self-hosted build: a customer's install must never report their usage to our project.
-- `POSTHOG_HOST` - the region the project lives in. Defaults to `https://us.i.posthog.com`.
+- `POSTHOG_PROJECT_TOKEN` - enables the PostHog sink. Ignored on a self-hosted build: a customer's install must never report their usage to our project. The same token also loads the PostHog browser SDK in the page (`templates/partials/posthogSnippet.hbs`, rendered from the `<head>` of `layouts/main.hbs`), which is what produces session recordings, autocapture and client-side pageviews. It reaches the layout through `registerPlugins`' view defaults, so no route has to pass it.
+- `POSTHOG_HOST` - the region the project lives in. Defaults to `https://us.i.posthog.com`. Used by both the server sink and the browser SDK.
 
 Destinations are composed in `services/analytics/createAnalyticsService.ts`. Code that emits an event depends only on the `AnalyticsService` port, so a new destination is added there and nowhere else; `posthog-node` is imported by `createPostHogClient.ts` alone.
 
