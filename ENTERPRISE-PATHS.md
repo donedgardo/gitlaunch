@@ -112,12 +112,12 @@ one way: enterprise may use core, core may never use enterprise.
 Where the open core needs an answer only the commercial code can give, it depends on
 a port instead:
 
-| Port                                          | Open-core implementation         | Commercial implementation |
-| --------------------------------------------- | -------------------------------- | ------------------------- |
-| `AccountLimits` (`services/limits/accountPolicy.ts`) | `OpenCoreLimits`            | `PlanEnforcementService`  |
-| `TrialPolicy` (same file)                     | `NO_TRIALS`                      | `TrialService`            |
-| `PendingInviteRedeemer` (`services/auth/pendingInvite.ts`) | unsupplied          | `acceptInvitation`        |
-| Account cap (a plain `number`)                | `maxAccounts` omitted            | `maxAccountsFor()`        |
+| Port                                                       | Open-core implementation | Commercial implementation |
+| ---------------------------------------------------------- | ------------------------ | ------------------------- |
+| `AccountLimits` (`services/limits/accountPolicy.ts`)       | `OpenCoreLimits`         | `PlanEnforcementService`  |
+| `TrialPolicy` (same file)                                  | `NO_TRIALS`              | `TrialService`            |
+| `PendingInviteRedeemer` (`services/auth/pendingInvite.ts`) | unsupplied               | `acceptInvitation`        |
+| Account cap (a plain `number`)                             | `maxAccounts` omitted    | `maxAccountsFor()`        |
 
 Two files are exempt, and only two: `src/index.ts` and `src/server/createAppServer.ts`.
 Something has to choose which implementation gets built and which routes get
@@ -150,12 +150,28 @@ without the reasoning would be worse than the decision itself.
   stops someone reselling them as a service.
 - **Product analytics** (`src/services/analytics/`). Same argument — an install
   with no insight into its own deploys is not a product anyone adopts.
+- **The PostHog sink** (`src/services/analytics/posthogAnalytics.ts`,
+  `createPostHogClient.ts`). Worth naming separately, because it looks like
+  vendor machinery that belongs with the commercial code: it is disabled on a
+  self-hosted build, since a customer's install must never report their usage to
+  our project. But that switch is what makes it _safe_ to ship, not a reason to
+  sell it. It is one more destination behind the `AnalyticsService` port, and a
+  self-hosted operator is free to point their own sink at their own project.
+  Charging for the ability to send your own telemetry somewhere would be a tax on
+  the open-core build, not a seat feature.
+- **DORA delivery metrics** (`src/services/dora/`, `src/server/routes/api/dora.ts`,
+  `src/server/routes/services/metrics.ts`). Deployment frequency, lead time,
+  change-failure rate and MTTR are read off deploys the install already recorded
+  — they are the deployment tracking this product exists to do, reported back.
+  A single-seat install has four keys worth reading, and gating them would leave
+  the free build able to deploy but not to tell you how it is going. What is sold
+  is running a _team_ on it, not learning how your own deploys went.
 - **`src/server/middleware/apiKeyAuth.ts`, `sessionAuth.ts`.** Authenticating a
   single user is not a seat feature.
 - **Membership records and role lookup** (`src/repositories/membershipRepository.ts`,
   `src/services/account/accountMembershipService.ts`). A single-seat install
   still has one membership — the owner's — and `accountContext` reads its role on
-  every request. Reading a membership is not the paid capability; *adding* one
+  every request. Reading a membership is not the paid capability; _adding_ one
   is, and that lives in `teamManagementService` and `invitationService`, which
   are covered.
 - **`src/services/account/signupGate.ts`.** A feature-flag application, and the
