@@ -65,6 +65,16 @@ GitLaunch is a multi-tenant SaaS deployment tool: Fastify, HTMX, Handlebars, Mon
 - Programmatic routes live under `/api/v1/services/:serviceId/...` and authenticate with an API key
 - API keys are scoped (`builds:read/write`, `deployments:write`, `services:read/write`, `flags:read/write/evaluate`); publishable (`pk_`) keys may only carry `flags:evaluate`
 
+### Build reporting: `curl` is canonical
+
+There is one answer to "how do I report a build to GitLaunch?" — plain `curl` against the REST API, emitted by `src/services/setup/setupSnippets.ts`. That file backs the onboarding UI, the per-service settings page, `GET /api/v1/services/:serviceId/setup-snippets` and the `gitlaunch-onboarding` skill, and the same shape serves GitHub Actions, Jenkins, GitLab CI and the `raw` provider alike. One code path, one source of truth, every provider and every surface.
+
+The `github-action` submodule — `donedgardo/build-reporter`, listed on the GitHub Marketplace as "GitLaunch Build Reporter" — is **deprecated, not deleted**. Its published releases (`v1`, `v2`) keep working against an unchanged API, so no existing pipeline breaks. It gets no new features, and it must not reappear in a snippet, a template, or a skill.
+
+The costs were weighed and accepted, so this does not need relitigating: we give up the Marketplace listing as a discovery channel, and the GitHub build-report snippet keeps its `jq` dependency (present on `ubuntu-latest`, absent on many slim containers and self-hosted runners — remedies are in `skills/gitlaunch-onboarding/references/troubleshooting.md`). Both were judged cheaper than maintaining a second way to report a build that only ever covered one provider.
+
+The golden status contract outlives the action. `src/services/dispatch/contract/reporter-contract.golden.json` is read by `reporterContract.test.ts` (status vocabulary against the `DeploymentStatus` enum), `setupSnippets.test.ts` and `ownCiDogfood.test.ts` — none of which need the submodule. Only `reporterContractDrift.test.ts` does, and it stays for as long as the action does: it is what stops an edit here from silently breaking a pipeline still on the action.
+
 ### Testing
 
 - Unit tests: `*.test.ts` alongside the source file
@@ -72,7 +82,7 @@ GitLaunch is a multi-tenant SaaS deployment tool: Fastify, HTMX, Handlebars, Mon
 - E2E: `e2e/` with Playwright (`yarn test:e2e`, requires a running server)
 - Use the existing fakes rather than mocking internals: `FakeGitHubAppClient`, `FakeGitHubApiClient`, `FakeHttpClient`, `FakeStripeClient`, `FakeFlags`
 
-`github-action` is a git submodule; run `git submodule update --init` in a fresh clone or worktree or the reporter contract test fails.
+`github-action` is a git submodule; run `git submodule update --init` in a fresh clone or worktree or the reporter contract drift test fails. See **Build reporting** above for why it is still checked in.
 
 ### Licensing boundary
 
