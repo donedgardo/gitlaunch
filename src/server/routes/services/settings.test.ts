@@ -16,7 +16,8 @@ import {
 import { MembershipRepository } from "../../../repositories/membershipRepository";
 import { SessionService } from "../../../services/auth/sessionService";
 import { EnvironmentService } from "../../../services/environment/environmentService";
-import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
+import { AccountLimits } from "../../../services/limits/accountPolicy";
+import { OpenCoreLimits } from "../../../services/limits/openCorePolicy";
 import { sessionAuthMiddleware } from "../../middleware/sessionAuth";
 import { registerHandlebarsHelpers } from "../../registerHandlebarsHelpers";
 import { registerSettingsRoutes } from "./settings";
@@ -34,7 +35,7 @@ describe("Settings Routes - Workflow Configuration", () => {
   let sessionService: SessionService;
   let analytics: RecordingAnalytics;
   let environmentService: EnvironmentService;
-  let planEnforcementService: PlanEnforcementService;
+  let planEnforcementService: AccountLimits;
 
   const TEST_SECRET = "test-secret-for-sessions";
   const COOKIE_SECRET = "test-cookie-secret";
@@ -63,12 +64,12 @@ describe("Settings Routes - Workflow Configuration", () => {
     membershipRepo = new MembershipRepository(db);
     sessionService = new SessionService(TEST_SECRET);
     environmentService = new EnvironmentService(serviceRepo);
-    planEnforcementService = new PlanEnforcementService(
-      accountRepo,
-      repositoryRepo,
-      serviceRepo,
-      membershipRepo,
-    );
+    planEnforcementService = new OpenCoreLimits({
+      accountRepository: accountRepo,
+      repositoryRepository: repositoryRepo,
+      serviceRepository: serviceRepo,
+      membershipRepository: membershipRepo,
+    });
 
     app = Fastify();
     await app.register(cookie, { secret: COOKIE_SECRET });

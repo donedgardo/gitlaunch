@@ -85,7 +85,9 @@ export function registerPlugins(
   // Agent Skills, served so a coding agent can read them straight off the
   // instance it is onboarding against — no install step, and a self-hosted
   // instance serves the skill matching its own version. Two levels up from
-  // __dirname is the repo root in both src/ (dev) and dist/ (prod).
+  // __dirname is the repo root in dev (src/server/) and dist/ in prod
+  // (dist/src/server/), which mirrors the repo root — `postbuild` copies
+  // `skills/` in so both resolve the same way.
   server.register(fastifyStatic, {
     root: path.join(__dirname, "../../skills"),
     prefix: "/skills",

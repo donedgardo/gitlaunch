@@ -104,7 +104,7 @@ GitLaunch is open core. The line is **one account and one seat**.
 | Path                                                                             | License                                       |
 | -------------------------------------------------------------------------------- | --------------------------------------------- |
 | Everything not listed below                                                      | [FSL-1.1-ALv2](LICENSE.md)                    |
-| The paths in [ENTERPRISE-PATHS.md](ENTERPRISE-PATHS.md)                          | [GitLaunch Enterprise](LICENSE-enterprise.md) |
+| `ee/` — plus the templates named in [ENTERPRISE-PATHS.md](ENTERPRISE-PATHS.md)   | [GitLaunch Enterprise](LICENSE-enterprise.md) |
 | `sdk/` (`@gitlaunch/flags`)                                                      | MIT                                           |
 | `github-action/` ([separate repo](https://github.com/donedgardo/build-reporter)) | MIT                                           |
 
@@ -117,14 +117,19 @@ version converts to Apache 2.0 two years after we make it available.
 Deployment tracking, promote and rollback, live status, providers, feature flags
 and the API are all open core. A single-tenant install is a complete product.
 
-**The Enterprise Features** are under a separate
+**The Enterprise Features** live in `ee/` and are under a separate
 [commercial license](LICENSE-enterprise.md): more than one account, more than
 one seat (invitations, memberships, roles), single sign-on, subscription billing
 and plan limits, and license key issuance. Without a subscription you may still
 run them with one account and one seat, and use them freely for development,
-evaluation, education and research. [ENTERPRISE-PATHS.md](ENTERPRISE-PATHS.md)
-lists exactly which files those are, and why some things were deliberately left
-in the core.
+evaluation, education and research.
+
+`ee/` mirrors `src/`, so a file's licence is readable from its path. Nothing in
+`src/` imports from it — enforced by `src/services/limits/portability.test.ts` —
+so deleting the directory leaves a working single-seat product rather than a
+hole. [ENTERPRISE-PATHS.md](ENTERPRISE-PATHS.md) is the manifest of record: the
+few templates that cannot live there yet, and why some things were deliberately
+left in the core.
 
 A self-hosted license key governs entitlement on a customer instance and is
 separate from both licenses — see

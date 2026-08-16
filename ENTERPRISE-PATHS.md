@@ -13,63 +13,88 @@ FSL — a single-tenant install is a complete product, not a demo. What is sold 
 running a team on it (seats, invitations, roles), signing in through an IdP, and
 the machinery of selling it (billing, plans, license keys).
 
-`src/services/licensing/licenseBoundary.test.ts` checks this document against
-the tree on every `yarn test`: every covered path must exist, every covered
-`.ts` and `.hbs` file must carry a header naming the enterprise license, and no
-reserved path may exist yet without being promoted.
+## The short version: it is `ee/`
+
+The commercial code lives in one directory. **Everything under `ee/` is an
+Enterprise Feature; everything else is FSL.** `ee/` mirrors `src/` — `ee/services/`,
+`ee/repositories/`, `ee/server/routes/`, `ee/scripts/` — so a file's place in the
+tree still says what it is, and its licence is now readable from its path.
+
+Four things are true of that directory, and each is enforced by a test rather
+than asserted here:
+
+| Claim | Enforced by |
+| --- | --- |
+| Every path claimed as commercial exists, and every `.ts`/`.hbs` under it carries the header | `src/services/limits/licenseBoundary.test.ts` |
+| No file outside `ee/` carries the header | same |
+| No open-core file imports from `ee/`, bar the composition root | `src/services/limits/portability.test.ts` |
+| No open-core **test** imports from `ee/`, bar two recorded exceptions | same |
+
+Both tests live in `src/services/limits/` — in the open core, deliberately. A
+boundary check that shipped inside `ee/` would be deleted along with it, and the
+deletion is exactly the moment the claim needs verifying.
 
 ## Covered paths
 
 ```
-# Seats, teams and tenancy beyond a single account
-src/services/account/teamManagementService.ts
-src/services/account/teamManagementService.test.ts
-src/services/account/tenantSecurity.test.ts
-src/services/invitation/**
-src/repositories/invitationRepository.ts
-src/repositories/invitationRepository.test.ts
-src/server/routes/invite/**
-src/server/routes/settings/team.ts
-src/server/routes/settings/team.test.ts
+# The commercial tree, in full
+ee/**
+
+# Handlebars templates rendered by the enterprise routes. They cannot move
+# into ee/ yet — see "Why the templates are still in src/" below.
 src/templates/invite/**
 src/templates/settings/team.hbs
-
-# Subscription billing, plans and trials
-src/services/billing/**
-src/repositories/trialRegistryRepository.ts
-src/repositories/trialRegistryRepository.test.ts
-src/server/routes/webhooks/**
-src/server/routes/settings/billing.ts
-src/server/routes/settings/billing.test.ts
 src/templates/settings/billing.hbs
 src/templates/onboarding/plan-selection.hbs
-
-# Issuing and verifying self-hosted license keys
-src/services/licensing/**
-scripts/issue-license.ts
-scripts/set-distribution.ts
 ```
+
+What that directory holds:
+
+- **Seats and teams** — `ee/services/account/teamManagementService.ts`,
+  `ee/services/invitation/`, `ee/repositories/invitationRepository.ts`,
+  `ee/server/routes/invite/`, `ee/server/routes/settings/team.ts`
+- **Subscription billing, plans and trials** — `ee/services/billing/`,
+  `ee/repositories/trialRegistryRepository.ts`, `ee/server/routes/webhooks/`,
+  `ee/server/routes/settings/billing.ts`
+- **Issuing and verifying self-hosted license keys** — `ee/services/licensing/`,
+  `ee/scripts/issue-license.ts`, `ee/scripts/set-distribution.ts`
 
 ## Reserved paths
 
 Enterprise Features that are not written yet. Listed here so the decision is
 made once, up front, rather than argued about after the code exists. They are
-covered by LICENSE-enterprise.md the moment they land — at which point they move
-up to Covered paths and the boundary test starts enforcing their headers.
+covered by LICENSE-enterprise.md the moment they land — and since they land
+under `ee/`, coverage and header enforcement start on their own.
 
 ```
-src/services/sso/**
-src/server/routes/auth/oidc.ts
-src/server/routes/auth/saml.ts
-src/server/routes/settings/sso.ts
-src/server/routes/settings/license.ts
-src/repositories/licenseeRepository.ts
+ee/services/sso/**
+ee/server/routes/auth/oidc.ts
+ee/server/routes/auth/saml.ts
+ee/server/routes/settings/sso.ts
+ee/server/routes/settings/license.ts
+ee/repositories/licenseeRepository.ts
 ```
+
+## How the code is built and removed
+
+`ee/` is compiled by the same `tsconfig.json` as `src/`, which is why `rootDir`
+is the repository root and the build lands in `dist/src/` and `dist/ee/`. `dist/`
+mirrors the repository root, so paths resolved relative to a compiled file work
+the same in `dist/` as they do in `src/` — `postbuild` copies `skills/` in for
+the same reason.
+
+**To ship without the commercial code:** delete `ee/`, drop `COPY ee ./ee` from
+the `Dockerfile`, and edit the two composition-root files. In
+`createAppServer.ts`, swap `PlanEnforcementService`/`TrialService` for
+`openCorePolicy(...)`, drop `redeemPendingInvite`, and stop registering the
+enterprise routes; in `index.ts`, drop the trial registry.
+`src/services/limits/openCorePolicy.test.ts` pins what the result behaves like,
+and `portability.test.ts` is what guarantees there is nothing else to find.
 
 ## Shared files
 
 Some enterprise capability lives in files a single-seat install genuinely needs
-to boot, so the file cannot be listed above without making the open-core product
+to boot, so the file cannot move into `ee/` without making the open-core product
 unrunnable. Those files stay FSL. The capability inside them is still an
 Enterprise Feature under clause 2 of LICENSE-enterprise.md, which is written
 against capabilities and not only paths.
@@ -83,34 +108,49 @@ against capabilities and not only paths.
 | `src/services/auth/accountBootstrap.ts`   | Bootstrapping the one account on first login | The cap that keeps it to one       |
 | `src/server/routes/auth/*.ts`             | Signing a single user in                     | Passing and honouring that cap     |
 
-## How the boundary is enforced at runtime
+### Why the templates are still in `src/`
 
-The license is contractual, but the two things it meters are also enforced in code, so
-nobody drifts past the line without being told:
+`@fastify/view` v9 takes a **single** template root for Handlebars — an array of
+roots is Nunjucks-only (`templatesDirIsValid` in the plugin rejects it). A second
+`ee/templates` root would therefore need its own registration under a different
+`reply.view` property name, and its own copy of `layouts/main.hbs` and the shared
+partials. Duplicating the layout to relocate five files buys less clarity than it
+costs, so the five stay under `src/templates`, carry the header, and are named
+individually in Covered paths above.
 
-- **One account.** `maxAccountsFor()` in `src/services/licensing/resolveEntitlement.ts`
-  returns 1 for an unlicensed or lapsed self-hosted instance. `createAppServer` resolves it
-  at boot and passes it to the login routes; `ensureAccountForUser` refuses to bootstrap a
-  second account and the person is told to ask for an invite.
-- **One seat.** `OPEN_CORE_LIMITS.maxUsers` is 1, and the existing
-  `PlanEnforcementService.canAddUser` already meters memberships against it.
+They move the day the view engine resolves a page against more than one root, or
+the day the app assembles a merged template directory at boot.
 
-Everything else stays unmetered on open core. Expiry returns a customer to open core rather
-than blocking their install: capacity is granted by the FSL, which was never ours to
-withdraw, and no licensing disagreement should be able to break a running pipeline.
+## Known gaps
+
+Recorded because the `ee/` move made them visible, and an unrecorded gap is one
+that gets rediscovered as a surprise.
+
+**Plan selection is commercial behaviour served by a core route.**
+`src/server/routes/onboarding/index.ts` renders `onboarding/plan-selection.hbs`
+and handles `POST /onboarding/select-plan`. Both are billing, and both sit in the
+open core; the route is what forces `src/templates/onboarding/plan-selection.hbs`
+to stay reachable from FSL code. Extracting them into
+`ee/server/routes/onboarding/` is the fix, and it is a behaviour-affecting change
+to the onboarding flow, so it is not bundled with the file move.
+
+Its consequence is the two entries in `ENTERPRISE_COUPLED_TESTS`
+(`portability.test.ts`): open-core tests that reach into `ee/` because the
+capability they cover is still reachable from a core route. They are exceptions
+with an expiry — when the routes move, the exceptions go with them.
 
 ## Portability: the enterprise code can be removed
 
-The manifest says which code is commercial. `src/services/limits/portability.test.ts`
-says the commercial code could actually be **removed** — it fails if any open-core
-file imports from a covered path.
+The manifest says which code is commercial. `portability.test.ts` says the
+commercial code could actually be **removed** — it fails if any open-core file
+imports from a covered path.
 
-Without that, "enterprise" would be a label on files the free product still depends
-on, and the boundary would exist only on paper. With it, the dependency arrow points
-one way: enterprise may use core, core may never use enterprise.
+Without that, "enterprise" would be a label on files the free product still
+depends on, and the boundary would exist only on paper. With it, the dependency
+arrow points one way: enterprise may use core, core may never use enterprise.
 
-Where the open core needs an answer only the commercial code can give, it depends on
-a port instead:
+Where the open core needs an answer only the commercial code can give, it depends
+on a port instead:
 
 | Port                                                       | Open-core implementation | Commercial implementation |
 | ---------------------------------------------------------- | ------------------------ | ------------------------- |
@@ -124,15 +164,21 @@ Something has to choose which implementation gets built and which routes get
 registered, and confining that to the wiring is the point — removing the enterprise
 code is an edit to one composition root, not a search through the tree.
 
-**To actually move the covered paths into `ee/`:** move them, update the imports in
-the two composition-root files, add `ee/` to `tsconfig.json`'s `include`, add a
-second Handlebars view root in `registerPlugins.ts` and a copy step to `postbuild`.
-No feature code changes, because none of it points at the enterprise paths.
+## How the boundary is enforced at runtime
 
-**To ship without the enterprise code at all:** delete the covered paths, then in
-`createAppServer.ts` swap `PlanEnforcementService`/`TrialService` for
-`openCorePolicy(...)`, drop `redeemPendingInvite`, and stop registering the
-enterprise routes. `openCorePolicy.test.ts` pins what the result behaves like.
+The license is contractual, but the two things it meters are also enforced in code, so
+nobody drifts past the line without being told:
+
+- **One account.** `maxAccountsFor()` in `ee/services/licensing/resolveEntitlement.ts`
+  returns 1 for an unlicensed or lapsed self-hosted instance. `createAppServer` resolves it
+  at boot and passes it to the login routes; `ensureAccountForUser` refuses to bootstrap a
+  second account and the person is told to ask for an invite.
+- **One seat.** `OPEN_CORE_LIMITS.maxUsers` is 1, and the existing
+  `PlanEnforcementService.canAddUser` already meters memberships against it.
+
+Everything else stays unmetered on open core. Expiry returns a customer to open core rather
+than blocking their install: capacity is granted by the FSL, which was never ours to
+withdraw, and no licensing disagreement should be able to break a running pipeline.
 
 ## Deliberately not enterprise
 
@@ -180,3 +226,4 @@ without the reasoning would be worse than the decision itself.
 - **`src/config/distribution.ts`.** Build identity — which build this is. The
   open-core build has one too, and `loadConfig` reads it to pick defaults. The
   issuer public key it carries is inert without the covered verification code.
+  `ee/scripts/set-distribution.ts` stamps it, but the stamped file is FSL.

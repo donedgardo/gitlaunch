@@ -26,6 +26,22 @@ const MANIFEST = "ENTERPRISE-PATHS.md";
 // feature can quietly reach across the boundary and still pass this test.
 const COMPOSITION_ROOT = ["src/index.ts", "src/server/createAppServer.ts"];
 
+// Open-core tests that drive a commercial implementation through a core port.
+// They are exceptions to the same rule, held separately because a test crossing
+// the boundary costs less than a shipped file crossing it: deleting ee/ deletes
+// the coverage, not the product.
+//
+// Both are here because an enterprise capability is still reachable from a core
+// route, which is the real defect — see "Known gaps" in ENTERPRISE-PATHS.md.
+// When those routes move, these entries go with them.
+const ENTERPRISE_COUPLED_TESTS = [
+  // Plan selection and trial start, served by src/server/routes/onboarding/.
+  "src/server/routes/onboarding/index.test.ts",
+  // Redeeming a pending invite at first login, via the PendingInviteRedeemer
+  // port. The test supplies the commercial redeemer to check the seam holds.
+  "src/server/routes/auth/github.test.ts",
+];
+
 const IGNORED_DIRS = new Set(["node_modules", "dist", ".git"]);
 
 function coveredPaths(): string[] {
@@ -46,15 +62,16 @@ function isEnterprise(path: string, covered: string[]): boolean {
   );
 }
 
-function sourceFiles(): string[] {
+function sourceFiles(includeTests: boolean): string[] {
   const found: string[] = [];
   const walk = (at: string) => {
     for (const name of readdirSync(at)) {
       if (IGNORED_DIRS.has(name)) continue;
       const full = join(at, name);
       if (statSync(full).isDirectory()) walk(full);
-      else if (name.endsWith(".ts") && !name.endsWith(".test.ts")) {
-        found.push(relative(REPO_ROOT, full));
+      else if (name.endsWith(".ts")) {
+        if (!includeTests && name.endsWith(".test.ts")) continue;
+        found.push(relative(REPO_ROOT, full).split("\\").join("/"));
       }
     }
   };
@@ -70,27 +87,65 @@ function importTargets(file: string): string[] {
   const targets: string[] = [];
   for (const match of source.matchAll(RELATIVE_IMPORT)) {
     const resolved = resolve(dirname(join(REPO_ROOT, file)), match[1]);
-    targets.push(relative(REPO_ROOT, resolved));
+    targets.push(relative(REPO_ROOT, resolved).split("\\").join("/"));
   }
   return targets;
+}
+
+function crossings(files: string[], covered: string[]): string[] {
+  return files.flatMap((file) =>
+    importTargets(file)
+      .filter((target) => isEnterprise(target, covered))
+      .map((target) => `${file} -> ${target}`),
+  );
 }
 
 describe("open-core portability", () => {
   it("should keep the open core free of imports from enterprise paths", () => {
     const covered = coveredPaths();
 
-    const violations = sourceFiles()
-      .filter((file) => !isEnterprise(file, covered))
-      .filter((file) => !COMPOSITION_ROOT.includes(file))
-      .flatMap((file) =>
-        importTargets(file)
-          .filter((target) => isEnterprise(target, covered))
-          .map((target) => `${file} -> ${target}`),
-      );
+    const violations = crossings(
+      sourceFiles(false).filter((file) => !COMPOSITION_ROOT.includes(file)),
+      covered,
+    );
 
     expect(
       violations,
       "open-core files import enterprise code, so the enterprise paths could not be removed — depend on a port in the core instead",
+    ).toEqual([]);
+  });
+
+  it("should keep the open-core test suite runnable without the enterprise code", () => {
+    // Same rule, applied to tests. A core test that constructs a commercial
+    // service is how the boundary rots unnoticed: production code stays clean
+    // while the suite quietly stops standing on its own.
+    const covered = coveredPaths();
+
+    const violations = crossings(
+      sourceFiles(true)
+        .filter((file) => file.endsWith(".test.ts"))
+        .filter((file) => !ENTERPRISE_COUPLED_TESTS.includes(file)),
+      covered,
+    );
+
+    expect(
+      violations,
+      "open-core tests import enterprise code — use the open-core implementations in services/limits/openCorePolicy.ts, or record the test in ENTERPRISE_COUPLED_TESTS with the reason",
+    ).toEqual([]);
+  });
+
+  it("should not carry an exception for a test that no longer needs one", () => {
+    // An exception list nobody prunes becomes a permission slip. If a listed
+    // test has been cleaned up, the entry has to go so the next one is noticed.
+    const covered = coveredPaths();
+
+    const stale = ENTERPRISE_COUPLED_TESTS.filter(
+      (file) => crossings([file], covered).length === 0,
+    );
+
+    expect(
+      stale,
+      "these tests no longer import enterprise code — drop them from ENTERPRISE_COUPLED_TESTS",
     ).toEqual([]);
   });
 });

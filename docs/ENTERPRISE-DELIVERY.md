@@ -16,7 +16,7 @@ Generate the issuer keypair. Every license we ever sell is signed by it, and the
 public key is compiled into every customer image.
 
 ```bash
-tsx scripts/issue-license.ts keygen ./issuer
+tsx ee/scripts/issue-license.ts keygen ./issuer
 #  -> issuer-private.pem   secret store only, never in git, never in an image
 #  -> issuer-public.pem    compiled into customer images
 ```
@@ -55,7 +55,7 @@ The published customer image is a _different build_ from gitlaunch.com. The diff
 compiled in, not configured at runtime:
 
 ```bash
-tsx scripts/set-distribution.ts self-hosted ./issuer-public.pem
+tsx ee/scripts/set-distribution.ts self-hosted ./issuer-public.pem
 yarn build
 docker build -t ghcr.io/donedgardo/gitlaunch:1.0.0 .
 ```
@@ -80,7 +80,7 @@ and the issuer key are therefore read from neither the environment nor the datab
 No build step here — the image is already published. This mints signed data.
 
 ```bash
-tsx scripts/issue-license.ts issue \
+tsx ee/scripts/issue-license.ts issue \
   --to "Acme Corp" \
   --seats 50 \
   --expires 2027-07-27 \

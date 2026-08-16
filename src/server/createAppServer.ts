@@ -59,27 +59,27 @@ import { ExperimentResultsService } from "../services/flag/experimentResultsServ
 import { FlagConfigVersionService } from "../services/flag/flagConfigVersionService";
 import { FlagCacheI, InMemoryFlagCache } from "../services/flag/flagCache";
 import { WebhookEventRepository } from "../repositories/webhookEventRepository";
-import { TrialRegistryRepository } from "../repositories/trialRegistryRepository";
+import { TrialRegistryRepository } from "../../ee/repositories/trialRegistryRepository";
 import { GitHubAppService } from "../services/github/githubAppService";
 import { InstallationTokenService } from "../services/github/installationTokenService";
 import { ApiKeyService } from "../services/apiKey/apiKeyService";
 import { EnvironmentService } from "../services/environment/environmentService";
-import { PlanEnforcementService } from "../services/billing/planEnforcementService";
-import { TrialService } from "../services/billing/trialService";
-import { StripeWebhookHandler } from "../services/billing/webhookHandler";
-import { StripeService } from "../services/billing/stripeService";
-import { StripeApiClient } from "../services/billing/stripeApiClient";
-import { registerStripeWebhookRoute } from "./routes/webhooks/stripe";
-import { registerBillingRoutes } from "./routes/settings/billing";
+import { PlanEnforcementService } from "../../ee/services/billing/planEnforcementService";
+import { TrialService } from "../../ee/services/billing/trialService";
+import { StripeWebhookHandler } from "../../ee/services/billing/webhookHandler";
+import { StripeService } from "../../ee/services/billing/stripeService";
+import { StripeApiClient } from "../../ee/services/billing/stripeApiClient";
+import { registerStripeWebhookRoute } from "../../ee/server/routes/webhooks/stripe";
+import { registerBillingRoutes } from "../../ee/server/routes/settings/billing";
 import { registerApiKeyRoutes } from "./routes/settings/apiKeys";
 import { registerJenkinsSettingsRoutes } from "./routes/settings/jenkins";
 import { registerGithubSettingsRoutes } from "./routes/settings/github";
-import { registerTeamRoutes } from "./routes/settings/team";
-import { registerInviteRoutes } from "./routes/invite";
-import { acceptInvitation } from "./routes/invite/acceptInvitation";
-import { InvitationRepository } from "../repositories/invitationRepository";
+import { registerTeamRoutes } from "../../ee/server/routes/settings/team";
+import { registerInviteRoutes } from "../../ee/server/routes/invite";
+import { acceptInvitation } from "../../ee/server/routes/invite/acceptInvitation";
+import { InvitationRepository } from "../../ee/repositories/invitationRepository";
 import { AccountMembershipService } from "../services/account/accountMembershipService";
-import { TeamManagementService } from "../services/account/teamManagementService";
+import { TeamManagementService } from "../../ee/services/account/teamManagementService";
 import { JenkinsConnectionService } from "../services/jenkins/jenkinsConnectionService";
 import { GithubConnectionService } from "../services/github/githubConnectionService";
 import { assertEncryptionKey } from "../services/crypto/secretBox";
@@ -88,8 +88,8 @@ import { DbClientI } from "./health/dbClientI";
 import {
   InstanceMode,
   maxAccountsFor,
-} from "../services/licensing/resolveEntitlement";
-import { resolveInstanceMode } from "../services/licensing/instanceMode";
+} from "../../ee/services/licensing/resolveEntitlement";
+import { resolveInstanceMode } from "../../ee/services/licensing/instanceMode";
 import {
   AnalyticsService,
   NoOpAnalytics,
