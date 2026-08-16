@@ -2,8 +2,71 @@ import handlebars from "handlebars";
 import { Build } from "../repositories/buildRepository";
 import { DeploymentStatus } from "../services/service/deploymentStatus";
 import { formatTimeAgo } from "./timeAgo";
+import {
+  buildSetupSnippets,
+  SetupSnippets,
+} from "../services/setup/setupSnippets";
+
+// The snippets `setupSnippet` can render, by the name templates ask for.
+// Adding a copy of CI/CD YAML to a template instead of a line here is how the
+// GitHub Actions guides drifted from the generator and kept telling
+// self-hosted customers to POST their builds — and their API key — to
+// gitlaunch.dev.
+const SETUP_SNIPPETS: Record<string, (s: SetupSnippets) => string> = {
+  "buildReport.github": (s) => s.buildReport.github,
+  "deploy.github": (s) => s.deploy.github,
+};
+
+// Escapes a snippet for the one place it is ever rendered: element text inside
+// `<pre><code>`. Only `&` and the angle brackets can be read as markup there,
+// so quotes stay literal — the YAML is meant to be read, and Handlebars'
+// default escaping would turn every `"` in it into `&quot;`. Never interpolate
+// the result into an attribute.
+function escapeSnippetText(snippet: string): handlebars.SafeString {
+  return new handlebars.SafeString(
+    snippet.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"),
+  );
+}
+
+// Templates hand environments over as the service's records, `{ name, order }`;
+// the generator wants plain names in display order.
+function environmentNames(environments: unknown): string[] {
+  if (!Array.isArray(environments)) return [];
+  return environments
+    .map((environment) =>
+      typeof environment === "string" ? environment : environment?.name,
+    )
+    .filter((name): name is string => typeof name === "string");
+}
 
 export function registerHandlebarsHelpers() {
+  // Renders a CI/CD snippet from services/setup/setupSnippets.ts, the single
+  // source of truth the /setup-snippets API also serves. A human copy-pasting
+  // from the dashboard and an agent reading the API therefore get the same
+  // YAML, addressed to the same host.
+  //
+  // `apiUrl` must be this instance's public URL. Absent, the snippet falls back
+  // to a host-relative path: wrong for a copy-pasted workflow, but it can never
+  // send somebody else's credential to a host we made up.
+  handlebars.registerHelper(
+    "setupSnippet",
+    function (name: string, options: handlebars.HelperOptions) {
+      const select = SETUP_SNIPPETS[name];
+      if (!select) {
+        throw new Error(`Unknown setup snippet: ${name}`);
+      }
+      const hash = options?.hash ?? {};
+      return escapeSnippetText(
+        select(
+          buildSetupSnippets({
+            apiUrl: hash.apiUrl ?? "",
+            serviceId: hash.serviceId ?? "",
+            environments: environmentNames(hash.environments),
+          }),
+        ),
+      );
+    },
+  );
   handlebars.registerHelper("eq", function (a, b) {
     return a === b;
   });
