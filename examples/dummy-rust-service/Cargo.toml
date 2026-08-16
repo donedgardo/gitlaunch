@@ -1,0 +1,10 @@
+[package]
+name = "dummy-rust-service"
+version = "0.3.1"
+edition = "2021"
+publish = false
+
+[dependencies]
+
+[profile.release]
+strip = true
