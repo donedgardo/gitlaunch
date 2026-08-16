@@ -9,6 +9,7 @@ import Fastify, {
 import { parse } from "yaml";
 import { AccountRepository } from "../../../repositories/accountRepository";
 import { ServiceRepository } from "../../../repositories/serviceRepository";
+import { RepositoryRepository } from "../../../repositories/repositoryRepository";
 import { registerSetupSnippetsRoutes } from "./setupSnippets";
 import { ApiKeyScope } from "../../../repositories/apiKeyRepository";
 
@@ -37,6 +38,7 @@ describe("Setup Snippets API", () => {
   let app: FastifyInstance;
   let accountRepo: AccountRepository;
   let serviceRepo: ServiceRepository;
+  let repositoryRepo: RepositoryRepository;
 
   let testAccountId: ObjectId;
   let testServiceId: ObjectId;
@@ -49,6 +51,7 @@ describe("Setup Snippets API", () => {
     db = client.db("test");
     accountRepo = new AccountRepository(db);
     serviceRepo = new ServiceRepository(db);
+    repositoryRepo = new RepositoryRepository(db);
   });
 
   afterAll(async () => {
@@ -59,6 +62,7 @@ describe("Setup Snippets API", () => {
   beforeEach(async () => {
     await db.collection("accounts").deleteMany({});
     await db.collection("services").deleteMany({});
+    await db.collection("repositories").deleteMany({});
 
     app = Fastify();
     app.addHook(
@@ -67,6 +71,7 @@ describe("Setup Snippets API", () => {
     );
     registerSetupSnippetsRoutes(app, {
       serviceRepository: serviceRepo,
+      repositoryRepository: repositoryRepo,
       apiUrl: "https://gitlaunch.dev",
     });
     await app.ready();
@@ -155,6 +160,52 @@ describe("Setup Snippets API", () => {
       expect(body.buildReport.github).toContain("curl");
       expect(body.buildReport.jenkins).toContain("curl");
       expect(body.buildReport.raw).toContain("curl");
+    });
+
+    it("should gate the build report on the repo's default branch", async () => {
+      // Given the service deploys a repository whose default branch is master
+      const repository = await repositoryRepo.create({
+        accountId: testAccountId,
+        githubRepoId: 4242,
+        githubFullName: "acme/legacy",
+        githubOwner: "acme",
+        githubRepoName: "legacy",
+        isPrivate: false,
+        defaultBranch: "master",
+      });
+      await serviceRepo.setDeployment(testAccountId, testServiceId, {
+        provider: "github",
+        repositoryId: repository._id,
+        workflowFile: "deploy.yml",
+      });
+
+      // When an agent asks for the setup snippets
+      const response = await app.inject({
+        method: "GET",
+        url: `/api/v1/services/${testServiceId}/setup-snippets`,
+      });
+
+      // Then the report step is guarded on master, not main — guarded on a
+      // branch the repo does not have, it would never run and the dashboard
+      // would stay empty with nothing to show why
+      expect(response.json().buildReport.github).toContain(
+        "github.ref == 'refs/heads/master'",
+      );
+    });
+
+    it("should gate on main when the service has no repository bound yet", async () => {
+      // Given a service created during onboarding, before CD is configured
+
+      // When an agent asks for the setup snippets
+      const response = await app.inject({
+        method: "GET",
+        url: `/api/v1/services/${testServiceId}/setup-snippets`,
+      });
+
+      // Then the guard falls back to main
+      expect(response.json().buildReport.github).toContain(
+        "github.ref == 'refs/heads/main'",
+      );
     });
 
     it("should not expose another account's service", async () => {

@@ -66,9 +66,15 @@ git symbolic-ref --short refs/remotes/origin/HEAD   # e.g. origin/main
 gh repo view --json defaultBranchRef -q .defaultBranchRef.name
 ```
 
-If the default branch is not `main`, the snippet's
-`if: github.ref == 'refs/heads/main'` guard must be changed to match, or builds
-will never report. This is a common silent failure — check it.
+You need this for the _surrounding_ workflow you write — its `on: push:
+branches:` trigger, and any job-level guard you add yourself.
+
+The snippet's own guard is not yours to set: `/setup-snippets` returns it
+already naming the default branch GitLaunch has on record for the repo. Compare
+the two. If they disagree, stop and tell the user — GitLaunch has the wrong
+branch on record, and a guard naming a branch the repo does not have reports
+nothing, forever, with no error to show for it. Do not paper over it by editing
+the snippet.
 
 ## Monorepo
 

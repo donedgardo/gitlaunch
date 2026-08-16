@@ -618,6 +618,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
       // workflows the dashboard shows.
       registerSetupSnippetsRoutes(apiServer, {
         serviceRepository,
+        repositoryRepository,
         apiUrl: config.publicUrl,
       });
 

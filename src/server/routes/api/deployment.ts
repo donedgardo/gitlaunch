@@ -184,6 +184,7 @@ export function registerDeploymentRoutes(
             githubOwner: match.owner?.login ?? match.full_name.split("/")[0],
             githubRepoName: match.name ?? match.full_name.split("/")[1],
             isPrivate: match.private,
+            defaultBranch: match.default_branch,
           });
           repositoryId = created._id;
         }

@@ -76,6 +76,12 @@ Use these strings verbatim as the GitLaunch-specific parts of what you write.
 You still adapt the _surrounding_ workflow (build steps, triggers, runner) to
 the project.
 
+`buildReport.github` already carries the branch guard for this service — the
+`if:` names the default branch GitLaunch has on record for the repo, not a
+hardcoded `main`. Do not retune it. If it disagrees with the branch you detect
+in Step 2, GitLaunch's record is what is wrong; say so and ask the user rather
+than editing the snippet.
+
 - `401` — the key is wrong or revoked. Ask for a fresh one; do not retry.
 - `403` — the key lacks `services:read`. It was minted before this feature; ask
   the user to create a new key at `<host>/settings/api-keys`.

@@ -43,6 +43,7 @@ describe("GitLaunch's own build reporting", () => {
       apiUrl: "https://gitlaunch.dev",
       serviceId: "6f2a1b3c4d5e6f7a8b9c0d1e",
       environments: ["staging", "prod"],
+      defaultBranch: "main",
     }).buildReport.github;
 
     // Then: our own pipeline sends exactly the same fields. Advice we don't

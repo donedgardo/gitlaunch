@@ -8,6 +8,8 @@ export type GitHubRepo = {
   full_name: string;
   private: boolean;
   owner: { login: string };
+  /** The branch CI builds run on, so the build-report guard can name it. */
+  default_branch?: string;
 };
 
 export type GitHubWorkflow = {

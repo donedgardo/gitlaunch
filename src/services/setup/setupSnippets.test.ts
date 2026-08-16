@@ -9,6 +9,7 @@ const input = {
   apiUrl: "https://gitlaunch.dev",
   serviceId: "6f2a1b3c4d5e6f7a8b9c0d1e",
   environments: ["staging", "prod"],
+  defaultBranch: "main",
 };
 
 describe("buildSetupSnippets", () => {
@@ -189,6 +190,33 @@ describe("buildSetupSnippets", () => {
       expect(Array.isArray(steps)).toBe(true);
       expect(steps).toHaveLength(1);
       expect(steps[0].name).toBeTruthy();
+    });
+
+    it("should gate the report on the repo's own default branch", () => {
+      // Given a repo whose default branch is not main
+      const snippets = buildSetupSnippets({
+        ...input,
+        defaultBranch: "master",
+      });
+
+      // Then the guard names that branch. A guard naming a branch the repo
+      // does not have never fires: no error, no failed run, just a dashboard
+      // that stays empty forever.
+      expect(snippets.buildReport.github).toContain(
+        "github.ref == 'refs/heads/master'",
+      );
+      expect(snippets.buildReport.github).not.toContain("refs/heads/main");
+    });
+
+    it("should gate on main when the default branch is not known", () => {
+      // Given a service with no repository bound yet, so nobody can say what
+      // its default branch is
+      const snippets = buildSetupSnippets({ ...input, defaultBranch: "" });
+
+      // Then the guard falls back to GitHub's own default for new repos
+      expect(snippets.buildReport.github).toContain(
+        "github.ref == 'refs/heads/main'",
+      );
     });
 
     it("should provide non-GitHub variants for Jenkins and plain shells", () => {
