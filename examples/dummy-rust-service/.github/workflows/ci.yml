@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-D warnings"
+
+jobs:
+  fmt:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          components: rustfmt
+          override: true
+      - run: cargo fmt --all -- --check
+
+  test:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+      - run: cargo test --locked --all-targets
+
+  # Produces the binary the deploy workflow ships. Runs last, and only if
+  # everything else is green.
+  package:
+    needs: [fmt, test]
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+      - run: cargo build --release --locked
+      - uses: actions/upload-artifact@v3
+        with:
+          name: dummy-rust-service
+          path: target/release/dummy-rust-service
+          retention-days: 7
