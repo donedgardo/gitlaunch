@@ -86,14 +86,16 @@ The golden status contract outlives the action. `src/services/dispatch/contract/
 
 ### Licensing boundary
 
-This repo is open core. Everything is FSL-1.1-ALv2 (`LICENSE.md`) **except** the paths listed in `ENTERPRISE-PATHS.md`, which are commercial (`LICENSE-enterprise.md`). The line is one account and one seat: multi-seat, SSO, billing and license issuance are sold; deployment tracking, flags, analytics and the API are not.
+This repo is open core, and the split is a directory: **`src/` is FSL-1.1-ALv2 (`LICENSE.md`), `ee/` is commercial (`LICENSE-enterprise.md`).** `ee/` mirrors `src/` — `ee/services/`, `ee/repositories/`, `ee/server/routes/`, `ee/scripts/`. `ENTERPRISE-PATHS.md` is the manifest of record and names the handful of exceptions. The line is one account and one seat: multi-seat, SSO, billing and license issuance are sold; deployment tracking, flags, analytics and the API are not.
 
 When you add code:
 
-- Building a seat/SSO/billing/licensing feature? Add its path to `ENTERPRISE-PATHS.md` under **Covered paths** and put `// GitLaunch Enterprise Feature — licensed under LICENSE-enterprise.md, not the FSL.` at the top of each file (`{{!-- … --}}` in `.hbs`).
-- Anything else defaults to FSL. Don't add paths to the manifest to be safe — a wrong claim of coverage is worse than none.
-- **Never import an enterprise path from open-core code.** If the core needs an answer only enterprise code can give, define a port in the core and inject the implementation (see `src/services/limits/accountPolicy.ts` for the pattern, and its open-core default in `openCorePolicy.ts`). Only `src/index.ts` and `src/server/createAppServer.ts` may know both sides.
-- `src/services/licensing/licenseBoundary.test.ts` fails the build if the manifest and the tree disagree; `src/services/limits/portability.test.ts` fails it if the core reaches into an enterprise path.
+- Building a seat/SSO/billing/licensing feature? Put the file under `ee/`, at the path mirroring where it would live in `src/`, and head it with `// GitLaunch Enterprise Feature — licensed under LICENSE-enterprise.md, not the FSL.` (`{{!-- … --}}` in `.hbs`). `ee/**` is already covered by the manifest, so there is nothing to add there.
+- Anything else defaults to FSL and belongs in `src/`. Don't file something under `ee/` to be safe — a wrong claim of coverage is worse than none.
+- **Never import from `ee/` in open-core code.** If the core needs an answer only enterprise code can give, define a port in the core and inject the implementation (see `src/services/limits/accountPolicy.ts` for the pattern, and its open-core default in `openCorePolicy.ts`). Only `src/index.ts` and `src/server/createAppServer.ts` may know both sides.
+- **That applies to tests too.** A core route test needs *an* `AccountLimits`, not the commercial one — use `OpenCoreLimits`, or `FakeAccountLimits` (`src/services/limits/fakes.ts`) when the test is about how the route handles a refusal. Assertions about which plan caps at what belong in `ee/services/billing/planEnforcementService.test.ts`.
+- Handlebars templates are the one exception: `@fastify/view` takes a single template root, so enterprise `.hbs` files stay under `src/templates` and are listed individually in the manifest.
+- `src/services/limits/licenseBoundary.test.ts` fails the build if the manifest and the tree disagree; `src/services/limits/portability.test.ts` fails it if the core — production code or tests — reaches into `ee/`.
 
 ## Environment Variables
 

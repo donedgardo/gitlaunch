@@ -20,7 +20,8 @@ import { ServiceRepository } from "../../../repositories/serviceRepository";
 import { MembershipRepository } from "../../../repositories/membershipRepository";
 import { FlagRepository } from "../../../repositories/flagRepository";
 import { FlagService } from "../../../services/flag/flagService";
-import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
+import { AccountLimits } from "../../../services/limits/accountPolicy";
+import { OpenCoreLimits } from "../../../services/limits/openCorePolicy";
 import { AnalyticsEventRepository } from "../../../repositories/analyticsEventRepository";
 import { WarehouseAnalytics } from "../../../services/analytics/warehouseAnalytics";
 import { ExperimentResultsService } from "../../../services/flag/experimentResultsService";
@@ -77,7 +78,7 @@ describe("Flags API Routes", () => {
   let membershipRepo: MembershipRepository;
   let flagRepo: FlagRepository;
   let flagService: FlagService;
-  let planEnforcementService: PlanEnforcementService;
+  let planEnforcementService: AccountLimits;
   let analytics: WarehouseAnalytics;
   let experimentResults: ExperimentResultsService;
   let configVersions: FlagConfigVersionService;
@@ -108,12 +109,12 @@ describe("Flags API Routes", () => {
     );
     analytics = new WarehouseAnalytics(new AnalyticsEventRepository(db));
     experimentResults = new ExperimentResultsService(db);
-    planEnforcementService = new PlanEnforcementService(
-      accountRepo,
-      repoRepo,
-      serviceRepo,
-      membershipRepo,
-    );
+    planEnforcementService = new OpenCoreLimits({
+      accountRepository: accountRepo,
+      repositoryRepository: repoRepo,
+      serviceRepository: serviceRepo,
+      membershipRepository: membershipRepo,
+    });
   });
 
   afterAll(async () => {

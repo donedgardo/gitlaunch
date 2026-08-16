@@ -684,6 +684,7 @@ export function registerOnboardingRoutes(
               githubOwner: repo.owner?.login || repo.full_name.split("/")[0],
               githubRepoName: repo.name || repo.full_name.split("/")[1],
               isPrivate: repo.private,
+              defaultBranch: repo.default_branch,
             });
           }
         } catch (error) {

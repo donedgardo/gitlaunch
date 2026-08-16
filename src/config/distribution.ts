@@ -2,7 +2,7 @@
 // is built and are NOT readable from the environment.
 //
 // This file is the one thing that differs between the hosted product and the
-// image we ship to customers. `scripts/set-distribution.ts` rewrites it during
+// image we ship to customers. `ee/scripts/set-distribution.ts` rewrites it during
 // the release build, stamping in the issuer public key.
 //
 // It is deliberately not configurable at runtime. A customer runs the

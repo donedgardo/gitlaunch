@@ -100,8 +100,8 @@ test.describe("Dashboard - Navigation", () => {
     // Should navigate to backend service
     await expect(page).toHaveURL("/dashboard/backend");
 
-    // The backend tab should now be active (has the blue styling)
-    await expect(backendLink).toHaveClass(/text-blue-600/);
+    // The backend tab should now be the current one
+    await expect(backendLink).toHaveAttribute("aria-current", "page");
   });
 
   test("navigation updates build table content via HTMX", async ({ page }) => {
@@ -119,14 +119,14 @@ test.describe("Dashboard - Navigation", () => {
 
     // The navigation should show backend as active (use exact match)
     const backendTab = page.getByRole("link", { name: "backend", exact: true });
-    await expect(backendTab).toHaveClass(/text-blue-600/);
+    await expect(backendTab).toHaveAttribute("aria-current", "page");
 
     // The frontend tab should not be active (use exact match)
     const frontendTab = page.getByRole("link", {
       name: "frontend",
       exact: true,
     });
-    await expect(frontendTab).not.toHaveClass(/text-blue-600/);
+    await expect(frontendTab).not.toHaveAttribute("aria-current", "page");
   });
 
   test("deploy buttons remain visible after HTMX navigation", async ({

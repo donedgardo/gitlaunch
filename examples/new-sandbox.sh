@@ -4,6 +4,7 @@
 #
 #   ./examples/new-sandbox.sh dummy-react-app
 #   ./examples/new-sandbox.sh dummy-react-app --push donedgardo/gl-sandbox-react
+#   ./examples/new-sandbox.sh dummy-rust-service --push donedgardo/gl-sandbox-rust
 #
 # Without --push the sandbox is local only: the skill can still detect, write
 # files and commit, but `gh pr create` and the deploy binding need a remote.
@@ -36,7 +37,9 @@ dest="${SANDBOX_DIR:-${TMPDIR:-/tmp}/gitlaunch-sandbox-$example-$$}"
 mkdir -p "$dest"
 
 # Copy the example without build output or installed dependencies.
-tar -C "$src" --exclude=node_modules --exclude=dist -cf - . | tar -C "$dest" -xf -
+tar -C "$src" \
+  --exclude=node_modules --exclude=dist --exclude=target \
+  -cf - . | tar -C "$dest" -xf -
 
 cd "$dest"
 git init -q -b main

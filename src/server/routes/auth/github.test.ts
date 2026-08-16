@@ -15,9 +15,9 @@ import {
   MembershipRepository,
   MembershipRole,
 } from "../../../repositories/membershipRepository";
-import { InvitationRepository } from "../../../repositories/invitationRepository";
+import { InvitationRepository } from "../../../../ee/repositories/invitationRepository";
 import { PendingInviteRedeemer } from "../../../services/auth/pendingInvite";
-import { acceptInvitation } from "../invite/acceptInvitation";
+import { acceptInvitation } from "../../../../ee/server/routes/invite/acceptInvitation";
 import { SignupGate } from "../../../services/account/signupGate";
 import { FlagServiceI } from "../../../services/flag/flagService";
 import { FlagEvaluation } from "../../../services/flag/flagEvaluator";

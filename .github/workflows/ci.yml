@@ -33,7 +33,7 @@ jobs:
         run: yarn build
 
       - name: Format check
-        run: npx prettier --check "src/**/*.ts"
+        run: npx prettier --check "src/**/*.ts" "ee/**/*.ts"
 
       - name: Unit tests
         run: yarn test

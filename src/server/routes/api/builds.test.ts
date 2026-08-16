@@ -21,14 +21,14 @@ import { RepositoryRepository } from "../../../repositories/repositoryRepository
 import { ServiceRepository } from "../../../repositories/serviceRepository";
 import { BuildRepository } from "../../../repositories/buildRepository";
 import { BuildService } from "../../../services/build/buildService";
-import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
+import { OpenCoreLimits } from "../../../services/limits/openCorePolicy";
+import { FakeAccountLimits } from "../../../services/limits/fakes";
 import { registerBuildsRoutes } from "./builds";
 import { WarehouseAnalytics } from "../../../services/analytics/warehouseAnalytics";
 import { AnalyticsEventRepository } from "../../../repositories/analyticsEventRepository";
 import { BuildDispatchServiceI } from "../../../services/build/buildDispatchService";
 import { DeploymentStatus } from "../../../services/service/deploymentStatus";
 import { ApiKeyScope } from "../../../repositories/apiKeyRepository";
-import { Plan } from "../../../repositories/accountRepository";
 import { MembershipRepository } from "../../../repositories/membershipRepository";
 
 // Simple mock auth middleware for testing - simulates API key validation
@@ -71,7 +71,7 @@ describe("Builds API Routes", () => {
   let serviceRepo: ServiceRepository;
   let buildRepo: BuildRepository;
   let buildService: BuildService;
-  let planEnforcementService: PlanEnforcementService;
+  let planEnforcementService: FakeAccountLimits;
   let membershipRepo: MembershipRepository;
   let mockDispatcher: BuildDispatchServiceI;
   let eventEmitter: EventEmitter;
@@ -102,11 +102,13 @@ describe("Builds API Routes", () => {
       eventEmitter,
       mockDispatcher,
     );
-    planEnforcementService = new PlanEnforcementService(
-      accountRepo,
-      repoRepo,
-      serviceRepo,
-      membershipRepo,
+    planEnforcementService = new FakeAccountLimits(
+      new OpenCoreLimits({
+        accountRepository: accountRepo,
+        repositoryRepository: repoRepo,
+        serviceRepository: serviceRepo,
+        membershipRepository: membershipRepo,
+      }),
     );
   });
 
@@ -565,15 +567,13 @@ describe("Builds API Routes", () => {
   });
 
   describe("Read-only account blocking", () => {
+    // What puts an account into read-only — a payment 8 days past due, an
+    // expired trial — is billing, and billing is commercial. These routes only
+    // ask the AccountLimits port, so the port is what the test drives; the
+    // read-only derivation itself is covered in
+    // ee/services/billing/planEnforcementService.test.ts.
     const makeAccountReadOnly = async () => {
-      // Set paymentFailedAt to 8 days ago (past 7-day grace period)
-      const eightDaysAgo = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000);
-      await db
-        .collection("accounts")
-        .updateOne(
-          { _id: testAccountId },
-          { $set: { paymentFailedAt: eightDaysAgo, plan: Plan.Pro } },
-        );
+      planEnforcementService.markReadOnly();
     };
 
     it("should block creating builds when account is read-only", async () => {

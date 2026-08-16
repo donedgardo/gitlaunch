@@ -110,6 +110,27 @@
         showToast(message, 'error');
       });
 
+      // Mobile nav drawer. Delegated from the body because the nav partial is
+      // re-rendered as an out-of-band swap — a listener bound to the button
+      // itself would be thrown away with it. Toggling `hidden` only affects
+      // phones: at lg the drawer's `lg:flex` outranks it, so the menu cannot
+      // get stuck closed when a phone is rotated or a window is widened.
+      document.body.addEventListener('click', function(evt) {
+        var toggle = evt.target.closest('[data-gl-nav-toggle]');
+        if (!toggle) return;
+        var menu = document.getElementById(toggle.getAttribute('aria-controls'));
+        if (!menu) return;
+        var willOpen = menu.classList.contains('hidden');
+        menu.classList.toggle('hidden', !willOpen);
+        menu.classList.toggle('flex', willOpen);
+        toggle.setAttribute('aria-expanded', String(willOpen));
+        toggle.setAttribute('aria-label', willOpen ? 'Close menu' : 'Open menu');
+        var open = toggle.querySelector('.gl-nav-toggle-open');
+        var close = toggle.querySelector('.gl-nav-toggle-close');
+        if (open) open.classList.toggle('hidden', willOpen);
+        if (close) close.classList.toggle('hidden', !willOpen);
+      });
+
       // Enable HTMX on service nav links for dashboard pages
       // On settings pages, links work as normal hrefs (full page navigation)
       document.addEventListener('DOMContentLoaded', function() {

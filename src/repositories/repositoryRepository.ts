@@ -8,6 +8,9 @@ export type Repository = {
   githubOwner: string;
   githubRepoName: string;
   isPrivate: boolean;
+  // GitHub's `default_branch`. Absent on records written before GitLaunch
+  // started storing it, so readers must have a fallback.
+  defaultBranch?: string;
   createdAt: Date;
 };
 
@@ -18,6 +21,7 @@ export type CreateRepositoryInput = {
   githubOwner: string;
   githubRepoName: string;
   isPrivate: boolean;
+  defaultBranch?: string;
 };
 
 export class RepositoryRepository {
