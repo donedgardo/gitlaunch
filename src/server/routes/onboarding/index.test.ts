@@ -115,6 +115,38 @@ describe("Onboarding Routes", () => {
     return local;
   }
 
+  // The mock view plugin only echoes the template name and a little data, so
+  // it can say nothing about what the customer actually reads. Assertions
+  // about on-screen copy mount the real Handlebars engine instead.
+  async function mountOnboardingWithRealViews(
+    overrides: Partial<OnboardingRoutesDeps> = {},
+  ): Promise<FastifyInstance> {
+    const local = Fastify();
+    await local.register(cookie, { secret: COOKIE_SECRET });
+    await local.register(formbody);
+    await local.register(view, {
+      engine: { handlebars },
+      root: path.join(__dirname, "../../../templates"),
+      options: {
+        partials: {
+          aiAgentSetup: "/partials/aiAgentSetup.hbs",
+          buildReportingInstructions:
+            "/partials/buildReportingInstructions.hbs",
+          deploymentSetupGuide: "/partials/deploymentSetupGuide.hbs",
+          githubSecretsSetup: "/partials/githubSecretsSetup.hbs",
+          jenkinsBuildReportingGuide:
+            "/partials/jenkinsBuildReportingGuide.hbs",
+          jenkinsDeploymentGuide: "/partials/jenkinsDeploymentGuide.hbs",
+          rawBuildReportingGuide: "/partials/rawBuildReportingGuide.hbs",
+        },
+      },
+    });
+    sessionAuthMiddleware(local, sessionService);
+    registerOnboardingRoutes(local, { ...onboardingDeps(), ...overrides });
+    await local.ready();
+    return local;
+  }
+
   beforeEach(async () => {
     await db.collection("accounts").deleteMany({});
     await db.collection("repositories").deleteMany({});
@@ -283,6 +315,55 @@ describe("Onboarding Routes", () => {
       expect(response.body).toContain(
         'data-template="onboarding/report-builds"',
       );
+    });
+
+    it("tells the agent user their first build lands when the pull request merges", async () => {
+      // The agent path always opens a pull request (the skill forbids pushing
+      // to the default branch) and the build-report step is gated to the
+      // default branch — so a flawless agent run leaves this page unchanged
+      // until the merge. The page used to promise it "advances on its own as
+      // soon as your first build reaches GitLaunch", which dead-ends the
+      // customer at the exact moment they decide whether GitLaunch works.
+      const { account, session } = await authedAccount("agent-wait-org");
+      const service = await serviceRepo.create({
+        accountId: account._id,
+        name: "api",
+      });
+
+      const realApp = await mountOnboardingWithRealViews();
+      const response = await realApp.inject({
+        method: "GET",
+        url: `/onboarding/report-builds/${service._id}`,
+        cookies: { session },
+      });
+      await realApp.close();
+
+      expect(response.statusCode).toBe(200);
+      // The customer is told what they are waiting for, and on what condition.
+      // The branch is described, never named: a service is created from a name
+      // alone — no repo, no GitHub installation — so the server cannot know
+      // whether this repo's default branch is "main".
+      expect(response.body).toContain("Your first build arrives on merge");
+      expect(response.body).toContain(
+        "instead of pushing straight to your default branch",
+      );
+      expect(response.body).toContain(
+        "Nothing lands here until that pull request merges",
+      );
+      // This page — and only this page — does advance by itself once the
+      // build lands, so it is the one place that may still say so.
+      expect(response.body).toContain(
+        "this page moves on by itself when it lands",
+      );
+      // No unconditional promise that the page moves on by itself
+      expect(response.body).not.toContain(
+        "advances on its own as soon as your first build reaches GitLaunch",
+      );
+      // No "View pull request" button: nothing server-side knows the PR. The
+      // only webhook receiver is Stripe's, so a link here would be invented.
+      expect(response.body).not.toContain("View pull request");
+      // ...and the live stream that does eventually advance the page survives
+      expect(response.body).toContain(`/build-created-stream/${service._id}`);
     });
 
     it("offers a dev-mode simulate-build button when ENABLE_BUILD_SIMULATION is on", async () => {
