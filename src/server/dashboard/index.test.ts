@@ -251,6 +251,35 @@ describe("Dashboard Routes", () => {
       expect(response.body).toContain(service._id.toString());
     });
 
+    // The empty dashboard is where a self-hosted customer meets the GitHub
+    // Actions guide for the first time. Told to POST to gitlaunch.dev with
+    // their own API key, they leak the credential and never see a build.
+    it("should point the first-build guide at this instance, not the hosted one", async () => {
+      const account = await accountRepo.create({
+        name: "Test Org",
+        slug: `test-org-${Date.now()}-${Math.random()}`,
+      });
+      await serviceRepo.create({
+        accountId: account._id,
+        repositoryId: new ObjectId(),
+        name: "buildless-service",
+      });
+      const sessionToken = sessionService.createSession({
+        userId: new ObjectId(),
+        accountId: account._id,
+      });
+
+      const response = await app.inject({
+        method: "GET",
+        url: "/dashboard/buildless-service",
+        cookies: { session: sessionToken },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain("http://localhost:3050/api/v1/services/");
+      expect(response.body).not.toContain("gitlaunch.dev");
+    });
+
     it("should show deployment setup guide when builds exist but workflow not configured", async () => {
       // Given: service with builds, workflow not configured
       const account = await accountRepo.create({

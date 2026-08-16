@@ -24,6 +24,7 @@ import { TrialService } from "../../../../ee/services/billing/trialService";
 import { SessionService } from "../../../services/auth/sessionService";
 import { sessionAuthMiddleware } from "../../middleware/sessionAuth";
 import { mockViewPlugin } from "../../testing/mockViewPlugin";
+import { registerHandlebarsHelpers } from "../../registerHandlebarsHelpers";
 import { registerOnboardingRoutes, OnboardingRoutesDeps } from "./index";
 
 // Fake GitHubAppService that returns test repos
@@ -78,6 +79,7 @@ describe("Onboarding Routes", () => {
     client = new MongoClient(mongoServer.getUri());
     await client.connect();
     db = client.db("test");
+    registerHandlebarsHelpers();
   });
 
   afterAll(async () => {
@@ -424,6 +426,67 @@ describe("Onboarding Routes", () => {
       expect(response.statusCode).toBe(200);
       expect(response.body.length).toBeGreaterThan(0);
       expect(response.body).toContain("Set up deployments");
+    });
+
+    // A self-hosted install was handing onboarding customers CI YAML that
+    // POSTs to gitlaunch.dev with their own API key in the Authorization
+    // header — their builds land in our database, not theirs, and their
+    // credential goes to a third party. The guides must name this instance.
+    it("addresses the onboarding GitHub Actions guides to this instance, not the hosted one", async () => {
+      const { account, session } = await authedAccount("selfhosted-org");
+      const service = await serviceRepo.create({
+        accountId: account._id,
+        name: "api",
+      });
+
+      const realApp = Fastify();
+      await realApp.register(cookie, { secret: COOKIE_SECRET });
+      await realApp.register(formbody);
+      await realApp.register(view, {
+        engine: { handlebars },
+        root: path.join(__dirname, "../../../templates"),
+        options: {
+          compileOptions: { preventIndent: true },
+          partials: {
+            buildReportingInstructions:
+              "/partials/buildReportingInstructions.hbs",
+            deploymentSetupGuide: "/partials/deploymentSetupGuide.hbs",
+            jenkinsBuildReportingGuide:
+              "/partials/jenkinsBuildReportingGuide.hbs",
+            jenkinsDeploymentGuide: "/partials/jenkinsDeploymentGuide.hbs",
+            rawBuildReportingGuide: "/partials/rawBuildReportingGuide.hbs",
+            githubSecretsSetup: "/partials/githubSecretsSetup.hbs",
+            aiAgentSetup: "/partials/aiAgentSetup.hbs",
+          },
+        },
+      });
+      sessionAuthMiddleware(realApp, sessionService);
+      registerOnboardingRoutes(realApp, onboardingDeps());
+      await realApp.ready();
+
+      const reportBuilds = await realApp.inject({
+        method: "GET",
+        url: `/onboarding/report-builds/${service._id}`,
+        cookies: { session },
+      });
+      const setupDeploy = await realApp.inject({
+        method: "GET",
+        url: `/onboarding/setup-deploy/${service._id}`,
+        cookies: { session },
+      });
+      await realApp.close();
+
+      expect(reportBuilds.statusCode).toBe(200);
+      expect(reportBuilds.body).toContain(
+        "http://localhost:3050/api/v1/services/",
+      );
+      expect(reportBuilds.body).not.toContain("gitlaunch.dev");
+
+      expect(setupDeploy.statusCode).toBe(200);
+      expect(setupDeploy.body).toContain(
+        "http://localhost:3050/api/v1/services/",
+      );
+      expect(setupDeploy.body).not.toContain("gitlaunch.dev");
     });
 
     it("repo selection without a GitHub connection sends the user to install (fake), preserving returnTo", async () => {

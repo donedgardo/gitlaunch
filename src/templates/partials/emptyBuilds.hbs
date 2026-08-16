@@ -27,7 +27,7 @@
     </div>
     {{else}}
       {{> githubSecretsSetup serviceId=serviceId idPrefix="empty_" showCopyButton=true }}
-      {{> buildReportingInstructions idPrefix="empty_" }}
+      {{> buildReportingInstructions idPrefix="empty_" apiUrl=apiUrl }}
     {{/if}}
   {{/if}}
 

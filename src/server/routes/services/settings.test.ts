@@ -152,6 +152,44 @@ describe("Settings Routes - Workflow Configuration", () => {
       // ...and no longer leans on the build-reporter action wrapper
       expect(response.body).not.toContain("donedgardo/build-reporter");
     });
+
+    // On a self-hosted install the GitHub Actions guides used to hand the
+    // customer YAML that POSTs to gitlaunch.dev with their own API key in the
+    // Authorization header: their builds never reach their instance, and their
+    // credential goes to a third party. Both guides must name this instance.
+    it("should address the GitHub Actions guides to this instance, not the hosted one", async () => {
+      const account = await accountRepo.create({
+        name: "Self Hosted",
+        slug: "self-hosted",
+      });
+      const repository = await repositoryRepo.create({
+        accountId: account._id,
+        githubRepoId: 1001,
+        githubFullName: "self-hosted/my-repo",
+        githubRepoName: "my-repo",
+        githubOwner: "self-hosted",
+        isPrivate: false,
+      });
+      const service = await serviceRepo.create({
+        accountId: account._id,
+        repositoryId: repository._id,
+        name: "my-service",
+      });
+      const sessionToken = sessionService.createSession({
+        userId: new ObjectId(),
+        accountId: account._id,
+      });
+
+      const response = await app.inject({
+        method: "GET",
+        url: `/services/${service._id}/settings`,
+        cookies: { session: sessionToken },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain("http://localhost:3050/api/v1/services/");
+      expect(response.body).not.toContain("gitlaunch.dev");
+    });
   });
 
   describe("GET /services/:serviceId/settings — CI provider guides", () => {

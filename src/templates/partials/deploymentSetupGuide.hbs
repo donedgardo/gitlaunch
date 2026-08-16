@@ -1,5 +1,13 @@
-<!-- Deployment Workflow Instructions — plain curl, no action to maintain. -->
-<!-- Optional: idPrefix, stepNumber. Vars: environments -->
+{{!-- Deployment Workflow Instructions — plain curl, no action to maintain.
+
+     Requires: apiUrl — the public URL of THIS instance. A self-hosted install
+     is not the hosted service, and a snippet naming the wrong host sends the
+     customer's own API key somewhere they never meant it to go.
+     Optional: idPrefix, stepNumber. Vars: environments.
+
+     The YAML comes from services/setup/setupSnippets.ts via the setupSnippet
+     helper — the same generator /setup-snippets serves. Never paste a copy of
+     it here; that is how the two drifted apart. --}}
 <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-lg overflow-hidden mb-6">
   <div class="p-6 sm:p-8">
     <div style="display: flex; align-items: flex-start;">
@@ -18,82 +26,7 @@
         </p>
         <div class="relative">
           <div class="bg-gray-900 dark:bg-gray-950 rounded-xl p-4 font-mono text-xs text-green-400 overflow-x-auto">
-            <pre class="whitespace-pre"><code id="{{idPrefix}}gh_curl_deploy">name: Deploy
-
-on:
-  workflow_dispatch:
-    inputs:
-      environment:
-        description: "Environment to deploy to"
-        required: true
-        type: choice
-        options:
-{{#each environments}}          - {{this.name}}
-{{else}}          - staging
-          - prod
-{{/each}}      buildId:
-        description: "Build ID (commit SHA)"
-        required: false
-        type: string
-  workflow_call:
-    inputs:
-      environment:
-        required: true
-        type: string
-      buildId:
-        required: false
-        type: string
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    env:
-      ENVIRONMENT: $&#123;&#123; inputs.environment &#125;&#125;
-      BUILD_ID: $&#123;&#123; inputs.buildId || github.sha &#125;&#125;
-      DEPLOY_URL: "https://gitlaunch.dev/api/v1/services/$&#123;&#123; vars.GITLAUNCH_SERVICE_ID &#125;&#125;/builds/$&#123;&#123; inputs.buildId || github.sha &#125;&#125;/deploy/$&#123;&#123; inputs.environment &#125;&#125;"
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: $&#123;&#123; env.BUILD_ID &#125;&#125;
-
-      - name: Report deploying
-        run: |
-          curl --fail-with-body -sS -X PATCH "$DEPLOY_URL" \
-            -H "Authorization: Bearer $&#123;&#123; secrets.GITLAUNCH_API_KEY &#125;&#125;" \
-            -H "Content-Type: application/json" \
-            -d '{"status":"deploying"}'
-
-      ####################################
-      # Add your deployment steps here   #
-      ####################################
-      - name: Deploy
-        run: echo "Deploy to $ENVIRONMENT"
-
-      # GitHub-native success()/failure()/cancelled() is reliable — it reads the
-      # job outcome the workflow already knows.
-      - name: Report deployed
-        if: success()
-        run: |
-          curl --fail-with-body -sS -X PATCH "$DEPLOY_URL" \
-            -H "Authorization: Bearer $&#123;&#123; secrets.GITLAUNCH_API_KEY &#125;&#125;" \
-            -H "Content-Type: application/json" \
-            -d '{"status":"deployed"}'
-
-      - name: Report error
-        if: failure()
-        run: |
-          curl --fail-with-body -sS -X PATCH "$DEPLOY_URL" \
-            -H "Authorization: Bearer $&#123;&#123; secrets.GITLAUNCH_API_KEY &#125;&#125;" \
-            -H "Content-Type: application/json" \
-            -d '{"status":"error"}'
-
-      - name: Report cancelled
-        if: cancelled()
-        run: |
-          curl --fail-with-body -sS -X PATCH "$DEPLOY_URL" \
-            -H "Authorization: Bearer $&#123;&#123; secrets.GITLAUNCH_API_KEY &#125;&#125;" \
-            -H "Content-Type: application/json" \
-            -d '{"status":"cancelled"}'</code></pre>
+            <pre class="whitespace-pre"><code id="{{idPrefix}}gh_curl_deploy">{{setupSnippet "deploy.github" apiUrl=apiUrl serviceId=serviceId environments=environments}}</code></pre>
           </div>
           <button
             onclick="copyDeploySnippet('{{idPrefix}}gh_curl_deploy', '{{idPrefix}}gh_curl_deploy_copy', '{{idPrefix}}gh_curl_deploy_check')"
@@ -114,7 +47,11 @@ jobs:
           </p>
         </div>
 
-        <!-- Tip: Auto-deploy from CI -->
+        {{!-- Tip: Auto-deploy from CI. The branch guard below is still a
+             literal `main`: the repo's real default branch is being threaded
+             through setupSnippets by a separate change, and duplicating a
+             fallback for it here is exactly the drift this partial just
+             stopped doing. --}}
         <div class="mt-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
           <div style="display: flex; align-items: flex-start;">
             <svg style="width: 20px; height: 20px; min-width: 20px;" class="text-blue-600 dark:text-blue-400 mr-3 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
