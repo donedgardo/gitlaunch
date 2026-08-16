@@ -6,12 +6,15 @@
  * agent wiring up a repo and a human copy-pasting from the dashboard cannot
  * drift apart.
  *
- * Two contracts constrain what this may emit, both covered by tests:
+ * Three contracts constrain what this may emit, all covered by tests:
  *   1. The deploy workflow must declare exactly the inputs
  *      `MultiTenantGithubDispatchService` sends (`environment`, `buildId`).
  *      GitHub rejects the entire dispatch with 422 on an undeclared input.
  *   2. Reported statuses must come from the golden reporter contract shared
  *      with the github-action submodule.
+ *   3. The build-report step's branch guard must name the repo's own default
+ *      branch. A guard naming a branch the repo does not have fails silently:
+ *      no error, no failed run, no build — just a dashboard that never fills.
  */
 
 export type SetupSnippetsInput = {
@@ -20,6 +23,12 @@ export type SetupSnippetsInput = {
   serviceId: string;
   /** The service's own environments, in display order. */
   environments: string[];
+  /**
+   * The default branch of the repo these snippets are for — the build-report
+   * step is gated to it. Pass an empty string only when it is genuinely
+   * unknowable (see FALLBACK_DEFAULT_BRANCH).
+   */
+  defaultBranch: string;
 };
 
 export type SetupSnippets = {
@@ -42,10 +51,20 @@ export type SetupSnippets = {
 
 const DEFAULT_ENVIRONMENT_NAMES = ["staging", "prod"];
 
+/**
+ * Used only when nothing can say what the repo's default branch is: a service
+ * with no repository bound yet (onboarding creates the service before CD is
+ * configured), a Jenkins or raw service that never had one, or a repository
+ * record written before GitLaunch started storing the branch. `main` is
+ * GitHub's own default for new repos, so it is the best guess available — but
+ * it is a guess, and on a `master`/`develop`/`trunk` repo it is wrong.
+ */
+export const FALLBACK_DEFAULT_BRANCH = "main";
+
 const buildsPath = (serviceId: string) =>
   `/api/v1/services/${serviceId}/builds`;
 
-function githubBuildReport(apiUrl: string): string {
+function githubBuildReport(apiUrl: string, defaultBranch: string): string {
   // Uses vars/secrets rather than the literal service id so the snippet keeps
   // working if the repo is pointed at a different service.
   //
@@ -54,7 +73,7 @@ function githubBuildReport(apiUrl: string): string {
   // pull_request or a manual run there is no head_commit and an empty string
   // would be rejected.
   return `- name: Report build to GitLaunch
-  if: github.ref == 'refs/heads/main'
+  if: github.ref == 'refs/heads/${defaultBranch}'
   env:
     GITLAUNCH_COMMIT_MESSAGE: \${{ github.event.head_commit.message }}
     GITLAUNCH_COMMIT_AT: \${{ github.event.head_commit.timestamp }}
@@ -175,6 +194,7 @@ export function buildSetupSnippets(input: SetupSnippetsInput): SetupSnippets {
   const environments = input.environments.length
     ? input.environments
     : DEFAULT_ENVIRONMENT_NAMES;
+  const defaultBranch = input.defaultBranch || FALLBACK_DEFAULT_BRANCH;
 
   return {
     secrets: {
@@ -183,7 +203,7 @@ export function buildSetupSnippets(input: SetupSnippetsInput): SetupSnippets {
       serviceId,
     },
     buildReport: {
-      github: githubBuildReport(apiUrl),
+      github: githubBuildReport(apiUrl, defaultBranch),
       jenkins: jenkinsBuildReport(apiUrl, serviceId),
       raw: rawBuildReport(apiUrl, serviceId),
     },
