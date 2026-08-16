@@ -72,7 +72,10 @@
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
           <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
         </svg>
-        <span class="text-sm text-blue-800 dark:text-blue-200">Waiting for your first build report…</span>
+        {{!-- The auto-advance promise lives here, not in the shared agent
+              panel: this is the only surface that renders the panel AND
+              redirects on the build:created stream below. --}}
+        <span class="text-sm text-blue-800 dark:text-blue-200">Waiting for your first build report — this page moves on by itself when it lands.</span>
       </div>
     </div>
 
