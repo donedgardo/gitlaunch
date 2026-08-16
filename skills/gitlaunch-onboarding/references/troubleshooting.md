@@ -57,7 +57,21 @@ Work down this list:
 5. **Is `GITLAUNCH_API_KEY` set as a repo _secret_?** If missing, the header is
    `Bearer ` and the call 401s.
 6. **Is `jq` on the runner?** Standard `ubuntu-latest` has it; slim containers
-   and some self-hosted runners do not.
+   and some self-hosted runners do not. The failure is
+   `jq: command not found` and an empty `-d`, so GitLaunch answers `400`.
+   Either install it in a step before the report
+   (`apt-get update && apt-get install -y jq`, or `apk add --no-cache jq`), or
+   drop the commit message and hand-build the JSON the way the Jenkins and
+   `raw` snippets do:
+
+   ```bash
+   -d "{\"buildId\":\"$COMMIT_SHA\",\"commitAt\":\"$COMMIT_AT\"}"
+   ```
+
+   `jq` is only there to quote the commit message safely — a message containing
+   a quote or a newline would otherwise produce invalid JSON. Keep the
+   `commitAt` field either way; without it lead time is measured from when
+   GitLaunch first heard about the build, not from the commit.
 
 Check what GitLaunch received:
 

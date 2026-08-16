@@ -229,6 +229,26 @@ describe("buildSetupSnippets", () => {
     });
   });
 
+  it("should report with plain curl rather than the deprecated build-reporter action", () => {
+    // Given the snippets for a service
+    const snippets = buildSetupSnippets(input);
+
+    // Then every one of them calls the API directly. The GitLaunch Build
+    // Reporter action still works for anyone already on it, but it only ever
+    // covered GitHub — curl is the one path that serves every provider, and
+    // handing out two answers is what made "how do I report a build?"
+    // ambiguous in the first place.
+    for (const snippet of [
+      snippets.buildReport.github,
+      snippets.buildReport.jenkins,
+      snippets.buildReport.raw,
+      snippets.deploy.github,
+    ]) {
+      expect(snippet).toContain("curl");
+      expect(snippet).not.toContain("build-reporter");
+    }
+  });
+
   it("should point every snippet at the configured host", () => {
     // Given a self-hosted GitLaunch
     const snippets = buildSetupSnippets({

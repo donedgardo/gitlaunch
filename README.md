@@ -101,12 +101,13 @@ yarn analytics    # internal product/marketing report against $MONGODB_URI
 
 GitLaunch is open core. The line is **one account and one seat**.
 
+
 | Path                                                                             | License                                       |
 | -------------------------------------------------------------------------------- | --------------------------------------------- |
 | Everything not listed below                                                      | [FSL-1.1-ALv2](LICENSE.md)                    |
 | `ee/` — plus the templates named in [ENTERPRISE-PATHS.md](ENTERPRISE-PATHS.md)   | [GitLaunch Enterprise](LICENSE-enterprise.md) |
 | `sdk/` (`@gitlaunch/flags`)                                                      | MIT                                           |
-| `github-action/` ([separate repo](https://github.com/donedgardo/build-reporter)) | MIT                                           |
+| `github-action/` — deprecated ([separate repo](https://github.com/donedgardo/build-reporter)) | MIT                                           |
 
 **The open core** is under the [Functional Source License, Version 1.1, ALv2
 Future License](LICENSE.md). You may read, modify, and run it for any purpose
