@@ -37,16 +37,19 @@ jobs:
       - run: yarn build
       # ---- end stack-specific ----
 
-      # buildReport.github from /setup-snippets, verbatim
+      # buildReport.github from /setup-snippets, verbatim — the guard below
+      # arrives already naming this repo's default branch
       - name: Report build to GitLaunch
-        if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/<default branch, as returned>'
         ...
 ```
 
 Notes:
 
 - The report step is **last**, so a failing build does not register as a build.
-- The `if:` guard must name the repo's real default branch.
+- The `if:` guard arrives already naming this repo's default branch. Paste it as
+  returned; do not rewrite it. If it names a branch this repo does not have,
+  GitLaunch's record of the repo is stale — raise it with the user.
 - If the workflow has several jobs, put the report in the one that finishes last,
   or add a small `needs:`-gated job that only reports.
 

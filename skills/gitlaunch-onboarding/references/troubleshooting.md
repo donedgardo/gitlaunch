@@ -44,11 +44,14 @@ Free allows 3 repositories and public repos only.
 Work down this list:
 
 1. **Did CI actually run?** `gh run list --limit 5`.
-2. **Did the report step run?** It is guarded by
-   `if: github.ref == 'refs/heads/main'`. On a PR branch it is skipped by design.
-   This is the single most common cause.
-3. **Is the guard naming the right branch?** A repo whose default branch is
-   `master`, `develop` or `trunk` will never match `refs/heads/main`.
+2. **Did the report step run?** It is guarded on the repo's default branch. On a
+   PR branch it is skipped by design. This is the single most common cause.
+3. **Is the guard naming the right branch?** The snippet is generated with the
+   default branch GitLaunch has on record for the repo. If that record is stale
+   or absent it falls back to `main`, and a repo whose default branch is
+   `master`, `develop` or `trunk` will never match. Fix it in GitLaunch —
+   reconnect the repository — and re-fetch `/setup-snippets`, rather than
+   hand-editing the workflow so the two drift apart.
 4. **Is `GITLAUNCH_SERVICE_ID` set as a repo _variable_?** If it is missing, the
    URL collapses to `/api/v1/services//builds` and 404s.
 5. **Is `GITLAUNCH_API_KEY` set as a repo _secret_?** If missing, the header is
