@@ -412,22 +412,7 @@ describe("Onboarding Routes", () => {
         name: "api",
       });
 
-      const realApp = Fastify();
-      await realApp.register(cookie, { secret: COOKIE_SECRET });
-      await realApp.register(formbody);
-      await realApp.register(view, {
-        engine: { handlebars },
-        root: path.join(__dirname, "../../../templates"),
-        options: {
-          partials: {
-            deploymentSetupGuide: "/partials/deploymentSetupGuide.hbs",
-            jenkinsDeploymentGuide: "/partials/jenkinsDeploymentGuide.hbs",
-          },
-        },
-      });
-      sessionAuthMiddleware(realApp, sessionService);
-      registerOnboardingRoutes(realApp, onboardingDeps());
-      await realApp.ready();
+      const realApp = await mountOnboardingWithRealViews();
 
       const response = await realApp.inject({
         method: "GET",
