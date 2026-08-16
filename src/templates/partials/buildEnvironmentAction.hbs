@@ -1,5 +1,8 @@
 <td
   id="{{serviceName}}-{{buildId}}-{{env}}"
+  {{!-- Names the cell's environment for the phone layout, where the column
+        header is gone and each line labels itself from this attribute. --}}
+  data-env="{{env}}"
   sse-swap="update:{{serviceName}}-{{buildId}}-{{env}}"
   {{#if isOobSwap}}hx-swap-oob="outerHTML"{{/if}}
   {{!-- A cell only flashes when it is swapped in mid-change (deploy, cancel,

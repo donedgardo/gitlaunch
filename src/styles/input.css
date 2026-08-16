@@ -83,6 +83,146 @@
   color: var(--accent);
 }
 
+/* ------------------------------------------------------------------ *
+ * Touch input baseline.
+ *
+ * iOS Safari zooms the page in whenever a focused field's text is under
+ * 16px, and then leaves it zoomed — the reason filling in a form on an
+ * iPhone used to knock the rest of the layout off screen. Setting the
+ * floor once here fixes every form in the app; above `sm` the templates'
+ * own sizing takes back over.
+ * ------------------------------------------------------------------ */
+@media (max-width: 639px) {
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Navigation primitives.
+ *
+ * These carry the responsive behaviour that used to be missing: before
+ * this, the account links were a ~538px row that could not wrap or
+ * shrink, so a phone's layout viewport expanded to ~895px and the whole
+ * app rendered zoomed out. Every control here is at least 44px on a
+ * touch screen and the tab strip scrolls instead of widening the page.
+ * ------------------------------------------------------------------ */
+.gl-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 52px;
+  padding: 0 14px;
+  font-family: var(--sans);
+  font-weight: 800;
+  font-size: 17px;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+/* Service tabs. Swipeable on a phone; the scrollbar itself is noise on a
+   touch device, so it is hidden while the overflow stays. */
+.gl-tabstrip {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+.gl-tabstrip::-webkit-scrollbar {
+  display: none;
+}
+
+.gl-tab {
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  padding: 0 16px;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  transition: color 0.12s ease, border-color 0.12s ease;
+}
+.gl-tab-active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+.gl-tab-idle {
+  color: var(--muted);
+}
+.gl-tab-idle:hover {
+  color: var(--ink);
+  border-bottom-color: var(--line-strong);
+}
+
+/* Per-service icon actions (settings, flags) and "new service". */
+.gl-tab-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 48px;
+  color: var(--faint);
+  border-bottom: 2px solid transparent;
+  transition: color 0.12s ease;
+}
+.gl-tab-icon:hover {
+  color: var(--muted);
+}
+
+.gl-nav-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 10px;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+.gl-nav-toggle:hover {
+  color: var(--ink);
+  background: var(--surface-2);
+}
+.gl-nav-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.gl-navlink {
+  display: flex;
+  align-items: center;
+  min-height: 48px;
+  padding: 0 16px;
+  font-size: 15px;
+  color: var(--muted);
+  text-decoration: none;
+  transition: color 0.12s ease, background 0.12s ease;
+}
+.gl-navlink:hover {
+  color: var(--ink);
+  background: var(--surface-2);
+}
+@media (min-width: 1024px) {
+  .gl-navlink {
+    min-height: 40px;
+    padding: 0 12px;
+    font-size: 14px;
+    border-radius: 8px;
+  }
+}
+
 .gl-board {
   background: var(--surface);
   border: 1px solid var(--line);
@@ -378,6 +518,107 @@
   .gl-board .gl-just-changed,
   .gl-board .gl-just-changed .pill-live {
     animation: none;
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Release board on a phone.
+ *
+ * The board is a matrix: one row per commit, one column per environment.
+ * That reads well on a wide screen and not at all on a 375px one — the
+ * columns either scroll out of sight or crush to nothing, and the deploy
+ * button (the whole point of the screen) is the first thing to go.
+ *
+ * So below `sm` each row becomes a card: the commit heads it, and every
+ * environment is its own labelled line with its status or Deploy button
+ * on the right, where a thumb can reach it. This is done in CSS rather
+ * than a second template on purpose — the cells are swapped in place by
+ * SSE and HTMX (`sse-swap`, `hx-target="#service-build-env"`), so there
+ * is exactly one markup tree to keep correct. The env name comes from
+ * `data-env` on the cell.
+ * ------------------------------------------------------------------ */
+@media (max-width: 639px) {
+  .gl-board {
+    border-radius: 14px;
+  }
+  /* Cards lay out vertically; nothing left to scroll sideways. */
+  .gl-board-scroll {
+    overflow-x: visible;
+  }
+  .gl-board table,
+  .gl-board tbody,
+  .gl-board tr,
+  .gl-board td {
+    display: block;
+    width: 100%;
+  }
+  /* Column headers are replaced by the per-line labels below. */
+  .gl-board thead {
+    display: none;
+  }
+  .gl-board tbody tr {
+    padding: 14px 16px 6px;
+    border-bottom: 1px solid var(--line);
+  }
+  .gl-board tbody tr:last-child {
+    border-bottom: none;
+  }
+  .gl-board tbody td {
+    padding: 0;
+    border-bottom: none;
+  }
+  /* Let a long commit message use the full card width and wrap once
+     instead of being cut at 46ch. */
+  .gl-board .gl-commit {
+    max-width: 100%;
+    white-space: normal;
+    overflow: visible;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .gl-board .gl-env-cell {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 48px;
+    padding: 4px 0;
+    text-align: right;
+    border-top: 1px solid var(--line);
+    margin-top: 8px;
+  }
+  .gl-board tbody td.gl-env-cell:first-of-type {
+    margin-top: 10px;
+  }
+  .gl-board .gl-env-cell::before {
+    content: attr(data-env);
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: var(--muted);
+    text-align: left;
+    flex: 0 0 auto;
+  }
+  /* A deploy is the primary action on this screen — give it a real
+     touch target rather than the desktop chip. */
+  .gl-board .cbtn {
+    min-height: 44px;
+    padding: 0 20px;
+    font-size: 12px;
+  }
+  .gl-board .gl-icon-btn {
+    min-width: 40px;
+    min-height: 40px;
+    align-items: center;
+    justify-content: center;
+  }
+  .gl-board .pill {
+    font-size: 10.5px;
+    padding: 6px 12px;
   }
 }
 
