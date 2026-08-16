@@ -197,6 +197,12 @@
     .trio, .metrics, .fear .three { grid-template-columns: 1fr; }
     .reframe-in { flex-direction: column; align-items: flex-start; gap: 16px; }
   }
+  /* iOS Safari zooms the page in when a focused field's text is under 16px,
+     and leaves it zoomed after — on the waitlist field that means the one
+     conversion on this page hands the visitor a broken-looking site. */
+  @media (max-width: 639px) {
+    .wl-form input[type="email"] { font-size: 16px; }
+  }
   @media (prefers-reduced-motion: reduce) {
     .rise { opacity: 1; animation: none; }
     .live-dot { animation: none; }
