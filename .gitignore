@@ -55,3 +55,4 @@ playwright-report/
 .terraform.lock.hcl
 *.tfstate
 *.tfstate.*
+posthog-warehouse-report.md
