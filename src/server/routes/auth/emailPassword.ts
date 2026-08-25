@@ -154,10 +154,13 @@ export function registerEmailPasswordAuthRoutes(
 
       await sendVerificationEmail(user._id, email);
 
-      analytics?.track("user_signed_up", {
-        userId: user._id.toString(),
-        method: "password",
-      });
+      const distinctId = user._id.toString();
+      analytics?.identify(distinctId, { email: user.email, name: user.name });
+      analytics?.track(
+        "user_signed_up",
+        { method: "password" },
+        { distinctId },
+      );
 
       return reply.view("check-email.hbs", { email }, LAYOUT);
     },
@@ -204,12 +207,17 @@ export function registerEmailPasswordAuthRoutes(
       });
       setSessionCookie(reply, sessionToken, cookieSecure);
 
-      analytics?.identify(user._id.toString(), { email: user.email });
-      analytics?.track("user_logged_in", {
-        userId: user._id.toString(),
-        isNewUser,
-        method: "password",
-      });
+      const distinctId = user._id.toString();
+      analytics?.identify(
+        distinctId,
+        { email: user.email, name: user.name },
+        { accountId: accountId.toString() },
+      );
+      analytics?.track(
+        "user_logged_in",
+        { isNewUser, method: "password" },
+        { accountId: accountId.toString(), distinctId },
+      );
 
       // A fresh confirmation always means a first login → onboarding.
       return reply.redirect("/onboarding/plan-selection");
@@ -258,11 +266,17 @@ export function registerEmailPasswordAuthRoutes(
       });
       setSessionCookie(reply, sessionToken, cookieSecure);
 
-      analytics?.track("user_logged_in", {
-        userId: user._id.toString(),
-        isNewUser: false,
-        method: "password",
-      });
+      const distinctId = user._id.toString();
+      analytics?.identify(
+        distinctId,
+        { email: user.email, name: user.name },
+        { accountId: accountId.toString() },
+      );
+      analytics?.track(
+        "user_logged_in",
+        { isNewUser: false, method: "password" },
+        { accountId: accountId.toString(), distinctId },
+      );
 
       return reply.redirect("/dashboard");
     },

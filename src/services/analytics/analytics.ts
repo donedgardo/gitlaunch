@@ -23,6 +23,13 @@ export interface AnalyticsService {
     properties?: Record<string, any>,
     context?: AnalyticsContext,
   ): void;
+  // Errors are emitted by the centralized request boundary rather than each
+  // route, with the authenticated actor supplied in its context.
+  captureException?(
+    error: unknown,
+    properties?: Record<string, any>,
+    context?: AnalyticsContext,
+  ): void;
   // Deliver anything still buffered. Optional: a sink that writes immediately
   // has nothing to drain. Callers await it on shutdown so the last events of a
   // deploy aren't lost with the process.

@@ -172,7 +172,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
 
   const server = Fastify();
   registerPlugins(server, config.cookieSecret);
-  registerErrorReporting(server, errorReporter);
+  registerErrorReporting(server, errorReporter, analytics);
 
   // Repositories
   const userRepository = new UserRepository(database);

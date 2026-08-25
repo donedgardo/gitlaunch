@@ -54,6 +54,14 @@ export class FanOutAnalytics implements AnalyticsService {
     this.each((sink) => sink.navigation(destination, properties, context));
   }
 
+  captureException(
+    error: unknown,
+    properties?: Record<string, any>,
+    context?: AnalyticsContext,
+  ): void {
+    this.each((sink) => sink.captureException?.(error, properties, context));
+  }
+
   /** Drain every sink that buffers, so shutdown loses nothing. */
   async flush(): Promise<void> {
     await Promise.allSettled(
