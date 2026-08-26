@@ -1,3 +1,7 @@
+import {
+  AccountLimits,
+  TrialPolicy,
+} from "../../services/limits/accountPolicy";
 import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { ObjectId } from "mongodb";
 import { ServiceRepository } from "../../repositories/serviceRepository";
@@ -6,15 +10,12 @@ import { RepositoryRepository } from "../../repositories/repositoryRepository";
 import { AccountRepository } from "../../repositories/accountRepository";
 import { BuildService } from "../../services/build/buildService";
 import { DeploymentStatus } from "../../services/service/deploymentStatus";
-import { TrialService } from "../../services/billing/trialService";
-import { PlanEnforcementService } from "../../services/billing/planEnforcementService";
 import { AnalyticsService } from "../../services/analytics/analytics";
 import { FlagServiceI } from "../../services/flag/flagService";
 import {
   summarizeEnvironmentFlags,
   EnvFlagSummary,
 } from "../../services/flag/flagBoardSummary";
-
 const DEFAULT_PAGE_SIZE = 20;
 
 export type DashboardRoutesDeps = {
@@ -25,8 +26,8 @@ export type DashboardRoutesDeps = {
   repositoryRepository: RepositoryRepository;
   accountRepository: AccountRepository;
   buildService: BuildService;
-  trialService: TrialService;
-  planEnforcementService: PlanEnforcementService;
+  trialService: TrialPolicy;
+  planEnforcementService: AccountLimits;
   analytics?: AnalyticsService;
   // Optional: when absent the board renders exactly as before, without flag
   // state. Flags enrich the board; they are never required to read it.
@@ -324,15 +325,6 @@ export default function (deps: DashboardRoutesDeps) {
           );
         }
 
-        // Check for new API key cookie (set after service creation)
-        const apiKeyCookie = req.cookies.new_api_key;
-        const newApiKey = apiKeyCookie
-          ? reply.unsignCookie(apiKeyCookie).value
-          : null;
-        if (newApiKey) {
-          reply.clearCookie("new_api_key", { path: "/" });
-        }
-
         // Full page render
         return reply.view(
           "dashboard",
@@ -347,7 +339,6 @@ export default function (deps: DashboardRoutesDeps) {
             provider,
             apiUrl,
             needsDeploymentSetup,
-            newApiKey,
             showSimulateBuild: buildSimulationEnabled,
             pagination,
             trialDaysRemaining: accountState.trialDaysRemaining,
@@ -463,7 +454,10 @@ export default function (deps: DashboardRoutesDeps) {
             { err: error, serviceId, buildId, env },
             "Failed to dispatch deployment",
           );
-          return reply.status(500).send({ error: message });
+          // Generic on purpose — see the note in routes/api/builds.ts.
+          return reply
+            .status(500)
+            .send({ error: "Failed to trigger deployment" });
         }
       },
     );

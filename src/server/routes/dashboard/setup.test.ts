@@ -66,11 +66,13 @@ describe("Setup Wizard Routes", () => {
             "/partials/buildReportingInstructions.hbs",
           setupStep: "/partials/setupStep.hbs",
           deploymentSetupGuide: "/partials/deploymentSetupGuide.hbs",
+          aiAgentSetup: "/partials/aiAgentSetup.hbs",
         },
       },
     });
     sessionAuthMiddleware(app, sessionService);
     registerSetupRoutes(app, {
+      publicUrl: "http://localhost:3050",
       buildSimulationEnabled: false,
       serviceRepo,
       buildRepo,
@@ -125,6 +127,60 @@ describe("Setup Wizard Routes", () => {
       expect(res.body).toContain("Step 2 of 5");
     });
 
+    // A self-hosted install must never tell a customer to POST their build —
+    // carrying their own API key in an Authorization header — at gitlaunch.dev.
+    // Their builds would land in our database, not theirs, and their credential
+    // would be handed to a third party they never meant to send it to.
+    it("should point the build-report snippet at this instance, not the hosted one", async () => {
+      const account = await accountRepo.create({ name: "Org", slug: "org" });
+      await serviceRepo.create({
+        accountId: account._id,
+        repositoryId: new ObjectId(),
+        name: "my-svc",
+      });
+      const session = sessionService.createSession({
+        userId: new ObjectId(),
+        accountId: account._id,
+      });
+
+      const res = await app.inject({
+        method: "GET",
+        url: "/dashboard/my-svc/setup/2",
+        cookies: { session },
+      });
+
+      expect(res.body).toContain("http://localhost:3050/api/v1/services/");
+      expect(res.body).not.toContain("gitlaunch.dev");
+    });
+
+    // Same offer as the new-user onboarding: setting up build reporting by hand
+    // is the fallback, not the only way in.
+    it("should offer the AI agent handoff on the build-reporting step", async () => {
+      const account = await accountRepo.create({ name: "Org", slug: "org" });
+      const service = await serviceRepo.create({
+        accountId: account._id,
+        repositoryId: new ObjectId(),
+        name: "my-svc",
+      });
+      const session = sessionService.createSession({
+        userId: new ObjectId(),
+        accountId: account._id,
+      });
+
+      const res = await app.inject({
+        method: "GET",
+        url: "/dashboard/my-svc/setup/2",
+        cookies: { session },
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body).toContain("Let an AI agent set this up");
+      expect(res.body).toContain(
+        "http://localhost:3050/skills/gitlaunch-onboarding/SKILL.md",
+      );
+      expect(res.body).toContain(service._id.toString());
+    });
+
     it("should return step 3 content with push instructions", async () => {
       const account = await accountRepo.create({ name: "Org", slug: "org" });
       await serviceRepo.create({
@@ -169,6 +225,30 @@ describe("Setup Wizard Routes", () => {
       expect(res.statusCode).toBe(200);
       expect(res.body).toContain("Deploy Workflow");
       expect(res.body).toContain("Step 4 of 5");
+    });
+
+    // Same credential-exposure problem as the build-report snippet: the deploy
+    // workflow PATCHes its status with the customer's API key in the header.
+    it("should point the deploy workflow at this instance, not the hosted one", async () => {
+      const account = await accountRepo.create({ name: "Org", slug: "org" });
+      await serviceRepo.create({
+        accountId: account._id,
+        repositoryId: new ObjectId(),
+        name: "my-svc",
+      });
+      const session = sessionService.createSession({
+        userId: new ObjectId(),
+        accountId: account._id,
+      });
+
+      const res = await app.inject({
+        method: "GET",
+        url: "/dashboard/my-svc/setup/4",
+        cookies: { session },
+      });
+
+      expect(res.body).toContain("http://localhost:3050/api/v1/services/");
+      expect(res.body).not.toContain("gitlaunch.dev");
     });
 
     it("should return step 5 content with workflow selection", async () => {

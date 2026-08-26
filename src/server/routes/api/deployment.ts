@@ -3,7 +3,7 @@ import { ObjectId } from "mongodb";
 import { ServiceRepository } from "../../../repositories/serviceRepository";
 import { RepositoryRepository } from "../../../repositories/repositoryRepository";
 import { AccountRepository } from "../../../repositories/accountRepository";
-import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
+import { AccountLimits } from "../../../services/limits/accountPolicy";
 import { GitHubRepo } from "../../../services/github/githubAppService";
 import { AnalyticsService } from "../../../services/analytics/analytics";
 import { requireScope } from "../../middleware/apiKeyAuth";
@@ -20,7 +20,7 @@ export type DeploymentRoutesDependencies = {
   serviceRepository: ServiceRepository;
   repositoryRepository: RepositoryRepository;
   accountRepository: AccountRepository;
-  planEnforcementService: PlanEnforcementService;
+  planEnforcementService: AccountLimits;
   gitHubAppService: InstallationRepoLister;
   analytics?: AnalyticsService;
 };
@@ -184,6 +184,7 @@ export function registerDeploymentRoutes(
             githubOwner: match.owner?.login ?? match.full_name.split("/")[0],
             githubRepoName: match.name ?? match.full_name.split("/")[1],
             isPrivate: match.private,
+            defaultBranch: match.default_branch,
           });
           repositoryId = created._id;
         }

@@ -89,6 +89,13 @@ export class AccountRepository {
     this.collection = db.collection<Account>("accounts");
   }
 
+  // How many accounts exist on this instance. Deliberately not scoped to a
+  // tenant: it answers an instance-wide question, which is whether a
+  // single-tenant install already has its one account.
+  async countAll(): Promise<number> {
+    return this.collection.countDocuments();
+  }
+
   async create(input: CreateAccountInput): Promise<Account> {
     // Check for duplicate slug
     const existing = await this.findBySlug(input.slug);

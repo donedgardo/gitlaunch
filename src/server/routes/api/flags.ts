@@ -1,8 +1,8 @@
+import { AccountLimits } from "../../../services/limits/accountPolicy";
 import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { ObjectId } from "mongodb";
 import { FlagServiceI } from "../../../services/flag/flagService";
 import { ServiceRepository } from "../../../repositories/serviceRepository";
-import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
 import {
   requireScope,
   requireFlagRuntimeAccess,
@@ -25,7 +25,7 @@ import { FlagAttributes } from "../../../services/flag/flagEvaluator";
 export type FlagsRoutesDependencies = {
   flagService: FlagServiceI;
   serviceRepo: ServiceRepository;
-  planEnforcementService: PlanEnforcementService;
+  planEnforcementService: AccountLimits;
   analytics?: AnalyticsService;
   experimentResults?: ExperimentResultsService;
   configVersions?: FlagConfigVersionService;

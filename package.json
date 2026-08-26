@@ -13,13 +13,13 @@
     "server:watch": "nodemon -e ts,hbs --exec tsx src/index.ts",
     "tailwind": "yarn tailwindcss -i ./src/styles/input.css -o src/public/css/main.css",
     "tailwind:watch": "yarn run tailwind --watch",
-    "start": "node dist/index.js",
+    "start": "node dist/src/index.js",
     "test": "yarn test:watch --run",
     "test:e2e": "playwright test",
     "test:smoke": "vitest --run --dir src/tests",
     "test:watch": "vitest",
     "prepare": "husky",
-    "postbuild": "ncp src/templates dist/templates && ncp src/public dist/public"
+    "postbuild": "ncp src/templates dist/src/templates && ncp src/public dist/src/public && ncp skills dist/skills"
   },
   "dependencies": {
     "@fastify/cookie": "^9.3.1",

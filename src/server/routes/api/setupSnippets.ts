@@ -1,11 +1,20 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { ObjectId } from "mongodb";
-import { ServiceRepository } from "../../../repositories/serviceRepository";
-import { buildSetupSnippets } from "../../../services/setup/setupSnippets";
+import {
+  Service,
+  ServiceRepository,
+} from "../../../repositories/serviceRepository";
+import { RepositoryRepository } from "../../../repositories/repositoryRepository";
+import {
+  buildSetupSnippets,
+  FALLBACK_DEFAULT_BRANCH,
+} from "../../../services/setup/setupSnippets";
 import { requireScope } from "../../middleware/apiKeyAuth";
 
 export type SetupSnippetsRoutesDependencies = {
   serviceRepository: ServiceRepository;
+  /** Where the branch the build-report step is gated to comes from. */
+  repositoryRepository: RepositoryRepository;
   /** Base URL of this instance, so self-hosts emit their own host. */
   apiUrl: string;
 };
@@ -18,7 +27,20 @@ export function registerSetupSnippetsRoutes(
   app: FastifyInstance,
   deps: SetupSnippetsRoutesDependencies,
 ) {
-  const { serviceRepository, apiUrl } = deps;
+  const { serviceRepository, repositoryRepository, apiUrl } = deps;
+
+  // Only a GitHub-connected service has a repository on record, and only a
+  // record written since GitLaunch started storing the branch carries one.
+  // Everything else falls back — see FALLBACK_DEFAULT_BRANCH.
+  const resolveDefaultBranch = async (service: Service): Promise<string> => {
+    if (service.deployment?.provider !== "github") {
+      return FALLBACK_DEFAULT_BRANCH;
+    }
+    const repository = await repositoryRepository.findById(
+      service.deployment.repositoryId,
+    );
+    return repository?.defaultBranch || FALLBACK_DEFAULT_BRANCH;
+  };
 
   // GET /api/v1/services/:serviceId/setup-snippets
   //
@@ -59,6 +81,7 @@ export function registerSetupSnippetsRoutes(
           apiUrl,
           serviceId: service._id.toString(),
           environments,
+          defaultBranch: await resolveDefaultBranch(service),
         }),
       );
     },

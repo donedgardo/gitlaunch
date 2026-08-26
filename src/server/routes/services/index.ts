@@ -1,215 +1,46 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { ObjectId } from "mongodb";
-import { AccountRepository } from "../../../repositories/accountRepository";
 import { RepositoryRepository } from "../../../repositories/repositoryRepository";
 import { ServiceRepository } from "../../../repositories/serviceRepository";
-import { ApiKeyService } from "../../../services/apiKey/apiKeyService";
 import { GitHubAppService } from "../../../services/github/githubAppService";
-import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
-import { AnalyticsService } from "../../../services/analytics/analytics";
-import { oneTimeSecretCookieOptions } from "../../cookies";
 
 export type ServiceRoutesDeps = {
-  cookieSecure: boolean;
-  accountRepository: AccountRepository;
   repositoryRepository: RepositoryRepository;
   serviceRepository: ServiceRepository;
-  apiKeyService: ApiKeyService;
   githubAppService?: GitHubAppService;
-  planEnforcementService: PlanEnforcementService;
-  analytics?: AnalyticsService;
 };
 
 export function registerServiceRoutes(
   app: FastifyInstance,
   deps: ServiceRoutesDeps,
 ): void {
-  const {
-    cookieSecure,
-    accountRepository,
-    repositoryRepository,
-    serviceRepository,
-    apiKeyService,
-    githubAppService,
-    planEnforcementService,
-    analytics,
-  } = deps;
+  const { repositoryRepository, serviceRepository, githubAppService } = deps;
 
-  // GET /services/new - Show create service form
+  // Adding a service has ONE home: the onboarding flow. It used to fork —
+  // first-ever service went through /onboarding/service (reporting-first, with
+  // the AI-agent handoff), every later one through a separate form here that
+  // dropped you on the dashboard and never offered the agent. An account that
+  // already had a service could therefore never reach the agent onboarding.
+  // Both entry points now lead to the same three steps.
   app.get(
     "/services/new",
     async (request: FastifyRequest, reply: FastifyReply) => {
-      // Redirect to login if not authenticated
       if (!request.session) {
         return reply.redirect("/auth/github");
       }
-
-      // Get account from session
-      const account = await accountRepository.findById(
-        new ObjectId(request.session.accountId),
-      );
-      if (!account) {
-        return reply.redirect("/auth/github");
-      }
-
-      // Report-only creation: just a name (+ optional repo URL for commit
-      // links). The deploy provider is picked later in deploy setup.
-      return reply.view(
-        "services/new",
-        { title: "Create Service" },
-        { layout: "/layouts/main.hbs" },
-      );
+      return reply.redirect("/onboarding/service");
     },
   );
 
-  // POST /services/new - Create a report-only service (CD picked later)
-  app.post<{
-    Body: {
-      name?: string;
-      repoUrl?: string;
-    };
-  }>(
+  // A cached copy of the retired form may still POST here; send it to the
+  // canonical step with a 303 so the browser re-issues it as a GET.
+  app.post(
     "/services/new",
-    async (
-      request: FastifyRequest<{
-        Body: {
-          name?: string;
-          repoUrl?: string;
-        };
-      }>,
-      reply: FastifyReply,
-    ) => {
-      // Redirect to login if not authenticated
-      if (!request.session) {
-        return reply.redirect("/auth/github");
-      }
-
-      // Get account from session
-      const account = await accountRepository.findById(
-        new ObjectId(request.session.accountId),
-      );
-      if (!account) {
-        return reply.redirect("/auth/github");
-      }
-
-      const name = request.body.name?.trim() || "";
-      const repoUrl = request.body.repoUrl?.trim() || "";
-
-      // Re-render the form with an error message.
-      const renderError = async (error: string) =>
-        reply.view(
-          "services/new",
-          { title: "Create Service", name, repoUrl, error },
-          { layout: "/layouts/main.hbs" },
-        );
-
-      if (!name) {
-        return renderError("Please enter a service name.");
-      }
-
-      // Check plan limit for services
-      const canAdd = await planEnforcementService.canAddService(account._id);
-      if (!canAdd.allowed) {
-        return renderError(canAdd.reason ?? "Service limit reached.");
-      }
-
-      // Create a report-only service — the deploy provider (GitHub / Jenkins /
-      // raw) is picked later in deploy setup, so choosing a CI provider for
-      // reporting never assumes a CD provider.
-      try {
-        await serviceRepository.create({
-          accountId: account._id,
-          name,
-          repoUrl,
-        });
-
-        analytics?.track("service_created", {
-          serviceName: name,
-          accountId: account._id.toString(),
-          provider: "report-only",
-        });
-
-        // Generate API key for this service
-        const { key } = await apiKeyService.generate({
-          accountId: account._id,
-          createdByUserId: new ObjectId(request.session.userId),
-          name: `${name.trim()} API Key`,
-          // services:read lets an onboarding agent read the service's
-          // environments and fetch the canonical setup snippets;
-          // services:write lets it bind the deploy provider itself, instead of
-          // sending the user back to the browser for it.
-          scopes: [
-            "builds:read",
-            "builds:write",
-            "deployments:write",
-            "services:read",
-            "services:write",
-          ],
-        });
-
-        // Store API key in a signed, short-lived cookie for dashboard to display
-        reply.setCookie(
-          "new_api_key",
-          key,
-          oneTimeSecretCookieOptions(cookieSecure, 300),
-        );
-
-        // Redirect straight to dashboard
-        return reply.redirect(`/dashboard/${name}`);
-      } catch (error: any) {
-        // Handle duplicate service name error
-        if (error.code === 11000) {
-          return renderError(
-            "A service with this name already exists for this account.",
-          );
-        }
-        throw error;
-      }
-    },
-  );
-
-  // GET /services/created - Show API key and getting started guide
-  app.get(
-    "/services/created",
     async (request: FastifyRequest, reply: FastifyReply) => {
-      // Redirect to login if not authenticated
       if (!request.session) {
         return reply.redirect("/auth/github");
       }
-
-      // Get API key from signed cookie
-      const apiKeyCookie = request.cookies.service_api_key;
-      const apiKey = apiKeyCookie
-        ? reply.unsignCookie(apiKeyCookie).value
-        : null;
-
-      // Get service info from signed cookie
-      const serviceCookie = request.cookies.created_service;
-      const serviceInfoRaw = serviceCookie
-        ? reply.unsignCookie(serviceCookie).value
-        : null;
-
-      // Clear cookies immediately (one-time display)
-      reply.clearCookie("service_api_key", { path: "/services/created" });
-      reply.clearCookie("created_service", { path: "/services/created" });
-
-      // If no API key or service info (already viewed or expired), redirect to dashboard
-      if (!apiKey || !serviceInfoRaw) {
-        return reply.redirect("/dashboard");
-      }
-
-      const serviceInfo = JSON.parse(serviceInfoRaw);
-
-      return reply.view(
-        "services/created",
-        {
-          title: "Service Created",
-          apiKey,
-          serviceId: serviceInfo.id,
-          serviceName: serviceInfo.name,
-        },
-        { layout: "/layouts/main.hbs" },
-      );
+      return reply.redirect(303, "/onboarding/service");
     },
   );
 

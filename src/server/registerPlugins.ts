@@ -16,7 +16,19 @@ declare module "fastify" {
   }
 }
 
-export function registerPlugins(server: FastifyInstance, cookieSecret: string) {
+// Values every rendered page gets, on top of whatever the route passes. The
+// layout needs the PostHog project token in its <head>, and threading it
+// through several dozen reply.view() calls would mean every new route has to
+// remember to pass it.
+export interface ViewDefaults {
+  posthog?: { projectToken: string; host: string };
+}
+
+export function registerPlugins(
+  server: FastifyInstance,
+  cookieSecret: string,
+  viewDefaults: ViewDefaults = {},
+) {
   registerHandlebarsHelpers();
   server.register(fastifyFormbody);
   server.register(rawBody, {
@@ -30,6 +42,7 @@ export function registerPlugins(server: FastifyInstance, cookieSecret: string) {
       handlebars,
     },
     root: path.join(__dirname, "../templates"),
+    defaultContext: viewDefaults,
     options: {
       compileOptions: {
         preventIndent: true,
@@ -56,8 +69,11 @@ export function registerPlugins(server: FastifyInstance, cookieSecret: string) {
         setupStep: "/partials/setupStep.hbs",
         waitlistResult: "/partials/waitlistResult.hbs",
         analyticsPanel: "/partials/analyticsPanel.hbs",
+        doraPanel: "/partials/doraPanel.hbs",
+        deploymentHistory: "/partials/deploymentHistory.hbs",
         legalStyles: "/partials/legalStyles.hbs",
         aiAgentSetup: "/partials/aiAgentSetup.hbs",
+        posthogSnippet: "/partials/posthogSnippet.hbs",
       },
     },
   });
@@ -69,7 +85,9 @@ export function registerPlugins(server: FastifyInstance, cookieSecret: string) {
   // Agent Skills, served so a coding agent can read them straight off the
   // instance it is onboarding against — no install step, and a self-hosted
   // instance serves the skill matching its own version. Two levels up from
-  // __dirname is the repo root in both src/ (dev) and dist/ (prod).
+  // __dirname is the repo root in dev (src/server/) and dist/ in prod
+  // (dist/src/server/), which mirrors the repo root — `postbuild` copies
+  // `skills/` in so both resolve the same way.
   server.register(fastifyStatic, {
     root: path.join(__dirname, "../../skills"),
     prefix: "/skills",

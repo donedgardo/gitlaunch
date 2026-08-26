@@ -20,15 +20,15 @@ import { BuildRepository } from "../../repositories/buildRepository";
 import { RepositoryRepository } from "../../repositories/repositoryRepository";
 import { AccountRepository } from "../../repositories/accountRepository";
 import { MembershipRepository } from "../../repositories/membershipRepository";
-import { TrialRegistryRepository } from "../../repositories/trialRegistryRepository";
 import { DeploymentStatus } from "../../services/service/deploymentStatus";
 import { SessionService } from "../../services/auth/sessionService";
 import { sessionAuthMiddleware } from "../middleware/sessionAuth";
 import { registerHandlebarsHelpers } from "../registerHandlebarsHelpers";
 import { BuildService } from "../../services/build/buildService";
 import { BuildDispatchServiceI } from "../../services/build/buildDispatchService";
-import { PlanEnforcementService } from "../../services/billing/planEnforcementService";
-import { TrialService } from "../../services/billing/trialService";
+import { AccountLimits } from "../../services/limits/accountPolicy";
+import { OpenCoreLimits } from "../../services/limits/openCorePolicy";
+import { NO_TRIALS } from "../../services/limits/openCorePolicy";
 import { FlagRepository } from "../../repositories/flagRepository";
 import { FlagService } from "../../services/flag/flagService";
 import dashboardRoutes from "./index";
@@ -43,11 +43,9 @@ describe("Dashboard Routes", () => {
   let repositoryRepo: RepositoryRepository;
   let accountRepo: AccountRepository;
   let membershipRepo: MembershipRepository;
-  let trialRegistryRepo: TrialRegistryRepository;
   let sessionService: SessionService;
   let buildService: BuildService;
-  let planEnforcementService: PlanEnforcementService;
-  let trialService: TrialService;
+  let planEnforcementService: AccountLimits;
   let flagRepo: FlagRepository;
   let flagService: FlagService;
   let mockDispatcher: BuildDispatchServiceI;
@@ -75,7 +73,6 @@ describe("Dashboard Routes", () => {
     await db.collection("repositories").deleteMany({});
     await db.collection("accounts").deleteMany({});
     await db.collection("memberships").deleteMany({});
-    await db.collection("trialRegistry").deleteMany({});
     await db.collection("flags").deleteMany({});
     vi.clearAllMocks();
 
@@ -84,16 +81,12 @@ describe("Dashboard Routes", () => {
     repositoryRepo = new RepositoryRepository(db);
     accountRepo = new AccountRepository(db);
     membershipRepo = new MembershipRepository(db);
-    trialRegistryRepo = new TrialRegistryRepository(db);
-    await trialRegistryRepo.ensureIndexes();
-
-    planEnforcementService = new PlanEnforcementService(
-      accountRepo,
-      repositoryRepo,
-      serviceRepo,
-      membershipRepo,
-    );
-    trialService = new TrialService(accountRepo, trialRegistryRepo);
+    planEnforcementService = new OpenCoreLimits({
+      accountRepository: accountRepo,
+      repositoryRepository: repositoryRepo,
+      serviceRepository: serviceRepo,
+      membershipRepository: membershipRepo,
+    });
     flagRepo = new FlagRepository(db);
     flagService = new FlagService(flagRepo, serviceRepo);
 
@@ -130,6 +123,7 @@ describe("Dashboard Routes", () => {
           rawBuildReportingGuide: "/partials/rawBuildReportingGuide.hbs",
           paginationControls: "/partials/paginationControls.hbs",
           setupStep: "/partials/setupStep.hbs",
+          aiAgentSetup: "/partials/aiAgentSetup.hbs",
         },
       },
     });
@@ -143,7 +137,7 @@ describe("Dashboard Routes", () => {
         repositoryRepository: repositoryRepo,
         accountRepository: accountRepo,
         buildService,
-        trialService,
+        trialService: NO_TRIALS,
         planEnforcementService,
         flagService,
       }),
@@ -224,6 +218,66 @@ describe("Dashboard Routes", () => {
       // Then: response contains href="/services/new"
       expect(response.statusCode).toBe(200);
       expect(response.body).toContain('href="/services/new"');
+    });
+
+    // A service that predates the agent onboarding — or one whose CI never
+    // reported — must still be able to hand the setup to an agent.
+    it("should offer the AI agent handoff to a service with no builds yet", async () => {
+      const account = await accountRepo.create({
+        name: "Test Org",
+        slug: `test-org-${Date.now()}-${Math.random()}`,
+      });
+      const service = await serviceRepo.create({
+        accountId: account._id,
+        repositoryId: new ObjectId(),
+        name: "agentless-service",
+      });
+      const sessionToken = sessionService.createSession({
+        userId: new ObjectId(),
+        accountId: account._id,
+      });
+
+      const response = await app.inject({
+        method: "GET",
+        url: "/dashboard/agentless-service",
+        cookies: { session: sessionToken },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain("Let an AI agent set this up");
+      expect(response.body).toContain(
+        "http://localhost:3050/skills/gitlaunch-onboarding/SKILL.md",
+      );
+      expect(response.body).toContain(service._id.toString());
+    });
+
+    // The empty dashboard is where a self-hosted customer meets the GitHub
+    // Actions guide for the first time. Told to POST to gitlaunch.dev with
+    // their own API key, they leak the credential and never see a build.
+    it("should point the first-build guide at this instance, not the hosted one", async () => {
+      const account = await accountRepo.create({
+        name: "Test Org",
+        slug: `test-org-${Date.now()}-${Math.random()}`,
+      });
+      await serviceRepo.create({
+        accountId: account._id,
+        repositoryId: new ObjectId(),
+        name: "buildless-service",
+      });
+      const sessionToken = sessionService.createSession({
+        userId: new ObjectId(),
+        accountId: account._id,
+      });
+
+      const response = await app.inject({
+        method: "GET",
+        url: "/dashboard/buildless-service",
+        cookies: { session: sessionToken },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain("http://localhost:3050/api/v1/services/");
+      expect(response.body).not.toContain("gitlaunch.dev");
     });
 
     it("should show deployment setup guide when builds exist but workflow not configured", async () => {
@@ -1627,6 +1681,41 @@ describe("Dashboard Routes", () => {
       // board, never a prerequisite for seeing what's deployed
       expect(response.statusCode).toBe(200);
       expect(response.body).toContain("abc123");
+    });
+  });
+
+  describe("delivery metrics reached from the board", () => {
+    it("should link to the metrics page from the active service instead of showing the panel", async () => {
+      // Given: a service on the board
+      const account = await accountRepo.create({
+        name: "Test Org",
+        slug: `test-org-${Date.now()}-${Math.random()}`,
+      });
+      const service = await serviceRepo.create({
+        accountId: account._id,
+        repositoryId: new ObjectId(),
+        name: "iconned-service",
+        environments: [{ name: "prod", order: 0 }],
+      });
+      const sessionToken = sessionService.createSession({
+        userId: new ObjectId(),
+        accountId: account._id,
+      });
+
+      // When: looking at the release board
+      const response = await app.inject({
+        method: "GET",
+        url: "/dashboard/iconned-service",
+        cookies: { session: sessionToken },
+      });
+
+      // Then: the board stays about what is live, and the four keys are one
+      // click away behind their own icon — like settings and flags
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain(
+        `href="/services/${service._id}/metrics"`,
+      );
+      expect(response.body).not.toContain("Change failure rate");
     });
   });
 });

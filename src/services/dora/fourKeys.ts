@@ -17,13 +17,19 @@ export type DeploymentEvent = {
   /**
    * When the change being deployed was authored.
    *
-   * Today the caller passes the build's `createdAt` — the moment GitLaunch
-   * first heard about the build — which makes lead time "reported to live"
-   * rather than the DORA definition of "committed to live". Feeding a real
-   * commit timestamp in here is the only change needed to close that gap;
-   * the arithmetic below does not move.
+   * The caller passes the commit time the reporter sent, falling back to the
+   * build's `createdAt` when it sent none. On the fallback path lead time is
+   * "reported to live" rather than the DORA "committed to live", and so reads
+   * as a floor on the real number.
    */
   changeAt: Date;
+  /**
+   * Where `changeAt` came from. `"commit"` means CI reported when the change
+   * was authored, so the lead time it produces is the DORA number. Anything
+   * else means we fell back to our own clock, and the panel has to say so
+   * rather than pass a floor off as the real thing.
+   */
+  changeAtSource?: "commit" | "first-seen";
   intent?: DeploymentIntent;
 };
 
@@ -50,6 +56,12 @@ export type FourKeys = {
     failures: number;
     restores: number;
     leadTimes: number;
+    /**
+     * How many of those lead times were measured from a reported commit time.
+     * Short of `leadTimes`, the median is partly our receive clock and the
+     * panel says which — see `DeploymentEvent.changeAtSource`.
+     */
+    leadTimesFromCommit: number;
   };
 };
 
@@ -102,12 +114,24 @@ export function computeFourKeys(
   // Lead time: first time each change reached the environment.
   const seen = new Set<string>();
   const leadTimes: number[] = [];
+  let leadTimesFromCommit = 0;
   for (const e of landed) {
     if (isRollback(e) || seen.has(e.buildId)) {
       continue;
     }
     seen.add(e.buildId);
-    leadTimes.push(e.at.getTime() - e.changeAt.getTime());
+    const leadTime = e.at.getTime() - e.changeAt.getTime();
+    // A change cannot go live before it was written. When it looks that way
+    // the commit time came off a clock that disagrees with ours, and the
+    // honest thing is to drop the sample: counting it would subtract from the
+    // median and make delivery look faster than it is.
+    if (leadTime < 0) {
+      continue;
+    }
+    leadTimes.push(leadTime);
+    if (e.changeAtSource === "commit") {
+      leadTimesFromCommit += 1;
+    }
   }
 
   // Failures: a change that errored on the way out, or one that had to be
@@ -153,6 +177,7 @@ export function computeFourKeys(
       failures: failures.size,
       restores: restores.length,
       leadTimes: leadTimes.length,
+      leadTimesFromCommit,
     },
   };
 }

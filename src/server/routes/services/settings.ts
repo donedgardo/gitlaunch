@@ -1,3 +1,4 @@
+import { AccountLimits } from "../../../services/limits/accountPolicy";
 import { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { ObjectId } from "mongodb";
 import {
@@ -6,7 +7,6 @@ import {
 } from "../../../repositories/serviceRepository";
 import { RepositoryRepository } from "../../../repositories/repositoryRepository";
 import { EnvironmentService } from "../../../services/environment/environmentService";
-import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
 import { AnalyticsService } from "../../../services/analytics/analytics";
 import { actor } from "../../../services/analytics/actorIdentity";
 
@@ -15,7 +15,7 @@ export type SettingsRoutesDeps = {
   serviceRepository: ServiceRepository;
   repositoryRepository: RepositoryRepository;
   environmentService: EnvironmentService;
-  planEnforcementService: PlanEnforcementService;
+  planEnforcementService: AccountLimits;
   analytics?: AnalyticsService;
 };
 

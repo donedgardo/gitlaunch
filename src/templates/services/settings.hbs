@@ -194,10 +194,10 @@
           {{> githubSecretsSetup serviceId=service.id idPrefix="settings_" showCopyButton=true }}
 
           <!-- Build Reporting Instructions -->
-          {{> buildReportingInstructions idPrefix="settings_" }}
+          {{> buildReportingInstructions idPrefix="settings_" apiUrl=apiUrl }}
 
           <!-- Deployment Setup Guide -->
-          {{> deploymentSetupGuide serviceId=service.id environments=environments }}
+          {{> deploymentSetupGuide apiUrl=apiUrl serviceId=service.id environments=environments }}
         {{/if}}
       {{/if}}
     </div>

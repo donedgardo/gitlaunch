@@ -16,7 +16,7 @@ Generate the issuer keypair. Every license we ever sell is signed by it, and the
 public key is compiled into every customer image.
 
 ```bash
-tsx scripts/issue-license.ts keygen ./issuer
+tsx ee/scripts/issue-license.ts keygen ./issuer
 #  -> issuer-private.pem   secret store only, never in git, never in an image
 #  -> issuer-public.pem    compiled into customer images
 ```
@@ -55,12 +55,12 @@ The published customer image is a _different build_ from gitlaunch.com. The diff
 compiled in, not configured at runtime:
 
 ```bash
-tsx scripts/set-distribution.ts self-hosted ./issuer-public.pem
+tsx ee/scripts/set-distribution.ts self-hosted ./issuer-public.pem
 yarn build
 docker build -t ghcr.io/donedgardo/gitlaunch:1.0.0 .
 ```
 
-`set-distribution.ts` rewrites `src/services/licensing/distribution.ts` before the
+`set-distribution.ts` rewrites `src/config/distribution.ts` before the
 TypeScript build, stamping in both the distribution and the trusted issuer key. It refuses
 to run if handed a private key or a non-Ed25519 key.
 
@@ -80,7 +80,7 @@ and the issuer key are therefore read from neither the environment nor the datab
 No build step here — the image is already published. This mints signed data.
 
 ```bash
-tsx scripts/issue-license.ts issue \
+tsx ee/scripts/issue-license.ts issue \
   --to "Acme Corp" \
   --seats 50 \
   --expires 2027-07-27 \
@@ -118,9 +118,12 @@ license verification is entirely local, which is what allows air-gapped installs
 Ask them for the boot log, or check on a screen share:
 
 - A honoured license logs nothing about licensing.
-- A rejected one logs `GitLaunch license was not honoured: <reason>` and the instance runs
-  **unlicensed** — it serves what exists but blocks new services, repositories, users and
-  environments.
+- A rejected one logs `GitLaunch license was not honoured: <reason>` and the instance falls
+  back to **open core** — a working install, capped at one account and one seat. Services,
+  repositories and environments stay unmetered.
+
+The tell is therefore not an outage but a seat cap: the customer will report that they
+cannot invite their team. Ask them for the boot log at that point.
 
 The common causes are a truncated key (copy-paste through a chat client) and a key issued
 against a different issuer keypair than the image trusts.
@@ -129,8 +132,11 @@ against a different issuer keypair than the image trusts.
 
 ## Renewal and expiry
 
-An expired license blocks _growth only_. Everything already running keeps deploying, and
-the instance never goes read-only.
+An expired license drops the instance back to _open core_ — one account, one seat.
+Everything already running keeps deploying, existing members are never removed, and the
+instance never goes read-only. Capacity (services, repositories, environments) stays
+unmetered, because the FSL grants that whether or not they renew; what lapses is the thing
+we actually sold, which is seats and tenancy.
 
 That is deliberate and worth being explicit about in the contract: we do not hold a
 customer's production pipeline hostage over a lapsed renewal, and an install that

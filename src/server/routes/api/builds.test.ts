@@ -21,14 +21,14 @@ import { RepositoryRepository } from "../../../repositories/repositoryRepository
 import { ServiceRepository } from "../../../repositories/serviceRepository";
 import { BuildRepository } from "../../../repositories/buildRepository";
 import { BuildService } from "../../../services/build/buildService";
-import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
+import { OpenCoreLimits } from "../../../services/limits/openCorePolicy";
+import { FakeAccountLimits } from "../../../services/limits/fakes";
 import { registerBuildsRoutes } from "./builds";
 import { WarehouseAnalytics } from "../../../services/analytics/warehouseAnalytics";
 import { AnalyticsEventRepository } from "../../../repositories/analyticsEventRepository";
 import { BuildDispatchServiceI } from "../../../services/build/buildDispatchService";
 import { DeploymentStatus } from "../../../services/service/deploymentStatus";
 import { ApiKeyScope } from "../../../repositories/apiKeyRepository";
-import { Plan } from "../../../repositories/accountRepository";
 import { MembershipRepository } from "../../../repositories/membershipRepository";
 
 // Simple mock auth middleware for testing - simulates API key validation
@@ -71,7 +71,7 @@ describe("Builds API Routes", () => {
   let serviceRepo: ServiceRepository;
   let buildRepo: BuildRepository;
   let buildService: BuildService;
-  let planEnforcementService: PlanEnforcementService;
+  let planEnforcementService: FakeAccountLimits;
   let membershipRepo: MembershipRepository;
   let mockDispatcher: BuildDispatchServiceI;
   let eventEmitter: EventEmitter;
@@ -102,11 +102,13 @@ describe("Builds API Routes", () => {
       eventEmitter,
       mockDispatcher,
     );
-    planEnforcementService = new PlanEnforcementService(
-      accountRepo,
-      repoRepo,
-      serviceRepo,
-      membershipRepo,
+    planEnforcementService = new FakeAccountLimits(
+      new OpenCoreLimits({
+        accountRepository: accountRepo,
+        repositoryRepository: repoRepo,
+        serviceRepository: serviceRepo,
+        membershipRepository: membershipRepo,
+      }),
     );
   });
 
@@ -221,6 +223,65 @@ describe("Builds API Routes", () => {
       const body = JSON.parse(response.body);
       expect(body.buildId).toBe("abc123");
       expect(body.accountId).toBe(testAccountId.toString());
+    });
+
+    it("should record when the change was committed so lead time can be measured", async () => {
+      // Given: a reporter that knows when the commit was authored — hours
+      // before CI got around to reporting the build
+      const response = await app.inject({
+        method: "POST",
+        url: `/api/v1/services/${testServiceId}/builds`,
+        headers: {
+          authorization: "Bearer test-key",
+          "content-type": "application/json",
+        },
+        payload: {
+          buildId: "with-commit-time",
+          commitAt: "2026-08-14T09:30:00.000Z",
+        },
+      });
+
+      // Then: the build carries that moment back, and keeps it
+      expect(response.statusCode).toBe(201);
+      const body = JSON.parse(response.body);
+      expect(new Date(body.commitAt).toISOString()).toBe(
+        "2026-08-14T09:30:00.000Z",
+      );
+
+      const stored = await buildRepo.findByBuildId(
+        testAccountId,
+        testServiceId,
+        "with-commit-time",
+      );
+      expect(stored?.commitAt?.toISOString()).toBe("2026-08-14T09:30:00.000Z");
+    });
+
+    it("should reject a commit time that is not a timestamp", async () => {
+      // Given: a reporter that interpolated an empty or malformed variable
+      const response = await app.inject({
+        method: "POST",
+        url: `/api/v1/services/${testServiceId}/builds`,
+        headers: {
+          authorization: "Bearer test-key",
+          "content-type": "application/json",
+        },
+        payload: {
+          buildId: "bad-commit-time",
+          commitAt: "not-a-date",
+        },
+      });
+
+      // Then: we say so rather than storing a build whose lead time is NaN
+      expect(response.statusCode).toBe(400);
+      expect(JSON.parse(response.body).error).toMatch(/commitAt/i);
+
+      // And nothing was written — a rejected report is not a half-made build
+      const stored = await buildRepo.findByBuildId(
+        testAccountId,
+        testServiceId,
+        "bad-commit-time",
+      );
+      expect(stored).toBeNull();
     });
 
     it("should reject without API key", async () => {
@@ -506,15 +567,13 @@ describe("Builds API Routes", () => {
   });
 
   describe("Read-only account blocking", () => {
+    // What puts an account into read-only — a payment 8 days past due, an
+    // expired trial — is billing, and billing is commercial. These routes only
+    // ask the AccountLimits port, so the port is what the test drives; the
+    // read-only derivation itself is covered in
+    // ee/services/billing/planEnforcementService.test.ts.
     const makeAccountReadOnly = async () => {
-      // Set paymentFailedAt to 8 days ago (past 7-day grace period)
-      const eightDaysAgo = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000);
-      await db
-        .collection("accounts")
-        .updateOne(
-          { _id: testAccountId },
-          { $set: { paymentFailedAt: eightDaysAgo, plan: Plan.Pro } },
-        );
+      planEnforcementService.markReadOnly();
     };
 
     it("should block creating builds when account is read-only", async () => {

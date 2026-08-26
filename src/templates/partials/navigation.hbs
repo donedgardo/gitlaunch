@@ -1,7 +1,52 @@
-<nav id="main-navigation" class="flex items-center justify-between border-b border-line bg-surface" hx-swap-oob="true">
-  <div class="flex items-center">
-    <a href="/dashboard" class="gl-brand" aria-label="GitLaunch dashboard"><span class="gl-glyph"></span>Git<span class="gl-mk">Launch</span></a>
-    <ul class="flex flex-row flex-wrap">
+{{!--
+  App navigation.
+
+  One markup tree serves both layouts — no mobile/desktop duplication:
+
+    mobile (<lg)   row 1: brand + menu button
+                   row 2: service tabs, scrolled horizontally
+                   row 3: #gl-nav-links as a drawer, toggled by the button
+
+    desktop (lg+)  a single row: brand | service tabs | account links
+
+  The wrap does the work. `#gl-nav-links` and the tab strip are `w-full` so
+  they break onto their own lines on a phone, and `lg:w-auto` pulls them back
+  inline on a wide screen. `hidden` only hides the drawer below lg, because
+  `lg:flex` outranks it inside the media query — so the toggle is inert on
+  desktop and there is no state to reset when the viewport changes.
+
+  The toggle handler is delegated from the body (see layouts/main.hbs): this
+  partial is re-rendered as an out-of-band swap, so a script tag here would be
+  dropped or re-run on every swap.
+--}}
+<nav
+  id="main-navigation"
+  class="flex flex-wrap items-center border-b border-line bg-surface"
+  hx-swap-oob="true"
+>
+  <a href="/dashboard" class="gl-brand" aria-label="GitLaunch dashboard"><span class="gl-glyph"></span>Git<span class="gl-mk">Launch</span></a>
+
+  {{!-- Menu button — phones only. Sits opposite the brand on row 1. --}}
+  <button
+    type="button"
+    class="gl-nav-toggle ml-auto mr-2 lg:hidden"
+    data-gl-nav-toggle
+    aria-controls="gl-nav-links"
+    aria-expanded="false"
+    aria-label="Open menu"
+  >
+    <svg class="gl-nav-toggle-open w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+    </svg>
+    <svg class="gl-nav-toggle-close w-6 h-6 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+    </svg>
+  </button>
+
+  {{!-- Service tabs. `min-w-0` lets the strip shrink instead of widening the
+        page, and the overflow makes many services swipeable rather than a
+        cause of layout blowout. --}}
+  <ul class="gl-tabstrip order-last w-full min-w-0 lg:order-none lg:w-auto lg:flex-1">
     {{#each services as |serviceName|}}
       <li class="flex items-center">
         <a
@@ -11,39 +56,50 @@
           hx-swap="outerHTML"
           hx-push-url="true"
           onclick="if (!document.querySelector('#build-table')) { window.location.href = this.href; return false; }"
-          class="service-nav-link inline-block px-4 py-3 text-sm font-medium transition-colors {{#if (eq serviceName ../activeService)}}text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400{{else}}text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 border-b-2 border-transparent hover:border-gray-300 dark:hover:border-gray-600{{/if}}"
+          {{#if (eq serviceName ../activeService)}}aria-current="page"{{/if}}
+          class="service-nav-link gl-tab {{#if (eq serviceName ../activeService)}}gl-tab-active{{else}}gl-tab-idle{{/if}}"
         >
           {{serviceName}}
         </a>
         {{#if (eq serviceName ../activeService)}}
         <a
           href="/services/{{../serviceId}}/settings"
-          class="inline-block px-2 py-3 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors border-b-2 border-transparent"
+          class="gl-tab-icon"
           title="Settings"
           aria-label="Settings"
         >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
           </svg>
         </a>
         <a
           href="/services/{{../serviceId}}/flags"
-          class="inline-block px-2 py-3 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors border-b-2 border-transparent"
+          class="gl-tab-icon"
           title="Feature Flags"
           aria-label="Feature Flags"
         >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 2H21l-3 6 3 6h-8.5l-1-2H5a2 2 0 00-2 2z"></path>
+          </svg>
+        </a>
+        <a
+          href="/services/{{../serviceId}}/metrics"
+          class="gl-tab-icon"
+          title="Delivery Metrics"
+          aria-label="Delivery Metrics"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3v18h18M7 15l4-5 3 3 5-7"></path>
           </svg>
         </a>
         {{/if}}
       </li>
     {{/each}}
-    <li>
+    <li class="flex items-center">
       <a
         href="/services/new"
-        class="inline-block px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 border-b-2 border-transparent hover:border-gray-300 dark:hover:border-gray-600 transition-colors"
+        class="gl-tab-icon"
         title="Create new service"
         aria-label="Create new service"
       >
@@ -52,50 +108,19 @@
         </svg>
       </a>
     </li>
-    </ul>
-  </div>
-  <div class="flex items-center gap-2 mr-4">
-    <a
-      href="/dashboard/analytics"
-      class="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors"
-    >
-      Analytics
-    </a>
-    <a
-      href="/settings/team"
-      class="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors"
-    >
-      Team
-    </a>
-    <a
-      href="/settings/api-keys"
-      class="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors"
-    >
-      API Keys
-    </a>
-    <a
-      href="/settings/github"
-      class="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors"
-    >
-      GitHub
-    </a>
-    <a
-      href="/settings/jenkins"
-      class="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors"
-    >
-      Jenkins
-    </a>
-    <a
-      href="/settings/billing"
-      class="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors"
-    >
-      Billing
-    </a>
-    <a
-      href="/auth/logout"
-      class="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors"
-    >
-      Logout
-    </a>
+  </ul>
+
+  {{!-- Account links. A drawer on a phone, an inline row on desktop. --}}
+  <div
+    id="gl-nav-links"
+    class="gl-navlinks order-last hidden w-full flex-col border-t border-line lg:order-none lg:ml-auto lg:flex lg:w-auto lg:flex-row lg:items-center lg:border-t-0 lg:pr-2"
+  >
+    <a href="/dashboard/analytics" class="gl-navlink">Analytics</a>
+    <a href="/settings/team" class="gl-navlink">Team</a>
+    <a href="/settings/api-keys" class="gl-navlink">API Keys</a>
+    <a href="/settings/github" class="gl-navlink">GitHub</a>
+    <a href="/settings/jenkins" class="gl-navlink">Jenkins</a>
+    <a href="/settings/billing" class="gl-navlink">Billing</a>
+    <a href="/auth/logout" class="gl-navlink">Logout</a>
   </div>
 </nav>

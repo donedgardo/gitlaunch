@@ -23,6 +23,52 @@ export class DoraMetricsService {
     environment: string,
     window: MeasurementWindow,
   ): Promise<FourKeys> {
+    const events = await this.timelineFor(accountId, serviceId);
+    return computeFourKeys(events, environment, window);
+  }
+
+  /**
+   * The four keys for several environments, from a single read.
+   *
+   * A metrics page asks about every environment at once. Answering it with
+   * one `forService` call per environment would re-read the whole build
+   * history per environment; the measurement is identical either way, so the
+   * only thing that differs here is how often we hit the database.
+   */
+  async forEnvironments(
+    accountId: ObjectId,
+    serviceId: ObjectId,
+    environments: readonly string[],
+    window: MeasurementWindow,
+  ): Promise<Record<string, FourKeys>> {
+    const events = await this.timelineFor(accountId, serviceId);
+    return this.keysByEnvironment(events, environments, window);
+  }
+
+  /** The same measurement as `forEnvironments`, over a timeline already read. */
+  keysByEnvironment(
+    events: readonly DeploymentEvent[],
+    environments: readonly string[],
+    window: MeasurementWindow,
+  ): Record<string, FourKeys> {
+    const byEnvironment: Record<string, FourKeys> = {};
+    for (const environment of environments) {
+      byEnvironment[environment] = computeFourKeys(events, environment, window);
+    }
+    return byEnvironment;
+  }
+
+  /**
+   * Every deployment outcome this service has recorded, as a flat timeline.
+   *
+   * Public because the four keys are not the only thing measured from it: the
+   * metrics page also lists the deployments themselves, and reading the build
+   * history twice to answer one page would double an unbounded query.
+   */
+  async timelineFor(
+    accountId: ObjectId,
+    serviceId: ObjectId,
+  ): Promise<DeploymentEvent[]> {
     const builds = await this.buildRepo.findByAccountAndService(
       accountId,
       serviceId,
@@ -42,15 +88,17 @@ export class DoraMetricsService {
           environment: log.environment,
           status: log.status,
           at: log.at,
-          // Lead time starts when GitLaunch first heard about the build, not
-          // when the change was committed. That makes it a floor on the real
-          // DORA number — see `DeploymentEvent.changeAt`.
-          changeAt: build.createdAt,
+          // Lead time starts when the change was committed, when CI told us.
+          // A reporter that sends nothing leaves us measuring from when we
+          // first heard about the build — a floor on the real DORA number,
+          // since it drops however long the commit waited for a runner.
+          changeAt: build.commitAt ?? build.createdAt,
+          changeAtSource: build.commitAt ? "commit" : "first-seen",
           intent: log.intent,
         });
       }
     }
 
-    return computeFourKeys(events, environment, window);
+    return events;
   }
 }

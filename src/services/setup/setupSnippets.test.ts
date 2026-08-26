@@ -9,6 +9,7 @@ const input = {
   apiUrl: "https://gitlaunch.dev",
   serviceId: "6f2a1b3c4d5e6f7a8b9c0d1e",
   environments: ["staging", "prod"],
+  defaultBranch: "main",
 };
 
 describe("buildSetupSnippets", () => {
@@ -158,6 +159,66 @@ describe("buildSetupSnippets", () => {
       expect(snippets.buildReport.github).toContain("--fail-with-body");
     });
 
+    it("should report when the commit was authored so lead time is commit-to-live", () => {
+      // Given the snippets for a service
+      const snippets = buildSetupSnippets(input);
+
+      // Then every variant sends a commit time. Without it GitLaunch can only
+      // measure from when it first heard about the build, which silently drops
+      // however long the change sat waiting for CI.
+      expect(snippets.buildReport.github).toContain("commitAt");
+      expect(snippets.buildReport.github).toContain(
+        "github.event.head_commit.timestamp",
+      );
+
+      // Jenkins and plain shells have no such variable, so they ask git
+      expect(snippets.buildReport.jenkins).toContain("commitAt");
+      expect(snippets.buildReport.jenkins).toContain("git show");
+      expect(snippets.buildReport.raw).toContain("commitAt");
+      expect(snippets.buildReport.raw).toContain("git show");
+    });
+
+    it("should stay valid YAML once the commit time is threaded through", () => {
+      // Given the GitHub build-report snippet, which is pasted into a job's
+      // steps: — an unquoted commit message or timestamp would break the file
+      const snippets = buildSetupSnippets(input);
+
+      // When it is parsed as the step list it is meant to be
+      const steps = parse(snippets.buildReport.github);
+
+      // Then it is one well-formed step
+      expect(Array.isArray(steps)).toBe(true);
+      expect(steps).toHaveLength(1);
+      expect(steps[0].name).toBeTruthy();
+    });
+
+    it("should gate the report on the repo's own default branch", () => {
+      // Given a repo whose default branch is not main
+      const snippets = buildSetupSnippets({
+        ...input,
+        defaultBranch: "master",
+      });
+
+      // Then the guard names that branch. A guard naming a branch the repo
+      // does not have never fires: no error, no failed run, just a dashboard
+      // that stays empty forever.
+      expect(snippets.buildReport.github).toContain(
+        "github.ref == 'refs/heads/master'",
+      );
+      expect(snippets.buildReport.github).not.toContain("refs/heads/main");
+    });
+
+    it("should gate on main when the default branch is not known", () => {
+      // Given a service with no repository bound yet, so nobody can say what
+      // its default branch is
+      const snippets = buildSetupSnippets({ ...input, defaultBranch: "" });
+
+      // Then the guard falls back to GitHub's own default for new repos
+      expect(snippets.buildReport.github).toContain(
+        "github.ref == 'refs/heads/main'",
+      );
+    });
+
     it("should provide non-GitHub variants for Jenkins and plain shells", () => {
       // Given the snippets for a service
       const snippets = buildSetupSnippets(input);
@@ -166,6 +227,26 @@ describe("buildSetupSnippets", () => {
       expect(snippets.buildReport.jenkins).toContain(input.serviceId);
       expect(snippets.buildReport.raw).toContain(input.serviceId);
     });
+  });
+
+  it("should report with plain curl rather than the deprecated build-reporter action", () => {
+    // Given the snippets for a service
+    const snippets = buildSetupSnippets(input);
+
+    // Then every one of them calls the API directly. The GitLaunch Build
+    // Reporter action still works for anyone already on it, but it only ever
+    // covered GitHub — curl is the one path that serves every provider, and
+    // handing out two answers is what made "how do I report a build?"
+    // ambiguous in the first place.
+    for (const snippet of [
+      snippets.buildReport.github,
+      snippets.buildReport.jenkins,
+      snippets.buildReport.raw,
+      snippets.deploy.github,
+    ]) {
+      expect(snippet).toContain("curl");
+      expect(snippet).not.toContain("build-reporter");
+    }
   });
 
   it("should point every snippet at the configured host", () => {

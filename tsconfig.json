@@ -2,11 +2,13 @@
   "extends": "fastify-tsconfig",
   "compilerOptions": {
     "outDir": "./dist",
+    "rootDir": ".",
     "noImplicitAny": true,
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "typeRoots": ["./node_modules/@types", "./@types"]
   },
-  "include": ["./src/**/*", "./src/templates"]
+  "include": ["./src/**/*", "./src/templates", "./ee/**/*"],
+  "exclude": ["./ee/scripts/**"]
 }

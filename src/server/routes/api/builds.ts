@@ -1,8 +1,8 @@
+import { AccountLimits } from "../../../services/limits/accountPolicy";
 import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { ObjectId } from "mongodb";
 import { BuildService } from "../../../services/build/buildService";
 import { ServiceRepository } from "../../../repositories/serviceRepository";
-import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
 import { requireScope } from "../../middleware/apiKeyAuth";
 import { DeploymentStatus } from "../../../services/service/deploymentStatus";
 import { AnalyticsService } from "../../../services/analytics/analytics";
@@ -11,7 +11,7 @@ import { actor, machineActor } from "../../../services/analytics/actorIdentity";
 export type BuildsRoutesDependencies = {
   buildService: BuildService;
   serviceRepo: ServiceRepository;
-  planEnforcementService: PlanEnforcementService;
+  planEnforcementService: AccountLimits;
   analytics?: AnalyticsService;
 };
 
@@ -19,6 +19,10 @@ type CreateBuildBody = {
   buildId: string;
   // Optional commit message; surfaced on the dashboard next to the SHA.
   message?: string;
+  // Optional ISO-8601 timestamp of when the change was authored. DORA lead
+  // time is measured from here; without it we can only measure from when this
+  // request arrived, which hides the time the commit spent waiting for CI.
+  commitAt?: string;
 };
 
 type UpdateDeploymentStatusBody = {
@@ -55,11 +59,24 @@ export function registerBuildsRoutes(
       reply: FastifyReply,
     ) => {
       const { serviceId: serviceIdParam } = request.params;
-      const { buildId, message } = request.body;
+      const { buildId, message, commitAt: commitAtInput } = request.body;
       const accountId = request.apiKey!.accountId;
 
       if (!ObjectId.isValid(serviceIdParam)) {
         return reply.status(400).send({ error: "Invalid service ID" });
+      }
+
+      // A shell snippet that interpolated the wrong variable sends garbage
+      // here. Reject it rather than store a build whose lead time is NaN —
+      // one bad row poisons the median for the whole window.
+      let commitAt: Date | undefined;
+      if (commitAtInput !== undefined) {
+        commitAt = new Date(commitAtInput);
+        if (Number.isNaN(commitAt.getTime())) {
+          return reply
+            .status(400)
+            .send({ error: "commitAt must be an ISO-8601 timestamp" });
+        }
       }
 
       const serviceId = new ObjectId(serviceIdParam);
@@ -95,6 +112,7 @@ export function registerBuildsRoutes(
           serviceId,
           buildId,
           message,
+          commitAt,
         });
         analytics?.track(
           "build_reported",
@@ -108,6 +126,7 @@ export function registerBuildsRoutes(
           serviceId: build.serviceId.toString(),
           buildId: build.buildId,
           message: build.message,
+          commitAt: build.commitAt,
           deployments: build.deployments,
           createdAt: build.createdAt,
           updatedAt: build.updatedAt,
@@ -270,7 +289,12 @@ export function registerBuildsRoutes(
           { err: error, serviceId: serviceIdParam, buildId, env },
           "Failed to dispatch deployment",
         );
-        return reply.status(500).send({ error: message });
+        // Deliberately generic: `message` can carry a CI provider's response
+        // body, and for raw/Jenkins the customer chooses that URL. Details go
+        // to the log above, not to the caller.
+        return reply
+          .status(500)
+          .send({ error: "Failed to trigger deployment" });
       }
     },
   );

@@ -12,7 +12,7 @@ import { AccountRepository } from "./repositories/accountRepository";
 import { BuildRepository } from "./repositories/buildRepository";
 import { ServiceRepository } from "./repositories/serviceRepository";
 import { WebhookEventRepository } from "./repositories/webhookEventRepository";
-import { TrialRegistryRepository } from "./repositories/trialRegistryRepository";
+import { TrialRegistryRepository } from "../ee/repositories/trialRegistryRepository";
 import { LeadRepository } from "./repositories/leadRepository";
 import { FlagRepository } from "./repositories/flagRepository";
 import { FlagConfigVersionRepository } from "./repositories/flagConfigVersionRepository";

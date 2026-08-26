@@ -9,6 +9,7 @@ export default defineConfig({
       "src/tests/**",
       "e2e/**",
       ".claude/**",
+      "examples/**",
     ],
   },
 });

@@ -1,0 +1,68 @@
+name: Deploy
+
+# Tag pushes go straight to production. Anything else is a manual run —
+# see "Releasing" in the README.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Where to deploy"
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+      revision:
+        description: "Tag or commit SHA to deploy"
+        required: true
+        type: string
+      dry_run:
+        description: "Build and validate, but skip the upload"
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: deploy-${{ inputs.target || 'production' }}
+  cancel-in-progress: false
+
+jobs:
+  build-artifact:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ inputs.revision || github.ref }}
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+      - run: cargo build --release --locked
+      - uses: actions/upload-artifact@v3
+        with:
+          name: dummy-rust-service-release
+          path: target/release/dummy-rust-service
+
+  upload:
+    needs: build-artifact
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ inputs.revision || github.ref }}
+      - uses: actions/download-artifact@v3
+        with:
+          name: dummy-rust-service-release
+          path: dist
+      - name: Upload and restart
+        if: ${{ !inputs.dry_run }}
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+        run: |
+          chmod +x dist/dummy-rust-service
+          ./scripts/deploy.sh \
+            "${{ inputs.target || 'production' }}" \
+            "${{ inputs.revision || github.sha }}"

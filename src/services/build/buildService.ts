@@ -29,6 +29,8 @@ export type CreateBuildInput = {
   serviceId: ObjectId;
   buildId: string;
   message?: string;
+  /** When the change was authored, so lead time is commit-to-live. */
+  commitAt?: Date;
 };
 
 export type UpdateDeploymentStatusInput = {
@@ -62,6 +64,7 @@ export class BuildService {
       serviceId: input.serviceId,
       buildId: input.buildId,
       message: input.message,
+      commitAt: input.commitAt,
     });
 
     // Emit event for SSE updates (used by setup page to detect first build,

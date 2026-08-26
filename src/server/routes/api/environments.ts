@@ -1,12 +1,12 @@
+import { AccountLimits } from "../../../services/limits/accountPolicy";
 import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { ObjectId } from "mongodb";
 import { EnvironmentService } from "../../../services/environment/environmentService";
-import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
 import { requireScope } from "../../middleware/apiKeyAuth";
 
 export type EnvironmentsRoutesDependencies = {
   environmentService: EnvironmentService;
-  planEnforcementService: PlanEnforcementService;
+  planEnforcementService: AccountLimits;
 };
 
 type ServiceIdParams = {

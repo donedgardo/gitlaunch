@@ -1,0 +1,121 @@
+import { DeploymentStatus } from "../service/deploymentStatus";
+import { DeploymentIntent } from "../dispatch/deploymentIntent";
+import { DeploymentEvent } from "./fourKeys";
+
+/**
+ * One deployment, as a person would count it.
+ *
+ * The four keys read the deployment log as a stream of status changes. A
+ * history is read as a list of things that happened: a build went to an
+ * environment, it took a while, it landed or it did not. Four log entries for
+ * one deploy is the correct event stream and the wrong history — so this
+ * collapses each dispatch and the statuses that followed it into a single row.
+ */
+export type DeploymentAttempt = {
+  buildId: string;
+  environment: string;
+  /** Where the attempt ended up, or where it is right now if still running. */
+  status: DeploymentStatus;
+  /** The first thing we heard about this attempt. */
+  startedAt: Date;
+  /** When it settled, or null while it is still in flight. */
+  finishedAt: Date | null;
+  /**
+   * How long it took, or null when we cannot say.
+   *
+   * Null covers two cases that both deserve a blank rather than a zero: the
+   * deploy is still running, and the deploy was only ever reported to us once
+   * (a callback about a deploy nobody dispatched here), so its start is its
+   * finish and any duration would be invented.
+   */
+  durationMs: number | null;
+  /** Why the build was sent, when we were the ones who sent it. */
+  intent?: DeploymentIntent;
+};
+
+export type DeploymentHistoryOptions = {
+  /** How many of the most recent deployments to keep. */
+  limit?: number;
+};
+
+/** A deployment that will not change again. */
+const isSettled = (status: DeploymentStatus) =>
+  status === DeploymentStatus.DEPLOYED ||
+  status === DeploymentStatus.ERROR ||
+  status === DeploymentStatus.CANCELLED;
+
+/** Where an attempt begins: someone asked for this build to go out. */
+const startsAnAttempt = (status: DeploymentStatus) =>
+  status === DeploymentStatus.DISPATCHING;
+
+/**
+ * The deployment log, read back as a list of deployments.
+ *
+ * Newest first, because that is the end a log is read from. Pure: the caller
+ * flattens builds into events, exactly as the four keys are measured.
+ */
+export function toDeploymentAttempts(
+  events: readonly DeploymentEvent[],
+  { limit }: DeploymentHistoryOptions = {},
+): DeploymentAttempt[] {
+  const ordered = [...events].sort((a, b) => a.at.getTime() - b.at.getTime());
+
+  // An attempt is a run of entries for one build in one environment. A second
+  // dispatch of the same build to the same environment is a *new* attempt: a
+  // redeploy after a failure is a separate event in the team's day, and
+  // folding it into the first one would erase the failure from the record.
+  const open = new Map<string, DeploymentAttempt>();
+  const attempts: DeploymentAttempt[] = [];
+
+  for (const event of ordered) {
+    // Written as an escape, not a literal: a raw NUL in the source makes
+    // git treat this file as binary and stop rendering its diff.
+    const key = `${event.buildId}\u0000${event.environment}`;
+    const current = open.get(key);
+
+    // A deployment that has already resolved does not resolve again. A later
+    // entry for the same build and environment is something new — another
+    // dispatch, or a reporter calling in about a separate run — and folding
+    // it back in would stretch a five-minute deploy into a five-hour one.
+    if (
+      !current ||
+      startsAnAttempt(event.status) ||
+      isSettled(current.status)
+    ) {
+      const attempt: DeploymentAttempt = {
+        buildId: event.buildId,
+        environment: event.environment,
+        status: event.status,
+        startedAt: event.at,
+        finishedAt: isSettled(event.status) ? event.at : null,
+        // A settled status arriving with nothing before it is a callback
+        // about a deploy that did not start here — we know it happened, not
+        // how long it took.
+        durationMs: null,
+        intent: event.intent,
+      };
+      attempts.push(attempt);
+      open.set(key, attempt);
+      continue;
+    }
+
+    current.status = event.status;
+    // Intent is decided once, at dispatch, and the statuses that follow
+    // inherit it — so a later entry may leave it out without meaning
+    // "not a rollback".
+    current.intent = event.intent ?? current.intent;
+    if (isSettled(event.status)) {
+      current.finishedAt = event.at;
+      current.durationMs = event.at.getTime() - current.startedAt.getTime();
+    } else {
+      current.finishedAt = null;
+      current.durationMs = null;
+    }
+  }
+
+  const newestFirst = attempts.sort(
+    (a, b) => b.startedAt.getTime() - a.startedAt.getTime(),
+  );
+
+  return limit === undefined ? newestFirst : newestFirst.slice(0, limit);
+}

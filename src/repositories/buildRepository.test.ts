@@ -69,6 +69,43 @@ describe("BuildRepository", () => {
       expect(build.message).toBe("Fix session cookie expiry");
     });
 
+    it("should persist the commit time when one is reported", async () => {
+      // Given: build details that carry when the change was authored
+      const commitAt = new Date("2026-08-14T09:30:00Z");
+      const input = {
+        accountId: testAccountId,
+        serviceId: testServiceId,
+        buildId: "with-commit-time",
+        commitAt,
+      };
+
+      // When: I create the build
+      const build = await repo.create(input);
+
+      // Then: the commit time comes back, and survives a read — lead time is
+      // measured from it, so it has to be the reporter's time and not ours
+      expect(build.commitAt).toEqual(commitAt);
+      const found = await repo.findByBuildId(
+        testAccountId,
+        testServiceId,
+        "with-commit-time",
+      );
+      expect(found?.commitAt).toEqual(commitAt);
+    });
+
+    it("should leave the commit time absent when none is reported", async () => {
+      // Given: a build reported without a commit time
+      const build = await repo.create({
+        accountId: testAccountId,
+        serviceId: testServiceId,
+        buildId: "no-commit-time",
+      });
+
+      // Then: nothing is invented for it — an absent commit time is how the
+      // metrics know to fall back rather than trust a made-up moment
+      expect(build.commitAt).toBeUndefined();
+    });
+
     it("should return existing build if buildId already exists for account/repo", async () => {
       // Given: a build already exists
       const input = {

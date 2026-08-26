@@ -1,3 +1,7 @@
+import {
+  AccountLimits,
+  TrialPolicy,
+} from "../../../services/limits/accountPolicy";
 import { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { ObjectId } from "mongodb";
 import {
@@ -9,8 +13,6 @@ import { UserRepository } from "../../../repositories/userRepository";
 import { ServiceRepository } from "../../../repositories/serviceRepository";
 import { GitHubAppService } from "../../../services/github/githubAppService";
 import { ApiKeyService } from "../../../services/apiKey/apiKeyService";
-import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
-import { TrialService } from "../../../services/billing/trialService";
 import { AnalyticsService } from "../../../services/analytics/analytics";
 import { oneTimeSecretCookieOptions } from "../../cookies";
 import { githubInstallUrl } from "../../githubInstallUrl";
@@ -26,8 +28,8 @@ export type OnboardingRoutesDeps = {
   serviceRepository: ServiceRepository;
   gitHubAppService: GitHubAppService;
   apiKeyService: ApiKeyService;
-  planEnforcementService: PlanEnforcementService;
-  trialService: TrialService;
+  planEnforcementService: AccountLimits;
+  trialService: TrialPolicy;
   analytics?: AnalyticsService;
 };
 
@@ -682,6 +684,7 @@ export function registerOnboardingRoutes(
               githubOwner: repo.owner?.login || repo.full_name.split("/")[0],
               githubRepoName: repo.name || repo.full_name.split("/")[1],
               isPrivate: repo.private,
+              defaultBranch: repo.default_branch,
             });
           }
         } catch (error) {

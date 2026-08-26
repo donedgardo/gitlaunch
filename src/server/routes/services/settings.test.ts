@@ -16,7 +16,8 @@ import {
 import { MembershipRepository } from "../../../repositories/membershipRepository";
 import { SessionService } from "../../../services/auth/sessionService";
 import { EnvironmentService } from "../../../services/environment/environmentService";
-import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
+import { AccountLimits } from "../../../services/limits/accountPolicy";
+import { OpenCoreLimits } from "../../../services/limits/openCorePolicy";
 import { sessionAuthMiddleware } from "../../middleware/sessionAuth";
 import { registerHandlebarsHelpers } from "../../registerHandlebarsHelpers";
 import { registerSettingsRoutes } from "./settings";
@@ -34,7 +35,7 @@ describe("Settings Routes - Workflow Configuration", () => {
   let sessionService: SessionService;
   let analytics: RecordingAnalytics;
   let environmentService: EnvironmentService;
-  let planEnforcementService: PlanEnforcementService;
+  let planEnforcementService: AccountLimits;
 
   const TEST_SECRET = "test-secret-for-sessions";
   const COOKIE_SECRET = "test-cookie-secret";
@@ -63,12 +64,12 @@ describe("Settings Routes - Workflow Configuration", () => {
     membershipRepo = new MembershipRepository(db);
     sessionService = new SessionService(TEST_SECRET);
     environmentService = new EnvironmentService(serviceRepo);
-    planEnforcementService = new PlanEnforcementService(
-      accountRepo,
-      repositoryRepo,
-      serviceRepo,
-      membershipRepo,
-    );
+    planEnforcementService = new OpenCoreLimits({
+      accountRepository: accountRepo,
+      repositoryRepository: repositoryRepo,
+      serviceRepository: serviceRepo,
+      membershipRepository: membershipRepo,
+    });
 
     app = Fastify();
     await app.register(cookie, { secret: COOKIE_SECRET });
@@ -150,6 +151,44 @@ describe("Settings Routes - Workflow Configuration", () => {
 
       // ...and no longer leans on the build-reporter action wrapper
       expect(response.body).not.toContain("donedgardo/build-reporter");
+    });
+
+    // On a self-hosted install the GitHub Actions guides used to hand the
+    // customer YAML that POSTs to gitlaunch.dev with their own API key in the
+    // Authorization header: their builds never reach their instance, and their
+    // credential goes to a third party. Both guides must name this instance.
+    it("should address the GitHub Actions guides to this instance, not the hosted one", async () => {
+      const account = await accountRepo.create({
+        name: "Self Hosted",
+        slug: "self-hosted",
+      });
+      const repository = await repositoryRepo.create({
+        accountId: account._id,
+        githubRepoId: 1001,
+        githubFullName: "self-hosted/my-repo",
+        githubRepoName: "my-repo",
+        githubOwner: "self-hosted",
+        isPrivate: false,
+      });
+      const service = await serviceRepo.create({
+        accountId: account._id,
+        repositoryId: repository._id,
+        name: "my-service",
+      });
+      const sessionToken = sessionService.createSession({
+        userId: new ObjectId(),
+        accountId: account._id,
+      });
+
+      const response = await app.inject({
+        method: "GET",
+        url: `/services/${service._id}/settings`,
+        cookies: { session: sessionToken },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain("http://localhost:3050/api/v1/services/");
+      expect(response.body).not.toContain("gitlaunch.dev");
     });
   });
 

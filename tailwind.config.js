@@ -1,6 +1,13 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  content: ["./src/**/*.hbs", "./src/**/*.ts"],
+  content: [
+    "./src/**/*.hbs",
+    "./src/**/*.ts",
+    // Commercial code (ENTERPRISE-PATHS.md). Scanned so classes only the
+    // enterprise routes emit survive the purge in our own build.
+    "./ee/**/*.hbs",
+    "./ee/**/*.ts",
+  ],
   theme: {
     extend: {
       colors: {

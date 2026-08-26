@@ -15,7 +15,9 @@ import {
   MembershipRepository,
   MembershipRole,
 } from "../../../repositories/membershipRepository";
-import { InvitationRepository } from "../../../repositories/invitationRepository";
+import { InvitationRepository } from "../../../../ee/repositories/invitationRepository";
+import { PendingInviteRedeemer } from "../../../services/auth/pendingInvite";
+import { acceptInvitation } from "../../../../ee/server/routes/invite/acceptInvitation";
 import { SignupGate } from "../../../services/account/signupGate";
 import { FlagServiceI } from "../../../services/flag/flagService";
 import { FlagEvaluation } from "../../../services/flag/flagEvaluator";
@@ -324,7 +326,7 @@ describe("GitHub OAuth Routes", () => {
 
     async function appWithGate(
       gate: SignupGate,
-      extra: { invitationRepository?: InvitationRepository } = {},
+      extra: { redeemPendingInvite?: PendingInviteRedeemer } = {},
     ): Promise<FastifyInstance> {
       const gated = Fastify();
       await gated.register(cookie, { secret: "cookie-secret" });
@@ -467,7 +469,17 @@ describe("GitHub OAuth Routes", () => {
 
       // And: signups are closed to the public
       const gated = await appWithGate(gateThatSays(false), {
-        invitationRepository,
+        redeemPendingInvite: async (token, userId) => {
+          const accepted = await acceptInvitation(
+            invitationRepository,
+            membershipRepository,
+            token,
+            userId,
+          );
+          return accepted.ok
+            ? { joined: true, accountId: accepted.accountId }
+            : { joined: false };
+        },
       });
       githubWillReturn("invitee", 999);
 

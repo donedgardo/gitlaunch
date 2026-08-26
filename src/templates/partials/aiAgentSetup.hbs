@@ -46,8 +46,32 @@ Open a pull request — don't commit to my default branch.</code></pre>
 
         <p class="mt-3 text-xs text-gray-500 dark:text-gray-400">
           This prompt contains your API key — paste it into your own coding agent, not into a shared chat.
-          This page advances on its own as soon as your first build reaches GitLaunch.
         </p>
+
+        {{!-- The agent opens a pull request, and build reporting is gated to
+              the default branch — so a flawless agent run reports nothing
+              until the merge. Say so here rather than letting the customer
+              watch a screen that will not change.
+
+              No link and no branch name: GitLaunch has no GitHub webhook
+              receiver (the only one is Stripe's), so the pull request is
+              unknown to the server, and a service created in onboarding has
+              no repository attached to resolve a default branch from. --}}
+        <div class="mt-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 p-4">
+          <div style="display: flex; align-items: flex-start; gap: 10px;">
+            <svg style="width: 18px; height: 18px; min-width: 18px;" class="text-gray-400 dark:text-gray-500 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <div style="flex: 1; min-width: 0;">
+              <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-1">Your first build arrives on merge</h3>
+              <p class="text-sm text-gray-600 dark:text-gray-400">
+                Your agent opens a pull request instead of pushing straight to your default branch,
+                and GitLaunch records builds from the default branch only.
+                Nothing lands here until that pull request merges.
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>

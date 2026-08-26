@@ -28,7 +28,8 @@
   {{/if}}
 
   {{#if (eq step 2)}}
-{{> buildReportingInstructions idPrefix="setup_" stepNumber="2" }}
+{{> aiAgentSetup apiUrl=apiUrl serviceId=serviceId}}
+{{> buildReportingInstructions idPrefix="setup_" stepNumber="2" apiUrl=apiUrl }}
   {{/if}}
 
   {{#if (eq step 3)}}
@@ -99,7 +100,7 @@
   {{/if}}
 
   {{#if (eq step 4)}}
-{{> deploymentSetupGuide serviceId=serviceId environments=environments stepNumber="4" }}
+{{> deploymentSetupGuide apiUrl=apiUrl serviceId=serviceId environments=environments stepNumber="4" }}
   {{/if}}
 
   {{#if (eq step 5)}}

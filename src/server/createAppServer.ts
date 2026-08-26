@@ -4,6 +4,7 @@ import EventEmitter from "node:events";
 
 import { registerPlugins } from "./registerPlugins";
 import { registerErrorReporting } from "./registerErrorReporting";
+import { registerErrorSanitizer } from "./registerErrorSanitizer";
 import { resolveEnvironmentName } from "../services/config/environmentName";
 import { loadConfig, Config } from "../config/loadConfig";
 import healthRoute from "./health";
@@ -19,8 +20,11 @@ import { registerInstallationRoutes } from "./routes/github/installation";
 import { registerOnboardingRoutes } from "./routes/onboarding";
 import { registerServiceRoutes } from "./routes/services";
 import { registerSettingsRoutes } from "./routes/services/settings";
+import { registerMetricsRoutes } from "./routes/services/metrics";
 import { registerBuildsRoutes } from "./routes/api/builds";
 import { registerEnvironmentsRoutes } from "./routes/api/environments";
+import { registerDoraRoutes } from "./routes/api/dora";
+import { DoraMetricsService } from "../services/dora/doraMetricsService";
 import { registerSetupSnippetsRoutes } from "./routes/api/setupSnippets";
 import { registerDeploymentRoutes } from "./routes/api/deployment";
 import { registerFlagsRoutes } from "./routes/api/flags";
@@ -55,33 +59,37 @@ import { ExperimentResultsService } from "../services/flag/experimentResultsServ
 import { FlagConfigVersionService } from "../services/flag/flagConfigVersionService";
 import { FlagCacheI, InMemoryFlagCache } from "../services/flag/flagCache";
 import { WebhookEventRepository } from "../repositories/webhookEventRepository";
-import { TrialRegistryRepository } from "../repositories/trialRegistryRepository";
+import { TrialRegistryRepository } from "../../ee/repositories/trialRegistryRepository";
 import { GitHubAppService } from "../services/github/githubAppService";
 import { InstallationTokenService } from "../services/github/installationTokenService";
 import { ApiKeyService } from "../services/apiKey/apiKeyService";
 import { EnvironmentService } from "../services/environment/environmentService";
-import { PlanEnforcementService } from "../services/billing/planEnforcementService";
-import { TrialService } from "../services/billing/trialService";
-import { StripeWebhookHandler } from "../services/billing/webhookHandler";
-import { StripeService } from "../services/billing/stripeService";
-import { StripeApiClient } from "../services/billing/stripeApiClient";
-import { registerStripeWebhookRoute } from "./routes/webhooks/stripe";
-import { registerBillingRoutes } from "./routes/settings/billing";
+import { PlanEnforcementService } from "../../ee/services/billing/planEnforcementService";
+import { TrialService } from "../../ee/services/billing/trialService";
+import { StripeWebhookHandler } from "../../ee/services/billing/webhookHandler";
+import { StripeService } from "../../ee/services/billing/stripeService";
+import { StripeApiClient } from "../../ee/services/billing/stripeApiClient";
+import { registerStripeWebhookRoute } from "../../ee/server/routes/webhooks/stripe";
+import { registerBillingRoutes } from "../../ee/server/routes/settings/billing";
 import { registerApiKeyRoutes } from "./routes/settings/apiKeys";
 import { registerJenkinsSettingsRoutes } from "./routes/settings/jenkins";
 import { registerGithubSettingsRoutes } from "./routes/settings/github";
-import { registerTeamRoutes } from "./routes/settings/team";
-import { registerInviteRoutes } from "./routes/invite";
-import { InvitationRepository } from "../repositories/invitationRepository";
+import { registerTeamRoutes } from "../../ee/server/routes/settings/team";
+import { registerInviteRoutes } from "../../ee/server/routes/invite";
+import { acceptInvitation } from "../../ee/server/routes/invite/acceptInvitation";
+import { InvitationRepository } from "../../ee/repositories/invitationRepository";
 import { AccountMembershipService } from "../services/account/accountMembershipService";
-import { TeamManagementService } from "../services/account/teamManagementService";
+import { TeamManagementService } from "../../ee/services/account/teamManagementService";
 import { JenkinsConnectionService } from "../services/jenkins/jenkinsConnectionService";
 import { GithubConnectionService } from "../services/github/githubConnectionService";
 import { assertEncryptionKey } from "../services/crypto/secretBox";
 import { registerSetupRoutes } from "./routes/dashboard/setup";
 import { DbClientI } from "./health/dbClientI";
-import { InstanceMode } from "../services/licensing/resolveEntitlement";
-import { resolveInstanceMode } from "../services/licensing/instanceMode";
+import {
+  InstanceMode,
+  maxAccountsFor,
+} from "../../ee/services/licensing/resolveEntitlement";
+import { resolveInstanceMode } from "../../ee/services/licensing/instanceMode";
 import {
   AnalyticsService,
   NoOpAnalytics,
@@ -168,11 +176,29 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     );
   }
 
+  // Open core is single-tenant, so an unlicensed install may bootstrap exactly
+  // one account. Resolved once at boot: a license cannot appear or lapse
+  // without a restart, and re-deriving it per login would only invite drift.
+  const maxAccounts = maxAccountsFor(instanceMode, new Date());
+
   assertEncryptionKey();
 
-  const server = Fastify();
-  registerPlugins(server, config.cookieSecret);
+  // Logging is load-bearing, not decoration: failures that used to describe
+  // themselves in the HTTP response are now deliberately generic, so the detail
+  // has to land somewhere. Off under test to keep output readable.
+  const server = Fastify({
+    logger:
+      process.env.NODE_ENV === "test"
+        ? false
+        : { level: process.env.LOG_LEVEL ?? "info" },
+  });
+  registerPlugins(server, config.cookieSecret, {
+    posthog: config.features.analytics.posthog,
+  });
   registerErrorReporting(server, errorReporter, analytics);
+  // After error reporting: the onError hook above still sees the real error,
+  // this only decides what the caller is told.
+  registerErrorSanitizer(server);
 
   // Repositories
   const userRepository = new UserRepository(database);
@@ -240,6 +266,9 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     buildDispatchService,
   );
   const environmentService = new EnvironmentService(serviceRepository);
+  // The four keys, measured from the deployment event log the build
+  // repository already writes. Read-only over stored builds.
+  const doraMetricsService = new DoraMetricsService(buildRepository);
   const flagService = new FlagService(
     flagRepository,
     serviceRepository,
@@ -328,6 +357,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
 
   // Setup wizard routes
   registerSetupRoutes(server, {
+    publicUrl: config.publicUrl,
     buildSimulationEnabled: config.features.buildSimulation.enabled,
     serviceRepo: serviceRepository,
     buildRepo: buildRepository,
@@ -451,9 +481,22 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     userRepository,
     accountRepository,
     membershipRepository,
-    invitationRepository,
+    // The invitation feature is commercial, so the login flow gets a hook
+    // rather than the repository. An open-core build supplies nothing here.
+    redeemPendingInvite: async (token, userId) => {
+      const accepted = await acceptInvitation(
+        invitationRepository,
+        membershipRepository,
+        token,
+        userId,
+      );
+      return accepted.ok
+        ? { joined: true, accountId: accepted.accountId }
+        : { joined: false };
+    },
     signupGate,
     analytics,
+    maxAccounts,
   });
 
   // Google OAuth routes (only when a Google client is configured)
@@ -468,6 +511,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
       membershipRepository,
       signupGate,
       analytics,
+      maxAccounts,
     });
   }
 
@@ -484,6 +528,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     googleEnabled: !!googleOAuthService,
     signupGate,
     analytics,
+    maxAccounts,
   });
 
   // GitHub App installation routes
@@ -511,14 +556,9 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
 
   // Service management routes
   registerServiceRoutes(server, {
-    cookieSecure: config.cookies.secure,
-    accountRepository,
     repositoryRepository,
     serviceRepository,
-    apiKeyService,
     githubAppService: gitHubAppService,
-    planEnforcementService,
-    analytics,
   });
 
   // Service settings routes (environments management)
@@ -529,6 +569,12 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     environmentService,
     planEnforcementService,
     analytics,
+  });
+
+  // Delivery metrics (the DORA four keys) — its own per-service page
+  registerMetricsRoutes(server, {
+    serviceRepository,
+    doraMetricsService,
   });
 
   // Feature flags management UI (per-service)
@@ -562,10 +608,17 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
         planEnforcementService,
       });
 
+      // Register DORA metrics API routes (the four keys, per environment)
+      registerDoraRoutes(apiServer, {
+        doraMetricsService,
+        serviceRepo: serviceRepository,
+      });
+
       // Canonical CI/CD snippets, so an onboarding agent generates the same
       // workflows the dashboard shows.
       registerSetupSnippetsRoutes(apiServer, {
         serviceRepository,
+        repositoryRepository,
         apiUrl: config.publicUrl,
       });
 

@@ -14,7 +14,8 @@ import { RepositoryRepository } from "../../../repositories/repositoryRepository
 import { ServiceRepository } from "../../../repositories/serviceRepository";
 import { MembershipRepository } from "../../../repositories/membershipRepository";
 import { EnvironmentService } from "../../../services/environment/environmentService";
-import { PlanEnforcementService } from "../../../services/billing/planEnforcementService";
+import { OpenCoreLimits } from "../../../services/limits/openCorePolicy";
+import { FakeAccountLimits } from "../../../services/limits/fakes";
 import { registerEnvironmentsRoutes } from "./environments";
 import { ApiKeyScope } from "../../../repositories/apiKeyRepository";
 
@@ -57,7 +58,7 @@ describe("Environments API Routes", () => {
   let serviceRepo: ServiceRepository;
   let membershipRepo: MembershipRepository;
   let environmentService: EnvironmentService;
-  let planEnforcementService: PlanEnforcementService;
+  let planEnforcementService: FakeAccountLimits;
 
   let testAccountId: ObjectId;
   let testServiceId: ObjectId;
@@ -74,12 +75,6 @@ describe("Environments API Routes", () => {
     serviceRepo = new ServiceRepository(db);
     membershipRepo = new MembershipRepository(db);
     environmentService = new EnvironmentService(serviceRepo);
-    planEnforcementService = new PlanEnforcementService(
-      accountRepo,
-      repoRepo,
-      serviceRepo,
-      membershipRepo,
-    );
   });
 
   afterAll(async () => {
@@ -91,6 +86,17 @@ describe("Environments API Routes", () => {
     await db.collection("accounts").deleteMany({});
     await db.collection("repositories").deleteMany({});
     await db.collection("services").deleteMany({});
+
+    // Rebuilt per test alongside the app: refusals are set by the test that
+    // needs them and must not leak into the next one.
+    planEnforcementService = new FakeAccountLimits(
+      new OpenCoreLimits({
+        accountRepository: accountRepo,
+        repositoryRepository: repoRepo,
+        serviceRepository: serviceRepo,
+        membershipRepository: membershipRepo,
+      }),
+    );
 
     // Create fresh app for each test
     app = Fastify();
@@ -296,11 +302,18 @@ describe("Environments API Routes", () => {
       expect(response.statusCode).toBe(403);
     });
 
-    it("should return 403 when environment limit is reached on Free plan", async () => {
-      // Given: Free plan account with a service that has 2 environments (staging + prod, the default)
-      // Free plan limit is 2 environments, so already at limit
+    it("should return 403 when limits refuse another environment", async () => {
+      // Given: whatever meters environments has refused. Which plan caps at
+      // what is commercial policy, and is covered on that side in
+      // ee/services/billing/planEnforcementService.test.ts — what this route
+      // owns is honouring the refusal.
+      planEnforcementService.refuse("canAddEnvironment", {
+        allowed: false,
+        reason: "Environment limit reached for your plan",
+        upgradeRequired: true,
+      });
 
-      // When: POST to add a third environment
+      // When: POST to add another environment
       const response = await app.inject({
         method: "POST",
         url: `/api/v1/services/${testServiceId}/environments`,
@@ -318,9 +331,8 @@ describe("Environments API Routes", () => {
       expect(body.upgradeRequired).toBe(true);
     });
 
-    it("should allow adding environment when Pro plan has capacity", async () => {
-      // Given: A Pro plan account (via selectPlan) with a service with 2 environments
-      await accountRepo.selectPlan(testAccountId, Plan.Pro);
+    it("should add the environment when limits allow it", async () => {
+      // Given: a service with 2 environments and nothing refusing a third
 
       // When: POST to add a third environment named "dev"
       const response = await app.inject({
@@ -342,9 +354,13 @@ describe("Environments API Routes", () => {
       );
     });
 
-    it("should return 403 with upgrade message when environment limit hit", async () => {
-      // Given: A Free plan account at environment limit
-      // (account defaults to Free plan with 2 environment limit, service has 2 environments)
+    it("should pass the refusal's upgrade message back to the caller", async () => {
+      // Given: a refusal that asks the caller to upgrade
+      planEnforcementService.refuse("canAddEnvironment", {
+        allowed: false,
+        reason: "Upgrade your plan to add more environments",
+        upgradeRequired: true,
+      });
 
       // When: POST to add another environment
       const response = await app.inject({
