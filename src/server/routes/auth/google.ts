@@ -156,14 +156,17 @@ export function registerGoogleAuthRoutes(
           sessionCookieOptions(cookieSecure),
         );
 
-        analytics?.identify(user._id.toString(), {
-          email: user.email,
-        });
-        analytics?.track("user_logged_in", {
-          userId: user._id.toString(),
-          isNewUser,
-          method: "google",
-        });
+        const distinctId = user._id.toString();
+        analytics?.identify(
+          distinctId,
+          { email: user.email, name: user.name },
+          { accountId: accountId.toString() },
+        );
+        analytics?.track(
+          "user_logged_in",
+          { isNewUser, method: "google" },
+          { accountId: accountId.toString(), distinctId },
+        );
 
         if (isNewUser) {
           return reply.redirect("/onboarding/plan-selection");

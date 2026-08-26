@@ -195,7 +195,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
   registerPlugins(server, config.cookieSecret, {
     posthog: config.features.analytics.posthog,
   });
-  registerErrorReporting(server, errorReporter);
+  registerErrorReporting(server, errorReporter, analytics);
   // After error reporting: the onError hook above still sees the real error,
   // this only decides what the caller is told.
   registerErrorSanitizer(server);

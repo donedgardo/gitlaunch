@@ -23,12 +23,12 @@ tree still says what it is, and its licence is now readable from its path.
 Four things are true of that directory, and each is enforced by a test rather
 than asserted here:
 
-| Claim | Enforced by |
-| --- | --- |
+| Claim                                                                                       | Enforced by                                   |
+| ------------------------------------------------------------------------------------------- | --------------------------------------------- |
 | Every path claimed as commercial exists, and every `.ts`/`.hbs` under it carries the header | `src/services/limits/licenseBoundary.test.ts` |
-| No file outside `ee/` carries the header | same |
-| No open-core file imports from `ee/`, bar the composition root | `src/services/limits/portability.test.ts` |
-| No open-core **test** imports from `ee/`, bar two recorded exceptions | same |
+| No file outside `ee/` carries the header                                                    | same                                          |
+| No open-core file imports from `ee/`, bar the composition root                              | `src/services/limits/portability.test.ts`     |
+| No open-core **test** imports from `ee/`, bar two recorded exceptions                       | same                                          |
 
 Both tests live in `src/services/limits/` — in the open core, deliberately. A
 boundary check that shipped inside `ee/` would be deleted along with it, and the

@@ -61,6 +61,7 @@ export function registerHandlebarsHelpers() {
           buildSetupSnippets({
             apiUrl: hash.apiUrl ?? "",
             serviceId: hash.serviceId ?? "",
+            defaultBranch: hash.defaultBranch ?? "",
             environments: environmentNames(hash.environments),
           }),
         ),

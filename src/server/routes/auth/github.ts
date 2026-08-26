@@ -136,7 +136,7 @@ export function registerGitHubAuthRoutes(
           void signupGate.recordExposure(entityKey, decision);
           if (!decision.allowed) {
             analytics?.track("signup_blocked", {
-              githubLogin: githubUser.login,
+              method: "github",
               reason: decision.reason,
             });
             return reply.redirect("/?error=signups_closed");
@@ -199,17 +199,15 @@ export function registerGitHubAuthRoutes(
         analytics?.identify(
           user._id.toString(),
           {
-            login: user.githubLogin,
             email: user.email,
+            name: user.name,
+            github_login: user.githubLogin,
           },
           { accountId: accountId!.toString() },
         );
         analytics?.track(
           "user_logged_in",
-          {
-            userId: user._id.toString(),
-            isNewUser,
-          },
+          { isNewUser, method: "github" },
           {
             accountId: accountId!.toString(),
             distinctId: user._id.toString(),

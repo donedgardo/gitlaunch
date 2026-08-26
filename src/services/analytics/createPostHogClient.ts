@@ -35,7 +35,12 @@ export function createPostHogClient(
 
   try {
     const { PostHog } = loadSdk();
-    const client = new PostHog(options.projectToken, { host: options.host });
+    const client = new PostHog(options.projectToken, {
+      host: options.host,
+      // Covers exceptions that escape application and framework handlers.
+      // Fastify's handled request failures remain on its existing onError path.
+      enableExceptionAutocapture: true,
+    });
     console.info(`[analytics] posthog enabled (host=${options.host})`);
     return client;
   } catch (err) {

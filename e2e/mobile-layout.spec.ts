@@ -115,9 +115,15 @@ test.describe("mobile layout", () => {
 });
 
 test.describe("desktop layout is unchanged", () => {
-  test.use({ viewport: { width: 1440, height: 900 }, isMobile: false, hasTouch: false });
+  test.use({
+    viewport: { width: 1440, height: 900 },
+    isMobile: false,
+    hasTouch: false,
+  });
 
-  test("nav is a single row with the account links inline", async ({ page }) => {
+  test("nav is a single row with the account links inline", async ({
+    page,
+  }) => {
     await authenticateTestUser(page, TEST_USERS.userWithMultipleServices);
     await page.goto("/dashboard");
 

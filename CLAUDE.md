@@ -93,7 +93,7 @@ When you add code:
 - Building a seat/SSO/billing/licensing feature? Put the file under `ee/`, at the path mirroring where it would live in `src/`, and head it with `// GitLaunch Enterprise Feature — licensed under LICENSE-enterprise.md, not the FSL.` (`{{!-- … --}}` in `.hbs`). `ee/**` is already covered by the manifest, so there is nothing to add there.
 - Anything else defaults to FSL and belongs in `src/`. Don't file something under `ee/` to be safe — a wrong claim of coverage is worse than none.
 - **Never import from `ee/` in open-core code.** If the core needs an answer only enterprise code can give, define a port in the core and inject the implementation (see `src/services/limits/accountPolicy.ts` for the pattern, and its open-core default in `openCorePolicy.ts`). Only `src/index.ts` and `src/server/createAppServer.ts` may know both sides.
-- **That applies to tests too.** A core route test needs *an* `AccountLimits`, not the commercial one — use `OpenCoreLimits`, or `FakeAccountLimits` (`src/services/limits/fakes.ts`) when the test is about how the route handles a refusal. Assertions about which plan caps at what belong in `ee/services/billing/planEnforcementService.test.ts`.
+- **That applies to tests too.** A core route test needs _an_ `AccountLimits`, not the commercial one — use `OpenCoreLimits`, or `FakeAccountLimits` (`src/services/limits/fakes.ts`) when the test is about how the route handles a refusal. Assertions about which plan caps at what belong in `ee/services/billing/planEnforcementService.test.ts`.
 - Handlebars templates are the one exception: `@fastify/view` takes a single template root, so enterprise `.hbs` files stay under `src/templates` and are listed individually in the manifest.
 - `src/services/limits/licenseBoundary.test.ts` fails the build if the manifest and the tree disagree; `src/services/limits/portability.test.ts` fails it if the core — production code or tests — reaches into `ee/`.
 
@@ -120,7 +120,7 @@ Optional, for keeping our own traffic out of analytics (unset = nothing is exclu
 Optional, to also stream the same product events to PostHog (an additional destination, independent of `ANALYTICS_WAREHOUSE`):
 
 - `POSTHOG_PROJECT_TOKEN` - enables the PostHog sink. Ignored on a self-hosted build: a customer's install must never report their usage to our project. The same token also loads the PostHog browser SDK in the page (`templates/partials/posthogSnippet.hbs`, rendered from the `<head>` of `layouts/main.hbs`), which is what produces session recordings, autocapture and client-side pageviews. It reaches the layout through `registerPlugins`' view defaults, so no route has to pass it.
-- `POSTHOG_HOST` - the region the project lives in. Defaults to `https://us.i.posthog.com`. Used by both the server sink and the browser SDK.
+- `POSTHOG_HOST` - where events are sent: the region the project lives in, or a reverse proxy on our own domain that forwards to it. Our instances use `https://t.gitlaunch.dev` (a PostHog managed proxy) so ingestion is first-party and ad blockers can't drop it; PostHog's UI still lives at `https://us.posthog.com`. Defaults to `https://us.i.posthog.com`. Used by both the server sink and the browser SDK.
 
 Destinations are composed in `services/analytics/createAnalyticsService.ts`. Code that emits an event depends only on the `AnalyticsService` port, so a new destination is added there and nowhere else; `posthog-node` is imported by `createPostHogClient.ts` alone.
 

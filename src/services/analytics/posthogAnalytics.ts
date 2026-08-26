@@ -23,6 +23,11 @@ export type PostHogIdentifyMessage = {
 export interface PostHogClientLike {
   capture(message: PostHogCaptureMessage): void;
   identify(message: PostHogIdentifyMessage): void;
+  captureException?(
+    error: unknown,
+    distinctId?: string,
+    additionalProperties?: Record<string, any>,
+  ): void;
   flush?(): Promise<void>;
   shutdown?(): Promise<void>;
 }
@@ -88,6 +93,19 @@ export class PostHogAnalytics implements AnalyticsService {
     // the event name and the kind becomes a property — reachable as a filter
     // rather than silently blended into deliberate actions.
     this.send(destination, { ...properties, type: "navigation" }, context);
+  }
+
+  captureException(
+    error: unknown,
+    properties?: Record<string, any>,
+    context?: AnalyticsContext,
+  ): void {
+    this.guard(() =>
+      this.client.captureException?.(error, context?.distinctId, {
+        ...properties,
+        ...this.accountProperties(context),
+      }),
+    );
   }
 
   /** Deliver anything the client is still holding (e.g. on shutdown). */
