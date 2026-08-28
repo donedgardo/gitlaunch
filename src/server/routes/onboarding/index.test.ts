@@ -140,6 +140,8 @@ describe("Onboarding Routes", () => {
             "/partials/jenkinsBuildReportingGuide.hbs",
           jenkinsDeploymentGuide: "/partials/jenkinsDeploymentGuide.hbs",
           rawBuildReportingGuide: "/partials/rawBuildReportingGuide.hbs",
+          gitlabBuildReportingGuide: "/partials/gitlabBuildReportingGuide.hbs",
+          onboardingProgress: "/partials/onboardingProgress.hbs",
         },
       },
     });
@@ -366,6 +368,68 @@ describe("Onboarding Routes", () => {
       expect(response.body).not.toContain("View pull request");
       // ...and the live stream that does eventually advance the page survives
       expect(response.body).toContain(`/build-created-stream/${service._id}`);
+    });
+
+    it("offers a GitLab CI build-report job next to GitHub Actions and Jenkins", async () => {
+      // A user whose repo lives on GitLab used to find only GitHub Actions,
+      // Jenkins and a bare curl here, and the agent — following the same
+      // surfaces — handed them a GitHub Actions workflow for a GitLab repo.
+      const { account, session } = await authedAccount("gitlab-org");
+      const service = await serviceRepo.create({
+        accountId: account._id,
+        name: "api",
+      });
+
+      const realApp = await mountOnboardingWithRealViews();
+      const response = await realApp.inject({
+        method: "GET",
+        url: `/onboarding/report-builds/${service._id}`,
+        cookies: { session },
+      });
+      await realApp.close();
+
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain("GitLab CI");
+      // The job is the canonical one from the snippet generator, addressed to
+      // this instance, gated to GitLab's own notion of the default branch.
+      expect(response.body).toContain("report_build:");
+      expect(response.body).toContain(
+        `http://localhost:3050/api/v1/services/${service._id}/builds`,
+      );
+      expect(response.body).toContain(
+        "$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH",
+      );
+    });
+
+    it("shows the whole onboarding path so a newcomer knows what step this is and why", async () => {
+      // Watching a first-time user: they copied the agent prompt without being
+      // able to say what they were setting up, or what would happen after. A
+      // nav caption reading "Step 2 of 3" names a position, not a plan.
+      const { account, session } = await authedAccount("orient-org");
+      const service = await serviceRepo.create({
+        accountId: account._id,
+        name: "api",
+      });
+
+      const realApp = await mountOnboardingWithRealViews();
+      const response = await realApp.inject({
+        method: "GET",
+        url: `/onboarding/report-builds/${service._id}`,
+        cookies: { session },
+      });
+      await realApp.close();
+
+      expect(response.statusCode).toBe(200);
+      // All three steps are named, in order, on this page
+      const body = response.body;
+      const steps = ["Create a service", "Report builds", "Connect deploys"];
+      const positions = steps.map((step) => body.indexOf(step));
+      expect(positions.every((p) => p >= 0)).toBe(true);
+      expect(positions).toEqual([...positions].sort((a, b) => a - b));
+      // ...and the loop being wired is spelled out in plain words: CI tells
+      // GitLaunch about a build, GitLaunch tells CI to deploy it.
+      expect(body).toContain("Your CI tells GitLaunch about each build");
+      expect(body).toContain("GitLaunch tells your CI to deploy one");
     });
 
     it("offers a dev-mode simulate-build button when ENABLE_BUILD_SIMULATION is on", async () => {
