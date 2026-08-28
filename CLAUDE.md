@@ -67,7 +67,7 @@ GitLaunch is a multi-tenant SaaS deployment tool: Fastify, HTMX, Handlebars, Mon
 
 ### Build reporting: `curl` is canonical
 
-There is one answer to "how do I report a build to GitLaunch?" — plain `curl` against the REST API, emitted by `src/services/setup/setupSnippets.ts`. That file backs the onboarding UI, the per-service settings page, `GET /api/v1/services/:serviceId/setup-snippets` and the `gitlaunch-onboarding` skill, and the same shape serves GitHub Actions, Jenkins, GitLab CI and the `raw` provider alike. One code path, one source of truth, every provider and every surface.
+There is one answer to "how do I report a build to GitLaunch?" — plain `curl` against the REST API, emitted by `src/services/setup/setupSnippets.ts`. That file backs the onboarding UI, the per-service settings page, `GET /api/v1/services/:serviceId/setup-snippets` and the `gitlaunch-onboarding` skill, and the same shape serves GitHub Actions, GitLab CI (`buildReport.gitlab`, a self-contained `.post` job), Jenkins and the `raw` provider alike. Public, ungated documentation of the contract lives at `/docs` (`src/server/routes/docs/`). One code path, one source of truth, every provider and every surface.
 
 The `github-action` submodule — `donedgardo/build-reporter`, listed on the GitHub Marketplace as "GitLaunch Build Reporter" — is **deprecated, not deleted**. Its published releases (`v1`, `v2`) keep working against an unchanged API, so no existing pipeline breaks. It gets no new features, and it must not reappear in a snippet, a template, or a skill.
 
