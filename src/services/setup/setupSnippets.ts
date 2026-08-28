@@ -40,6 +40,7 @@ export type SetupSnippets = {
   buildReport: {
     github: string;
     jenkins: string;
+    gitlab: string;
     raw: string;
   };
   deploy: {
@@ -101,6 +102,31 @@ function jenkinsBuildReport(apiUrl: string, serviceId: string): string {
     }
   }
 }`;
+}
+
+function gitlabBuildReport(apiUrl: string, serviceId: string): string {
+  // GitLab already exposes the SHA, the message and an ISO-8601 commit
+  // timestamp as predefined variables, so no git checkout is needed — which
+  // is also why the job can run on a bare alpine image. jq builds the payload:
+  // a commit message is multi-line by convention, and interpolating it into
+  // a JSON literal by hand is rejected with "Bad control character".
+  //
+  // `image` is alpine plus an apk install rather than curlimages/curl: that
+  // image has no jq, and the failure only shows on the first real pipeline.
+  return `report_build:
+  stage: .post
+  image: alpine:3.20
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  before_script:
+    - apk add --no-cache curl jq
+  script:
+    - |
+      curl --fail-with-body -sS -X POST \\
+        "${apiUrl}${buildsPath(serviceId)}" \\
+        -H "Authorization: Bearer $GITLAUNCH_API_KEY" \\
+        -H "Content-Type: application/json" \\
+        -d "$(jq -nc --arg buildId "$CI_COMMIT_SHA" --arg message "$CI_COMMIT_MESSAGE" --arg commitAt "$CI_COMMIT_TIMESTAMP" '{buildId:$buildId,message:$message,commitAt:$commitAt}')"`;
 }
 
 function rawBuildReport(apiUrl: string, serviceId: string): string {
@@ -205,6 +231,7 @@ export function buildSetupSnippets(input: SetupSnippetsInput): SetupSnippets {
     buildReport: {
       github: githubBuildReport(apiUrl, defaultBranch),
       jenkins: jenkinsBuildReport(apiUrl, serviceId),
+      gitlab: gitlabBuildReport(apiUrl, serviceId),
       raw: rawBuildReport(apiUrl, serviceId),
     },
     deploy: {
