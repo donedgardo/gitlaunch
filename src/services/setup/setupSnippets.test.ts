@@ -219,13 +219,85 @@ describe("buildSetupSnippets", () => {
       );
     });
 
-    it("should provide non-GitHub variants for Jenkins and plain shells", () => {
+    it("should provide non-GitHub variants for Jenkins, GitLab and plain shells", () => {
       // Given the snippets for a service
       const snippets = buildSetupSnippets(input);
 
       // Then every provider gets a snippet pointing at this service
       expect(snippets.buildReport.jenkins).toContain(input.serviceId);
+      expect(snippets.buildReport.gitlab).toContain(input.serviceId);
       expect(snippets.buildReport.raw).toContain(input.serviceId);
+    });
+  });
+
+  describe("the GitLab CI build report job", () => {
+    it("should be a valid job that POSTs where the contract says builds go", () => {
+      // Given the snippets for a service
+      const snippets = buildSetupSnippets(input);
+
+      // When the generated job is parsed as .gitlab-ci.yml content
+      const ci = parse(snippets.buildReport.gitlab);
+      const [jobName] = Object.keys(ci);
+      const job = ci[jobName];
+      const script = job.script.join("\n");
+
+      // Then it reports to this service on this host
+      expect(script).toContain(
+        `${input.apiUrl}/api/v1/services/${input.serviceId}/builds`,
+      );
+      expect(script).toContain("Bearer $GITLAUNCH_API_KEY");
+      expect(script).toContain("--fail-with-body");
+    });
+
+    it("should only report builds of the default branch", () => {
+      // Given the snippets for a service
+      const snippets = buildSetupSnippets(input);
+
+      // When the generated job is parsed
+      const ci = parse(snippets.buildReport.gitlab);
+      const job = ci[Object.keys(ci)[0]];
+
+      // Then it is gated to the project's own default branch. GitLab knows
+      // it, so the guard never goes stale the way a hardcoded name would.
+      expect(JSON.stringify(job.rules)).toContain(
+        "$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH",
+      );
+    });
+
+    it("should encode the commit message as JSON rather than interpolate it", () => {
+      // Given the snippets for a service
+      const snippets = buildSetupSnippets(input);
+      const ci = parse(snippets.buildReport.gitlab);
+      const script = ci[Object.keys(ci)[0]].script.join("\n");
+
+      // Then the payload is built by jq from GitLab's predefined variables.
+      // A commit message is multi-line by convention, and a raw "$CI_COMMIT_MESSAGE"
+      // dropped into a JSON string literal is rejected by the API with
+      // "Bad control character in string literal" — the first thing a new
+      // user hit after copying an interpolated payload.
+      expect(script).toContain("jq -nc");
+      expect(script).toContain('--arg message "$CI_COMMIT_MESSAGE"');
+      expect(script).toContain('--arg commitAt "$CI_COMMIT_TIMESTAMP"');
+      expect(script).toContain('--arg buildId "$CI_COMMIT_SHA"');
+      expect(script).not.toMatch(/-d\s+"\{/);
+    });
+
+    it("should run on an image that actually has curl and jq", () => {
+      // Given the snippets for a service
+      const snippets = buildSetupSnippets(input);
+      const ci = parse(snippets.buildReport.gitlab);
+      const job = ci[Object.keys(ci)[0]];
+
+      // Then the job does not assume tools its image lacks: curlimages/curl
+      // has no jq and no git, and the failure ("jq: not found") only shows
+      // up on the first real pipeline run.
+      expect(job.image).toBeDefined();
+      const all = [job.image, ...(job.before_script ?? []), ...job.script].join(
+        "\n",
+      );
+      expect(all).toMatch(/apk add[^\n]*\bjq\b/);
+      expect(all).toMatch(/apk add[^\n]*\bcurl\b/);
+      expect(all).not.toContain("git show");
     });
   });
 
@@ -241,6 +313,7 @@ describe("buildSetupSnippets", () => {
     for (const snippet of [
       snippets.buildReport.github,
       snippets.buildReport.jenkins,
+      snippets.buildReport.gitlab,
       snippets.buildReport.raw,
       snippets.deploy.github,
     ]) {
@@ -260,6 +333,7 @@ describe("buildSetupSnippets", () => {
     const all = [
       snippets.buildReport.github,
       snippets.buildReport.jenkins,
+      snippets.buildReport.gitlab,
       snippets.buildReport.raw,
       snippets.deploy.github,
     ].join("\n");

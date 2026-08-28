@@ -1,0 +1,209 @@
+{{!-- Public, ungated documentation of the integration contract.
+
+     Reuses the legal pages' chrome (`legalStyles`): the same tokens, the same
+     narrow reading measure. Vars: publicUrl, sourceUrl, title, meta.
+
+     Every endpoint is rendered from publicUrl — see templateSnippetBoundary.test:
+     a template never spells out a host of its own. --}}
+{{> legalStyles}}
+<style>
+  .legal .body pre { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; overflow-x: auto; font-family: var(--mono); font-size: 12.5px; line-height: 1.55; margin: 0 0 16px; }
+  .legal .body code { font-family: var(--mono); font-size: 0.92em; }
+  .legal .body p code, .legal .body li code { background: var(--surface); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; }
+  .legal .loop { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; align-items: center; margin: 0 0 18px; }
+  .legal .loop .node { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+  .legal .loop .node b { display: block; font-size: 14px; margin-bottom: 4px; }
+  .legal .loop .node span { font-size: 13px; color: var(--muted); }
+  .legal .loop .arrows { font-family: var(--mono); font-size: 12px; color: var(--accent-ink); text-align: center; line-height: 1.9; white-space: nowrap; }
+  @media (max-width: 640px) { .legal .loop { grid-template-columns: 1fr; } .legal .loop .arrows { transform: rotate(90deg); } }
+</style>
+
+<div class="legal">
+  <nav>
+    <div class="wrap nav-in">
+      <a class="brand" href="/"><span class="glyph"></span>Git<span class="mk">Launch</span></a>
+      <a class="nav-back" href="/">← Back to GitLaunch</a>
+    </div>
+  </nav>
+
+  <header class="doc-head">
+    <div class="wrap">
+      <span class="eff">Docs · no account needed</span>
+      <h1>How GitLaunch works</h1>
+      <p class="lede">
+        GitLaunch is a deployment dashboard that sits on top of the CI you already run.
+        It is not another CI/CD tool. The whole integration is two HTTP calls, documented
+        below in full — read them, run them, or read the source. Nothing here is behind
+        the waitlist.
+      </p>
+
+      <div class="tldr">
+        <h2>In one breath</h2>
+        <ul>
+          <li>Your CI <strong>POSTs a build</strong> to GitLaunch when it goes green.</li>
+          <li>Someone on your team clicks <strong>Deploy</strong> (or calls the API); GitLaunch <strong>triggers your CI</strong> to deploy that exact build to an environment.</li>
+          <li>Your deploy job <strong>PATCHes its status</strong> back. The dashboard shows what is live where, and lets anyone roll back.</li>
+          <li>Open core: <a href="{{sourceUrl}}">the source is on GitHub</a> and you can self-host it for free on one account.</li>
+        </ul>
+      </div>
+    </div>
+  </header>
+
+  <div class="wrap doc">
+    <aside class="toc">
+      <h2>Contents</h2>
+      <ol>
+        <li><a href="#loop">The loop</a></li>
+        <li><a href="#report">Report a build</a></li>
+        <li><a href="#deploy">Deploy a build</a></li>
+        <li><a href="#ci">Your CI system</a></li>
+        <li><a href="#agent">Let an agent do it</a></li>
+        <li><a href="#keys">API keys</a></li>
+        <li><a href="#selfhost">Self-hosting and source</a></li>
+        <li><a href="#waitlist">Why a waitlist</a></li>
+      </ol>
+    </aside>
+
+    <main class="body">
+      <section id="loop">
+        <h2>The loop</h2>
+        <div class="loop">
+          <div class="node"><b>Your CI</b><span>GitHub Actions, GitLab CI, Jenkins, CircleCI, anything with curl</span></div>
+          <div class="arrows">builds ──▶<br>◀── deploys</div>
+          <div class="node"><b>GitLaunch</b><span>every build, every environment, one dashboard with a deploy button</span></div>
+        </div>
+        <p>
+          A <strong>service</strong> is an app you ship. It has <strong>environments</strong>
+          you define (<code>staging</code>, <code>prod</code>, whatever you call them) and a
+          history of <strong>builds</strong>, keyed by commit SHA. CI reports builds; GitLaunch
+          dispatches deploys of a chosen build to a chosen environment and tracks their status.
+          That is the entire model.
+        </p>
+      </section>
+
+      <section id="report">
+        <h2>1. Report a build</h2>
+        <p>When a build on your default branch succeeds, tell GitLaunch about it:</p>
+<pre>curl --fail-with-body -sS -X POST \
+  "{{publicUrl}}/api/v1/services/$SERVICE_ID/builds" \
+  -H "Authorization: Bearer $GITLAUNCH_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d "$(jq -nc --arg buildId "$COMMIT_SHA" \
+              --arg message "$COMMIT_MESSAGE" \
+              --arg commitAt "$COMMIT_TIMESTAMP" \
+              '{buildId:$buildId,message:$message,commitAt:$commitAt}')"</pre>
+        <ul>
+          <li><code>buildId</code> — the commit SHA. Required.</li>
+          <li><code>message</code> — the commit message, so a build is recognisable on the dashboard. Built with <code>jq</code> because commit messages have newlines.</li>
+          <li><code>commitAt</code> — ISO-8601 time the commit was authored. This is what makes lead time mean commit-to-live rather than "since CI told us".</li>
+        </ul>
+        <p>That is it. The build appears on the dashboard within a second, over Server-Sent Events.</p>
+      </section>
+
+      <section id="deploy">
+        <h2>2. Deploy a build</h2>
+        <p>
+          Clicking <strong>Deploy</strong> on a build (or <code>POST …/builds/$BUILD_ID/deploy/$ENV</code>
+          with an API key) makes GitLaunch trigger <em>your</em> deploy pipeline with two inputs,
+          <code>environment</code> and <code>buildId</code>. How it triggers depends on the provider you bind:
+        </p>
+        <ul>
+          <li><strong>GitHub</strong> — <code>workflow_dispatch</code> on a workflow file in your repo, through the GitLaunch GitHub App.</li>
+          <li><strong>Jenkins</strong> — <code>buildWithParameters</code> on a job.</li>
+          <li><strong>Raw</strong> — an HTTP POST of <code>{ "buildId", "environment" }</code> to a URL you own. This is how GitLab, CircleCI and everything else plug in.</li>
+        </ul>
+        <p>Your deploy job reports back as it goes:</p>
+<pre>curl --fail-with-body -sS -X PATCH \
+  "{{publicUrl}}/api/v1/services/$SERVICE_ID/builds/$BUILD_ID/deploy/$ENVIRONMENT" \
+  -H "Authorization: Bearer $GITLAUNCH_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"status":"deploying"}'     # then: deployed | error | cancelled</pre>
+        <p>
+          Statuses are exactly <code>deploying</code>, <code>deployed</code>, <code>error</code> and
+          <code>cancelled</code>. Every terminal outcome must report one, or the build sits on
+          "deploying" in the dashboard. Rolling back is deploying an older build; the dashboard
+          keeps the history, so the button is always there.
+        </p>
+      </section>
+
+      <section id="ci">
+        <h2>Your CI system</h2>
+        <p>
+          GitLaunch generates the exact snippet for your service — templated with your real
+          environments, your default branch and this instance's URL — for:
+        </p>
+        <ul>
+          <li><strong>GitHub Actions</strong> — a build-report step, and a complete <code>deploy.yml</code> with the status calls in place.</li>
+          <li><strong>GitLab CI</strong> — a <code>report_build</code> job for <code>.gitlab-ci.yml</code>, gated to <code>$CI_DEFAULT_BRANCH</code>.</li>
+          <li><strong>Jenkins</strong> — a pipeline stage using a <code>gitlaunch-api-key</code> credential.</li>
+          <li><strong>CircleCI, Buildkite, Drone, a shell script</strong> — the raw <code>curl</code>.</li>
+        </ul>
+        <p>
+          Snippets are also served as JSON, so a tool can read them instead of a human:
+          <code>GET {{publicUrl}}/api/v1/services/$SERVICE_ID/setup-snippets</code>.
+          You keep your CI. GitLaunch never runs your build, never sees your code, and never
+          holds your cloud credentials — it holds a build history and a button.
+        </p>
+      </section>
+
+      <section id="agent">
+        <h2>Let an agent do it</h2>
+        <p>
+          Onboarding hands you a prompt for Claude Code, Cursor, Codex or any agent that can
+          read your repo. The prompt points at a skill this instance serves at
+          <a href="/skills/gitlaunch-onboarding/SKILL.md"><code>/skills/gitlaunch-onboarding/SKILL.md</code></a>
+          — you can read it right now. The agent detects your stack and which host your repo
+          lives on, fetches the snippets above, writes or amends your pipelines, opens a pull
+          request, then watches the first pipeline run and fixes it until it is green and the
+          build shows up in GitLaunch. It never pushes to your default branch and never writes
+          your API key into a tracked file.
+        </p>
+      </section>
+
+      <section id="keys">
+        <h2>API keys</h2>
+        <p>
+          Keys are scoped: <code>builds:write</code>, <code>deployments:write</code>,
+          <code>services:read</code>, <code>flags:evaluate</code> and so on. A CI key needs
+          <code>builds:write</code> and <code>deployments:write</code> and nothing else. Keys are
+          shown once, stored hashed, and revocable from settings.
+        </p>
+      </section>
+
+      <section id="selfhost">
+        <h2>Self-hosting and source</h2>
+        <p>
+          GitLaunch is open core. The source is at <a href="{{sourceUrl}}">{{sourceUrl}}</a>:
+          <code>src/</code> is under the FSL (free to run, one account and one seat),
+          <code>ee/</code> is the commercial multi-seat, SSO and billing layer. There is a
+          Docker image and a one-click Railway template; the README covers both. A self-hosted
+          instance serves these same docs, snippets and skill addressed to its own URL, and
+          reports nothing back to us.
+        </p>
+      </section>
+
+      <section id="waitlist">
+        <h2>Why a waitlist</h2>
+        <p>
+          The hosted service is in beta and we are onboarding accounts by hand, partly so we can
+          watch where new users get stuck and fix it. The waitlist stores your email and the
+          UTM source you arrived with — that is all, and the <a href="/privacy">privacy policy</a>
+          says so in plain language. If you would rather not wait, self-host: the product does not
+          need us to exist.
+        </p>
+      </section>
+    </main>
+  </div>
+
+  <footer>
+    <div class="wrap foot-in">
+      <span>GitLaunch · deployment control your whole team can drive</span>
+      <span class="foot-legal">
+        <a href="{{sourceUrl}}">Source</a>
+        <a href="/privacy">Privacy</a>
+        <a href="/terms">Terms</a>
+        <a href="mailto:support@gitlaunch.dev">Contact</a>
+      </span>
+    </div>
+  </footer>
+</div>

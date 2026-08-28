@@ -1,0 +1,42 @@
+{{!-- The onboarding map. Vars: current (1, 2 or 3).
+
+     Rendered at the top of every onboarding step so a newcomer can always
+     answer "what am I setting up, which part is this, and what comes after?"
+     Shadowing first-time users showed them copying the agent prompt without
+     being able to say what it was for — a "Step 2 of 3" caption tells you
+     where you are, not what the three steps add up to. --}}
+<div class="mb-8">
+  <ol class="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 text-left">
+    <li class="flex items-start gap-3 rounded-xl border px-4 py-3 {{#if (eq current 1)}}border-blue-500 bg-white dark:bg-gray-800{{else}}border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40{{/if}}">
+      <span style="width: 24px; height: 24px; min-width: 24px;" class="flex items-center justify-center rounded-full text-xs font-bold {{#if (lt 1 current)}}bg-green-600 text-white{{else if (eq current 1)}}bg-blue-600 text-white{{else}}bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400{{/if}}">
+        {{#if (lt 1 current)}}<svg style="width:14px;height:14px" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>{{else}}1{{/if}}
+      </span>
+      <span style="min-width: 0;">
+        <span class="block text-sm font-semibold {{#if (eq current 1)}}text-gray-900 dark:text-white{{else}}text-gray-600 dark:text-gray-400{{/if}}">Create a service</span>
+        <span class="block text-xs text-gray-500 dark:text-gray-400">Name the app you ship.</span>
+      </span>
+    </li>
+    <li class="flex items-start gap-3 rounded-xl border px-4 py-3 {{#if (eq current 2)}}border-blue-500 bg-white dark:bg-gray-800{{else}}border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40{{/if}}">
+      <span style="width: 24px; height: 24px; min-width: 24px;" class="flex items-center justify-center rounded-full text-xs font-bold {{#if (lt 2 current)}}bg-green-600 text-white{{else if (eq current 2)}}bg-blue-600 text-white{{else}}bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400{{/if}}">
+        {{#if (lt 2 current)}}<svg style="width:14px;height:14px" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>{{else}}2{{/if}}
+      </span>
+      <span style="min-width: 0;">
+        <span class="block text-sm font-semibold {{#if (eq current 2)}}text-gray-900 dark:text-white{{else}}text-gray-600 dark:text-gray-400{{/if}}">Report builds</span>
+        <span class="block text-xs text-gray-500 dark:text-gray-400">Your CI tells GitLaunch about each build.</span>
+      </span>
+    </li>
+    <li class="flex items-start gap-3 rounded-xl border px-4 py-3 {{#if (eq current 3)}}border-blue-500 bg-white dark:bg-gray-800{{else}}border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40{{/if}}">
+      <span style="width: 24px; height: 24px; min-width: 24px;" class="flex items-center justify-center rounded-full text-xs font-bold {{#if (lt 3 current)}}bg-green-600 text-white{{else if (eq current 3)}}bg-blue-600 text-white{{else}}bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400{{/if}}">
+        {{#if (lt 3 current)}}<svg style="width:14px;height:14px" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>{{else}}3{{/if}}
+      </span>
+      <span style="min-width: 0;">
+        <span class="block text-sm font-semibold {{#if (eq current 3)}}text-gray-900 dark:text-white{{else}}text-gray-600 dark:text-gray-400{{/if}}">Connect deploys</span>
+        <span class="block text-xs text-gray-500 dark:text-gray-400">GitLaunch tells your CI to deploy one.</span>
+      </span>
+    </li>
+  </ol>
+  <p class="mt-3 text-center text-xs text-gray-500 dark:text-gray-400">
+    GitLaunch doesn't replace your CI — it sits on top of it. Once both directions are wired,
+    every build shows up on a dashboard your whole team can deploy or roll back from.
+  </p>
+</div>

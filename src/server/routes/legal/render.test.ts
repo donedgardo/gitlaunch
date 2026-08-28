@@ -83,6 +83,16 @@ describe("legal pages, rendered", () => {
     });
   }
 
+  it("should render in standards mode so dark-mode tables stay readable", async () => {
+    // Without a doctype the browser renders in quirks mode, where a <table>
+    // does not inherit `color` from its parent. The privacy page's cookie and
+    // retention tables then paint black text on the dark background — every
+    // row invisible — while the paragraphs around them look fine.
+    const response = await app.inject({ method: "GET", url: "/privacy" });
+
+    expect(response.body.trimStart().toLowerCase()).toMatch(/^<!doctype html>/);
+  });
+
   it("should not leak internal drafting notes to the reader", async () => {
     // The templates carry TODO(legal) markers in Handlebars comments for the
     // details a human must confirm before publishing. Handlebars comments are

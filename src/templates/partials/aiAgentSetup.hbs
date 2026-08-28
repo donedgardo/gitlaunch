@@ -33,10 +33,14 @@ GitLaunch host: {{apiUrl}}
 Service ID:     {{serviceId}}
 API key:        {{#if apiKey}}{{apiKey}}{{else}}&lt;paste your API key&gt;{{/if}}
 
-Detect my project type and whether I already have CI/CD. If I don't,
-generate pipelines with GitLaunch build reporting and deploy control
-built in. If I do, integrate GitLaunch into what's already there.
-Open a pull request — don't commit to my default branch.</code></pre>
+Detect my project type, which git host my repo lives on (check
+`git remote -v` — GitHub and GitLab need different pipelines), and
+whether I already have CI/CD. If I don't, generate pipelines for that
+host with GitLaunch build reporting and deploy control built in. If I
+do, integrate GitLaunch into what's already there.
+Open a pull request — don't commit to my default branch. Then watch
+the pipeline run and fix it until it's green and the build shows up
+in GitLaunch; don't stop at writing the YAML.</code></pre>
           </div>
           <button onclick="copyText('ai_agent_prompt')"
             class="absolute top-3 right-3 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition-colors">

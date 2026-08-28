@@ -46,6 +46,14 @@ another project.** If the user has lost the key, send them to
    monorepo, two plausible deploy pipelines, no clear default branch — list what
    you found and ask the user to choose. Do not pick for them.
 6. **Fetch the snippets; do not write them from memory.** See below.
+7. **Build JSON with `jq`, never by interpolating variables into a string.** A
+   commit message has newlines and quotes; `-d "{\"message\":\"$MSG\"}"`
+   produces invalid JSON and the API answers
+   `Bad control character in string literal`. Every snippet already does this
+   right — keep it that way when you adapt one.
+8. **Do not declare victory on YAML.** The integration is done when a real
+   pipeline run is green and the build shows up in GitLaunch (Step 8). Until
+   then, it is a draft.
 
 ## Step 1 — Fetch the canonical snippets
 
@@ -67,7 +75,7 @@ Returns:
     "variableName": "GITLAUNCH_SERVICE_ID",
     "serviceId": "…",
   },
-  "buildReport": { "github": "…", "jenkins": "…", "raw": "…" },
+  "buildReport": { "github": "…", "gitlab": "…", "jenkins": "…", "raw": "…" },
   "deploy": { "github": "…", "githubPath": ".github/workflows/deploy.yml" },
 }
 ```
@@ -100,6 +108,19 @@ Establish, from the repo itself:
 - **The default branch** — `git symbolic-ref refs/remotes/origin/HEAD` or
   `gh repo view --json defaultBranchRef`. GitLaunch dispatches against it, so
   this matters (see Step 5).
+- **Where the repo is hosted** — `git remote -v`. The host of `origin` decides
+  which CI system a new pipeline is written for: `github.com` → GitHub Actions,
+  `gitlab.com` (or a self-managed GitLab) → GitLab CI, anything else → the
+  `raw` snippet. If the user has told you they use one host and `origin` points
+  at another — a project just moved from GitHub to GitLab with the old remote
+  still in place is common — **stop and ask** which one is real before writing
+  anything. A GitHub Actions workflow pushed to GitLab never runs, and nothing
+  tells you so.
+- **That the commands actually work** — before a build or test command goes
+  into a pipeline, run it locally once. A `package.json` whose `test` script is
+  `echo "Error: no test specified" && exit 1` is a script that exists, not a
+  test suite; putting it in CI guarantees a red first run. Omit a step that
+  does not work rather than shipping it and hoping.
 - **Monorepo?** If there are multiple deployable apps, ask which one this
   service represents before writing anything.
 
@@ -122,8 +143,10 @@ and why before you edit anything.
 
 ### Case A — No CI/CD at all
 
-Create it. The user gets a build pipeline **and** GitLaunch deploy control in
-one PR.
+Create it, **for the host the repo lives on** (Step 2). The user gets a build
+pipeline **and** GitLaunch reporting in one PR.
+
+On **GitHub**:
 
 - Write a build/test workflow appropriate to the detected stack, ending with the
   `buildReport.github` step so every green build on the default branch registers
@@ -134,6 +157,18 @@ one PR.
   wrong deploy step is far worse than an honest `TODO`.
 
 Details and per-stack build workflows: `references/github-actions.md`.
+
+On **GitLab**:
+
+- Write a `.gitlab-ci.yml` with the build/test stages for the detected stack and
+  the `buildReport.gitlab` job appended verbatim. It runs in the `.post` stage on
+  the default branch only, on its own image, with its own `jq` and `curl` — do
+  not move it onto the build job's image, which may lack both.
+- Deploy control uses the `raw` provider; see `references/other-ci.md`. Do not
+  write a GitHub Actions workflow for a GitLab repository, ever.
+
+Anywhere else: build reporting with the `raw` snippet in whatever the CI system
+runs; deploy control via `raw`.
 
 ### Case B — GitHub Actions already present
 
@@ -151,7 +186,10 @@ Integrate, do not replace.
 
 Jenkins, GitLab, CircleCI, and anything else report builds over plain HTTP.
 
-- Add the matching `buildReport.*` snippet to the existing pipeline.
+- Add the matching `buildReport.*` snippet to the existing pipeline —
+  `buildReport.gitlab` as a job in `.gitlab-ci.yml`, `buildReport.jenkins` as a
+  stage in the `Jenkinsfile`, `buildReport.raw` inside whatever step runs last
+  elsewhere.
 - For **deploy control**, GitLaunch needs a way to trigger the deploy. Jenkins is
   supported natively (job name); everything else uses the `raw` provider, where
   GitLaunch POSTs `{ buildId, environment }` to a webhook URL you must set up.
@@ -271,21 +309,48 @@ changed, whether the deploy step is real or a placeholder, that the secret and
 variable must be set (or that you set them), and the default-branch caveat from
 Step 5.
 
-## Step 8 — Verify
+## Step 8 — Verify, and keep going until it is green
 
 Onboarding step 2 in the GitLaunch UI advances by itself the moment the first
-build lands, so the honest verification is a real CI run.
+build lands, so the honest verification is a real CI run — and the honest
+finish is a green one. Pushing the branch starts the pipeline; your job is not
+over until it passes. Run this loop without waiting for the user to relay
+errors to you:
 
-- If CI runs on the PR branch and the report step is reachable there, the build
-  appears in GitLaunch within seconds. Confirm with:
+1. **Watch the run** the push triggered:
+   - GitHub: `gh run watch --exit-status` (or `gh run list --branch <branch>`
+     then `gh run view <id> --log-failed`).
+   - GitLab: `glab ci status --live`, then `glab ci trace <job>` for the log of
+     a failed job. Without `glab`, the API works with a project token:
+     `GET /api/v4/projects/<id>/pipelines?ref=<branch>` and
+     `GET /api/v4/projects/<id>/jobs/<job_id>/trace`.
+2. **Read the failed job's log yourself.** Match it against
+   `references/troubleshooting.md` — the first-run failures are well known
+   (a test script that only exits 1, a tool missing from the image, an
+   interpolated JSON payload).
+3. **Fix it in the same branch, commit, push, go to 1.** Keep the fix minimal
+   and inside the files you own; if the failure is in the user's own build or
+   tests rather than the GitLaunch wiring, stop and tell them instead of
+   editing their code.
+4. **Stop after five rounds** and report what is still failing, with the log
+   excerpt. Five is plenty for wiring; more means something you should not fix
+   alone.
+
+Then the acceptance test — the only one that counts:
+
+- If the report step ran (CI on the default branch, or the guard was reachable
+  on the branch), the build appears in GitLaunch within seconds. Confirm with:
 
   ```bash
   curl --fail-with-body -sS "<host>/api/v1/services/<serviceId>/builds" \
     -H "Authorization: Bearer <apiKey>"
   ```
 
-- If the report step is gated to the default branch (the snippet's default),
-  it will not fire until merge. Say so rather than implying success.
+  and look for this commit's SHA as a `buildId`.
+
+- If the report step is gated to the default branch (the snippet's default) and
+  the run was on the PR branch, the job was skipped by design and will not fire
+  until merge. Say so, and say what the user will see after merging.
 
 Do not report the integration as working because the YAML looks right. Either
 the build shows up in GitLaunch or it does not.
@@ -295,15 +360,19 @@ the build shows up in GitLaunch or it does not.
 - `references/detection.md` — project type, package manager and CI detection signals
 - `references/github-actions.md` — build workflows per stack, and how to graft onto an existing one
 - `references/other-ci.md` — Jenkins, GitLab CI, CircleCI, and the `raw` deploy provider
-- `references/troubleshooting.md` — 401/403/422, builds not appearing, stuck "deploying"
+- `references/troubleshooting.md` — 401/403/422, builds not appearing, stuck "deploying", first-run pipeline failures
 
 ## Status
 
-Report progress with `[STATUS]` messages: `Detected <stack>`, `No CI/CD found`,
-`Integrating with GitHub Actions`, `PR opened`.
+Report progress with `[STATUS]` messages: `Detected <stack> on <host>`,
+`No CI/CD found`, `Integrating with GitHub Actions`, `PR opened`,
+`Pipeline run <n>: <failed job> — fixing`, `Pipeline green`,
+`Build <sha> visible in GitLaunch`.
 
 Report blocked states with `[ABORT]`:
 
 - `Missing service ID or API key`
 - `Ambiguous project — user must choose`
+- `Remote host does not match the host the user named — user must choose`
+- `Pipeline still failing after five rounds`
 - `Not a git repository`

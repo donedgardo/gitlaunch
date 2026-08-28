@@ -19,6 +19,8 @@
       </p>
     </div>
 
+    {{> onboardingProgress current=2}}
+
     <!-- Credentials -->
     <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-6 mb-6">
       <dl class="space-y-4 text-sm">
@@ -46,6 +48,7 @@
     <!-- Provider tabs -->
     <div class="flex mb-6 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
       <button id="rt_tab_github" onclick="switchReportTab('github')" class="flex-1 px-3 py-2 text-sm font-medium rounded-md bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm">GitHub Actions</button>
+      <button id="rt_tab_gitlab" onclick="switchReportTab('gitlab')" class="flex-1 px-3 py-2 text-sm font-medium rounded-md text-gray-500 dark:text-gray-400">GitLab CI</button>
       <button id="rt_tab_jenkins" onclick="switchReportTab('jenkins')" class="flex-1 px-3 py-2 text-sm font-medium rounded-md text-gray-500 dark:text-gray-400">Jenkins</button>
       <button id="rt_tab_raw" onclick="switchReportTab('raw')" class="flex-1 px-3 py-2 text-sm font-medium rounded-md text-gray-500 dark:text-gray-400">Raw / curl</button>
     </div>
@@ -53,6 +56,10 @@
     <div id="rt_panel_github">
       {{> githubSecretsSetup serviceId=serviceId idPrefix="ob_" showApiKeyNote=true showCopyButton=true}}
       {{> buildReportingInstructions idPrefix="ob_" apiUrl=apiUrl}}
+    </div>
+
+    <div id="rt_panel_gitlab" style="display: none;">
+      {{> gitlabBuildReportingGuide apiUrl=apiUrl serviceId=serviceId idPrefix="ob_"}}
     </div>
 
     <div id="rt_panel_jenkins" style="display: none;">
@@ -130,7 +137,7 @@
 
 <script>
 function switchReportTab(tab) {
-  var tabs = ['github', 'jenkins', 'raw'];
+  var tabs = ['github', 'gitlab', 'jenkins', 'raw'];
   var active = 'flex-1 px-3 py-2 text-sm font-medium rounded-md bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm';
   var idle = 'flex-1 px-3 py-2 text-sm font-medium rounded-md text-gray-500 dark:text-gray-400';
   tabs.forEach(function (t) {

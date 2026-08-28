@@ -109,6 +109,7 @@ import {
 } from "../services/flag/selfFlagContext";
 import { registerWaitlistRoutes } from "./routes/marketing/waitlist";
 import { registerLegalRoutes } from "./routes/legal";
+import { registerDocsRoutes } from "./routes/docs";
 
 // Minimum time (ms) a real person needs to read and fill the waitlist form.
 // Submissions faster than this are treated as bots. See botDetection.ts.
@@ -443,6 +444,8 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
   // landing-page footer and the review bots at GitHub, Stripe and Google need
   // these to resolve without a session.
   registerLegalRoutes(server, { publicUrl: config.publicUrl });
+  // Same reasoning: the integration contract is readable without an account.
+  registerDocsRoutes(server, { publicUrl: config.publicUrl });
   server.register(
     dashboardRoutes({
       publicUrl: config.publicUrl,
