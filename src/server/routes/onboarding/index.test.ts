@@ -422,10 +422,12 @@ describe("Onboarding Routes", () => {
       expect(response.statusCode).toBe(200);
       // All three steps are named, in order, on this page
       const body = response.body;
-      const steps = ["Create a service", "Report builds", "Connect deploys"];
-      const positions = steps.map((step) => body.indexOf(step));
-      expect(positions.every((p) => p >= 0)).toBe(true);
-      expect(positions).toEqual([...positions].sort((a, b) => a - b));
+      const create = body.indexOf("Create a service");
+      const report = body.indexOf("Report builds", create);
+      const deploy = body.indexOf("Connect deploys", report);
+      expect(create).toBeGreaterThan(-1);
+      expect(report).toBeGreaterThan(create);
+      expect(deploy).toBeGreaterThan(report);
       // ...and the loop being wired is spelled out in plain words: CI tells
       // GitLaunch about a build, GitLaunch tells CI to deploy it.
       expect(body).toContain("Your CI tells GitLaunch about each build");

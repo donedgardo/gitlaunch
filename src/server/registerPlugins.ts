@@ -64,6 +64,8 @@ export function registerPlugins(
         jenkinsBuildReportingGuide: "/partials/jenkinsBuildReportingGuide.hbs",
         jenkinsDeploymentGuide: "/partials/jenkinsDeploymentGuide.hbs",
         rawBuildReportingGuide: "/partials/rawBuildReportingGuide.hbs",
+        gitlabBuildReportingGuide: "/partials/gitlabBuildReportingGuide.hbs",
+        onboardingProgress: "/partials/onboardingProgress.hbs",
         htmxDashboard: "/partials/htmxDashboard.hbs",
         paginationControls: "/partials/paginationControls.hbs",
         setupStep: "/partials/setupStep.hbs",

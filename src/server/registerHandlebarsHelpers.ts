@@ -14,6 +14,7 @@ import {
 // gitlaunch.dev.
 const SETUP_SNIPPETS: Record<string, (s: SetupSnippets) => string> = {
   "buildReport.github": (s) => s.buildReport.github,
+  "buildReport.gitlab": (s) => s.buildReport.gitlab,
   "deploy.github": (s) => s.deploy.github,
 };
 
