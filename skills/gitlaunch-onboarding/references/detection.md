@@ -56,6 +56,23 @@ If no build command exists, say so. Some services (a Python worker, a static
 site) genuinely have none, and the build workflow should just run tests and
 report.
 
+## Git host
+
+```bash
+git remote -v
+```
+
+The host of `origin` is the host you write CI for: `github.com` → GitHub
+Actions, `gitlab.com` or a self-managed GitLab → GitLab CI, anything else → the
+`raw` snippet in whatever CI the user runs. GitLab is recognisable by the URL
+even when self-managed if the user tells you so; otherwise ask.
+
+Two remotes pointing at different hosts, or a remote that contradicts what the
+user said ("I connected my GitLab project" while `origin` is `github.com`), is
+an `[ABORT]` — ask which one is live. This happens on every repo that was moved
+between hosts and never had its remote updated, and a pipeline written for the
+host nobody pushes to is a pipeline that never runs.
+
 ## Default branch
 
 GitLaunch dispatches deploys against the default branch, and the build-report

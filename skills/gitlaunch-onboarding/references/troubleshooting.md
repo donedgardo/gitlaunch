@@ -84,6 +84,49 @@ Note that secrets are not available to workflows triggered by `pull_request`
 from a **fork**. Build reporting from fork PRs will not work, and should not —
 that is GitHub protecting the key.
 
+## The first pipeline run is red
+
+Every one of these was hit by a real user's first run. Read the failed job's
+log (`gh run view --log-failed`, `glab ci trace <job>`) and match it here
+before changing anything.
+
+**`Error: no test specified` … `exit 1`** — the pipeline calls a `test` script
+that is npm's placeholder (`echo "Error: no test specified" && exit 1`), not a
+test suite. Remove the test step, or replace it with the command that actually
+runs the project's tests. Do not "fix" it by making it always succeed.
+
+**`/bin/sh: … git: not found`** — the report job runs `git show` on an image
+without git (`curlimages/curl`, bare `alpine`). On GitLab, use the
+`buildReport.gitlab` job — it takes the timestamp from `$CI_COMMIT_TIMESTAMP`
+and never calls git. Elsewhere, either run the report inside the job that has
+the checkout, or pass the timestamp from a variable the CI system provides.
+
+**`jq: not found`** — the image lacks jq. The GitLab snippet installs it in
+`before_script` (`apk add --no-cache curl jq`); on a GitHub runner other than
+`ubuntu-latest`, add an install step (see "Builds not appearing" below).
+
+**`{"error":"Bad control character in string literal in JSON at position …"}`**
+— a variable holding a newline (almost always the commit message) was
+interpolated straight into the JSON body. Build the body with `jq`:
+
+```bash
+-d "$(jq -nc --arg buildId "$SHA" --arg message "$MSG" --arg commitAt "$TS" \
+     '{buildId:$buildId,message:$message,commitAt:$commitAt}')"
+```
+
+Every canonical snippet already does this; the bug appears when one is
+hand-adapted.
+
+**The workflow file is there but no pipeline ever ran** — the file is for the
+wrong host: a `.github/workflows/*.yml` in a repo whose `origin` is GitLab, or
+a `.gitlab-ci.yml` pushed to GitHub. Check `git remote -v`. A repo moved from
+one host to the other often still carries the old remote, and a push to the
+old `origin` lands on the old host, where nobody is looking.
+
+**`401` on GitLab with an empty `Bearer` header** — `GITLAUNCH_API_KEY` is a
+_protected_ variable and the branch is not a protected branch. Unprotect the
+variable, or protect the default branch.
+
 ## `422 Unexpected inputs provided` when deploying
 
 GitLaunch dispatched the workflow and GitHub refused it. The workflow's

@@ -96,29 +96,57 @@ of them must fire, or the dashboard stays on "deploying".
 
 ## GitLab CI
 
-Build reporting — add a job to `.gitlab-ci.yml` using the `raw` snippet:
+### Build reporting
+
+Add the `buildReport.gitlab` job from `/setup-snippets` to `.gitlab-ci.yml`,
+verbatim. It looks like this (fetch it; do not copy this):
 
 ```yaml
-report-build:
+report_build:
   stage: .post
-  image: curlimages/curl:latest
+  image: alpine:3.20
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  before_script:
+    - apk add --no-cache curl jq
   script:
     - |
-      curl --fail-with-body -sS -X POST \
-        "<host>/api/v1/services/<serviceId>/builds" \
+      curl --fail-with-body -sS -X POST "<host>/api/v1/services/<serviceId>/builds" \
         -H "Authorization: Bearer $GITLAUNCH_API_KEY" \
         -H "Content-Type: application/json" \
-        -d "{\"buildId\":\"$CI_COMMIT_SHA\",\"commitAt\":\"$CI_COMMIT_TIMESTAMP\"}"
+        -d "$(jq -nc --arg buildId "$CI_COMMIT_SHA" --arg message "$CI_COMMIT_MESSAGE" --arg commitAt "$CI_COMMIT_TIMESTAMP" '{buildId:$buildId,message:$message,commitAt:$commitAt}')"
 ```
 
-`$CI_COMMIT_TIMESTAMP` is already ISO-8601, so GitLab needs no git call.
+Three things about it are deliberate, because each was a real first-run failure:
 
-Set `GITLAUNCH_API_KEY` as a **masked, protected** CI/CD variable in
-Settings → CI/CD → Variables.
+- **Its own image, with `jq` and `curl` installed in `before_script`.**
+  `curlimages/curl` has no `jq`; `alpine` has neither until `apk add`. A job
+  that assumes a tool exists fails with `jq: not found` on the first pipeline
+  and not before.
+- **No `git`.** GitLab already exposes the SHA, the message and an ISO-8601
+  timestamp (`$CI_COMMIT_TIMESTAMP`) as predefined variables, so the job never
+  runs `git show` — which also would not exist on that image.
+- **The payload is built by `jq`.** `$CI_COMMIT_MESSAGE` is multi-line; dropping
+  it into a JSON literal by hand is rejected by the API with
+  `Bad control character in string literal`.
 
-Deploy control uses the `raw` provider — see below.
+The `.post` stage runs after every other stage, so the job needs no `needs:`
+and does not care what the build stages are called. `rules:` keeps it to the
+project's own default branch — no branch name to keep in sync.
+
+Set `GITLAUNCH_API_KEY` as a **masked** CI/CD variable in Settings → CI/CD →
+Variables. Only mark it _protected_ if the default branch is a protected
+branch; a protected variable is invisible to pipelines on unprotected branches,
+and the symptom is a `401` with an empty `Bearer` header. The user can set it
+in the UI, or you can with `glab variable set GITLAUNCH_API_KEY --masked` if
+`glab` is authenticated — ask first, it writes to their project. There is no
+need for a `GITLAUNCH_SERVICE_ID` variable: the snippet carries the service id.
+
+### Deploy control
+
+Uses the `raw` provider — see below. GitLab's own trigger API
+(`POST /projects/<id>/trigger/pipeline`) does not accept GitLaunch's payload
+shape, so there is a relay in between that the user owns.
 
 ## CircleCI
 
