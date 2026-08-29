@@ -93,6 +93,17 @@ describe("legal pages, rendered", () => {
     expect(response.body.trimStart().toLowerCase()).toMatch(/^<!doctype html>/);
   });
 
+  it("should keep the document's side padding on narrow screens", async () => {
+    // `.legal .doc` once used the `padding: <top> 0 <bottom>` shorthand, which
+    // zeroed the horizontal padding `.wrap` provides. Desktop hid it behind
+    // max-width centring; on a phone the whole document sat flush left.
+    const response = await app.inject({ method: "GET", url: "/privacy" });
+
+    const rule = response.body.match(/\.legal \.doc \{[^}]*\}/)?.[0] ?? "";
+    expect(rule).not.toMatch(/padding:\s*[^;]*\s0\s/);
+    expect(rule).toContain("padding-top");
+  });
+
   it("should not leak internal drafting notes to the reader", async () => {
     // The templates carry TODO(legal) markers in Handlebars comments for the
     // details a human must confirm before publishing. Handlebars comments are
