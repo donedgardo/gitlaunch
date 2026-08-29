@@ -78,6 +78,15 @@ describe("public docs, rendered", () => {
     expect(response.body).toContain("/skills/gitlaunch-onboarding/SKILL.md");
   });
 
+  it("should let every inline URL wrap so a phone viewport keeps its margins", async () => {
+    // A `<code>` holding a full endpoint URL cannot break at spaces; on a
+    // 390px phone it pushed the document to ~495px, the browser zoomed out
+    // to fit, and the page rendered with no side margins at all.
+    const response = await app.inject({ method: "GET", url: "/docs" });
+
+    expect(response.body).toContain("overflow-wrap: anywhere");
+  });
+
   it("should be indexable and leave no unresolved placeholders", async () => {
     const response = await app.inject({ method: "GET", url: "/docs" });
 
