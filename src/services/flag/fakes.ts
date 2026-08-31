@@ -1,4 +1,6 @@
+import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { BundlePublisherI } from "./bundlePublisher";
+import { S3LikeClient } from "./r2BundlePublisher";
 import { FlagConfigBundle } from "./configBundle";
 
 type PublishCall = {
@@ -34,5 +36,16 @@ export class FakeBundlePublisher implements BundlePublisherI {
 export class FailingBundlePublisher implements BundlePublisherI {
   async publish(): Promise<void> {
     throw new Error("bundle publish failed");
+  }
+}
+
+// Records every PutObjectCommand sent to it, so R2BundlePublisher can be
+// tested against the S3-compatible wire contract without hitting real R2.
+export class FakeS3Client implements S3LikeClient {
+  puts: PutObjectCommand[] = [];
+
+  async send(command: PutObjectCommand): Promise<unknown> {
+    this.puts.push(command);
+    return {};
   }
 }

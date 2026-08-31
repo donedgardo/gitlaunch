@@ -22,6 +22,7 @@
     "postbuild": "ncp src/templates dist/src/templates && ncp src/public dist/src/public && ncp skills dist/skills"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1121.0",
     "@fastify/cookie": "^9.3.1",
     "@fastify/formbody": "^7.4.0",
     "@fastify/oauth2": "^7.8.0",

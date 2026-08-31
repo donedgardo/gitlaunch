@@ -63,6 +63,21 @@ export type Config = {
       posthog?: { projectToken: string; host: string };
     };
     flagCache: { redisUrl?: string };
+    // Publishing flag config bundles to R2 so a browser SDK can fetch them
+    // directly instead of asking us to evaluate on every request. Useful on
+    // any distribution — self-hosted installs have the exact same egress-cost
+    // incentive to enable it as we do — so, unlike billing/PostHog, this is
+    // not gated by isSelfHosted.
+    flagBundles: {
+      enabled: boolean;
+      r2?: {
+        accountId: string;
+        accessKeyId: string;
+        secretAccessKey: string;
+        bucket: string;
+      };
+      publicBaseUrl?: string;
+    };
     selfFlags: { enabled: boolean; serviceId?: string };
     buildSimulation: { enabled: boolean };
   };
@@ -322,6 +337,33 @@ export function loadConfig(
       }
     : undefined;
 
+  // --- flag bundle publishing (R2) ------------------------------------------
+  // All or nothing, same reasoning as the GitHub App block above: a partial
+  // set looks configured and fails on first publish, which is worse than
+  // just staying off (the SDK's bundle fetch fails over to the existing HTTP
+  // evaluate endpoint either way).
+  const r2Credentials = {
+    R2_ACCOUNT_ID: trimmed(env.R2_ACCOUNT_ID),
+    R2_ACCESS_KEY_ID: trimmed(env.R2_ACCESS_KEY_ID),
+    R2_SECRET_ACCESS_KEY: trimmed(env.R2_SECRET_ACCESS_KEY),
+    R2_BUCKET: trimmed(env.R2_BUCKET),
+    R2_PUBLIC_BASE_URL: trimmed(env.R2_PUBLIC_BASE_URL),
+  };
+  const suppliedR2 = Object.entries(r2Credentials).filter(
+    ([, v]) => v !== undefined,
+  );
+  const missingR2 = Object.entries(r2Credentials)
+    .filter(([, v]) => v === undefined)
+    .map(([k]) => k);
+
+  if (suppliedR2.length > 0 && missingR2.length > 0) {
+    problems.push(
+      `Flag bundle publishing (R2) is incomplete — also set ${missingR2.join(", ")} ` +
+        "(or unset them all to leave it off)",
+    );
+  }
+  const flagBundlesEnabled = suppliedR2.length > 0 && missingR2.length === 0;
+
   // --- GitLaunch's own flag reads (dogfooding) -----------------------------
   // A customer install must never phone home to our flag service.
   const selfFlagServiceId = trimmed(env.GITLAUNCH_SERVICE_ID);
@@ -390,6 +432,18 @@ export function loadConfig(
       },
       analytics: { enabled: analyticsEnabled, retentionDays, posthog },
       flagCache: { redisUrl: trimmed(env.REDIS_URL) },
+      flagBundles: {
+        enabled: flagBundlesEnabled,
+        r2: flagBundlesEnabled
+          ? {
+              accountId: r2Credentials.R2_ACCOUNT_ID!,
+              accessKeyId: r2Credentials.R2_ACCESS_KEY_ID!,
+              secretAccessKey: r2Credentials.R2_SECRET_ACCESS_KEY!,
+              bucket: r2Credentials.R2_BUCKET!,
+            }
+          : undefined,
+        publicBaseUrl: r2Credentials.R2_PUBLIC_BASE_URL,
+      },
       selfFlags: {
         enabled: selfFlagsEnabled,
         serviceId: selfFlagServiceId,
@@ -419,6 +473,7 @@ export function summarizeConfig(config: Config): string {
       `  analytics=${onOff(f.analytics.enabled)}` +
       `  posthog=${onOff(f.analytics.posthog !== undefined)}` +
       `  flagCache=${f.flagCache.redisUrl ? "redis" : "in-memory"}` +
+      `  flagBundles=${onOff(f.flagBundles.enabled)}` +
       `  selfFlags=${onOff(f.selfFlags.enabled)}` +
       `  buildSimulation=${onOff(f.buildSimulation.enabled)}`,
   ].join("\n");

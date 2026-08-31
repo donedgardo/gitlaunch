@@ -321,6 +321,58 @@ describe("loadConfig", () => {
     });
   });
 
+  describe("flag bundle publishing (R2)", () => {
+    const r2Env = {
+      R2_ACCOUNT_ID: "acct123",
+      R2_ACCESS_KEY_ID: "AKIA...",
+      R2_SECRET_ACCESS_KEY: "secret",
+      R2_BUCKET: "gitlaunch-flags-prod",
+      R2_PUBLIC_BASE_URL: "https://pub-abc.r2.dev",
+    };
+
+    it("should stay off when no R2 variables are set", () => {
+      const config = loadConfig(baseEnv, saasBuild);
+      expect(config.features.flagBundles.enabled).toBe(false);
+      expect(config.features.flagBundles.r2).toBeUndefined();
+    });
+
+    it("should turn on when the full R2 configuration is set", () => {
+      const config = loadConfig(env(r2Env), saasBuild);
+
+      expect(config.features.flagBundles.enabled).toBe(true);
+      expect(config.features.flagBundles.r2).toEqual({
+        accountId: "acct123",
+        accessKeyId: "AKIA...",
+        secretAccessKey: "secret",
+        bucket: "gitlaunch-flags-prod",
+      });
+      expect(config.features.flagBundles.publicBaseUrl).toBe(
+        "https://pub-abc.r2.dev",
+      );
+    });
+
+    it("should name the missing variables when R2 is partially configured", () => {
+      let message = "";
+      try {
+        loadConfig(
+          env({ R2_ACCOUNT_ID: "acct123", R2_BUCKET: "gitlaunch-flags-prod" }),
+          saasBuild,
+        );
+      } catch (e) {
+        message = (e as Error).message;
+      }
+
+      expect(message).toContain("R2_ACCESS_KEY_ID");
+      expect(message).toContain("R2_SECRET_ACCESS_KEY");
+      expect(message).toContain("R2_PUBLIC_BASE_URL");
+    });
+
+    it("should work on a self-hosted build too — this isn't a SaaS-only concern", () => {
+      const config = loadConfig(shEnv(r2Env), selfHostedBuild);
+      expect(config.features.flagBundles.enabled).toBe(true);
+    });
+  });
+
   describe("self-hosted flag dogfooding", () => {
     it("should read GitLaunch's own flags on the saas build when a service id is set", () => {
       const config = loadConfig(
