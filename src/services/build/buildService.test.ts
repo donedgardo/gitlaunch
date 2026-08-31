@@ -619,11 +619,14 @@ describe("BuildService", () => {
       expect(emittedPayload).toHaveLength(1);
 
       // Each event must have serviceName (not just serviceId) for SSE template
+      // And: it carries the owning account, so a stream can filter it to the
+      // one caller who should see it (see build/index.test.ts).
       expect(emittedPayload[0]).toEqual(
         expect.objectContaining({
           buildId: "sse-build",
           environment: "staging",
           status: DeploymentStatus.DEPLOYED,
+          accountId: account._id.toString(),
           serviceId: svc._id.toString(),
           serviceName: "api-service",
         }),
