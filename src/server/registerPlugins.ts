@@ -58,6 +58,7 @@ export function registerPlugins(
         environmentList: "/partials/environmentList.hbs",
         flagList: "/partials/flagList.hbs",
         flagKeyResult: "/partials/flagKeyResult.hbs",
+        flagBundleUrl: "/partials/flagBundleUrl.hbs",
         flagTargetingRule: "/partials/flagTargetingRule.hbs",
         flagConditionRow: "/partials/flagConditionRow.hbs",
         githubSecretsSetup: "/partials/githubSecretsSetup.hbs",

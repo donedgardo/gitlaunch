@@ -22,7 +22,8 @@ const flags = createFlagClient(&#123;
   serviceId: "{{serviceId}}",
   environment: "{{evaluateEnv}}",
   apiKey: "{{newKey}}",
-&#125;);
+{{#if bundleUrl}}  bundleUrl: "{{bundleUrl}}",
+{{/if}}&#125;);
 
 // VISITOR_ID must be stable for a visitor, or they'll flip between variants.
 const variant = await flags.variant("my-flag", &#123; entity: VISITOR_ID &#125;, "control");

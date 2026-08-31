@@ -20,6 +20,7 @@ import { sessionAuthMiddleware } from "../../middleware/sessionAuth";
 import { registerHandlebarsHelpers } from "../../registerHandlebarsHelpers";
 import { registerFlagsSettingsRoutes } from "./flags";
 import { WarehouseAnalytics } from "../../../services/analytics/warehouseAnalytics";
+import { FakeBundlePublisher } from "../../../services/flag/fakes";
 
 describe("Flags Settings Routes", () => {
   let mongoServer: MongoMemoryServer;
@@ -948,6 +949,128 @@ describe("Flags Settings Routes", () => {
         cookies: { session: session() },
       });
       expect(response.statusCode).toBe(404);
+    });
+  });
+
+  describe("bundle publishing (R2)", () => {
+    let bundleApp: FastifyInstance;
+    let bundlePublisher: FakeBundlePublisher;
+
+    beforeEach(async () => {
+      bundlePublisher = new FakeBundlePublisher();
+      bundleApp = Fastify();
+      await bundleApp.register(formbody);
+      await bundleApp.register(cookie, { secret: "test-cookie-secret" });
+      await bundleApp.register(view, {
+        engine: { handlebars },
+        root: path.join(__dirname, "../../../templates"),
+        options: {
+          partials: {
+            navigation: "/partials/navigation.hbs",
+            flagList: "/partials/flagList.hbs",
+            flagKeyResult: "/partials/flagKeyResult.hbs",
+            flagBundleUrl: "/partials/flagBundleUrl.hbs",
+            flagTargetingRule: "/partials/flagTargetingRule.hbs",
+            flagConditionRow: "/partials/flagConditionRow.hbs",
+            experimentResults: "/partials/experimentResults.hbs",
+          },
+        },
+      });
+      sessionAuthMiddleware(bundleApp, sessionService);
+      registerFlagsSettingsRoutes(bundleApp, {
+        publicUrl: "http://localhost:3050",
+        serviceRepository: serviceRepo,
+        flagService,
+        apiKeyService,
+        bundlePublisher,
+        bundlePublicBaseUrl: "https://pub-abc.r2.dev",
+      });
+      await bundleApp.ready();
+    });
+
+    it("should not show a bundle URL when R2 isn't configured", async () => {
+      const response = await app.inject({
+        method: "GET",
+        url: `/services/${serviceId}/flags`,
+        cookies: { session: session() },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.body).not.toContain("pub-abc.r2.dev");
+    });
+
+    it("should show a working bundle URL once R2 is configured, minting a slug on first view", async () => {
+      const response = await bundleApp.inject({
+        method: "GET",
+        url: `/services/${serviceId}/flags`,
+        cookies: { session: session() },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const service = await serviceRepo.findById(serviceId);
+      expect(service?.flagPublishSlug).toBeTruthy();
+      expect(response.body).toContain(
+        `https://pub-abc.r2.dev/flags/${service?.flagPublishSlug}/`,
+      );
+    });
+
+    it("should publish a bundle for a service that hasn't had a flag change since R2 was configured", async () => {
+      await flagService.createFlag(accountId, serviceId, {
+        key: "old-flag",
+        description: "",
+      });
+
+      await bundleApp.inject({
+        method: "GET",
+        url: `/services/${serviceId}/flags`,
+        cookies: { session: session() },
+      });
+
+      const service = await serviceRepo.findById(serviceId);
+      const published = bundlePublisher.latestFor(
+        service!.flagPublishSlug!,
+        "staging",
+      );
+      expect(published?.bundle.flags.map((f) => f.key)).toContain("old-flag");
+    });
+
+    it("should include the bundle URL in the browser-key snippet once R2 is configured", async () => {
+      const response = await bundleApp.inject({
+        method: "POST",
+        url: `/services/${serviceId}/flags/keys/browser`,
+        cookies: { session: session() },
+        payload: { environment: "prod", origins: "https://app.example.com" },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain("bundleUrl:");
+      expect(response.body).toContain("pub-abc.r2.dev");
+    });
+
+    it("should rotate the bundle slug and republish under the new one", async () => {
+      const before = await bundleApp.inject({
+        method: "GET",
+        url: `/services/${serviceId}/flags`,
+        cookies: { session: session() },
+      });
+      const beforeSlug = (await serviceRepo.findById(serviceId))
+        ?.flagPublishSlug;
+      expect(before.statusCode).toBe(200);
+
+      const rotated = await bundleApp.inject({
+        method: "POST",
+        url: `/services/${serviceId}/flags/bundle/rotate`,
+        cookies: { session: session() },
+      });
+
+      expect(rotated.statusCode).toBe(200);
+      const afterSlug = (await serviceRepo.findById(serviceId))
+        ?.flagPublishSlug;
+      expect(afterSlug).toBeTruthy();
+      expect(afterSlug).not.toBe(beforeSlug);
+      expect(rotated.body).toContain(`${afterSlug}/`);
+      expect(rotated.body).not.toContain(`${beforeSlug}/`);
+      expect(bundlePublisher.latestFor(afterSlug!, "staging")).toBeTruthy();
     });
   });
 });

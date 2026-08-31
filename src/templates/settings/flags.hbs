@@ -126,6 +126,23 @@ await flags.track("my-flag", &#123; entity: USER_ID, goal: "signup" &#125;);</co
           </p>
         </div>
 
+        {{#if bundleUrl}}
+          <!-- Published bundle: a browser SDK can fetch this directly and
+               evaluate locally instead of calling us per request. Public by
+               design — the URL itself is the only access control, hence the
+               rotate action below. -->
+          <div>
+            <label class="block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">Published bundle (local evaluation)</label>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400 mb-2">
+              Pass this as <code>bundleUrl</code> to evaluate flags locally in the browser instead of calling us on every
+              request. It's public — anyone with the URL can read this environment's flag config — so rotate it if it leaks.
+            </p>
+            <div id="flag-bundle-url-panel">
+              {{> flagBundleUrl bundleUrl=bundleUrl serviceId=serviceId}}
+            </div>
+          </div>
+        {{/if}}
+
         <!-- Auth: two different keys, because a browser and a server are not
              the same threat model. Presenting one key for both is how secrets
              end up in JS bundles. -->

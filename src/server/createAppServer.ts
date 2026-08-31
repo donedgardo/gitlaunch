@@ -630,6 +630,8 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
       apiKeyService,
       analytics,
       experimentResults: experimentResultsService,
+      bundlePublisher,
+      bundlePublicBaseUrl: config.features.flagBundles.publicBaseUrl,
     });
 
     // API v1 routes (API key authenticated)

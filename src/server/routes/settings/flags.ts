@@ -14,6 +14,8 @@ import { actor } from "../../../services/analytics/actorIdentity";
 import { ApiKeyService } from "../../../services/apiKey/apiKeyService";
 import { ExperimentResultsService } from "../../../services/flag/experimentResultsService";
 import { toExperimentPanelsView } from "../../../services/analytics/experimentPanelView";
+import { BundlePublisherI } from "../../../services/flag/bundlePublisher";
+import { buildConfigBundle } from "../../../services/flag/configBundle";
 
 export type FlagsSettingsDeps = {
   publicUrl: string;
@@ -23,6 +25,10 @@ export type FlagsSettingsDeps = {
   apiKeyService: ApiKeyService;
   analytics?: AnalyticsService;
   experimentResults?: ExperimentResultsService;
+  // Both absent unless R2 is configured (see loadConfig's features.flagBundles)
+  // — the panel simply doesn't offer a bundle URL when either is missing.
+  bundlePublisher?: BundlePublisherI;
+  bundlePublicBaseUrl?: string;
 };
 
 // Default experiment results window shown in the UI: the last 30 days.
@@ -214,11 +220,46 @@ export function registerFlagsSettingsRoutes(
     apiKeyService,
     analytics,
     experimentResults,
+    bundlePublisher,
+    bundlePublicBaseUrl,
   } = deps;
 
   // Base URL for the copy-paste integration snippets. Empty in dev/tests keeps
   // the endpoint path (with serviceId) intact — the panel is still useful.
   const apiUrl = publicUrl;
+
+  const bundlingEnabled = Boolean(bundlePublisher && bundlePublicBaseUrl);
+
+  function bundleUrlFor(slug: string, envName: string): string {
+    return `${bundlePublicBaseUrl}/flags/${slug}/${envName}.json`;
+  }
+
+  // Publishes the current config directly (bypassing FlagConfigVersionService's
+  // history/dedup — this isn't a config change, so it shouldn't mint a
+  // version), so a service whose flags haven't changed recently — or whose
+  // slug was just rotated — still has working bundles for every environment
+  // the moment someone looks at this page. Best-effort: a failure here must
+  // never break the page that's showing the URL.
+  async function publishBundlesForAllEnvs(
+    accountId: ObjectId,
+    serviceId: ObjectId,
+    slug: string,
+    envNames: string[],
+  ): Promise<void> {
+    if (!bundlePublisher) return;
+    try {
+      const flags = await flagService.listFlags(accountId, serviceId);
+      for (const envName of envNames) {
+        await bundlePublisher.publish(
+          slug,
+          envName,
+          buildConfigBundle(flags, envName),
+        );
+      }
+    } catch {
+      // Best-effort — see comment above.
+    }
+  }
 
   async function loadServiceWithAuth(
     request: FastifyRequest<{ Params: { serviceId: string } }>,
@@ -281,6 +322,14 @@ export function registerFlagsSettingsRoutes(
       const envNames = envNamesOf(service);
       const flags = await flagService.listFlags(accountId, service._id);
       const services = await serviceRepository.findByAccountId(accountId);
+      const evaluateEnv = envNames[0] ?? "prod";
+
+      let bundleUrl: string | null = null;
+      if (bundlingEnabled) {
+        const slug = await serviceRepository.ensureFlagPublishSlug(service._id);
+        await publishBundlesForAllEnvs(accountId, service._id, slug, envNames);
+        bundleUrl = bundleUrlFor(slug, evaluateEnv);
+      }
 
       return reply.view(
         "settings/flags",
@@ -294,7 +343,8 @@ export function registerFlagsSettingsRoutes(
           activeService: service.name,
           // "Connect an app" panel: prefilled evaluate endpoint for this service.
           apiUrl,
-          evaluateEnv: envNames[0] ?? "prod",
+          evaluateEnv,
+          bundleUrl,
         },
         { layout: "/layouts/main.hbs" },
       );
@@ -388,6 +438,13 @@ export function registerFlagsSettingsRoutes(
       actor(accountId, userId),
     );
 
+    let bundleUrl: string | null = null;
+    if (bundlingEnabled) {
+      const slug = await serviceRepository.ensureFlagPublishSlug(service._id);
+      await publishBundlesForAllEnvs(accountId, service._id, slug, envNames);
+      bundleUrl = bundleUrlFor(slug, environment);
+    }
+
     return reply.view(
       "partials/flagKeyResult",
       {
@@ -397,10 +454,43 @@ export function registerFlagsSettingsRoutes(
         apiUrl,
         publishable: true,
         allowedOrigins: origins.join(", "),
+        bundleUrl,
       },
       { layout: "" },
     );
   });
+
+  // POST /services/:serviceId/flags/bundle/rotate — mint a fresh publish slug
+  // (HTMX). The slug is the only access control a public bundle URL has, so
+  // this exists for the same reason key revocation does: something to do
+  // once a URL has leaked. The old URL is orphaned, not deleted — nothing
+  // can construct it anymore since the slug isn't retrievable.
+  app.post<{ Params: { serviceId: string } }>(
+    "/services/:serviceId/flags/bundle/rotate",
+    async (request, reply) => {
+      const result = await loadServiceWithAuth(request, reply);
+      if (!result) return;
+      const { service, accountId, userId } = result;
+      const envNames = envNamesOf(service);
+      const evaluateEnv = envNames[0] ?? "prod";
+
+      const slug = await serviceRepository.rotateFlagPublishSlug(
+        accountId,
+        service._id,
+      );
+      await publishBundlesForAllEnvs(accountId, service._id, slug, envNames);
+      analytics?.track(
+        "flag_bundle_slug_rotated",
+        { serviceId: service._id.toString() },
+        actor(accountId, userId),
+      );
+
+      return reply.view("partials/flagBundleUrl", {
+        serviceId: service._id.toString(),
+        bundleUrl: bundlingEnabled ? bundleUrlFor(slug, evaluateEnv) : null,
+      });
+    },
+  );
 
   // POST /services/:serviceId/flags — create (HTMX → flagList partial)
   app.post<{
