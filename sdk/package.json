@@ -1,6 +1,6 @@
 {
   "name": "@gitlaunch/flags",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "GitLaunch feature flags, gradual rollouts and A/B experiments — client for browsers and Node",
   "license": "MIT",
   "type": "module",
