@@ -1,4 +1,5 @@
 import { Db, ObjectId, Collection, Filter } from "mongodb";
+import { randomBytes } from "node:crypto";
 
 export type Environment = {
   name: string;
@@ -46,6 +47,13 @@ export type Service = {
   // + repoUrl, then sets the deployment in the deploy-setup step).
   deployment: Deployment | null;
   createdAt: Date;
+  // Random, non-guessable identifier used as the public object key for this
+  // service's published flag bundles (see BundlePublisherI) instead of the
+  // real _id, which is already visible in dashboard URLs and would otherwise
+  // make every customer's flag config (rollout %, unreleased keys, targeting
+  // rules) enumerable with no key at all. Absent until a bundle is first
+  // published; rotatable if it leaks.
+  flagPublishSlug?: string | null;
 };
 
 export type CreateServiceInput = {
@@ -337,6 +345,48 @@ export class ServiceRepository {
       { returnDocument: "after" },
     );
     return this.normalize(result);
+  }
+
+  private generateFlagPublishSlug(): string {
+    return randomBytes(16).toString("base64url");
+  }
+
+  // Returns the service's current flag-publish slug, minting one on first use.
+  // A conditional "set if unset" update means two concurrent flag writes can
+  // race this and still converge on a single slug: the loser's $setOnInsert
+  // is a no-op against Mongo, and re-reading afterward returns whatever won.
+  async ensureFlagPublishSlug(id: ObjectId): Promise<string> {
+    const existing = await this.collection.findOne(
+      { _id: id },
+      { projection: { flagPublishSlug: 1 } },
+    );
+    if (existing?.flagPublishSlug) {
+      return existing.flagPublishSlug;
+    }
+
+    await this.collection.updateOne(
+      { _id: id, flagPublishSlug: { $in: [null, undefined] } },
+      { $set: { flagPublishSlug: this.generateFlagPublishSlug() } },
+    );
+    const current = await this.collection.findOne(
+      { _id: id },
+      { projection: { flagPublishSlug: 1 } },
+    );
+    return current!.flagPublishSlug!;
+  }
+
+  // Mints a brand new slug, orphaning the old one (its bundle URL simply stops
+  // resolving to anything readable — nothing needs active deletion).
+  async rotateFlagPublishSlug(
+    accountId: ObjectId,
+    id: ObjectId,
+  ): Promise<string> {
+    const slug = this.generateFlagPublishSlug();
+    await this.collection.updateOne(
+      { _id: id, accountId },
+      { $set: { flagPublishSlug: slug } },
+    );
+    return slug;
   }
 
   async delete(id: ObjectId): Promise<boolean> {
