@@ -1,10 +1,12 @@
 import { ObjectId } from "mongodb";
 import { FlagRepository } from "../../repositories/flagRepository";
+import { ServiceRepository } from "../../repositories/serviceRepository";
 import {
   FlagConfigVersion,
   FlagConfigVersionRepository,
 } from "../../repositories/flagConfigVersionRepository";
 import { buildConfigBundle, hashConfigBundle } from "./configBundle";
+import { BundlePublisherI, NoopBundlePublisher } from "./bundlePublisher";
 
 // Owns the immutable version history of each service+environment's flag config.
 // Under the "auto-publish latest" model the runtime always serves current
@@ -22,6 +24,12 @@ export class FlagConfigVersionService implements FlagConfigVersionPublisherI {
   constructor(
     private flagRepo: FlagRepository,
     private versionRepo: FlagConfigVersionRepository,
+    // Optional: resolving a publish slug (and therefore publishing a bundle
+    // anywhere a browser SDK can fetch it) only happens when both a service
+    // repo and a bundle publisher are available. Omitting either preserves
+    // the original version-history-only behavior exactly.
+    private serviceRepo?: ServiceRepository,
+    private bundlePublisher: BundlePublisherI = new NoopBundlePublisher(),
   ) {}
 
   // Snapshot the current flags for one environment and append a new immutable
@@ -49,7 +57,7 @@ export class FlagConfigVersionService implements FlagConfigVersionPublisherI {
       return latest;
     }
 
-    return this.versionRepo.insert({
+    const inserted = await this.versionRepo.insert({
       accountId,
       serviceId,
       environment: envName,
@@ -57,6 +65,19 @@ export class FlagConfigVersionService implements FlagConfigVersionPublisherI {
       hash,
       bundle,
     });
+
+    if (this.serviceRepo) {
+      try {
+        const slug = await this.serviceRepo.ensureFlagPublishSlug(serviceId);
+        await this.bundlePublisher.publish(slug, envName, bundle);
+      } catch {
+        // Best-effort, same contract as the version write itself: a missed
+        // publish is recoverable — the SDK falls back to HTTP, and the next
+        // flag write republishes current state anyway.
+      }
+    }
+
+    return inserted;
   }
 
   async listVersions(

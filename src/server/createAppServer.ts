@@ -232,6 +232,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
   const flagConfigVersionService = new FlagConfigVersionService(
     flagRepository,
     flagConfigVersionRepository,
+    serviceRepository,
   );
 
   // Services
