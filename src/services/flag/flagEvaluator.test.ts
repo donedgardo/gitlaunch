@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { evaluateFlag } from "./flagEvaluator";
+import { evaluateFlag, FlagAttributes } from "./flagEvaluator";
 import type { FlagEnvironmentConfig } from "../../repositories/flagRepository";
+import goldenVectors from "./evaluation.golden.json";
 
 const off: FlagEnvironmentConfig = {
   enabled: false,
@@ -312,5 +313,22 @@ describe("flagEvaluator", () => {
       const result = evaluateFlag(cfg, "f", "u", { country: "US" });
       expect(result.reason).toBe("rollout");
     });
+  });
+
+  // Shared with sdk/src/localEvaluator.test.ts — the SDK vendors this same
+  // logic (it can't import server-only code), so both suites running against
+  // one fixture is what stops the two copies from silently desyncing.
+  describe("golden vectors (shared with the SDK's vendored evaluator)", () => {
+    for (const vector of goldenVectors) {
+      it(vector.name, () => {
+        const result = evaluateFlag(
+          vector.cfg as FlagEnvironmentConfig,
+          vector.key,
+          vector.entityKey,
+          vector.attributes as FlagAttributes,
+        );
+        expect(result).toEqual(vector.expected);
+      });
+    }
   });
 });
