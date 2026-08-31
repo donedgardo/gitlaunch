@@ -123,12 +123,19 @@ export function registerOnboardingRoutes(
           new ObjectId(request.session.userId),
         );
         if (user) {
-          // Per-person trial dedup key. GitHub users keep their historical
-          // github:<id> key; Google/email users dedup on their user id.
+          // Per-person trial dedup key. GitHub keeps its historical
+          // github:<id> key. Everyone else dedups on their verified email
+          // rather than their user document's id: Google sign-in doesn't
+          // check for an existing password (or Google) account with the same
+          // address before creating a new user, so the same person signing up
+          // twice through two different methods gets two different ids but
+          // the same email — keying on the id would hand them a second trial.
           const subject =
             user.githubId != null
               ? `github:${user.githubId}`
-              : `user:${user._id.toHexString()}`;
+              : user.email
+                ? `email:${user.email.toLowerCase()}`
+                : `user:${user._id.toHexString()}`;
           const trialResult = await trialService.startTrial(
             account._id,
             subject,
