@@ -33,6 +33,12 @@ describe("registerErrorReporting", () => {
     server.get("/missing-service", async (_request, reply) =>
       reply.status(404).send({ error: "not found" }),
     );
+    server.post("/login", async () => ({ ok: true }));
+    server.get("/forbidden-path", async () => {
+      // Same shape as the error @fastify/static throws for a path-traversal
+      // attempt on a forbidden file (e.g. `/public/..%2f.git/config`).
+      throw Object.assign(new Error("Forbidden"), { statusCode: 403 });
+    });
     await server.ready();
   });
 
@@ -67,6 +73,42 @@ describe("registerErrorReporting", () => {
     });
 
     expect(response.statusCode).toBe(404);
+    expect(reporter.captured).toHaveLength(0);
+  });
+
+  it("should not report an empty JSON body as an application error", async () => {
+    // Fastify's default JSON parser turns this into a 400 FastifyError —
+    // handled correctly, not a bug in our code.
+    const response = await server.inject({
+      method: "POST",
+      url: "/login",
+      headers: { "content-type": "application/json" },
+      payload: "",
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(reporter.captured).toHaveLength(0);
+  });
+
+  it("should not report a forbidden path request as an application error", async () => {
+    const response = await server.inject({
+      method: "GET",
+      url: "/forbidden-path",
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(reporter.captured).toHaveLength(0);
+  });
+
+  it("should not report malformed JSON (e.g. an unescaped control character) as an application error", async () => {
+    const response = await server.inject({
+      method: "POST",
+      url: "/login",
+      headers: { "content-type": "application/json" },
+      payload: '{"note":"line one\nline two"}',
+    });
+
+    expect(response.statusCode).toBe(400);
     expect(reporter.captured).toHaveLength(0);
   });
 });
