@@ -16,6 +16,7 @@ import {
   SignupGate,
   emailSignupEntityKey,
 } from "../../../services/account/signupGate";
+import { evaluateSubmission } from "../../../services/marketing/botDetection";
 import { sessionCookieOptions } from "../../cookies";
 
 export type EmailPasswordAuthRoutesConfig = {
@@ -42,6 +43,20 @@ const LAYOUT = { layout: "/layouts/main.hbs" };
 const MIN_PASSWORD_LENGTH = 8;
 const VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Stricter than the app-wide default: these three routes are exactly what a
+// credential-stuffing or signup-farming script would hit directly, and
+// resend-verification fires a real (billed) email per request.
+const AUTH_RATE_LIMIT = {
+  config: { rateLimit: { max: 5, timeWindow: 60_000 } },
+};
+
+// Same floor as the waitlist form (botDetection.ts): the honeypot and submit
+// timing are the two signals a script can't fake without also faking a
+// browser. Password signup is the one account-creation door with no external
+// identity check (GitHub/Google at least cost an attacker a real provider
+// account), so it's the one worth raising the bar on.
+const SIGNUP_MIN_ELAPSED_MS = 2500;
 
 function setSessionCookie(
   reply: FastifyReply,
@@ -130,15 +145,44 @@ export function registerEmailPasswordAuthRoutes(
   // POST /auth/signup - create an unverified password user + send confirmation
   app.post(
     "/auth/signup",
+    AUTH_RATE_LIMIT,
     async (
       request: FastifyRequest<{
-        Body: { name?: string; email?: string; password?: string };
+        Body: {
+          name?: string;
+          email?: string;
+          password?: string;
+          // Honeypot: named to look worth filling to a bot, hidden from humans.
+          company_website?: string;
+          elapsedMs?: string;
+        };
       }>,
       reply: FastifyReply,
     ) => {
       const name = request.body.name?.trim() || null;
       const email = request.body.email?.trim().toLowerCase() ?? "";
       const password = request.body.password ?? "";
+
+      const elapsedRaw = request.body.elapsedMs;
+      const elapsedNum =
+        elapsedRaw !== undefined && elapsedRaw !== ""
+          ? Number(elapsedRaw)
+          : NaN;
+      const verdict = evaluateSubmission(
+        {
+          email,
+          honeypot: request.body.company_website,
+          elapsedMs: Number.isFinite(elapsedNum) ? elapsedNum : undefined,
+        },
+        { minElapsedMs: SIGNUP_MIN_ELAPSED_MS },
+      );
+      // A malformed email still gets the real, helpful error below — only a
+      // bot signal (honeypot / too fast) gets the silent treatment, same as
+      // the waitlist: showing the ordinary success page gives a script no
+      // indication it was caught.
+      if (!verdict.human && verdict.reason !== "invalid_email") {
+        return reply.view("check-email.hbs", { email }, LAYOUT);
+      }
 
       if (!EMAIL_RE.test(email)) {
         return reply.redirect("/signup?error=invalid_email");
@@ -251,6 +295,7 @@ export function registerEmailPasswordAuthRoutes(
   // POST /auth/login - email + password login
   app.post(
     "/auth/login",
+    AUTH_RATE_LIMIT,
     async (
       request: FastifyRequest<{
         Body: { email?: string; password?: string };
@@ -307,6 +352,7 @@ export function registerEmailPasswordAuthRoutes(
   // POST /auth/resend-verification - re-send the confirmation email
   app.post(
     "/auth/resend-verification",
+    AUTH_RATE_LIMIT,
     async (
       request: FastifyRequest<{ Body: { email?: string } }>,
       reply: FastifyReply,

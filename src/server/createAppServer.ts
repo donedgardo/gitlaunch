@@ -3,6 +3,7 @@ import { Db, ObjectId } from "mongodb";
 import EventEmitter from "node:events";
 
 import { registerPlugins } from "./registerPlugins";
+import { registerRateLimit } from "./registerRateLimit";
 import { registerErrorReporting } from "./registerErrorReporting";
 import { registerErrorSanitizer } from "./registerErrorSanitizer";
 import { resolveEnvironmentName } from "../services/config/environmentName";
@@ -115,6 +116,11 @@ import { registerDocsRoutes } from "./routes/docs";
 // Submissions faster than this are treated as bots. See botDetection.ts.
 const WAITLIST_MIN_ELAPSED_MS = 2500;
 
+// Applies to every route unless it opts into a stricter limit of its own (see
+// the auth and waitlist routes). Generous enough not to bother a real user,
+// tight enough to blunt scripted brute-force and cost abuse against one IP.
+const GLOBAL_RATE_LIMIT = { max: 300, timeWindowMs: 60_000 };
+
 // Parse an env-provided id into an ObjectId, or undefined when unset/invalid so
 // downstream features degrade gracefully instead of throwing at boot.
 function toObjectId(value: string | undefined): ObjectId | undefined {
@@ -192,10 +198,17 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
       process.env.NODE_ENV === "test"
         ? false
         : { level: process.env.LOG_LEVEL ?? "info" },
+    // Railway (and any PaaS) terminates TLS and proxies every request, so
+    // request.socket.remoteAddress is always the proxy's own address. Without
+    // this, request.ip — what rate limiting and session/security logging key
+    // on — resolves to that one proxy IP for all traffic, collapsing
+    // per-client limits into a single shared bucket for everyone.
+    trustProxy: true,
   });
   registerPlugins(server, config.cookieSecret, {
     posthog: config.features.analytics.posthog,
   });
+  registerRateLimit(server, GLOBAL_RATE_LIMIT);
   registerErrorReporting(server, errorReporter, analytics);
   // After error reporting: the onError hook above still sees the real error,
   // this only decides what the caller is told.
@@ -277,377 +290,396 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     flagConfigVersionService,
   );
 
-  // Webhook handler and route
-  if (webhookEventRepo) {
-    const webhookHandler = new StripeWebhookHandler(accountRepository);
-    registerStripeWebhookRoute(server, {
-      webhookHandler,
-      webhookSecret: config.features.billing.webhookSecret ?? "",
-      webhookEventRepo,
+  // Everything below registers a route. It's wrapped in server.after() so it
+  // only runs once every plugin registered above — rate-limit included — has
+  // finished loading: @fastify/rate-limit wires itself up via an onRoute hook,
+  // which must already be attached by the time a route is defined, or that
+  // route silently gets no rate limiting at all. Plugins loaded via
+  // fastify.register() are normally deferred until the real boot (.ready()/
+  // .listen()) regardless of whether the call site awaits them, so without this
+  // every route defined in the rest of this function — all of them, since this
+  // function runs synchronously start to finish — would miss the hook.
+  server.after(() => {
+    registerRoutes();
+  });
+
+  function registerRoutes(): void {
+    // Webhook handler and route
+    if (webhookEventRepo) {
+      const webhookHandler = new StripeWebhookHandler(accountRepository);
+      registerStripeWebhookRoute(server, {
+        webhookHandler,
+        webhookSecret: config.features.billing.webhookSecret ?? "",
+        webhookEventRepo,
+        analytics,
+      });
+    }
+
+    // Session middleware (must be before routes that need request.session)
+    registerSessionMiddleware(server, {
+      sessionService,
+      cookieSecure: config.cookies.secure,
+    });
+
+    // Billing services and routes. Never registered on a self-hosted install:
+    // entitlement there comes from the license, so a checkout flow would be both
+    // meaningless and a way to grant plan limits we did not sell.
+    const stripeSecretKey =
+      instanceMode.kind === "saas" && config.features.billing.enabled
+        ? config.features.billing.secretKey
+        : undefined;
+    if (stripeSecretKey) {
+      const stripeApiClient = new StripeApiClient(stripeSecretKey);
+      const stripeService = new StripeService(stripeApiClient, {
+        proPriceId: config.features.billing.proPriceId ?? "",
+        teamPriceId: config.features.billing.teamPriceId ?? "",
+        successUrl: config.features.billing.successUrl,
+        cancelUrl: config.features.billing.cancelUrl,
+      });
+
+      registerBillingRoutes(server, {
+        publicUrl: config.publicUrl,
+        stripeService,
+        planEnforcementService,
+        accountRepo: accountRepository,
+        userRepo: userRepository,
+        serviceRepo: serviceRepository,
+        analytics,
+      });
+    }
+
+    // API key management routes
+    registerApiKeyRoutes(server, {
+      apiKeyService,
+      serviceRepository,
       analytics,
     });
-  }
-
-  // Session middleware (must be before routes that need request.session)
-  registerSessionMiddleware(server, {
-    sessionService,
-    cookieSecure: config.cookies.secure,
-  });
-
-  // Billing services and routes. Never registered on a self-hosted install:
-  // entitlement there comes from the license, so a checkout flow would be both
-  // meaningless and a way to grant plan limits we did not sell.
-  const stripeSecretKey =
-    instanceMode.kind === "saas" && config.features.billing.enabled
-      ? config.features.billing.secretKey
-      : undefined;
-  if (stripeSecretKey) {
-    const stripeApiClient = new StripeApiClient(stripeSecretKey);
-    const stripeService = new StripeService(stripeApiClient, {
-      proPriceId: config.features.billing.proPriceId ?? "",
-      teamPriceId: config.features.billing.teamPriceId ?? "",
-      successUrl: config.features.billing.successUrl,
-      cancelUrl: config.features.billing.cancelUrl,
+    registerJenkinsSettingsRoutes(server, { jenkinsConnectionService });
+    registerGithubSettingsRoutes(server, {
+      githubConnectionService,
+      github: config.github,
     });
 
-    registerBillingRoutes(server, {
+    // Team: shareable-link invites into a shared workspace
+    const accountMembershipService = new AccountMembershipService(
+      membershipRepository,
+      accountRepository,
+      userRepository,
+    );
+    const teamManagementService = new TeamManagementService(
+      membershipRepository,
+      invitationRepository,
+    );
+    registerTeamRoutes(server, {
       publicUrl: config.publicUrl,
-      stripeService,
-      planEnforcementService,
-      accountRepo: accountRepository,
-      userRepo: userRepository,
-      serviceRepo: serviceRepository,
+      teamManagementService,
+      accountMembershipService,
+      invitationRepository,
       analytics,
     });
-  }
-
-  // API key management routes
-  registerApiKeyRoutes(server, { apiKeyService, serviceRepository, analytics });
-  registerJenkinsSettingsRoutes(server, { jenkinsConnectionService });
-  registerGithubSettingsRoutes(server, {
-    githubConnectionService,
-    github: config.github,
-  });
-
-  // Team: shareable-link invites into a shared workspace
-  const accountMembershipService = new AccountMembershipService(
-    membershipRepository,
-    accountRepository,
-    userRepository,
-  );
-  const teamManagementService = new TeamManagementService(
-    membershipRepository,
-    invitationRepository,
-  );
-  registerTeamRoutes(server, {
-    publicUrl: config.publicUrl,
-    teamManagementService,
-    accountMembershipService,
-    invitationRepository,
-    analytics,
-  });
-  registerInviteRoutes(server, {
-    cookieSecure: config.cookies.secure,
-    publicUrl: config.publicUrl,
-    invitationRepository,
-    membershipRepository,
-    accountRepository,
-    sessionService,
-    analytics,
-  });
-
-  // Setup wizard routes
-  registerSetupRoutes(server, {
-    publicUrl: config.publicUrl,
-    buildSimulationEnabled: config.features.buildSimulation.enabled,
-    serviceRepo: serviceRepository,
-    buildRepo: buildRepository,
-    analytics,
-  });
-
-  // GitLaunch's own service within its own platform: the service its
-  // self-hosted feature flags live under. GitLaunch is effectively a customer
-  // of its own flag service, so any internal feature that dogfoods flags (today:
-  // the waitlist landing A/B test) shares this scope and differs only by flag
-  // key. The owning account is derived from the service (a service belongs to
-  // one account), so no account id is configured. Absent service => flags inert.
-  // The environment label is the instance-wide one (GITLAUNCH_ENV, or the older
-  // GITLAUNCH_FLAG_ENV), not a flags-only setting — the same label names this
-  // instance in error reports. Unlabelled instances keep reading "prod", which
-  // is what this scope has always defaulted to.
-  const selfFlagContext = {
-    serviceId: config.features.selfFlags.enabled
-      ? toObjectId(config.features.selfFlags.serviceId)
-      : undefined,
-    environment: resolveEnvironmentName(process.env, "prod"),
-  };
-
-  // Every self-flag fails open, so a missing or malformed GITLAUNCH_SERVICE_ID
-  // silently disables the signup gate and the landing A/B test — you create the
-  // flag, flip it, and nothing happens, with nothing to see. Say so at boot.
-  const selfFlagStatus = describeSelfFlagStatus(
-    config.features.selfFlags.enabled
-      ? config.features.selfFlags.serviceId
-      : undefined,
-    selfFlagContext.environment,
-  );
-  if (selfFlagStatus.live) {
-    console.log(selfFlagStatus.message);
-  } else {
-    console.warn(selfFlagStatus.message);
-  }
-
-  // Dogfood our own feature flags to control our own front door: whether a
-  // brand-new visitor may create an account (kill switch / gradual alpha
-  // opening / allow-lists, all from the flags page). Fails open.
-  const signupGate = new SignupGate(
-    flagService,
-    serviceRepository,
-    analytics,
-    selfFlagContext,
-  );
-
-  // Marketing: waitlist capture (bot-filtered, campaign-attributed). The same
-  // service that scopes our own flags also names the account these events
-  // belong to — without it they land in the warehouse untenanted and every
-  // account-scoped query on /dashboard/analytics skips them.
-  const waitlistService = new WaitlistService(
-    leadRepository,
-    analytics,
-    { minElapsedMs: WAITLIST_MIN_ELAPSED_MS },
-    new SelfFlagAccount(serviceRepository, selfFlagContext),
-    InternalTraffic.fromEnv(),
-  );
-
-  // Marketing: dogfood our own feature flags to A/B test the landing-page copy.
-  const waitlistExperiment = new WaitlistExperiment(
-    flagService,
-    serviceRepository,
-    analytics,
-    selfFlagContext,
-  );
-
-  // Routes
-  server.register(healthRoute(mongoClient));
-  server.register(
-    homeRoute({
-      experiment: waitlistExperiment,
-      signupDoor: signupGate,
+    registerInviteRoutes(server, {
+      cookieSecure: config.cookies.secure,
       publicUrl: config.publicUrl,
-    }),
-  );
-  registerWaitlistRoutes(server, {
-    waitlistService,
-    experiment: waitlistExperiment,
-  });
-  // Public and unauthenticated by design — see the note in the module. Both the
-  // landing-page footer and the review bots at GitHub, Stripe and Google need
-  // these to resolve without a session.
-  registerLegalRoutes(server, { publicUrl: config.publicUrl });
-  // Same reasoning: the integration contract is readable without an account.
-  registerDocsRoutes(server, { publicUrl: config.publicUrl });
-  server.register(
-    dashboardRoutes({
+      invitationRepository,
+      membershipRepository,
+      accountRepository,
+      sessionService,
+      analytics,
+    });
+
+    // Setup wizard routes
+    registerSetupRoutes(server, {
       publicUrl: config.publicUrl,
       buildSimulationEnabled: config.features.buildSimulation.enabled,
-      serviceRepository,
-      buildRepository,
-      repositoryRepository,
-      accountRepository,
-      buildService,
-      trialService,
-      planEnforcementService,
+      serviceRepo: serviceRepository,
+      buildRepo: buildRepository,
       analytics,
+    });
+
+    // GitLaunch's own service within its own platform: the service its
+    // self-hosted feature flags live under. GitLaunch is effectively a customer
+    // of its own flag service, so any internal feature that dogfoods flags (today:
+    // the waitlist landing A/B test) shares this scope and differs only by flag
+    // key. The owning account is derived from the service (a service belongs to
+    // one account), so no account id is configured. Absent service => flags inert.
+    // The environment label is the instance-wide one (GITLAUNCH_ENV, or the older
+    // GITLAUNCH_FLAG_ENV), not a flags-only setting — the same label names this
+    // instance in error reports. Unlabelled instances keep reading "prod", which
+    // is what this scope has always defaulted to.
+    const selfFlagContext = {
+      serviceId: config.features.selfFlags.enabled
+        ? toObjectId(config.features.selfFlags.serviceId)
+        : undefined,
+      environment: resolveEnvironmentName(process.env, "prod"),
+    };
+
+    // Every self-flag fails open, so a missing or malformed GITLAUNCH_SERVICE_ID
+    // silently disables the signup gate and the landing A/B test — you create the
+    // flag, flip it, and nothing happens, with nothing to see. Say so at boot.
+    const selfFlagStatus = describeSelfFlagStatus(
+      config.features.selfFlags.enabled
+        ? config.features.selfFlags.serviceId
+        : undefined,
+      selfFlagContext.environment,
+    );
+    if (selfFlagStatus.live) {
+      console.log(selfFlagStatus.message);
+    } else {
+      console.warn(selfFlagStatus.message);
+    }
+
+    // Dogfood our own feature flags to control our own front door: whether a
+    // brand-new visitor may create an account (kill switch / gradual alpha
+    // opening / allow-lists, all from the flags page). Fails open.
+    const signupGate = new SignupGate(
       flagService,
-    }),
-  );
-  server.register(
-    analyticsRoutes({
-      analyticsQueryService,
-      accountRepository,
       serviceRepository,
-    }),
-  );
-  server.register(
-    buildRoutes({
-      eventEmitter,
+      analytics,
+      selfFlagContext,
+    );
+
+    // Marketing: waitlist capture (bot-filtered, campaign-attributed). The same
+    // service that scopes our own flags also names the account these events
+    // belong to — without it they land in the warehouse untenanted and every
+    // account-scoped query on /dashboard/analytics skips them.
+    const waitlistService = new WaitlistService(
+      leadRepository,
+      analytics,
+      { minElapsedMs: WAITLIST_MIN_ELAPSED_MS },
+      new SelfFlagAccount(serviceRepository, selfFlagContext),
+      InternalTraffic.fromEnv(),
+    );
+
+    // Marketing: dogfood our own feature flags to A/B test the landing-page copy.
+    const waitlistExperiment = new WaitlistExperiment(
+      flagService,
       serviceRepository,
-    }),
-  );
+      analytics,
+      selfFlagContext,
+    );
 
-  // GitHub OAuth routes
-  registerGitHubAuthRoutes(server, {
-    cookieSecure: config.cookies.secure,
-    useFakeGitHub: config.github.useFakes,
-    oauthService: githubOAuthService,
-    sessionService,
-    userRepository,
-    accountRepository,
-    membershipRepository,
-    // The invitation feature is commercial, so the login flow gets a hook
-    // rather than the repository. An open-core build supplies nothing here.
-    redeemPendingInvite: async (token, userId) => {
-      const accepted = await acceptInvitation(
-        invitationRepository,
-        membershipRepository,
-        token,
-        userId,
-      );
-      return accepted.ok
-        ? { joined: true, accountId: accepted.accountId }
-        : { joined: false };
-    },
-    signupGate,
-    analytics,
-    maxAccounts,
-  });
+    // Routes
+    server.register(healthRoute(mongoClient));
+    server.register(
+      homeRoute({
+        experiment: waitlistExperiment,
+        signupDoor: signupGate,
+        publicUrl: config.publicUrl,
+      }),
+    );
+    registerWaitlistRoutes(server, {
+      waitlistService,
+      experiment: waitlistExperiment,
+    });
+    // Public and unauthenticated by design — see the note in the module. Both the
+    // landing-page footer and the review bots at GitHub, Stripe and Google need
+    // these to resolve without a session.
+    registerLegalRoutes(server, { publicUrl: config.publicUrl });
+    // Same reasoning: the integration contract is readable without an account.
+    registerDocsRoutes(server, { publicUrl: config.publicUrl });
+    server.register(
+      dashboardRoutes({
+        publicUrl: config.publicUrl,
+        buildSimulationEnabled: config.features.buildSimulation.enabled,
+        serviceRepository,
+        buildRepository,
+        repositoryRepository,
+        accountRepository,
+        buildService,
+        trialService,
+        planEnforcementService,
+        analytics,
+        flagService,
+      }),
+    );
+    server.register(
+      analyticsRoutes({
+        analyticsQueryService,
+        accountRepository,
+        serviceRepository,
+      }),
+    );
+    server.register(
+      buildRoutes({
+        eventEmitter,
+        serviceRepository,
+      }),
+    );
 
-  // Google OAuth routes (only when a Google client is configured)
-  if (googleOAuthService) {
-    registerGoogleAuthRoutes(server, {
+    // GitHub OAuth routes
+    registerGitHubAuthRoutes(server, {
       cookieSecure: config.cookies.secure,
-      useFakeGoogle: config.features.googleAuth.useFakes,
-      oauthService: googleOAuthService,
+      useFakeGitHub: config.github.useFakes,
+      oauthService: githubOAuthService,
       sessionService,
       userRepository,
       accountRepository,
       membershipRepository,
+      // The invitation feature is commercial, so the login flow gets a hook
+      // rather than the repository. An open-core build supplies nothing here.
+      redeemPendingInvite: async (token, userId) => {
+        const accepted = await acceptInvitation(
+          invitationRepository,
+          membershipRepository,
+          token,
+          userId,
+        );
+        return accepted.ok
+          ? { joined: true, accountId: accepted.accountId }
+          : { joined: false };
+      },
       signupGate,
       analytics,
       maxAccounts,
     });
-  }
 
-  // Email/password auth routes (login/signup pages, confirmation flow)
-  registerEmailPasswordAuthRoutes(server, {
-    cookieSecure: config.cookies.secure,
-    sessionService,
-    userRepository,
-    accountRepository,
-    membershipRepository,
-    passwordService,
-    emailSender,
-    publicUrl: config.publicUrl,
-    googleEnabled: !!googleOAuthService,
-    signupGate,
-    analytics,
-    maxAccounts,
-  });
-
-  // GitHub App installation routes
-  registerInstallationRoutes(server, {
-    githubConnectionService,
-    analytics,
-  });
-
-  // Onboarding routes
-  registerOnboardingRoutes(server, {
-    cookieSecure: config.cookies.secure,
-    publicUrl: config.publicUrl,
-    github: config.github,
-    buildSimulationEnabled: config.features.buildSimulation.enabled,
-    accountRepository,
-    repositoryRepository,
-    userRepository,
-    serviceRepository,
-    gitHubAppService,
-    apiKeyService,
-    planEnforcementService,
-    trialService,
-    analytics,
-  });
-
-  // Service management routes
-  registerServiceRoutes(server, {
-    repositoryRepository,
-    serviceRepository,
-    githubAppService: gitHubAppService,
-  });
-
-  // Service settings routes (environments management)
-  registerSettingsRoutes(server, {
-    publicUrl: config.publicUrl,
-    serviceRepository,
-    repositoryRepository,
-    environmentService,
-    planEnforcementService,
-    analytics,
-  });
-
-  // Delivery metrics (the DORA four keys) — its own per-service page
-  registerMetricsRoutes(server, {
-    serviceRepository,
-    doraMetricsService,
-  });
-
-  // Feature flags management UI (per-service)
-  registerFlagsSettingsRoutes(server, {
-    publicUrl: config.publicUrl,
-    serviceRepository,
-    flagService,
-    apiKeyService,
-    analytics,
-    experimentResults: experimentResultsService,
-  });
-
-  // API v1 routes (API key authenticated)
-  server.register(
-    async (apiServer) => {
-      // Add API key auth middleware for all /api/v1 routes
-      const apiKeyAuth = createApiKeyAuthMiddleware(apiKeyService);
-      apiServer.addHook("preHandler", apiKeyAuth);
-
-      // Register builds API routes
-      registerBuildsRoutes(apiServer, {
-        buildService,
-        serviceRepo: serviceRepository,
-        planEnforcementService,
-        analytics,
-      });
-
-      // Register environments API routes
-      registerEnvironmentsRoutes(apiServer, {
-        environmentService,
-        planEnforcementService,
-      });
-
-      // Register DORA metrics API routes (the four keys, per environment)
-      registerDoraRoutes(apiServer, {
-        doraMetricsService,
-        serviceRepo: serviceRepository,
-      });
-
-      // Canonical CI/CD snippets, so an onboarding agent generates the same
-      // workflows the dashboard shows.
-      registerSetupSnippetsRoutes(apiServer, {
-        serviceRepository,
-        repositoryRepository,
-        apiUrl: config.publicUrl,
-      });
-
-      // Lets an onboarding agent bind the deploy provider itself, so only the
-      // GitHub App install still needs a browser.
-      registerDeploymentRoutes(apiServer, {
-        serviceRepository,
-        repositoryRepository,
+    // Google OAuth routes (only when a Google client is configured)
+    if (googleOAuthService) {
+      registerGoogleAuthRoutes(server, {
+        cookieSecure: config.cookies.secure,
+        useFakeGoogle: config.features.googleAuth.useFakes,
+        oauthService: googleOAuthService,
+        sessionService,
+        userRepository,
         accountRepository,
-        planEnforcementService,
-        gitHubAppService,
+        membershipRepository,
+        signupGate,
         analytics,
+        maxAccounts,
       });
+    }
 
-      // Register feature flags API routes (CRUD + evaluation)
-      registerFlagsRoutes(apiServer, {
-        flagService,
-        serviceRepo: serviceRepository,
-        planEnforcementService,
-        analytics,
-        experimentResults: experimentResultsService,
-        configVersions: flagConfigVersionService,
-      });
-    },
-    { prefix: "" }, // Routes already have /api/v1 prefix
-  );
+    // Email/password auth routes (login/signup pages, confirmation flow)
+    registerEmailPasswordAuthRoutes(server, {
+      cookieSecure: config.cookies.secure,
+      sessionService,
+      userRepository,
+      accountRepository,
+      membershipRepository,
+      passwordService,
+      emailSender,
+      publicUrl: config.publicUrl,
+      googleEnabled: !!googleOAuthService,
+      signupGate,
+      analytics,
+      maxAccounts,
+    });
+
+    // GitHub App installation routes
+    registerInstallationRoutes(server, {
+      githubConnectionService,
+      analytics,
+    });
+
+    // Onboarding routes
+    registerOnboardingRoutes(server, {
+      cookieSecure: config.cookies.secure,
+      publicUrl: config.publicUrl,
+      github: config.github,
+      buildSimulationEnabled: config.features.buildSimulation.enabled,
+      accountRepository,
+      repositoryRepository,
+      userRepository,
+      serviceRepository,
+      gitHubAppService,
+      apiKeyService,
+      planEnforcementService,
+      trialService,
+      analytics,
+    });
+
+    // Service management routes
+    registerServiceRoutes(server, {
+      repositoryRepository,
+      serviceRepository,
+      githubAppService: gitHubAppService,
+    });
+
+    // Service settings routes (environments management)
+    registerSettingsRoutes(server, {
+      publicUrl: config.publicUrl,
+      serviceRepository,
+      repositoryRepository,
+      environmentService,
+      planEnforcementService,
+      analytics,
+    });
+
+    // Delivery metrics (the DORA four keys) — its own per-service page
+    registerMetricsRoutes(server, {
+      serviceRepository,
+      doraMetricsService,
+    });
+
+    // Feature flags management UI (per-service)
+    registerFlagsSettingsRoutes(server, {
+      publicUrl: config.publicUrl,
+      serviceRepository,
+      flagService,
+      apiKeyService,
+      analytics,
+      experimentResults: experimentResultsService,
+    });
+
+    // API v1 routes (API key authenticated)
+    server.register(
+      async (apiServer) => {
+        // Add API key auth middleware for all /api/v1 routes
+        const apiKeyAuth = createApiKeyAuthMiddleware(apiKeyService);
+        apiServer.addHook("preHandler", apiKeyAuth);
+
+        // Register builds API routes
+        registerBuildsRoutes(apiServer, {
+          buildService,
+          serviceRepo: serviceRepository,
+          planEnforcementService,
+          analytics,
+        });
+
+        // Register environments API routes
+        registerEnvironmentsRoutes(apiServer, {
+          environmentService,
+          planEnforcementService,
+        });
+
+        // Register DORA metrics API routes (the four keys, per environment)
+        registerDoraRoutes(apiServer, {
+          doraMetricsService,
+          serviceRepo: serviceRepository,
+        });
+
+        // Canonical CI/CD snippets, so an onboarding agent generates the same
+        // workflows the dashboard shows.
+        registerSetupSnippetsRoutes(apiServer, {
+          serviceRepository,
+          repositoryRepository,
+          apiUrl: config.publicUrl,
+        });
+
+        // Lets an onboarding agent bind the deploy provider itself, so only the
+        // GitHub App install still needs a browser.
+        registerDeploymentRoutes(apiServer, {
+          serviceRepository,
+          repositoryRepository,
+          accountRepository,
+          planEnforcementService,
+          gitHubAppService,
+          analytics,
+        });
+
+        // Register feature flags API routes (CRUD + evaluation)
+        registerFlagsRoutes(apiServer, {
+          flagService,
+          serviceRepo: serviceRepository,
+          planEnforcementService,
+          analytics,
+          experimentResults: experimentResultsService,
+          configVersions: flagConfigVersionService,
+        });
+      },
+      { prefix: "" }, // Routes already have /api/v1 prefix
+    );
+  }
 
   return server;
 }

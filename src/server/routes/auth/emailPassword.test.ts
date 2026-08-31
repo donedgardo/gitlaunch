@@ -3,6 +3,7 @@ import Fastify, { FastifyInstance } from "fastify";
 import cookie from "@fastify/cookie";
 import formbody from "@fastify/formbody";
 import fastifyView from "@fastify/view";
+import { registerRateLimit } from "../../registerRateLimit";
 import * as handlebars from "handlebars";
 import path from "node:path";
 import { registerEmailPasswordAuthRoutes } from "./emailPassword";
@@ -149,6 +150,33 @@ describe("Email/Password Auth Routes", () => {
       });
       expect(response.headers.location).toBe("/signup?error=email_taken");
     });
+
+    it("should silently drop a honeypot-filled submission without creating an account", async () => {
+      const response = await signup({
+        email: "bot@example.com",
+        password: "longenough1",
+        company_website: "http://spam.example",
+      });
+
+      // Same success page a real signup gets — no tell that it was caught.
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain("Check your email");
+      expect(await userRepository.findByEmail("bot@example.com")).toBeNull();
+      expect(emailSender.sent).toHaveLength(0);
+    });
+
+    it("should silently drop a submission that arrives faster than a human can fill the form", async () => {
+      const response = await signup({
+        email: "fast@example.com",
+        password: "longenough1",
+        elapsedMs: "10",
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain("Check your email");
+      expect(await userRepository.findByEmail("fast@example.com")).toBeNull();
+      expect(emailSender.sent).toHaveLength(0);
+    });
   });
 
   describe("email confirmation gate", () => {
@@ -251,6 +279,55 @@ describe("Email/Password Auth Routes", () => {
       expect(response.statusCode).toBe(200);
       expect(response.body).toContain("Check your email");
       expect(emailSender.sent).toHaveLength(2);
+    });
+  });
+
+  describe("rate limiting", () => {
+    let limited: FastifyInstance;
+
+    afterEach(async () => {
+      await limited.close();
+    });
+
+    it("should reject repeated login attempts from the same client past the auth limit", async () => {
+      limited = Fastify();
+      registerRateLimit(limited, { max: 1000, timeWindowMs: 60_000 });
+      limited.register(cookie, { secret: "cookie-secret" });
+      limited.register(formbody);
+      limited.register(fastifyView, {
+        engine: { handlebars },
+        root: path.join(__dirname, "../../../templates"),
+        options: { compileOptions: { preventIndent: true } },
+      });
+      limited.after(() => {
+        registerEmailPasswordAuthRoutes(limited, {
+          cookieSecure: false,
+          sessionService: new SessionService("test-secret"),
+          userRepository,
+          accountRepository: new AccountRepository(db),
+          membershipRepository: new MembershipRepository(db),
+          passwordService: new PasswordService(4),
+          emailSender,
+          publicUrl: "http://localhost:3050",
+          googleEnabled: true,
+        });
+      });
+      await limited.ready();
+
+      const attempt = () =>
+        limited.inject({
+          method: "POST",
+          url: "/auth/login",
+          payload: { email: "nobody@example.com", password: "whatever12" },
+        });
+
+      const responses = [];
+      for (let i = 0; i < 6; i++) responses.push(await attempt());
+
+      expect(responses.slice(0, 5).every((r) => r.statusCode === 302)).toBe(
+        true,
+      );
+      expect(responses[5].statusCode).toBe(429);
     });
   });
 

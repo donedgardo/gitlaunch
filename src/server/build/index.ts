@@ -47,8 +47,17 @@ function createEventQueue(
   };
 }
 
+// A single account left open across many tabs/devices is normal; an unbounded
+// number is either a bug on the client or someone flooding the server with
+// long-lived connections. Chosen generously above real multi-tab usage.
+const MAX_STREAM_CONNECTIONS_PER_ACCOUNT = 10;
+
 export default function (deps: BuildRoutesDeps) {
   const { eventEmitter, serviceRepository } = deps;
+  // Per-account open-connection count for build-update-stream. Scoped to this
+  // route registration (one per running server), not global, so it can't leak
+  // across independently constructed servers in tests.
+  const openStreamsByAccount = new Map<string, number>();
 
   return function (server: FastifyInstance, opts: any, done: any) {
     server.addHook("preHandler", (req, res, done) => {
@@ -58,6 +67,31 @@ export default function (deps: BuildRoutesDeps) {
       return res.status(403).send("Not Authorized");
     });
     server.get("/build-update-stream", async (req, res) => {
+      // Every other stream in this file checks the caller owns what it's
+      // asking about (see build-created-stream and new-build-stream below).
+      // This one had no such check: build:update carries every account's
+      // live deploy activity, so without filtering by accountId, any signed-in
+      // client on any account would see every other account's build IDs,
+      // service names, environments and statuses stream past.
+      const accountId = req.session?.accountId || req.apiKey?.accountId;
+      if (!accountId) {
+        return res.status(403).send("Not authorized");
+      }
+      const callerAccountId = accountId.toString();
+
+      const openCount = openStreamsByAccount.get(callerAccountId) ?? 0;
+      if (openCount >= MAX_STREAM_CONNECTIONS_PER_ACCOUNT) {
+        return res
+          .status(429)
+          .send("Too many open connections for this account");
+      }
+      openStreamsByAccount.set(callerAccountId, openCount + 1);
+      const releaseConnectionSlot = () => {
+        const current = openStreamsByAccount.get(callerAccountId) ?? 1;
+        if (current <= 1) openStreamsByAccount.delete(callerAccountId);
+        else openStreamsByAccount.set(callerAccountId, current - 1);
+      };
+
       const abortController = new AbortController();
       const buildEnvActionTemplate = Handlebars.compile(
         "{{>buildEnvironmentAction}}",
@@ -69,6 +103,7 @@ export default function (deps: BuildRoutesDeps) {
 
       const listener = (updatedBuildEvents: any[]) => {
         for (const event of updatedBuildEvents) {
+          if (event.accountId !== callerAccountId) continue;
           if (resolver) {
             resolver(event);
             resolver = null;
@@ -125,6 +160,7 @@ export default function (deps: BuildRoutesDeps) {
       req.socket.on("close", () => {
         abortController.abort();
         eventEmitter.off("build:update", listener);
+        releaseConnectionSlot();
       });
     });
 

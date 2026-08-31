@@ -952,6 +952,67 @@ describe("Onboarding Routes", () => {
       expect(response.statusCode).toBe(302);
       expect(response.headers.location).toBe("/auth/github");
     });
+
+    it("should not grant a second trial to the same person signing up again through a different auth method", async () => {
+      // Given: a person already trialed Pro via password signup
+      const passwordUser = await userRepo.createPasswordUser({
+        email: "dual@example.com",
+        passwordHash: "irrelevant",
+        name: "Dual Person",
+      });
+      const account1 = await accountRepo.create({
+        name: "First Account",
+        slug: "first-account",
+      });
+      await app.inject({
+        method: "POST",
+        url: "/onboarding/select-plan",
+        cookies: {
+          session: sessionService.createSession({
+            userId: passwordUser._id,
+            accountId: account1._id,
+          }),
+        },
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        payload: "plan=pro",
+      });
+      expect((await accountRepo.findById(account1._id))?.trialEndsAt).not.toBe(
+        null,
+      );
+
+      // When: the same real person signs up again with the same email through
+      // Google — a distinct user document, since Google sign-in doesn't check
+      // for an existing password account with the same address — and selects
+      // a paid plan on their new, separate account
+      const googleUser = await userRepo.findOrCreateByGoogleId({
+        googleId: "google-dual-id",
+        email: "dual@example.com",
+        name: "Dual Person",
+        avatarUrl: null,
+      });
+      const account2 = await accountRepo.create({
+        name: "Second Account",
+        slug: "second-account",
+      });
+      await app.inject({
+        method: "POST",
+        url: "/onboarding/select-plan",
+        cookies: {
+          session: sessionService.createSession({
+            userId: googleUser._id,
+            accountId: account2._id,
+          }),
+        },
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        payload: "plan=pro",
+      });
+
+      // Then: no second trial — the plan is still selected, just without a
+      // free ride.
+      const updatedAccount2 = await accountRepo.findById(account2._id);
+      expect(updatedAccount2?.plan).toBe(Plan.Pro);
+      expect(updatedAccount2?.trialEndsAt ?? null).toBeNull();
+    });
   });
 
   describe("POST /onboarding/repositories", () => {

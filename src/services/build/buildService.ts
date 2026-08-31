@@ -14,6 +14,7 @@ export type BuildUpdateEvent = {
   buildId: string;
   environment: string;
   status: DeploymentStatus;
+  accountId: string;
   serviceId: string;
   serviceName: string;
   // When this build went live in the environment, so a pushed cell keeps the
@@ -154,6 +155,7 @@ export class BuildService {
       buildId: build.buildId,
       environment: input.environment,
       status: input.status,
+      accountId: input.accountId.toString(),
       serviceId: input.serviceId.toString(),
       serviceName: service.name,
       deployedAt: build.deployedAt?.[input.environment],
@@ -175,6 +177,7 @@ export class BuildService {
           buildId: clearedBuild.buildId,
           environment: input.environment,
           status: DeploymentStatus.NONE,
+          accountId: input.accountId.toString(),
           serviceId: input.serviceId.toString(),
           serviceName: service.name,
           canDispatch,

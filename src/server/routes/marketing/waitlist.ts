@@ -50,6 +50,11 @@ function buildAttribution(body: WaitlistBody): LeadAttribution {
   return attribution;
 }
 
+// Stricter than the app-wide default: unauthenticated and public by design,
+// so it's the cheapest route to script against for bot signups or a mail-bomb
+// via downstream lead-notification flows.
+const WAITLIST_RATE_LIMIT = { max: 5, timeWindow: 60_000 };
+
 export function registerWaitlistRoutes(
   app: FastifyInstance,
   deps: WaitlistRoutesDeps,
@@ -58,6 +63,7 @@ export function registerWaitlistRoutes(
 
   app.post<{ Body: WaitlistBody }>(
     "/waitlist",
+    { config: { rateLimit: WAITLIST_RATE_LIMIT } },
     async (
       request: FastifyRequest<{ Body: WaitlistBody }>,
       reply: FastifyReply,
