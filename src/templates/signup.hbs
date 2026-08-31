@@ -24,6 +24,7 @@
   .auth-banner { border-radius: 10px; padding: 10px 13px; font-size: 13.5px; margin-bottom: 18px; }
   .auth-banner.error { background: color-mix(in srgb, var(--err, #e5484d) 14%, transparent); color: var(--err, #e5484d); border: 1px solid color-mix(in srgb, var(--err, #e5484d) 30%, transparent); }
   .auth-back { display: block; text-align: center; margin-top: 16px; font-size: 12.5px; color: var(--faint); text-decoration: none; }
+  .auth-hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; opacity: 0; }
 </style>
 
 <div class="auth-page">
@@ -53,7 +54,10 @@
 
     <div class="auth-divider">or</div>
 
-    <form method="POST" action="/auth/signup">
+    <form method="POST" action="/auth/signup" id="signup-form">
+      <label class="auth-hp" aria-hidden="true">
+        Company website<input type="text" name="company_website" tabindex="-1" autocomplete="off" />
+      </label>
       <div class="auth-field">
         <label for="name">Name</label>
         <input type="text" id="name" name="name" autocomplete="name" placeholder="Your name" />
@@ -67,6 +71,7 @@
         <input type="password" id="password" name="password" required minlength="8" autocomplete="new-password" placeholder="At least 8 characters" />
         <p class="auth-hint">We'll email you a link to confirm your address.</p>
       </div>
+      <input type="hidden" name="elapsedMs" value="" />
       <button type="submit" class="auth-submit">Create account</button>
     </form>
 
@@ -74,3 +79,13 @@
     <a href="/" class="auth-back">← Back to home</a>
   </div>
 </div>
+
+<script>
+  (function () {
+    var loadedAt = Date.now();
+    var form = document.getElementById('signup-form');
+    form.addEventListener('submit', function () {
+      form.elements['elapsedMs'].value = String(Date.now() - loadedAt);
+    });
+  })();
+</script>

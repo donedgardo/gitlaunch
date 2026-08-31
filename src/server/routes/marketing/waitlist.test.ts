@@ -19,6 +19,7 @@ import { FlagServiceI } from "../../../services/flag/flagService";
 import { FlagEvaluation } from "../../../services/flag/flagEvaluator";
 import { ServiceRepository } from "../../../repositories/serviceRepository";
 import { registerWaitlistRoutes } from "./waitlist";
+import { registerRateLimit } from "../../registerRateLimit";
 
 // A flag engine stub that buckets every visitor into one fixed variant.
 function fakeFlags(evaluation: FlagEvaluation): FlagServiceI {
@@ -317,5 +318,41 @@ describe("Waitlist Routes", () => {
     expect(analytics.tracked.some((t) => t.event === "flag_conversion")).toBe(
       false,
     );
+  });
+
+  it("rejects repeated submissions from the same client past the waitlist limit", async () => {
+    const limited = Fastify();
+    registerRateLimit(limited, { max: 1000, timeWindowMs: 60_000 });
+    await limited.register(formbody);
+    await limited.register(view, {
+      engine: { handlebars },
+      root: path.join(__dirname, "../../../templates"),
+      options: {
+        partials: { waitlistResult: "/partials/waitlistResult.hbs" },
+      },
+    });
+    limited.after(() => {
+      registerWaitlistRoutes(limited, {
+        waitlistService: new WaitlistService(repo, analytics, {
+          minElapsedMs: 2000,
+        }),
+      });
+    });
+    await limited.ready();
+
+    const submit = (email: string) =>
+      limited.inject({
+        method: "POST",
+        url: "/waitlist",
+        payload: { email, company_website: "", elapsedMs: "9000" },
+      });
+
+    const responses = [];
+    for (let i = 0; i < 6; i++) responses.push(await submit(`u${i}@acme.dev`));
+
+    expect(responses.slice(0, 5).every((r) => r.statusCode === 200)).toBe(true);
+    expect(responses[5].statusCode).toBe(429);
+
+    await limited.close();
   });
 });
