@@ -128,14 +128,22 @@ await flags.track("my-flag", &#123; entity: USER_ID, goal: "signup" &#125;);</co
 
         {{#if bundleUrl}}
           <!-- Published bundle: a browser SDK can fetch this directly and
-               evaluate locally instead of calling us per request. Public by
-               design — the URL itself is the only access control, hence the
-               rotate action below. -->
+               evaluate locally instead of calling us per request. Once it
+               ships in a frontend it's public the same way the compiled JS
+               is — there's no way to "leak" something that's meant to be
+               embedded in a public bundle. What's actually different from
+               the publishable key is that this URL has no per-request check
+               (no origin allow-list) — rotating gives you a fresh URL when
+               you want to retire an old one (e.g. a decommissioned build),
+               not a response to a secret getting out. -->
           <div>
             <label class="block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">Published bundle (local evaluation)</label>
             <p class="mt-1 text-xs text-gray-500 dark:text-gray-400 mb-2">
-              Pass this as <code>bundleUrl</code> to evaluate flags locally in the browser instead of calling us on every
-              request. It's public — anyone with the URL can read this environment's flag config — so rotate it if it leaks.
+              Pass this URL as <code>bundleUrl</code> to evaluate flags locally in the browser instead of calling us on
+              every request. Once it's in your frontend it's public the same way your compiled JS is — anyone can read
+              this environment's flag config from it directly, with no per-request check like your publishable key's
+              origin allow-list. Rotate it below to retire an old URL (e.g. a decommissioned build) without touching
+              your API keys.
             </p>
             <div id="flag-bundle-url-panel">
               {{> flagBundleUrl bundleUrl=bundleUrl serviceId=serviceId}}

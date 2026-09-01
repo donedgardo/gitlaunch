@@ -179,12 +179,14 @@ straight through to the HTTP evaluate endpoint below, so this is a pure
 optimization: nothing regresses without it.
 
 **The caveat that matters**: a `pk_` key's origin allow-list only governs the
-HTTP path. A published bundle has no per-request auth at all — the URL itself
-is the only thing standing between it and anyone who has it, so treat a leaked
-bundle URL like a leaked key and rotate it from the same panel. A change
-reaches the bundle path within about 30 seconds (the bundle's cache lifetime)
-— don't rely on it for a sub-second kill switch; check a flag from your server
-with a secret key for that instead.
+HTTP path. A published bundle has no per-request auth at all. That's not a
+secret this leaks — once the URL is in your frontend it's public the same way
+your compiled JS is, and it's meant to be. Rotate it from the same panel when
+you want to retire an old URL (a decommissioned build, an environment you no
+longer publish to), not in response to it "getting out." A change reaches the
+bundle path within about 30 seconds (the bundle's cache lifetime) — don't rely
+on it for a sub-second kill switch; check a flag from your server with a
+secret key for that instead.
 
 ## The HTTP API
 

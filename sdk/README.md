@@ -122,8 +122,10 @@ same fallback behavior. If the bundle can't be fetched (a CDN outage, an ad
 blocker, a stale URL after rotating it), the client falls straight through to
 the HTTP evaluate endpoint, so this is a pure optimization: nothing regresses
 without it. One caveat: a `pk_` key's origin allow-list only governs the HTTP
-path — the bundle URL itself is the only access control for that path, so
-rotate it if it leaks. See
+path — the bundle URL has no per-request check at all. That's fine, not a
+secret to protect: once it's in your frontend it's public the same way your
+compiled JS is. Rotate it from the settings page when you want to retire an
+old URL (a decommissioned build, say), not because something "leaked." See
 [docs/feature-flags.md#bundle-publishing](../docs/feature-flags.md#bundle-publishing)
 for how publishing works.
 

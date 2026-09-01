@@ -461,10 +461,11 @@ export function registerFlagsSettingsRoutes(
   });
 
   // POST /services/:serviceId/flags/bundle/rotate — mint a fresh publish slug
-  // (HTMX). The slug is the only access control a public bundle URL has, so
-  // this exists for the same reason key revocation does: something to do
-  // once a URL has leaked. The old URL is orphaned, not deleted — nothing
-  // can construct it anymore since the slug isn't retrievable.
+  // (HTMX). The bundle URL is meant to be public — it ships in a customer's
+  // frontend, same as their compiled JS — so this isn't for "when it leaks."
+  // It's for retiring a URL on purpose (a decommissioned build, an
+  // environment nobody publishes to anymore). The old URL is orphaned, not
+  // deleted — nothing can construct it once the slug isn't retrievable.
   app.post<{ Params: { serviceId: string } }>(
     "/services/:serviceId/flags/bundle/rotate",
     async (request, reply) => {
