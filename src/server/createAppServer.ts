@@ -30,6 +30,8 @@ import { registerSetupSnippetsRoutes } from "./routes/api/setupSnippets";
 import { registerDeploymentRoutes } from "./routes/api/deployment";
 import { registerFlagsRoutes } from "./routes/api/flags";
 import { registerFlagsSettingsRoutes } from "./routes/settings/flags";
+import { BundlePublisherI } from "../services/flag/bundlePublisher";
+import { R2BundlePublisher } from "../services/flag/r2BundlePublisher";
 import { registerSessionMiddleware } from "./middleware/sessionAuth";
 import { createApiKeyAuthMiddleware } from "./middleware/apiKeyAuth";
 
@@ -229,9 +231,18 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
   const flagConfigVersionRepository = new FlagConfigVersionRepository(database);
   const analyticsQueryService = new AnalyticsQueryService(database);
   const experimentResultsService = new ExperimentResultsService(database);
+  // Left as the FlagConfigVersionService default (NoopBundlePublisher) unless
+  // R2 is fully configured — an unconfigured install just never publishes,
+  // and the SDK's bundle fetch falls back to the existing HTTP evaluate path.
+  const bundlePublisher: BundlePublisherI | undefined = config.features
+    .flagBundles.r2
+    ? R2BundlePublisher.forAccount(config.features.flagBundles.r2)
+    : undefined;
   const flagConfigVersionService = new FlagConfigVersionService(
     flagRepository,
     flagConfigVersionRepository,
+    serviceRepository,
+    bundlePublisher,
   );
 
   // Services
@@ -619,6 +630,8 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
       apiKeyService,
       analytics,
       experimentResults: experimentResultsService,
+      bundlePublisher,
+      bundlePublicBaseUrl: config.features.flagBundles.publicBaseUrl,
     });
 
     // API v1 routes (API key authenticated)

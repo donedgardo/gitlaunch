@@ -844,4 +844,67 @@ describe("ServiceRepository", () => {
       });
     });
   });
+
+  describe("ensureFlagPublishSlug", () => {
+    it("should mint a slug for a service that has none", async () => {
+      // Given a service with no flagPublishSlug yet
+      const accountId = new ObjectId();
+      const service = await repo.create({ accountId, name: "backend" });
+      expect(service.flagPublishSlug).toBeFalsy();
+
+      // When
+      const slug = await repo.ensureFlagPublishSlug(service._id);
+
+      // Then a non-empty, non-guessable slug is minted and persisted
+      expect(slug).toBeTruthy();
+      expect(slug.length).toBeGreaterThanOrEqual(20);
+      const persisted = await repo.findById(service._id);
+      expect(persisted?.flagPublishSlug).toBe(slug);
+    });
+
+    it("should return the existing slug on repeated calls instead of minting a new one", async () => {
+      // Given a service that already had a slug minted
+      const accountId = new ObjectId();
+      const service = await repo.create({ accountId, name: "backend" });
+      const first = await repo.ensureFlagPublishSlug(service._id);
+
+      // When called again
+      const second = await repo.ensureFlagPublishSlug(service._id);
+
+      // Then it's idempotent
+      expect(second).toBe(first);
+    });
+  });
+
+  describe("rotateFlagPublishSlug", () => {
+    it("should replace an existing slug with a new one", async () => {
+      // Given a service with an established slug
+      const accountId = new ObjectId();
+      const service = await repo.create({ accountId, name: "backend" });
+      const original = await repo.ensureFlagPublishSlug(service._id);
+
+      // When rotated
+      const rotated = await repo.rotateFlagPublishSlug(accountId, service._id);
+
+      // Then a different slug is now current
+      expect(rotated).toBeTruthy();
+      expect(rotated).not.toBe(original);
+      const persisted = await repo.findById(service._id);
+      expect(persisted?.flagPublishSlug).toBe(rotated);
+    });
+
+    it("should mint a fresh slug even if none existed before", async () => {
+      // Given a service that never had a slug
+      const accountId = new ObjectId();
+      const service = await repo.create({ accountId, name: "backend" });
+
+      // When
+      const rotated = await repo.rotateFlagPublishSlug(accountId, service._id);
+
+      // Then
+      expect(rotated).toBeTruthy();
+      const persisted = await repo.findById(service._id);
+      expect(persisted?.flagPublishSlug).toBe(rotated);
+    });
+  });
 });

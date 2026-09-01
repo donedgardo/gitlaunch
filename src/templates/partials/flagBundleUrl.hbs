@@ -1,0 +1,15 @@
+{{#if bundleUrl}}
+  <div class="relative">
+    <pre class="bg-gray-900 rounded-lg p-3 pr-16 text-xs text-green-400 overflow-x-auto"><code id="flag-bundle-url-text">{{bundleUrl}}</code></pre>
+    <button type="button" onclick="copyFlagSnippet('flag-bundle-url-text', this)"
+      class="absolute top-2 right-2 px-2 py-1 text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 rounded">Copy</button>
+  </div>
+  <button type="button"
+    hx-post="/services/{{serviceId}}/flags/bundle/rotate"
+    hx-target="#flag-bundle-url-panel"
+    hx-swap="innerHTML"
+    hx-confirm="Rotate the bundle URL? The old one stops working immediately."
+    class="mt-2 text-xs text-red-600 dark:text-red-400 hover:underline">
+    Rotate bundle URL
+  </button>
+{{/if}}

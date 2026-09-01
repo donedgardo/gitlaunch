@@ -7,6 +7,8 @@ import { createFlagClient, FlagDecision } from "./flagClient";
 type FakeServerOptions = {
   decisions?: Record<string, FlagDecision>;
   perEntity?: Record<string, Record<string, FlagDecision>>;
+  bundleUrl?: string;
+  bundleBody?: unknown;
 };
 
 function fakeFlagsApi(options: FakeServerOptions = {}) {
@@ -14,8 +16,17 @@ function fakeFlagsApi(options: FakeServerOptions = {}) {
     [];
   let failWith: string | null = null;
   let hang = false;
+  let bundleFailWith: string | null = null;
 
   const fetchImpl = async (url: string, init: any = {}) => {
+    if (options.bundleUrl && url === options.bundleUrl) {
+      requests.push({ url, method: "GET", headers: init.headers ?? {} });
+      if (bundleFailWith) throw new Error(bundleFailWith);
+      return jsonResponse(
+        options.bundleBody ?? { environment: "prod", flags: [] },
+      );
+    }
+
     if (hang) {
       // Resolve only if the caller gives up first — that is what a slow API
       // looks like from inside the client.
@@ -52,8 +63,14 @@ function fakeFlagsApi(options: FakeServerOptions = {}) {
     evaluateCalls() {
       return requests.filter((r) => r.url.includes("/flags/evaluate")).length;
     },
+    bundleCalls() {
+      return requests.filter((r) => r.url === options.bundleUrl).length;
+    },
     goDown(message = "network unreachable") {
       failWith = message;
+    },
+    bundleGoDown(message = "bundle unreachable") {
+      bundleFailWith = message;
     },
     comeBack() {
       failWith = null;
@@ -299,6 +316,106 @@ describe("FlagClient", () => {
       await vi.advanceTimersByTimeAsync(600);
 
       expect(await pending).toBe(true);
+    });
+  });
+
+  describe("evaluating from a published bundle", () => {
+    const bundleUrl = "https://pub-abc.r2.dev/flags/slug123/prod.json";
+
+    it("should evaluate locally from the bundle instead of calling the HTTP evaluate endpoint", async () => {
+      const server = fakeFlagsApi({
+        bundleUrl,
+        bundleBody: {
+          environment: "prod",
+          flags: [
+            {
+              key: "checkout",
+              config: { enabled: true, rolloutPercentage: 100, variants: [] },
+            },
+          ],
+        },
+      });
+      const flags = client(server, { bundleUrl });
+
+      const enabled = await flags.isEnabled("checkout", { entity: "user-1" });
+
+      expect(enabled).toBe(true);
+      expect(server.bundleCalls()).toBe(1);
+      expect(server.evaluateCalls()).toBe(0);
+    });
+
+    it("should respect targeting rules and attributes when evaluating from the bundle", async () => {
+      const server = fakeFlagsApi({
+        bundleUrl,
+        bundleBody: {
+          environment: "prod",
+          flags: [
+            {
+              key: "hero",
+              config: {
+                enabled: true,
+                rolloutPercentage: 0,
+                variants: [],
+                targetingRules: [
+                  {
+                    conditions: [
+                      { attribute: "plan", operator: "eq", values: ["pro"] },
+                    ],
+                    serve: "benefit-led",
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      });
+      const flags = client(server, { bundleUrl });
+
+      const variant = await flags.variant("hero", {
+        entity: "user-1",
+        attributes: { plan: "pro" },
+      });
+
+      expect(variant).toBe("benefit-led");
+    });
+
+    it("should fall back to the HTTP evaluate endpoint when the bundle fetch fails", async () => {
+      const server = fakeFlagsApi({
+        bundleUrl,
+        decisions: { checkout: on() },
+      });
+      server.bundleGoDown();
+      const flags = client(server, { bundleUrl });
+
+      const enabled = await flags.isEnabled("checkout", { entity: "user-1" });
+
+      expect(enabled).toBe(true);
+      expect(server.evaluateCalls()).toBe(1);
+    });
+
+    it("should report the bundle failure without breaking the caller", async () => {
+      const server = fakeFlagsApi({ bundleUrl, decisions: { checkout: on() } });
+      server.bundleGoDown("bundle CDN outage");
+      const seen: unknown[] = [];
+      const flags = client(server, {
+        bundleUrl,
+        onError: (e: unknown) => seen.push(e),
+      });
+
+      await flags.isEnabled("checkout", { entity: "user-1" });
+
+      expect(seen).toHaveLength(1);
+      expect((seen[0] as Error).message).toContain("bundle CDN outage");
+    });
+
+    it("should behave exactly as before when no bundleUrl is configured", async () => {
+      const server = fakeFlagsApi({ decisions: { checkout: on() } });
+      const flags = client(server);
+
+      expect(await flags.isEnabled("checkout", { entity: "user-1" })).toBe(
+        true,
+      );
+      expect(server.evaluateCalls()).toBe(1);
     });
   });
 

@@ -1,0 +1,461 @@
+[
+  {
+    "name": "disabled flag",
+    "cfg": {
+      "enabled": false,
+      "rolloutPercentage": 100,
+      "variants": []
+    },
+    "key": "new-checkout",
+    "entityKey": "user-1",
+    "attributes": {},
+    "expected": {
+      "key": "new-checkout",
+      "enabled": false,
+      "variant": null,
+      "reason": "disabled"
+    }
+  },
+  {
+    "name": "100% rollout, no variants",
+    "cfg": {
+      "enabled": true,
+      "rolloutPercentage": 100,
+      "variants": []
+    },
+    "key": "new-checkout",
+    "entityKey": "user-42",
+    "attributes": {},
+    "expected": {
+      "key": "new-checkout",
+      "enabled": true,
+      "variant": null,
+      "reason": "rollout"
+    }
+  },
+  {
+    "name": "0% rollout",
+    "cfg": {
+      "enabled": true,
+      "rolloutPercentage": 0,
+      "variants": []
+    },
+    "key": "new-checkout",
+    "entityKey": "user-7",
+    "attributes": {},
+    "expected": {
+      "key": "new-checkout",
+      "enabled": false,
+      "variant": null,
+      "reason": "not_in_rollout"
+    }
+  },
+  {
+    "name": "single 100%-weight variant",
+    "cfg": {
+      "enabled": true,
+      "rolloutPercentage": 100,
+      "variants": [
+        {
+          "key": "treatment",
+          "weight": 100
+        }
+      ]
+    },
+    "key": "exp",
+    "entityKey": "user-9",
+    "attributes": {},
+    "expected": {
+      "key": "exp",
+      "enabled": true,
+      "variant": "treatment",
+      "reason": "variant"
+    }
+  },
+  {
+    "name": "two-way variant split, entity A",
+    "cfg": {
+      "enabled": true,
+      "rolloutPercentage": 100,
+      "variants": [
+        {
+          "key": "control",
+          "weight": 50
+        },
+        {
+          "key": "treatment",
+          "weight": 50
+        }
+      ]
+    },
+    "key": "exp",
+    "entityKey": "sticky-user-1",
+    "attributes": {},
+    "expected": {
+      "key": "exp",
+      "enabled": true,
+      "variant": "control",
+      "reason": "variant"
+    }
+  },
+  {
+    "name": "two-way variant split, entity B",
+    "cfg": {
+      "enabled": true,
+      "rolloutPercentage": 100,
+      "variants": [
+        {
+          "key": "control",
+          "weight": 50
+        },
+        {
+          "key": "treatment",
+          "weight": 50
+        }
+      ]
+    },
+    "key": "exp",
+    "entityKey": "sticky-user-0",
+    "attributes": {},
+    "expected": {
+      "key": "exp",
+      "enabled": true,
+      "variant": "treatment",
+      "reason": "variant"
+    }
+  },
+  {
+    "name": "targeting: eq match",
+    "cfg": {
+      "enabled": true,
+      "rolloutPercentage": 0,
+      "variants": [],
+      "targetingRules": [
+        {
+          "conditions": [
+            {
+              "attribute": "plan",
+              "operator": "eq",
+              "values": ["pro"]
+            }
+          ],
+          "serve": "on"
+        }
+      ]
+    },
+    "key": "f",
+    "entityKey": "u",
+    "attributes": {
+      "plan": "pro"
+    },
+    "expected": {
+      "key": "f",
+      "enabled": true,
+      "variant": "on",
+      "reason": "targeting_rule"
+    }
+  },
+  {
+    "name": "targeting: neq match",
+    "cfg": {
+      "enabled": true,
+      "rolloutPercentage": 0,
+      "variants": [],
+      "targetingRules": [
+        {
+          "conditions": [
+            {
+              "attribute": "plan",
+              "operator": "neq",
+              "values": ["free"]
+            }
+          ],
+          "serve": null
+        }
+      ]
+    },
+    "key": "f",
+    "entityKey": "u",
+    "attributes": {
+      "plan": "pro"
+    },
+    "expected": {
+      "key": "f",
+      "enabled": true,
+      "variant": null,
+      "reason": "targeting_rule"
+    }
+  },
+  {
+    "name": "targeting: in match",
+    "cfg": {
+      "enabled": true,
+      "rolloutPercentage": 0,
+      "variants": [
+        {
+          "key": "treatment",
+          "weight": 100
+        }
+      ],
+      "targetingRules": [
+        {
+          "conditions": [
+            {
+              "attribute": "country",
+              "operator": "in",
+              "values": ["US", "CA"]
+            }
+          ],
+          "serve": "treatment"
+        }
+      ]
+    },
+    "key": "new-checkout",
+    "entityKey": "user-1",
+    "attributes": {
+      "country": "US"
+    },
+    "expected": {
+      "key": "new-checkout",
+      "enabled": true,
+      "variant": "treatment",
+      "reason": "targeting_rule"
+    }
+  },
+  {
+    "name": "targeting: not_in match",
+    "cfg": {
+      "enabled": true,
+      "rolloutPercentage": 0,
+      "variants": [],
+      "targetingRules": [
+        {
+          "conditions": [
+            {
+              "attribute": "plan",
+              "operator": "not_in",
+              "values": ["free", "trial"]
+            }
+          ],
+          "serve": null
+        }
+      ]
+    },
+    "key": "f",
+    "entityKey": "u",
+    "attributes": {
+      "plan": "pro"
+    },
+    "expected": {
+      "key": "f",
+      "enabled": true,
+      "variant": null,
+      "reason": "targeting_rule"
+    }
+  },
+  {
+    "name": "targeting: contains match",
+    "cfg": {
+      "enabled": true,
+      "rolloutPercentage": 0,
+      "variants": [],
+      "targetingRules": [
+        {
+          "conditions": [
+            {
+              "attribute": "email",
+              "operator": "contains",
+              "values": ["@acme.com"]
+            }
+          ],
+          "serve": null
+        }
+      ]
+    },
+    "key": "f",
+    "entityKey": "u",
+    "attributes": {
+      "email": "jane@acme.com"
+    },
+    "expected": {
+      "key": "f",
+      "enabled": true,
+      "variant": null,
+      "reason": "targeting_rule"
+    }
+  },
+  {
+    "name": "targeting: missing attribute never matches (including not_in)",
+    "cfg": {
+      "enabled": true,
+      "rolloutPercentage": 0,
+      "variants": [],
+      "targetingRules": [
+        {
+          "conditions": [
+            {
+              "attribute": "country",
+              "operator": "not_in",
+              "values": ["US"]
+            }
+          ],
+          "serve": null
+        }
+      ]
+    },
+    "key": "f",
+    "entityKey": "u",
+    "attributes": {},
+    "expected": {
+      "key": "f",
+      "enabled": false,
+      "variant": null,
+      "reason": "not_in_rollout"
+    }
+  },
+  {
+    "name": "targeting: AND across conditions, partial match fails",
+    "cfg": {
+      "enabled": true,
+      "rolloutPercentage": 0,
+      "variants": [],
+      "targetingRules": [
+        {
+          "conditions": [
+            {
+              "attribute": "country",
+              "operator": "eq",
+              "values": ["US"]
+            },
+            {
+              "attribute": "plan",
+              "operator": "eq",
+              "values": ["pro"]
+            }
+          ],
+          "serve": null
+        }
+      ]
+    },
+    "key": "f",
+    "entityKey": "u",
+    "attributes": {
+      "country": "US",
+      "plan": "free"
+    },
+    "expected": {
+      "key": "f",
+      "enabled": false,
+      "variant": null,
+      "reason": "not_in_rollout"
+    }
+  },
+  {
+    "name": "targeting: AND across conditions, full match",
+    "cfg": {
+      "enabled": true,
+      "rolloutPercentage": 0,
+      "variants": [],
+      "targetingRules": [
+        {
+          "conditions": [
+            {
+              "attribute": "country",
+              "operator": "eq",
+              "values": ["US"]
+            },
+            {
+              "attribute": "plan",
+              "operator": "eq",
+              "values": ["pro"]
+            }
+          ],
+          "serve": null
+        }
+      ]
+    },
+    "key": "f",
+    "entityKey": "u",
+    "attributes": {
+      "country": "US",
+      "plan": "pro"
+    },
+    "expected": {
+      "key": "f",
+      "enabled": true,
+      "variant": null,
+      "reason": "targeting_rule"
+    }
+  },
+  {
+    "name": "targeting: first matching rule wins",
+    "cfg": {
+      "enabled": true,
+      "rolloutPercentage": 100,
+      "variants": [
+        {
+          "key": "beta",
+          "weight": 50
+        },
+        {
+          "key": "vip",
+          "weight": 50
+        }
+      ],
+      "targetingRules": [
+        {
+          "conditions": [
+            {
+              "attribute": "plan",
+              "operator": "eq",
+              "values": ["enterprise"]
+            }
+          ],
+          "serve": "vip"
+        },
+        {
+          "conditions": [
+            {
+              "attribute": "beta",
+              "operator": "eq",
+              "values": ["true"]
+            }
+          ],
+          "serve": "beta"
+        }
+      ]
+    },
+    "key": "f",
+    "entityKey": "u",
+    "attributes": {
+      "plan": "enterprise",
+      "beta": true
+    },
+    "expected": {
+      "key": "f",
+      "enabled": true,
+      "variant": "vip",
+      "reason": "targeting_rule"
+    }
+  },
+  {
+    "name": "targeting: no rules is a no-op, falls through to rollout",
+    "cfg": {
+      "enabled": true,
+      "rolloutPercentage": 100,
+      "variants": [],
+      "targetingRules": []
+    },
+    "key": "f",
+    "entityKey": "u",
+    "attributes": {
+      "country": "US"
+    },
+    "expected": {
+      "key": "f",
+      "enabled": true,
+      "variant": null,
+      "reason": "rollout"
+    }
+  }
+]

@@ -32,6 +32,7 @@ const flags = createFlagClient({
 | `serviceId`   | —                  | The service whose flags you are reading                                  |
 | `environment` | —                  | Which environment's config to evaluate (`prod`, `staging`, `eu-west`, …) |
 | `apiKey`      | —                  | Secret key on a server, publishable key in a browser                     |
+| `bundleUrl`   | —                  | Evaluate locally from a published bundle instead of the API — see below  |
 | `ttlMs`       | `30000`            | How long decisions are reused before re-fetching                         |
 | `timeoutMs`   | `1500`             | How long to wait before giving up and using your fallback                |
 | `onError`     | —                  | Called with any network/API failure — wire it to your logger             |
@@ -98,6 +99,35 @@ bucketing, so a conversion cannot be attributed to the wrong arm.
 await flags.evaluate(context); // every flag's decision for this entity
 await flags.refresh(context); // force a re-fetch, ignoring the cache
 ```
+
+## Evaluating from a published bundle
+
+In a browser, every flag check is one of _your_ end users hitting GitLaunch's
+servers. Pass `bundleUrl` (shown on your service's settings page once bundle
+publishing is configured) and decisions are computed locally from a fetched,
+CDN-cacheable config bundle instead:
+
+```ts
+const flags = createFlagClient({
+  apiUrl: "https://gitlaunch.dev",
+  serviceId: "665f…",
+  environment: "prod",
+  apiKey: process.env.NEXT_PUBLIC_GITLAUNCH_FLAG_KEY!,
+  bundleUrl: "https://flags-cdn.example.com/flags/AbC123.../prod.json",
+});
+```
+
+Everything else about the client is unchanged — same methods, same caching,
+same fallback behavior. If the bundle can't be fetched (a CDN outage, an ad
+blocker, a stale URL after rotating it), the client falls straight through to
+the HTTP evaluate endpoint, so this is a pure optimization: nothing regresses
+without it. One caveat: a `pk_` key's origin allow-list only governs the HTTP
+path — the bundle URL has no per-request check at all. That's fine, not a
+secret to protect: once it's in your frontend it's public the same way your
+compiled JS is. Rotate it from the settings page when you want to retire an
+old URL (a decommissioned build, say), not because something "leaked." See
+[docs/feature-flags.md#bundle-publishing](../docs/feature-flags.md#bundle-publishing)
+for how publishing works.
 
 ## Which key?
 

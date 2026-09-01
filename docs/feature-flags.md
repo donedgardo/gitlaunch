@@ -153,6 +153,41 @@ the two runtime endpoints. A leaked publishable key can add conversion noise to
 your experiments, which is the accepted cost of measuring front-end tests at
 all.
 
+## Bundle publishing
+
+By default, every `isEnabled`/`variant` call from a browser round-trips this
+server — one request per page load per end user of whatever you're building.
+On a GitLaunch instance publishing flag bundles (self-hosted installs can
+enable this too, not just gitlaunch.dev), the JS SDK can instead fetch a
+published, CDN-cacheable config bundle and evaluate locally:
+
+```ts
+const flags = createFlagClient({
+  apiUrl: "https://gitlaunch.dev",
+  serviceId: "665f…",
+  environment: "prod",
+  apiKey: "pk_…",
+  bundleUrl: "https://flags-cdn.example.com/flags/AbC123.../prod.json",
+});
+```
+
+The URL is shown on your service's **Connect an app** panel once bundle
+publishing is configured. Everything about the client stays the same — same
+methods, same caching, same fallback — and if the bundle can't be fetched (a
+CDN outage, an ad blocker, a stale URL after rotating it) the SDK falls
+straight through to the HTTP evaluate endpoint below, so this is a pure
+optimization: nothing regresses without it.
+
+**The caveat that matters**: a `pk_` key's origin allow-list only governs the
+HTTP path. A published bundle has no per-request auth at all. That's not a
+secret this leaks — once the URL is in your frontend it's public the same way
+your compiled JS is, and it's meant to be. Rotate it from the same panel when
+you want to retire an old URL (a decommissioned build, an environment you no
+longer publish to), not in response to it "getting out." A change reaches the
+bundle path within about 30 seconds (the bundle's cache lifetime) — don't rely
+on it for a sub-second kill switch; check a flag from your server with a
+secret key for that instead.
+
 ## The HTTP API
 
 Not on JavaScript? It is two calls.

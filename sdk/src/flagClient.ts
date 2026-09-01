@@ -7,6 +7,16 @@
 //
 // No dependencies, no globals: it runs on a server (Node 18+) with a secret key
 // or in a browser with a publishable key.
+//
+// When `bundleUrl` is set, decisions are computed locally against a fetched
+// config bundle (see localEvaluator.ts) instead of asking GitLaunch to
+// evaluate per request — the traffic that matters is a customer's own end
+// users, not us, so it shouldn't have to round-trip our server on every page
+// load. Any bundle-fetch failure (CDN outage, ad blocker, a stale URL after
+// a slug rotation) falls straight through to the HTTP evaluate endpoint
+// below, so this is a pure optimization: nothing regresses without it.
+
+import { evaluateFlagLocally, FlagEnvironmentConfig } from "./localEvaluator";
 
 export type FlagDecision = {
   enabled: boolean;
@@ -37,6 +47,11 @@ export type FlagClientOptions = {
   environment: string;
   // A secret key (sk_…) on a server, or a publishable key (pk_…) in a browser.
   apiKey: string;
+  // Static, customer-embedded URL of this service+environment's published
+  // flag bundle (shown on the settings page's "Connect an app" panel).
+  // Enables local evaluation — it can't be derived from apiUrl/serviceId at
+  // runtime without a server round trip, which would defeat the point.
+  bundleUrl?: string;
   // How long a set of decisions may be reused before it is re-fetched.
   ttlMs?: number;
   // How long to wait for GitLaunch before falling back. A flag check sits in
@@ -77,6 +92,7 @@ export function createFlagClient(options: FlagClientOptions): FlagClient {
     serviceId,
     environment,
     apiKey,
+    bundleUrl,
     ttlMs = DEFAULT_TTL_MS,
     timeoutMs = DEFAULT_TIMEOUT_MS,
     onError,
@@ -136,7 +152,7 @@ export function createFlagClient(options: FlagClientOptions): FlagClient {
     }
   }
 
-  async function fetchDecisions(
+  async function fetchViaHttpEvaluate(
     context: FlagContext,
   ): Promise<Record<string, FlagDecision>> {
     const url = new URL(`${base}/flags/evaluate`);
@@ -146,6 +162,64 @@ export function createFlagClient(options: FlagClientOptions): FlagClient {
     }
     const body = await request(url.toString());
     return (body?.flags ?? {}) as Record<string, FlagDecision>;
+  }
+
+  async function fetchViaBundle(
+    context: FlagContext,
+  ): Promise<Record<string, FlagDecision>> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    let body: any;
+    try {
+      const response = await fetchImpl(bundleUrl!, {
+        signal: controller.signal,
+      });
+      if (!response.ok) {
+        throw new Error(`Flag bundle fetch responded ${response.status}`);
+      }
+      body = await response.json();
+    } finally {
+      clearTimeout(timer);
+    }
+
+    const attributes = context.attributes ?? {};
+    const bundleFlags = (body?.flags ?? []) as {
+      key: string;
+      config: FlagEnvironmentConfig;
+    }[];
+    const entries = await Promise.all(
+      bundleFlags.map(async ({ key, config }) => {
+        const evaluation = await evaluateFlagLocally(
+          config,
+          key,
+          context.entity,
+          attributes,
+        );
+        const decision: FlagDecision = {
+          enabled: evaluation.enabled,
+          variant: evaluation.variant,
+          reason: evaluation.reason,
+        };
+        return [key, decision] as const;
+      }),
+    );
+    return Object.fromEntries(entries);
+  }
+
+  async function fetchDecisions(
+    context: FlagContext,
+  ): Promise<Record<string, FlagDecision>> {
+    if (bundleUrl) {
+      try {
+        return await fetchViaBundle(context);
+      } catch (error) {
+        report(error);
+        // Fall through to the HTTP path — CDN outage, ad blocker, a stale
+        // URL after a slug rotation, etc. This is what keeps the bundle path
+        // a pure optimization rather than a new way to fail.
+      }
+    }
+    return fetchViaHttpEvaluate(context);
   }
 
   async function load(

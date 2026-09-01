@@ -6,6 +6,7 @@ import { ServiceRepository } from "../../repositories/serviceRepository";
 import { FlagRepository } from "../../repositories/flagRepository";
 import { FlagConfigVersionRepository } from "../../repositories/flagConfigVersionRepository";
 import { FlagConfigVersionService } from "./flagConfigVersionService";
+import { FakeBundlePublisher, FailingBundlePublisher } from "./fakes";
 
 describe("FlagConfigVersionService", () => {
   let mongoServer: MongoMemoryServer;
@@ -16,6 +17,7 @@ describe("FlagConfigVersionService", () => {
   let flagRepo: FlagRepository;
   let versionRepo: FlagConfigVersionRepository;
   let versions: FlagConfigVersionService;
+  let bundlePublisher: FakeBundlePublisher;
 
   beforeAll(async () => {
     mongoServer = await MongoMemoryServer.create();
@@ -26,7 +28,13 @@ describe("FlagConfigVersionService", () => {
     serviceRepo = new ServiceRepository(db);
     flagRepo = new FlagRepository(db);
     versionRepo = new FlagConfigVersionRepository(db);
-    versions = new FlagConfigVersionService(flagRepo, versionRepo);
+    bundlePublisher = new FakeBundlePublisher();
+    versions = new FlagConfigVersionService(
+      flagRepo,
+      versionRepo,
+      serviceRepo,
+      bundlePublisher,
+    );
   });
 
   afterAll(async () => {
@@ -39,6 +47,7 @@ describe("FlagConfigVersionService", () => {
     await db.collection("services").deleteMany({});
     await db.collection("flags").deleteMany({});
     await db.collection("flag_config_versions").deleteMany({});
+    bundlePublisher.calls = [];
   });
 
   let slugCounter = 0;
@@ -190,6 +199,56 @@ describe("FlagConfigVersionService", () => {
         99,
       );
       expect(missing).toBeNull();
+    });
+  });
+
+  describe("bundle publishing", () => {
+    it("should publish the current bundle under the service's publish slug when a new version is minted", async () => {
+      const { accountId, serviceId } = await makeAccountAndService();
+      await seedFlag(accountId, serviceId, "new-checkout", "prod");
+
+      const v = await versions.publish(accountId, serviceId, "prod");
+
+      const service = await serviceRepo.findById(serviceId);
+      const slug = service?.flagPublishSlug;
+      expect(slug).toBeTruthy();
+      const published = bundlePublisher.latestFor(slug!, "prod");
+      expect(published?.bundle).toEqual(v.bundle);
+    });
+
+    it("should not publish again when the config is unchanged", async () => {
+      const { accountId, serviceId } = await makeAccountAndService();
+      await seedFlag(accountId, serviceId, "new-checkout", "prod");
+
+      await versions.publish(accountId, serviceId, "prod");
+      await versions.publish(accountId, serviceId, "prod");
+
+      expect(bundlePublisher.calls).toHaveLength(1);
+    });
+
+    it("should not fail the version write when the bundle publisher fails", async () => {
+      const failingVersions = new FlagConfigVersionService(
+        flagRepo,
+        versionRepo,
+        serviceRepo,
+        new FailingBundlePublisher(),
+      );
+      const { accountId, serviceId } = await makeAccountAndService();
+      await seedFlag(accountId, serviceId, "new-checkout", "prod");
+
+      const v = await failingVersions.publish(accountId, serviceId, "prod");
+
+      expect(v.version).toBe(1);
+    });
+
+    it("should behave exactly as before when no publisher is injected", async () => {
+      const bareVersions = new FlagConfigVersionService(flagRepo, versionRepo);
+      const { accountId, serviceId } = await makeAccountAndService();
+      await seedFlag(accountId, serviceId, "new-checkout", "prod");
+
+      const v = await bareVersions.publish(accountId, serviceId, "prod");
+
+      expect(v.version).toBe(1);
     });
   });
 });
