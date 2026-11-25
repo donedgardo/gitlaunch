@@ -56,3 +56,7 @@ playwright-report/
 *.tfstate
 *.tfstate.*
 posthog-warehouse-report.md
+
+# Planning and agent working files live in a private repository
+.planning/
+.serena/

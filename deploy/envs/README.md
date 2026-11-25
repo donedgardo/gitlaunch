@@ -4,9 +4,8 @@ Desired state for the GitLaunch instances we run ourselves. One directory per
 environment, one `values.yaml` each, applied against the chart in
 `deploy/helm/gitlaunch`.
 
-This exists so we can dogfood the GitOps model described in
-[`docs/roadmap/GITOPS-SUPPORT.md`](../../docs/roadmap/GITOPS-SUPPORT.md) before
-we ask a customer to. That design has GitLaunch write image bumps into a config
+This exists so we can dogfood the GitOps model we plan to support before we ask
+a customer to. That design has GitLaunch write image bumps into a config
 repo that a reconciler pulls. This directory is that config repo — for us, it
 happens to live in the same repository as the app source.
 
