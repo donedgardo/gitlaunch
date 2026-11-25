@@ -75,7 +75,7 @@ yarn build        # compile to dist/
 yarn start        # run the compiled build
 yarn test         # unit tests (yarn test:watch for watch mode)
 yarn test:e2e     # Playwright e2e, requires a running server
-yarn analytics    # internal product/marketing report against $MONGODB_URI
+yarn analytics    # product usage report against $MONGODB_URI
 ```
 
 ## Docs
@@ -88,12 +88,7 @@ yarn analytics    # internal product/marketing report against $MONGODB_URI
 | [railway-setup.md](docs/railway-setup.md)                     | Deploying gitlaunch.dev to Railway, CI/CD, rollback      |
 | [railway-template.md](docs/railway-template.md)               | The one-click deploy button and the template behind it   |
 | [SELF-HOSTING.md](docs/SELF-HOSTING.md)                       | Running GitLaunch in your own Kubernetes cluster         |
-| [ENTERPRISE-DELIVERY.md](docs/ENTERPRISE-DELIVERY.md)         | Internal: licensing and handover for self-hosted sales   |
-| [ENTERPRISE-ROADMAP.md](docs/ENTERPRISE-ROADMAP.md)           | Internal: gaps and sequencing for the enterprise push    |
-| [product-analytics.md](docs/product-analytics.md)             | The internal analytics report                            |
 | [feature-flag-dogfooding.md](docs/feature-flag-dogfooding.md) | GitLaunch running on its own flag engine                 |
-| [marketing/](docs/marketing/README.md)                        | Alpha campaigns, UTM convention, waitlist                |
-| [positioning/](docs/positioning/README.md)                    | Positioning canvas and customer interviews               |
 
 `CLAUDE.md` covers the architecture and the TDD workflow this repo follows.
 
@@ -132,5 +127,4 @@ few templates that cannot live there yet, and why some things were deliberately
 left in the core.
 
 A self-hosted license key governs entitlement on a customer instance and is
-separate from both licenses — see
-[ENTERPRISE-DELIVERY.md](docs/ENTERPRISE-DELIVERY.md).
+separate from both licenses.

@@ -4,7 +4,7 @@
 /**
  * Stamps the build identity into src/config/distribution.ts before
  * a release build. Run by the distribution image build — see
- * docs/ENTERPRISE-DELIVERY.md.
+ * the internal enterprise delivery runbook.
  *
  *   tsx ee/scripts/set-distribution.ts self-hosted ./issuer-public.pem
  *   tsx ee/scripts/set-distribution.ts saas
