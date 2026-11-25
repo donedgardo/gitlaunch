@@ -68,7 +68,7 @@ describe("public docs, rendered", () => {
 
     // Open core is the strongest answer to "what happens to my email" — the
     // reader can run it themselves without giving us anything.
-    expect(response.body).toContain("https://github.com/donedgardo/launchpad");
+    expect(response.body).toContain("https://github.com/donedgardo/gitlaunch");
     expect(response.body).toMatch(/self-host/i);
   });
 

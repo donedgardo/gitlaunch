@@ -33,7 +33,7 @@ export function registerDocsRoutes(
       {
         title: "How GitLaunch works",
         publicUrl,
-        sourceUrl: "https://github.com/donedgardo/launchpad",
+        sourceUrl: "https://github.com/donedgardo/gitlaunch",
         meta,
       },
       { layout: "/layouts/main.hbs" },

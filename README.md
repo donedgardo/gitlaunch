@@ -1,6 +1,6 @@
 # GitLaunch
 
-[![CI](https://github.com/donedgardo/launchpad/actions/workflows/ci.yml/badge.svg)](https://github.com/donedgardo/launchpad/actions/workflows/ci.yml)
+[![CI](https://github.com/donedgardo/gitlaunch/actions/workflows/ci.yml/badge.svg)](https://github.com/donedgardo/gitlaunch/actions/workflows/ci.yml)
 
 Deployment control your whole team can drive. GitLaunch shows what's deployed in
 every environment and lets anyone promote or roll back in one click, on top of
