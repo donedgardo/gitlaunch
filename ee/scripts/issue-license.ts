@@ -3,7 +3,7 @@
 
 /**
  * License issuer — our side of an enterprise sale. See
- * docs/ENTERPRISE-DELIVERY.md for where this sits in the process.
+ * the internal enterprise delivery runbook for where this sits in the process.
  *
  * One-time setup, generating the issuer keypair:
  *
