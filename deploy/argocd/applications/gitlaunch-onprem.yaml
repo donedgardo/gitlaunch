@@ -24,7 +24,7 @@ spec:
     server: https://kubernetes.default.svc
     namespace: onprem
   sources:
-    - repoURL: https://github.com/donedgardo/launchpad.git
+    - repoURL: https://github.com/donedgardo/gitlaunch.git
       targetRevision: main
       path: deploy/helm/gitlaunch
       helm:
@@ -38,10 +38,10 @@ spec:
         releaseName: gitlaunch
         valueFiles:
           - $values/deploy/envs/onprem/values.yaml
-    - repoURL: https://github.com/donedgardo/launchpad.git
+    - repoURL: https://github.com/donedgardo/gitlaunch.git
       targetRevision: main
       ref: values
-    - repoURL: https://github.com/donedgardo/launchpad.git
+    - repoURL: https://github.com/donedgardo/gitlaunch.git
       targetRevision: main
       path: deploy/envs/onprem/secrets
   syncPolicy:

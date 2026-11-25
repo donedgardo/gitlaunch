@@ -36,7 +36,7 @@ REGISTRY_IMAGE="$REGISTRY_HOST/donedgardo/gitlaunch"
 # package is named gitlaunch and the repository launchpad, so nothing else links
 # them. A locally built image is never pushed, but it carries the same label so
 # a pod's provenance reads the same wherever the image came from.
-SOURCE_URL="https://github.com/donedgardo/launchpad"
+SOURCE_URL="https://github.com/donedgardo/gitlaunch"
 
 # Namespace for an environment. Fails loudly on an unknown name so a typo
 # cannot quietly target the default namespace.

@@ -81,7 +81,7 @@ if [[ -n "${GITHUB_TOKEN:-}" ]]; then
   kubectl create secret generic launchpad-repo \
     --namespace argocd \
     --from-literal=type=git \
-    --from-literal=url=https://github.com/donedgardo/launchpad.git \
+    --from-literal=url=https://github.com/donedgardo/gitlaunch.git \
     --from-literal=username=git \
     --from-literal=password="$GITHUB_TOKEN" \
     --dry-run=client -o yaml \
