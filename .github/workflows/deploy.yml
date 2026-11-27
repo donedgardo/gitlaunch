@@ -7,10 +7,13 @@ on:
         description: "Environment to deploy to"
         required: true
         type: choice
+        # These are GitLaunch environment names as well as GitHub ones: the
+        # value is used in the status URL below, and it is what the release
+        # board sends when someone clicks Deploy.
         options:
           - dev
           - staging
-          - production
+          - prod
       buildId:
         description: "Build ID (commit SHA)"
         required: false

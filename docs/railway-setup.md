@@ -18,7 +18,7 @@ Push to main
               │
               ▼
 ┌─────────────────────────┐
-│   Deploy to Dev         │
+│   Deploy to Prod        │
 │   (Railway builds from  │
 │    source via Dockerfile)│
 └─────────────────────────┘
@@ -26,7 +26,7 @@ Push to main
 
 Manual Deployment (workflow_dispatch):
 ┌─────────────────┐
-│  Select Env     │ → dev / staging / production
+│  Select Env     │ → dev / staging / prod
 └────────┬────────┘
          ↓
 ┌─────────────────┐
@@ -160,7 +160,9 @@ Go to: **Repository Settings → Environments**
 
 1. Create `dev` environment
 2. Create `staging` environment (optional)
-3. Create `production` environment (optional: add protection rules requiring approval)
+3. Create `prod` environment. CI deploys here on every merge to `main`, so do not add a required-approval rule unless you want each merge to wait for one.
+
+The environment name is also sent to GitLaunch as the environment the deploy is reported against, so it must match an environment on the GitLaunch service (`prod`, not `production`).
 
 ### Add Secrets Per Environment
 
@@ -182,37 +184,36 @@ GitHub Repository
 │   ├── staging
 │   │   ├── RAILWAY_TOKEN (secret)
 │   │   └── RAILWAY_SERVICE_ID (secret)
-│   └── production
+│   └── prod
 │       ├── RAILWAY_TOKEN (secret)
-│       ├── RAILWAY_SERVICE_ID (secret)
-│       └── Protection: Require approval
+│       └── RAILWAY_SERVICE_ID (secret)
 ```
 
 ## Step 5: Deploy
 
-### Automatic Deployment (Dev)
+### Automatic Deployment (Prod)
 
 The CI workflow (`.github/workflows/ci.yml`) automatically:
 
 1. Runs quality checks and integration tests in parallel
-2. After both pass, triggers deploy to `dev`
+2. After both pass, triggers deploy to `prod`
 3. Railway builds from source using the Dockerfile
 
-Just push to `main` and dev updates automatically.
+Just push to `main` and production updates automatically. This is deliberate while there is a single environment; once staging exists, CI should deploy there and production should be promoted from the release board.
 
 ### Manual Deployment (Any Environment)
 
 Use the Deploy workflow for manual deployments:
 
 1. Go to **Actions → Deploy → Run workflow**
-2. Select environment: `dev`, `staging`, or `production`
+2. Select environment: `dev`, `staging`, or `prod`
 3. Click **Run workflow**
 
 Or use GitHub CLI:
 
 ```bash
 # Deploy to production
-gh workflow run deploy.yml -f environment=production
+gh workflow run deploy.yml -f environment=prod
 
 # Deploy to staging
 gh workflow run deploy.yml -f environment=staging

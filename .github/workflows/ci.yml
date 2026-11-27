@@ -270,14 +270,24 @@ jobs:
             -H "Content-Type: application/json" \
             -d "$(jq -nc --arg buildId "${{ github.sha }}" --arg message "$GITLAUNCH_COMMIT_MESSAGE" --arg commitAt "$GITLAUNCH_COMMIT_AT" '{buildId:$buildId,message:$message,commitAt:$commitAt}')"
 
-  deploy-dev:
-    name: Deploy to Dev
-    # Wait for report-build so the build exists before the dev deploy reports
-    # its status against it (otherwise the reporter 404s with "Build not found").
+  deploy-prod:
+    name: Deploy to Prod
+    # Every merge to main goes straight to production (gitlaunch.dev). This is
+    # deliberate for now, while there is one environment and one person
+    # shipping: the checks below are the only gate. When a staging environment
+    # exists, point this job at it and promote to prod from the release board.
+    #
+    # Wait for report-build so the build exists before the deploy reports its
+    # status against it (otherwise the reporter 404s with "Build not found").
     needs: [quality, integration, docker-build, report-build]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    # Two merges in quick succession deploy one after the other, in order,
+    # rather than racing each other to production.
+    concurrency:
+      group: deploy-prod
+      cancel-in-progress: false
     uses: ./.github/workflows/deploy.yml
     with:
-      environment: dev
+      environment: prod
       buildId: ${{ github.sha }}
     secrets: inherit
