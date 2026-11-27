@@ -639,6 +639,8 @@ describe("Dashboard Routes", () => {
       // Then: nothing flashes — the state did not just change
       expect(response.statusCode).toBe(200);
       expect(response.body).not.toContain("gl-just-changed");
+      // ...and a finished deploy has no progress bar under its pill
+      expect(response.body).not.toContain('class="gl-cprog');
     });
 
     it("does not show a live time for a deployment still in progress", async () => {
@@ -742,6 +744,8 @@ describe("Dashboard Routes", () => {
       expect(response.body).toContain("dispatching");
       // ...and the swapped-in cell flashes, the way the hero board does
       expect(response.body).toContain("gl-just-changed");
+      // ...with the progress bar running under the pill, in its first phase
+      expect(response.body).toContain('class="gl-cprog gl-cprog-dispatching"');
       expect(mockDispatcher.dispatch).toHaveBeenCalledWith(
         accountId,
         service._id,
