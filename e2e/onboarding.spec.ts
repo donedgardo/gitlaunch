@@ -5,7 +5,7 @@ import { authenticateTestUser, TEST_USERS } from "./helpers/auth";
  * Onboarding Flow - GitHub App Installation
  *
  * This acceptance test describes the expected user journey:
- * 1. Landing page primary CTA joins the waitlist; Login reaches auth
+ * 1. Landing page primary CTA starts a signup; Login reaches auth
  * 2. Authenticated user without GitHub App sees onboarding
  * 3. Onboarding prompts user to install GitHub App
  * 4. After installation, user sees repository selection
@@ -14,8 +14,11 @@ import { authenticateTestUser, TEST_USERS } from "./helpers/auth";
  */
 
 test.describe("Onboarding - GitHub App Installation", () => {
-  test("landing page primary CTA joins the waitlist", async ({ page }) => {
-    // Visit the landing page
+  test("landing page primary CTA starts a signup when signups are open", async ({
+    page,
+  }) => {
+    // The e2e server has no signup gate configured, which is the same as the
+    // gate being open: anyone may create an account.
     await page.goto("/");
 
     // Verify we're on the landing page. The hero leads with deploy visibility
@@ -26,19 +29,16 @@ test.describe("Onboarding - GitHub App Installation", () => {
       }),
     ).toBeVisible();
 
-    // The primary CTA drives to the waitlist capture, not straight to signup.
-    const joinCta = page
-      .getByRole("link", { name: /join the waitlist/i })
-      .first();
-    await expect(joinCta).toBeVisible();
-    await expect(joinCta).toHaveAttribute("href", "#start");
+    // The primary CTA takes a visitor straight to creating an account.
+    const startCta = page.getByRole("link", { name: /start free/i }).first();
+    await expect(startCta).toBeVisible();
+    await expect(startCta).toHaveAttribute("href", "/signup");
 
-    // The bot-protected email-capture form is present and posts to /waitlist
-    const form = page.locator("#waitlist-form");
-    await expect(form).toHaveAttribute("hx-post", "/waitlist");
-    await expect(
-      form.getByRole("textbox", { name: /work email/i }),
-    ).toBeVisible();
+    // Nothing on the page still describes the product as waitlisted or alpha.
+    await expect(page.locator("#waitlist-form")).toHaveCount(0);
+    await expect(page.getByText(/join the waitlist/i)).toHaveCount(0);
+    await expect(page.getByText(/private alpha/i)).toHaveCount(0);
+    await expect(page.getByText(/almost ready/i)).toHaveCount(0);
 
     // Existing users can still reach auth via the Login link, which now leads
     // to the multi-method login page (GitHub, Google, and email/password).
