@@ -371,6 +371,44 @@ describe("Billing Routes", () => {
       expect(response.statusCode).toBe(200);
       expect(response.payload).toContain('action="/api/billing/checkout"');
     });
+
+    it("should send a Free account that has never paid to checkout, not back through onboarding", async () => {
+      // Given: an account that finished onboarding on the Free plan and has
+      // never been through Stripe
+      const account = await accountRepo.create({
+        name: "Fresh Org",
+        slug: "fresh-org",
+      });
+      const user = await userRepo.create({
+        email: "fresh@example.com",
+        name: "Fresh User",
+        githubId: 32345,
+        githubLogin: "freshuser",
+        avatarUrl: null,
+      });
+      const sessionToken = sessionService.createSession({
+        userId: user._id,
+        accountId: account._id,
+      });
+
+      // When: I visit the billing page
+      const response = await app.inject({
+        method: "GET",
+        url: "/settings/billing",
+        cookies: {
+          session: sessionToken,
+        },
+      });
+
+      // Then: upgrading starts a checkout for either paid plan...
+      expect(response.statusCode).toBe(200);
+      expect(response.payload).toContain('action="/api/billing/checkout"');
+      expect(response.payload).toContain('name="plan" value="pro"');
+      expect(response.payload).toContain('name="plan" value="team"');
+      // ...and never the onboarding plan picker, which starts a trial and then
+      // asks for a new service
+      expect(response.payload).not.toContain("/onboarding/plan-selection");
+    });
   });
 
   describe("POST /api/billing/checkout with plan parameter", () => {
