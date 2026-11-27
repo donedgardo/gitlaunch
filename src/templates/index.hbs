@@ -225,7 +225,14 @@
         {{else}}
         <a href="/login" class="login-existing">Sign in<span>existing accounts only</span></a>
         {{/if}}
+        {{!-- The same hint that words the login link decides the primary
+              action: an account when the door is open, the waitlist when it
+              is not. --}}
+        {{#if signupsOpen}}
+        <a href="/signup" class="btn primary">Start free</a>
+        {{else}}
         <a href="#start" class="btn primary">Join the waitlist</a>
+        {{/if}}
       </div>
     </div>
   </nav>
@@ -244,7 +251,7 @@
         <h1 class="rise d2">{{{heroHeadlineHtml}}}</h1>
         <p class="subhead rise d3">GitLaunch shows every build across every environment — and lets anyone on the team promote or roll back safely. No YAML. No hero. No deploy-day dread.</p>
         <div class="cta-row rise d4">
-          <a href="#start" class="btn primary">{{heroCta}}</a>
+          <a href="{{#if signupsOpen}}/signup{{else}}#start{{/if}}" class="btn primary">{{heroCta}}</a>
           <a href="#how" class="btn ghost">See it live</a>
         </div>
         <div class="trust rise d4">
@@ -379,9 +386,23 @@
     </div>
   </section>
 
-  <!-- FINAL CTA — waitlist -->
+  <!-- FINAL CTA — signup when the door is open, waitlist when it is not -->
   <section class="final" id="start">
     <div class="wrap">
+      {{#if signupsOpen}}
+      <span class="kicker">Free to start · no credit card</span>
+      <h2 class="h2">{{ctaHeading}}</h2>
+      <p class="subhead2">Create your account, connect the CI you already run, and give your whole team a safe button to ship and roll back.</p>
+      <div class="cta-row">
+        <a href="/signup" class="btn primary">Start free →</a>
+        <a href="/docs" class="btn ghost">Read the docs</a>
+      </div>
+      <p class="wl-note">
+        The Free plan covers 3 services for one person. Want to look first?
+        <a href="/docs">Read the docs</a> or
+        <a href="https://github.com/donedgardo/gitlaunch">the source</a> — nothing is gated.
+      </p>
+      {{else}}
       <span class="kicker">{{ctaKicker}}</span>
       <h2 class="h2">{{ctaHeading}}</h2>
       <p class="subhead2">GitLaunch is almost ready. Join the waitlist and we'll send your invite when your spot opens — see every build across every environment and give your whole team a safe button to ship and roll back.</p>
@@ -415,6 +436,7 @@
         Want to see how it works before you hand over an email? <a href="/docs">Read the docs</a>
         or <a href="https://github.com/donedgardo/gitlaunch">the source</a> — nothing is gated.
       </p>
+      {{/if}}
     </div>
   </section>
 
