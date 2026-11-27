@@ -481,6 +481,60 @@
   color: var(--faint);
   background: color-mix(in srgb, var(--faint) 14%, transparent);
 }
+/* One environment cell's status, stacked: the pill row on top and, while a
+   deploy is in flight, the progress bar under it. */
+.gl-board .gl-env-state {
+  display: inline-flex;
+  flex-direction: column;
+  /* Left edges line up, so the bar starts under the pill, not under the
+     cancel button beside it. */
+  align-items: flex-start;
+  gap: 6px;
+  vertical-align: middle;
+}
+/* In-flight progress bar — the hero toy's .cprog. The toy knows its deploy
+   takes 1.85s; a real one has no known length, so the bar never claims to be
+   done. It runs to a quarter while the deploy is being dispatched, then eases
+   toward (and never reaches) the end while it is deploying. Each status
+   arrives as a fresh cell over SSE, so each phase starts where the last one
+   was heading. The cell's own flash marks the actual finish. */
+.gl-board .gl-cprog {
+  width: 100px;
+  max-width: 100%;
+  height: 4px;
+  border-radius: 4px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.gl-board .gl-cprog-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+}
+.gl-board .gl-cprog-dispatching .gl-cprog-fill {
+  width: 25%;
+  animation: gl-prog-dispatch 2.5s cubic-bezier(0.4, 0.1, 0.2, 1) both;
+}
+.gl-board .gl-cprog-deploying .gl-cprog-fill {
+  width: 92%;
+  animation: gl-prog-deploy 90s cubic-bezier(0.2, 0.6, 0.3, 1) both;
+}
+@keyframes gl-prog-dispatch {
+  from {
+    width: 0;
+  }
+  to {
+    width: 25%;
+  }
+}
+@keyframes gl-prog-deploy {
+  from {
+    width: 25%;
+  }
+  to {
+    width: 92%;
+  }
+}
 .gl-board .gl-empty-env {
   font-family: var(--mono);
   font-size: 12px;
@@ -519,6 +573,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .gl-board .pill .gl-dot,
+  .gl-board .gl-cprog-fill,
   .gl-board .gl-just-changed,
   .gl-board .gl-just-changed .pill-live {
     animation: none;
@@ -595,6 +650,10 @@
   }
   .gl-board tbody td.gl-env-cell:first-of-type {
     margin-top: 10px;
+  }
+  /* The status stack sits at the right edge of its line on a phone. */
+  .gl-board .gl-env-state {
+    align-items: flex-end;
   }
   .gl-board .gl-env-cell::before {
     content: attr(data-env);

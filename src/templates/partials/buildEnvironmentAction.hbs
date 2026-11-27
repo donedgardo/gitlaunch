@@ -11,16 +11,25 @@
 >
   {{#if canDispatch}}
     {{#if (showDeployButton status) }}
-      <button
-        hx-patch="/services/{{serviceId}}/builds/{{buildId}}/deploy/{{env}}"
-        hx-target="#{{serviceName}}-{{buildId}}-{{env}}"
-        hx-disabled-elt="this"
-        hx-on::before-request="this.innerHTML='<span class=\'gl-dot\'></span>dispatching'; this.className='pill pill-pending';"
-        class="cbtn"
-      >
-        Deploy
-      </button>
+      {{!-- The click answers at once: the button turns into the dispatching
+            pill and the progress bar starts under it, before the server has
+            replied. The swapped-in cell then carries the same bar. --}}
+      <div class="gl-env-state">
+        <button
+          hx-patch="/services/{{serviceId}}/builds/{{buildId}}/deploy/{{env}}"
+          hx-target="#{{serviceName}}-{{buildId}}-{{env}}"
+          hx-disabled-elt="this"
+          hx-on::before-request="this.innerHTML='<span class=\'gl-dot\'></span>dispatching'; this.className='pill pill-pending'; this.insertAdjacentHTML('afterend', '<div class=\'gl-cprog gl-cprog-dispatching\' aria-hidden=\'true\'><div class=\'gl-cprog-fill\'></div></div>');"
+          class="cbtn"
+        >
+          Deploy
+        </button>
+      </div>
     {{else}}
+      {{!-- While a deploy is in flight (dispatching or deploying) a progress
+            bar runs under the pill — the board's version of the landing page
+            toy's .cprog. It is decorative: the pill already says the status. --}}
+      <div class="gl-env-state">
       <div class="inline-flex items-center gap-2">
         <span class="{{getStatusBadgeClass status}}">{{#if (showStatusDot status)}}<span class="gl-dot"></span>{{/if}}{{status}}</span>
         {{#if (showDeployedAt status deployedAt)}}<span class="gl-when-env">{{timeAgo deployedAt}}</span>{{/if}}
@@ -43,7 +52,7 @@
             hx-patch="/services/{{serviceId}}/builds/{{buildId}}/deploy/{{env}}"
             hx-target="#{{serviceName}}-{{buildId}}-{{env}}"
             hx-disabled-elt="this"
-            hx-on::before-request="this.closest('div').innerHTML='<span class=\'pill pill-pending\'><span class=\'gl-dot\'></span>dispatching</span>';"
+            hx-on::before-request="var row=this.closest('div'); row.innerHTML='<span class=\'pill pill-pending\'><span class=\'gl-dot\'></span>dispatching</span>'; row.insertAdjacentHTML('afterend', '<div class=\'gl-cprog gl-cprog-dispatching\' aria-hidden=\'true\'><div class=\'gl-cprog-fill\'></div></div>');"
             class="gl-icon-btn"
             title="Redeploy"
           >
@@ -53,13 +62,18 @@
           </button>
         {{/if}}
       </div>
+      {{#if (canCancel status)}}<div class="gl-cprog gl-cprog-{{status}}" aria-hidden="true"><div class="gl-cprog-fill"></div></div>{{/if}}
+      </div>
     {{/if}}
   {{else}}
     {{#if status}}
-      <span class="inline-flex items-center gap-2">
-        <span class="{{getStatusBadgeClass status}}">{{#if (showStatusDot status)}}<span class="gl-dot"></span>{{/if}}{{status}}</span>
-        {{#if (showDeployedAt status deployedAt)}}<span class="gl-when-env">{{timeAgo deployedAt}}</span>{{/if}}
-      </span>
+      <div class="gl-env-state">
+        <span class="inline-flex items-center gap-2">
+          <span class="{{getStatusBadgeClass status}}">{{#if (showStatusDot status)}}<span class="gl-dot"></span>{{/if}}{{status}}</span>
+          {{#if (showDeployedAt status deployedAt)}}<span class="gl-when-env">{{timeAgo deployedAt}}</span>{{/if}}
+        </span>
+        {{#if (canCancel status)}}<div class="gl-cprog gl-cprog-{{status}}" aria-hidden="true"><div class="gl-cprog-fill"></div></div>{{/if}}
+      </div>
     {{else}}
       <span class="gl-empty-env">—</span>
     {{/if}}
