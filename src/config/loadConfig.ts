@@ -414,7 +414,7 @@ export function loadConfig(
         teamPriceId: trimmed(env.STRIPE_TEAM_PRICE_ID),
         successUrl:
           trimmed(env.STRIPE_SUCCESS_URL) ??
-          `${publicUrl}/settings/billing?success=true`,
+          `${publicUrl}/dashboard?upgraded=true`,
         cancelUrl:
           trimmed(env.STRIPE_CANCEL_URL) ??
           `${publicUrl}/settings/billing?cancelled=true`,
