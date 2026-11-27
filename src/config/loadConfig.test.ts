@@ -129,6 +129,21 @@ describe("loadConfig", () => {
       expect(config.features.billing.enabled).toBe(true);
     });
 
+    it("should return a customer to their dashboard after a successful checkout", () => {
+      // Paying is a detour from the work they were doing; the billing page is
+      // only where they land if they back out.
+      const config = loadConfig(
+        env({ STRIPE_SECRET_KEY: "sk_test_123" }),
+        saasBuild,
+      );
+      expect(config.features.billing.successUrl).toBe(
+        `${config.publicUrl}/dashboard?upgraded=true`,
+      );
+      expect(config.features.billing.cancelUrl).toBe(
+        `${config.publicUrl}/settings/billing?cancelled=true`,
+      );
+    });
+
     it("should disable billing on the saas build when no Stripe key is present", () => {
       // Preserves today's local-dev ergonomics: no Stripe, no billing routes.
       expect(loadConfig(baseEnv, saasBuild).features.billing.enabled).toBe(
