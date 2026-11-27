@@ -84,6 +84,15 @@ export function registerBillingRoutes(
           !account.stripeSubscriptionId &&
           accountState.trialDaysRemaining > 0;
 
+        // A paid plan whose trial has run out and was never paid for. The
+        // dashboard downgrades such an account the next time it loads; until
+        // then this page must not describe it as subscribed.
+        const trialEnded =
+          account.plan !== Plan.Free &&
+          !account.stripeSubscriptionId &&
+          !!account.trialEndsAt &&
+          accountState.trialDaysRemaining === 0;
+
         const templateData = {
           services: serviceNames,
           plan: account.plan.charAt(0).toUpperCase() + account.plan.slice(1),
@@ -92,6 +101,7 @@ export function registerBillingRoutes(
           hasSubscription: !!account.stripeSubscriptionId,
           hasStripeCustomer: !!account.stripeCustomerId,
           isOnTrial,
+          trialEnded,
           trialDaysRemaining: accountState.trialDaysRemaining,
           paymentFailed: accountState.paymentFailed,
           gracePeriodDaysRemaining: accountState.gracePeriodDaysRemaining,

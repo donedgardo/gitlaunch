@@ -51,8 +51,10 @@
               Trial — {{trialDaysRemaining}} days remaining
             {{else if hasSubscription}}
               Active subscription
+            {{else if trialEnded}}
+              Trial ended — subscribe to keep {{plan}}
             {{else if isPaid}}
-              Active subscription
+              No active subscription
             {{else}}
               Free tier
             {{/if}}

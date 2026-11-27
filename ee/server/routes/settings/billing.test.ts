@@ -2,7 +2,7 @@
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { MongoMemoryServer } from "mongodb-memory-server";
-import { MongoClient, Db } from "mongodb";
+import { MongoClient, Db, ObjectId } from "mongodb";
 import Fastify, { FastifyInstance } from "fastify";
 import cookie from "@fastify/cookie";
 import formbody from "@fastify/formbody";
@@ -370,6 +370,71 @@ describe("Billing Routes", () => {
       // billing portal.
       expect(response.statusCode).toBe(200);
       expect(response.payload).toContain('action="/api/billing/checkout"');
+    });
+
+    describe("plan status line", () => {
+      const visitBillingAs = async (
+        slug: string,
+        prepare: (accountId: ObjectId) => Promise<void>,
+      ) => {
+        const account = await accountRepo.create({ name: slug, slug });
+        await prepare(account._id);
+        const user = await userRepo.create({
+          email: `${slug}@example.com`,
+          name: slug,
+          githubId: Math.floor(Math.random() * 1e9),
+          githubLogin: slug,
+          avatarUrl: null,
+        });
+        const session = sessionService.createSession({
+          userId: user._id,
+          accountId: account._id,
+        });
+        return app.inject({
+          method: "GET",
+          url: "/settings/billing",
+          cookies: { session },
+        });
+      };
+
+      it("should say the trial has ended when a paid plan's trial ran out with no subscription", async () => {
+        // Given: an account on Pro whose trial ended yesterday and never paid
+        const response = await visitBillingAs("trial-over", async (id) => {
+          await accountRepo.selectPlan(id, Plan.Pro);
+          await accountRepo.setTrialEndsAt(
+            id,
+            new Date(Date.now() - 24 * 60 * 60 * 1000),
+          );
+        });
+
+        // Then: the page says so, and does not claim a subscription exists
+        expect(response.statusCode).toBe(200);
+        expect(response.payload).toContain("Trial ended");
+        expect(response.payload).not.toContain("Active subscription");
+      });
+
+      it("should say there is no subscription when a paid plan has neither a subscription nor a trial", async () => {
+        // Given: an account put on Pro by hand, with no trial and no payment
+        const response = await visitBillingAs("comped", async (id) => {
+          await accountRepo.selectPlan(id, Plan.Pro);
+        });
+
+        // Then: the page does not claim a subscription exists
+        expect(response.statusCode).toBe(200);
+        expect(response.payload).toContain("No active subscription");
+        expect(response.payload).not.toContain("Active subscription");
+      });
+
+      it("should say the subscription is active when the account is paying", async () => {
+        // Given: an account with a Stripe subscription
+        const response = await visitBillingAs("paying", async (id) => {
+          await accountRepo.upgradeToPlan(id, "cus_pay", "sub_pay", Plan.Pro);
+        });
+
+        // Then: the page says so
+        expect(response.statusCode).toBe(200);
+        expect(response.payload).toContain("Active subscription");
+      });
     });
 
     it("should send a Free account that has never paid to checkout, not back through onboarding", async () => {
