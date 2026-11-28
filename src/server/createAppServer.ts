@@ -108,6 +108,12 @@ import { WaitlistService } from "../services/marketing/waitlistService";
 import { InternalTraffic } from "../services/analytics/internalTraffic";
 import { WaitlistExperiment } from "../services/marketing/waitlistExperiment";
 import { SignupGate } from "../services/account/signupGate";
+import { registerMcpRoutes } from "./routes/mcp";
+import {
+  gitlaunchTools,
+  MCP_SERVER_VERSION,
+} from "../services/mcp/gitlaunchTools";
+import { McpGate } from "../services/mcp/mcpGate";
 import {
   describeSelfFlagStatus,
   SelfFlagAccount,
@@ -637,6 +643,15 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
       experimentResults: experimentResultsService,
       bundlePublisher,
       bundlePublicBaseUrl: config.features.flagBundles.publicBaseUrl,
+    });
+
+    // MCP server: the same API keys, for agents. Switched on per account by
+    // GitLaunch's own "mcp-server" flag until it is generally available.
+    registerMcpRoutes(server, {
+      apiKeyService,
+      catalog: gitlaunchTools({ services: serviceRepository }),
+      access: new McpGate(flagService, serviceRepository, selfFlagContext),
+      version: MCP_SERVER_VERSION,
     });
 
     // API v1 routes (API key authenticated)
