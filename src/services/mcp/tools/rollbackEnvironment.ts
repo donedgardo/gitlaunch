@@ -21,7 +21,9 @@ function lastLiveAt(build: Build, environment: string): number | null {
       entry.environment === environment &&
       entry.status === DeploymentStatus.DEPLOYED
     ) {
-      latest = Math.max(latest ?? 0, entry.at.getTime());
+      // An entry written before the log was dated is older than any dated
+      // one: the build was live, at a time before everything we can place.
+      latest = Math.max(latest ?? 0, entry.at?.getTime() ?? 0);
     }
   }
   return latest;

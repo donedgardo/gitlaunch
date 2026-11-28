@@ -71,6 +71,9 @@ export function getActivityTool(
           // went live. Nobody did it, and the deploy that caused it is already
           // in the timeline.
           if (entry.status === DeploymentStatus.NONE) continue;
+          // Entries written before the log was dated cannot be placed on a
+          // timeline, so they are left out rather than guessed at.
+          if (!entry.at) continue;
           if (!inScope(entry.environment)) continue;
           events.push({
             at: entry.at,
