@@ -58,6 +58,7 @@ import { ServiceRepository } from "../repositories/serviceRepository";
 import { ApiKeyRepository } from "../repositories/apiKeyRepository";
 import { FlagRepository } from "../repositories/flagRepository";
 import { FlagConfigVersionRepository } from "../repositories/flagConfigVersionRepository";
+import { FlagChangeRepository } from "../repositories/flagChangeRepository";
 import { FlagService } from "../services/flag/flagService";
 import { ExperimentResultsService } from "../services/flag/experimentResultsService";
 import { FlagConfigVersionService } from "../services/flag/flagConfigVersionService";
@@ -300,6 +301,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     serviceRepository,
     flagCache,
     flagConfigVersionService,
+    new FlagChangeRepository(database),
   );
 
   // Everything below registers a route. It's wrapped in server.after() so it
@@ -631,6 +633,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
       flagService,
       apiKeyService,
       analytics,
+      actors: new ActorDirectory(userRepository),
       experimentResults: experimentResultsService,
       bundlePublisher,
       bundlePublicBaseUrl: config.features.flagBundles.publicBaseUrl,

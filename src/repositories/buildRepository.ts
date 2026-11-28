@@ -2,9 +2,7 @@ import { Db, ObjectId, Collection } from "mongodb";
 import { DeploymentStatus } from "../services/service/deploymentStatus";
 import { DeploymentLogRecord } from "../services/service/deploymentLogsRecord";
 import { DeploymentIntent } from "../services/dispatch/deploymentIntent";
-import { Actor } from "../services/service/actor";
-
-export type Attribution = { actor?: Actor; reason?: string };
+import { Attribution } from "../services/service/actor";
 
 export type Build = {
   _id: ObjectId;
@@ -160,7 +158,9 @@ export class BuildRepository {
     environment: string,
     status: DeploymentStatus,
     intent?: DeploymentIntent,
-    attribution: Attribution = {},
+    // Absent only for history the system writes itself and for callers that
+    // predate attribution; BuildService always supplies it.
+    attribution: Partial<Attribution> = {},
   ): Promise<Build | null> {
     const now = new Date();
     const log: DeploymentLogRecord = {

@@ -16,6 +16,7 @@ import { TrialRegistryRepository } from "../ee/repositories/trialRegistryReposit
 import { LeadRepository } from "./repositories/leadRepository";
 import { FlagRepository } from "./repositories/flagRepository";
 import { FlagConfigVersionRepository } from "./repositories/flagConfigVersionRepository";
+import { FlagChangeRepository } from "./repositories/flagChangeRepository";
 import { createGitHubServices } from "./services/github/createGitHubServices";
 import { createFlagCache } from "./services/flag/createFlagCache";
 import { AnalyticsEventRepository } from "./repositories/analyticsEventRepository";
@@ -130,6 +131,7 @@ async function start() {
   await leadRepository.ensureIndexes();
   await flagRepository.ensureIndexes();
   await flagConfigVersionRepository.ensureIndexes();
+  await new FlagChangeRepository(database).ensureIndexes();
 
   await server.listen({ host: "0.0.0.0", port: PORT });
   console.info(`Server listening on port ${PORT}`);

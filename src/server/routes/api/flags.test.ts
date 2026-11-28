@@ -28,6 +28,19 @@ import { ExperimentResultsService } from "../../../services/flag/experimentResul
 import { FlagConfigVersionRepository } from "../../../repositories/flagConfigVersionRepository";
 import { FlagConfigVersionService } from "../../../services/flag/flagConfigVersionService";
 import { registerFlagsRoutes } from "./flags";
+import { FlagChangeRepository } from "../../../repositories/flagChangeRepository";
+import { Attribution } from "../../../services/service/actor";
+
+// Who is making the change in tests that are not about attribution.
+const TEST_BY: Attribution = {
+  actor: {
+    kind: "apiKey",
+    apiKeyId: new ObjectId(),
+    name: "test-key",
+    via: "api",
+  },
+};
+
 import { ApiKeyScope } from "../../../repositories/apiKeyRepository";
 
 type MockAuthContext = {
@@ -38,6 +51,9 @@ type MockAuthContext = {
   environment?: string | null;
   allowedOrigins?: string[];
   allowedEnvironments?: string[];
+  apiKeyId?: ObjectId;
+  name?: string;
+  createdByUserId?: ObjectId;
 };
 
 function createMockApiKeyAuth(getContext: () => MockAuthContext | null) {
@@ -56,7 +72,9 @@ function createMockApiKeyAuth(getContext: () => MockAuthContext | null) {
     }
     request.apiKey = {
       accountId: context.accountId,
-      apiKeyId: new ObjectId(),
+      apiKeyId: context.apiKeyId ?? new ObjectId(),
+      name: context.name,
+      createdByUserId: context.createdByUserId,
       scopes: context.scopes,
       kind: context.kind ?? "secret",
       serviceId: context.serviceId ?? null,
@@ -108,6 +126,7 @@ describe("Flags API Routes", () => {
       serviceRepo,
       undefined,
       configVersions,
+      new FlagChangeRepository(db),
     );
     analytics = new WarehouseAnalytics(new AnalyticsEventRepository(db));
     experimentResults = new ExperimentResultsService(db);
@@ -132,6 +151,7 @@ describe("Flags API Routes", () => {
     await db.collection("accounts").deleteMany({});
     await db.collection("services").deleteMany({});
     await db.collection("flags").deleteMany({});
+    await db.collection("flagChanges").deleteMany({});
     await db.collection("analytics_events").deleteMany({});
     await db.collection("flag_config_versions").deleteMany({});
 
@@ -450,10 +470,15 @@ describe("Flags API Routes", () => {
 
     it("should record which account and which key updated a flag", async () => {
       // Given an existing flag being reconfigured over the API
-      await flagService.createFlag(testAccountId, testServiceId, {
-        key: "updatable",
-        description: "",
-      });
+      await flagService.createFlag(
+        testAccountId,
+        testServiceId,
+        {
+          key: "updatable",
+          description: "",
+        },
+        TEST_BY,
+      );
       await app.inject({
         method: "PATCH",
         url: `/api/v1/services/${testServiceId}/flags/updatable/environments/prod`,
@@ -472,10 +497,15 @@ describe("Flags API Routes", () => {
 
   describe("experiment metrics", () => {
     async function enableExperiment(key: string) {
-      await flagService.createFlag(testAccountId, testServiceId, {
-        key,
-        description: "",
-      });
+      await flagService.createFlag(
+        testAccountId,
+        testServiceId,
+        {
+          key,
+          description: "",
+        },
+        TEST_BY,
+      );
       await flagService.setEnvConfig(
         testAccountId,
         testServiceId,
@@ -489,6 +519,7 @@ describe("Flags API Routes", () => {
             { key: "treatment", weight: 50 },
           ],
         },
+        TEST_BY,
       );
     }
 
@@ -562,10 +593,15 @@ describe("Flags API Routes", () => {
     });
 
     it("does not record exposures for a disabled flag", async () => {
-      await flagService.createFlag(testAccountId, testServiceId, {
-        key: "off",
-        description: "",
-      });
+      await flagService.createFlag(
+        testAccountId,
+        testServiceId,
+        {
+          key: "off",
+          description: "",
+        },
+        TEST_BY,
+      );
       await evaluate("u1");
       await analytics.flush();
 
@@ -849,6 +885,86 @@ describe("Flags API Routes", () => {
       const res = await createFlag("fresh");
 
       expect(res.statusCode).toBe(201);
+    });
+  });
+
+  describe("attribution", () => {
+    const apiKeyId = new ObjectId();
+    const createdByUserId = new ObjectId();
+    const history = () =>
+      db
+        .collection("flagChanges")
+        .find({ serviceId: testServiceId })
+        .sort({ at: 1, _id: 1 })
+        .toArray();
+
+    beforeEach(() => {
+      currentAuthContext = {
+        accountId: testAccountId,
+        scopes: ALL_SCOPES,
+        apiKeyId,
+        name: "staging-agent",
+        createdByUserId,
+      };
+    });
+
+    it("should record the key that created, switched and deleted a flag", async () => {
+      await app.inject({
+        method: "POST",
+        url: `/api/v1/services/${testServiceId}/flags`,
+        headers: auth(),
+        payload: { key: "beta" },
+      });
+      await app.inject({
+        method: "PATCH",
+        url: `/api/v1/services/${testServiceId}/flags/beta/environments/prod`,
+        headers: auth(),
+        payload: { enabled: true, rolloutPercentage: 100 },
+      });
+      await app.inject({
+        method: "DELETE",
+        url: `/api/v1/services/${testServiceId}/flags/beta`,
+        headers: auth(),
+      });
+
+      const changes = await history();
+      expect(changes.map((c) => c.change)).toEqual([
+        "created",
+        "configured",
+        "deleted",
+      ]);
+      for (const change of changes) {
+        expect(change.actor).toEqual({
+          kind: "apiKey",
+          apiKeyId,
+          name: "staging-agent",
+          via: "api",
+          onBehalfOfUserId: createdByUserId,
+        });
+      }
+    });
+
+    it("should record the reason sent with a flag switch, without treating it as config", async () => {
+      await app.inject({
+        method: "POST",
+        url: `/api/v1/services/${testServiceId}/flags`,
+        headers: auth(),
+        payload: { key: "beta" },
+      });
+
+      const res = await app.inject({
+        method: "PATCH",
+        url: `/api/v1/services/${testServiceId}/flags/beta/environments/prod`,
+        headers: auth(),
+        payload: { enabled: true, reason: "errors are back to normal" },
+      });
+
+      expect(res.statusCode).toBe(200);
+      const changes = await history();
+      expect(changes[1].reason).toBe("errors are back to normal");
+      expect(JSON.parse(res.body).environments.prod).not.toHaveProperty(
+        "reason",
+      );
     });
   });
 });

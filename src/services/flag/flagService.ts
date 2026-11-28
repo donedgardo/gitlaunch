@@ -23,6 +23,9 @@ const TARGETING_OPERATORS: ReadonlySet<TargetingOperator> = new Set([
 
 const FLAG_KEY_REGEX = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
+import { Attribution } from "../service/actor";
+import { RecordFlagChangeInput } from "../../repositories/flagChangeRepository";
+
 export type CreateFlagInput = {
   key: string;
   description: string;
@@ -30,11 +33,21 @@ export type CreateFlagInput = {
 
 export type EnvConfigPatch = Partial<FlagEnvironmentConfig>;
 
+// Where flag history is written. FlagChangeRepository satisfies it.
+export interface FlagChangeLogI {
+  record(change: RecordFlagChangeInput): Promise<unknown>;
+}
+
+class NoFlagChangeLog implements FlagChangeLogI {
+  async record(): Promise<void> {}
+}
+
 export interface FlagServiceI {
   createFlag(
     accountId: ObjectId,
     serviceId: ObjectId,
     input: CreateFlagInput,
+    by: Attribution,
   ): Promise<Flag>;
   listFlags(accountId: ObjectId, serviceId: ObjectId): Promise<Flag[]>;
   getFlag(
@@ -48,11 +61,13 @@ export interface FlagServiceI {
     key: string,
     envName: string,
     patch: EnvConfigPatch,
+    by: Attribution,
   ): Promise<Flag>;
   deleteFlag(
     accountId: ObjectId,
     serviceId: ObjectId,
     key: string,
+    by: Attribution,
   ): Promise<boolean>;
   evaluate(
     accountId: ObjectId,
@@ -80,7 +95,35 @@ export class FlagService implements FlagServiceI {
     // version snapshot of the affected environment(s). Absent in contexts that
     // don't need version history (e.g. lightweight tests).
     private versionPublisher?: FlagConfigVersionPublisherI,
+    // Where "who changed this flag" is written. Every write method requires
+    // an attribution; this only decides whether it is kept. Absent in contexts
+    // that don't need the history (e.g. lightweight tests).
+    private changeLog: FlagChangeLogI = new NoFlagChangeLog(),
   ) {}
+
+  // Written after the flag itself, so history never describes a change that
+  // was refused. Unlike a version snapshot this is not best-effort: a change
+  // nobody can be shown to have made is the thing attribution exists to
+  // prevent, so a failure here surfaces to the caller.
+  private async recordChange(
+    accountId: ObjectId,
+    serviceId: ObjectId,
+    flagKey: string,
+    by: Attribution,
+    change: Pick<
+      RecordFlagChangeInput,
+      "change" | "environment" | "before" | "after"
+    >,
+  ): Promise<void> {
+    await this.changeLog.record({
+      accountId,
+      serviceId,
+      flagKey,
+      ...change,
+      actor: by.actor,
+      ...(by.reason ? { reason: by.reason } : {}),
+    });
+  }
 
   private cacheKey(accountId: ObjectId, serviceId: ObjectId): string {
     return `${accountId.toString()}:${serviceId.toString()}`;
@@ -109,6 +152,7 @@ export class FlagService implements FlagServiceI {
     accountId: ObjectId,
     serviceId: ObjectId,
     input: CreateFlagInput,
+    by: Attribution,
   ): Promise<Flag> {
     if (!FLAG_KEY_REGEX.test(input.key)) {
       throw new Error("Flag key must be lowercase alphanumeric with hyphens");
@@ -146,6 +190,9 @@ export class FlagService implements FlagServiceI {
       serviceId,
       service.environments.map((e) => e.name),
     );
+    await this.recordChange(accountId, serviceId, input.key, by, {
+      change: "created",
+    });
     return flag;
   }
 
@@ -167,6 +214,7 @@ export class FlagService implements FlagServiceI {
     key: string,
     envName: string,
     patch: EnvConfigPatch,
+    by: Attribution,
   ): Promise<Flag> {
     const service = await this.getServiceOrThrow(accountId, serviceId);
     if (!service.environments.some((e) => e.name === envName)) {
@@ -200,6 +248,12 @@ export class FlagService implements FlagServiceI {
     }
     await this.cache.invalidate(this.cacheKey(accountId, serviceId));
     await this.recordVersions(accountId, serviceId, [envName]);
+    await this.recordChange(accountId, serviceId, key, by, {
+      change: "configured",
+      environment: envName,
+      before: current,
+      after: next,
+    });
     return updated;
   }
 
@@ -207,6 +261,7 @@ export class FlagService implements FlagServiceI {
     accountId: ObjectId,
     serviceId: ObjectId,
     key: string,
+    by: Attribution,
   ): Promise<boolean> {
     const deleted = await this.flagRepo.delete(accountId, serviceId, key);
     await this.cache.invalidate(this.cacheKey(accountId, serviceId));
@@ -223,6 +278,9 @@ export class FlagService implements FlagServiceI {
           service.environments.map((e) => e.name),
         );
       }
+      await this.recordChange(accountId, serviceId, key, by, {
+        change: "deleted",
+      });
     }
     return deleted;
   }
