@@ -149,6 +149,20 @@ describe("rollback_environment", () => {
     expect(deployer.asked[0].buildId).toBe("v1");
   });
 
+  it("should treat a build live before history was dated as the oldest", async () => {
+    const service = deployable();
+    const builds = v1ThenV2(service);
+    // As stored before entries carried a time.
+    for (const entry of builds[0].deploymentLogs) {
+      delete (entry as { at?: Date }).at;
+    }
+    const deployer = new FakeDeployer(builds);
+
+    const result = await run(service, builds, { deployer });
+
+    expect(result).toMatchObject({ rolledBackFrom: "v2", buildId: "v1" });
+  });
+
   it("should refuse when nothing is live in the environment", async () => {
     const service = deployable();
     const builds = [aBuild(service, "v1")];
