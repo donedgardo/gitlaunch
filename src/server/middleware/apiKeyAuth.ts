@@ -2,6 +2,10 @@ import { FastifyRequest, FastifyReply } from "fastify";
 import { ObjectId } from "mongodb";
 import { ApiKeyService } from "../../services/apiKey/apiKeyService";
 import { ApiKeyScope, ApiKeyKind } from "../../repositories/apiKeyRepository";
+import {
+  isEnvironmentLimited,
+  mayActOnEnvironment,
+} from "../../services/apiKey/keyAccess";
 
 export type ApiKeyContext = {
   accountId: ObjectId;
@@ -12,6 +16,9 @@ export type ApiKeyContext = {
   serviceId?: ObjectId | null;
   environment?: string | null;
   allowedOrigins: string[];
+  // Secret keys only: the environments this key may change. Absent, null or
+  // empty means every environment.
+  allowedEnvironments?: string[] | null;
 };
 
 declare module "fastify" {
@@ -58,6 +65,7 @@ export function createApiKeyAuthMiddleware(apiKeyService: ApiKeyService) {
       serviceId: validated.serviceId ?? null,
       environment: validated.environment ?? null,
       allowedOrigins: validated.allowedOrigins ?? [],
+      allowedEnvironments: validated.allowedEnvironments ?? null,
     };
   };
 }
@@ -84,6 +92,54 @@ export function requireScope(scope: ApiKeyScope) {
     if (!request.apiKey.scopes.includes(scope)) {
       return reply.status(403).send({
         error: `Missing required scope: ${scope}`,
+      });
+    }
+  };
+}
+
+// Guards a write addressed to one environment — a deploy, a status report, a
+// flag switch. Pair it with requireScope: the scope says *what* the key may do,
+// this says *where*. A key with no environment list passes untouched.
+//
+// By default the environment is the route's `:env` parameter; pass a reader
+// when the route names it differently or carries it in the body.
+export function requireEnvironmentAccess(
+  readEnvironment: (request: FastifyRequest) => string | undefined = (
+    request,
+  ) => (request.params as { env?: string } | undefined)?.env,
+) {
+  return async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!request.apiKey) {
+      return reply.status(401).send({ error: "API key required" });
+    }
+    if (!isEnvironmentLimited(request.apiKey)) return;
+
+    const environment = readEnvironment(request);
+    // No environment to check is left to the route's own validation, which
+    // answers with the 400 it always did.
+    if (typeof environment !== "string" || !environment) return;
+
+    if (!mayActOnEnvironment(request.apiKey, environment)) {
+      return reply.status(403).send({
+        error: `This key is not allowed to act on environment "${environment}".`,
+      });
+    }
+  };
+}
+
+// Guards a write that reaches every environment at once — deleting a flag,
+// rebinding how a service deploys. A key limited to some environments has no
+// business making it: otherwise "staging only" would still be able to pull a
+// flag out from under production.
+export function requireAllEnvironments() {
+  return async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!request.apiKey) {
+      return reply.status(401).send({ error: "API key required" });
+    }
+    if (isEnvironmentLimited(request.apiKey)) {
+      return reply.status(403).send({
+        error:
+          "This key is limited to certain environments and cannot make a change that affects all of them.",
       });
     }
   };

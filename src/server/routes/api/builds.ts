@@ -3,7 +3,10 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { ObjectId } from "mongodb";
 import { BuildService } from "../../../services/build/buildService";
 import { ServiceRepository } from "../../../repositories/serviceRepository";
-import { requireScope } from "../../middleware/apiKeyAuth";
+import {
+  requireScope,
+  requireEnvironmentAccess,
+} from "../../middleware/apiKeyAuth";
 import { DeploymentStatus } from "../../../services/service/deploymentStatus";
 import { AnalyticsService } from "../../../services/analytics/analytics";
 import { actor, machineActor } from "../../../services/analytics/actorIdentity";
@@ -231,7 +234,12 @@ export function registerBuildsRoutes(
   // POST /api/v1/services/:serviceId/builds/:buildId/deploy/:env - Trigger deployment
   app.post<{ Params: DeployParams }>(
     "/api/v1/services/:serviceId/builds/:buildId/deploy/:env",
-    { preHandler: requireScope("deployments:write") },
+    {
+      preHandler: [
+        requireScope("deployments:write"),
+        requireEnvironmentAccess(),
+      ],
+    },
     async (
       request: FastifyRequest<{ Params: DeployParams }>,
       reply: FastifyReply,
@@ -302,7 +310,12 @@ export function registerBuildsRoutes(
   // PATCH /api/v1/services/:serviceId/builds/:buildId/deploy/:env - Update deployment status
   app.patch<{ Params: DeployParams; Body: UpdateDeploymentStatusBody }>(
     "/api/v1/services/:serviceId/builds/:buildId/deploy/:env",
-    { preHandler: requireScope("deployments:write") },
+    {
+      preHandler: [
+        requireScope("deployments:write"),
+        requireEnvironmentAccess(),
+      ],
+    },
     async (
       request: FastifyRequest<{
         Params: DeployParams;

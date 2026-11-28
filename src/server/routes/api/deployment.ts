@@ -6,7 +6,10 @@ import { AccountRepository } from "../../../repositories/accountRepository";
 import { AccountLimits } from "../../../services/limits/accountPolicy";
 import { GitHubRepo } from "../../../services/github/githubAppService";
 import { AnalyticsService } from "../../../services/analytics/analytics";
-import { requireScope } from "../../middleware/apiKeyAuth";
+import {
+  requireScope,
+  requireAllEnvironments,
+} from "../../middleware/apiKeyAuth";
 
 /**
  * Only the slice of GitHubAppService this route needs, so tests can supply a
@@ -72,7 +75,9 @@ export function registerDeploymentRoutes(
   // rather than failing obscurely.
   app.post<{ Params: ServiceIdParams; Body: DeploymentBody }>(
     "/api/v1/services/:serviceId/deployment",
-    { preHandler: requireScope("services:write") },
+    {
+      preHandler: [requireScope("services:write"), requireAllEnvironments()],
+    },
     async (
       request: FastifyRequest<{
         Params: ServiceIdParams;

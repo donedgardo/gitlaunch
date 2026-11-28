@@ -20,6 +20,9 @@ export type GenerateApiKeyInput = {
   serviceId?: ObjectId;
   environment?: string;
   allowedOrigins?: string[];
+  // Secret keys only: limit which environments the key may change. Omit for
+  // every environment.
+  allowedEnvironments?: string[];
   expiresAt?: Date | null;
 };
 
@@ -70,6 +73,13 @@ export class ApiKeyService {
           "A publishable key must list at least one allowed origin",
         );
       }
+      // Already pinned to exactly one environment above; a second, different
+      // notion of "where" on the same key could only contradict it.
+      if (input.allowedEnvironments?.length) {
+        throw new Error(
+          "A publishable key is bound to a single environment and cannot also carry an environment list",
+        );
+      }
       const overreaching = input.scopes.filter(
         (s) => !PUBLISHABLE_SCOPES.includes(s),
       );
@@ -109,6 +119,7 @@ export class ApiKeyService {
       serviceId: input.serviceId ?? null,
       environment: input.environment ?? null,
       allowedOrigins: input.allowedOrigins ?? [],
+      allowedEnvironments: input.allowedEnvironments ?? [],
       expiresAt: input.expiresAt,
     });
 

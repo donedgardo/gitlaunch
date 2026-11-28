@@ -4,12 +4,52 @@ import { ApiKeyService } from "../../../services/apiKey/apiKeyService";
 import { ServiceRepository } from "../../../repositories/serviceRepository";
 import { AnalyticsService } from "../../../services/analytics/analytics";
 import { actor } from "../../../services/analytics/actorIdentity";
+import { ApiKey } from "../../../repositories/apiKeyRepository";
+import {
+  KEY_ACCESS_LEVELS,
+  describeAccess,
+  describeEnvironments,
+  parseAccessLevel,
+  parseEnvironmentList,
+  scopesFor,
+} from "../../../services/apiKey/keyAccess";
 
 export type ApiKeyRoutesDeps = {
   apiKeyService: ApiKeyService;
   serviceRepository?: ServiceRepository;
   analytics?: AnalyticsService;
 };
+
+type CreateKeyBody = {
+  name: string;
+  // One of KEY_ACCESS_LEVELS; absent means full access.
+  access?: string;
+  // Comma-separated environment names; blank means every environment.
+  environments?: string | string[];
+};
+
+function presentKey(k: ApiKey) {
+  return {
+    id: k._id.toString(),
+    name: k.name,
+    prefix: k.keyPrefix,
+    scopes: k.scopes.join(", "),
+    access: describeAccess(k.scopes),
+    reach: describeEnvironments(k),
+    lastUsedAt: k.lastUsedAt
+      ? k.lastUsedAt.toISOString().split("T")[0]
+      : "Never",
+    createdAt: k.createdAt.toISOString().split("T")[0],
+    isRevoked: k.isRevoked,
+  };
+}
+
+const accessLevels = KEY_ACCESS_LEVELS.map((l, i) => ({
+  level: l.level,
+  label: l.label,
+  description: l.description,
+  isDefault: i === 0,
+}));
 
 export function registerApiKeyRoutes(
   app: FastifyInstance,
@@ -36,17 +76,8 @@ export function registerApiKeyRoutes(
         {
           title: "API Keys",
           services: services.map((s) => s.name),
-          keys: keys.map((k) => ({
-            id: k._id.toString(),
-            name: k.name,
-            prefix: k.keyPrefix,
-            scopes: k.scopes.join(", "),
-            lastUsedAt: k.lastUsedAt
-              ? k.lastUsedAt.toISOString().split("T")[0]
-              : "Never",
-            createdAt: k.createdAt.toISOString().split("T")[0],
-            isRevoked: k.isRevoked,
-          })),
+          accessLevels,
+          keys: keys.map(presentKey),
         },
         { layout: "/layouts/main.hbs" },
       );
@@ -54,10 +85,10 @@ export function registerApiKeyRoutes(
   );
 
   // POST /settings/api-keys - Generate new API key
-  app.post<{ Body: { name: string } }>(
+  app.post<{ Body: CreateKeyBody }>(
     "/settings/api-keys",
     async (
-      request: FastifyRequest<{ Body: { name: string } }>,
+      request: FastifyRequest<{ Body: CreateKeyBody }>,
       reply: FastifyReply,
     ) => {
       if (!request.session) {
@@ -68,19 +99,23 @@ export function registerApiKeyRoutes(
       const userId = new ObjectId(request.session.userId);
       const { name } = request.body;
 
+      const access = parseAccessLevel(request.body.access);
+      if (!access) {
+        return reply.status(400).send("Unknown access level");
+      }
+      // A read-only key changes nothing anywhere, so an environment list on it
+      // would only suggest its reads were limited, which they are not.
+      const allowedEnvironments =
+        access === "read"
+          ? []
+          : parseEnvironmentList(request.body.environments);
+
       const { key, apiKey } = await apiKeyService.generate({
         accountId,
         createdByUserId: userId,
         name: name || "Unnamed Key",
-        scopes: [
-          "builds:read",
-          "builds:write",
-          "deployments:write",
-          "services:read",
-          "services:write",
-          "flags:read",
-          "flags:write",
-        ],
+        scopes: scopesFor(access),
+        allowedEnvironments,
       });
 
       // Reaching for the API is an activation milestone. The key itself never
@@ -104,17 +139,8 @@ export function registerApiKeyRoutes(
           services: services.map((s) => s.name),
           newKey: key,
           newKeyName: apiKey.name,
-          keys: keys.map((k) => ({
-            id: k._id.toString(),
-            name: k.name,
-            prefix: k.keyPrefix,
-            scopes: k.scopes.join(", "),
-            lastUsedAt: k.lastUsedAt
-              ? k.lastUsedAt.toISOString().split("T")[0]
-              : "Never",
-            createdAt: k.createdAt.toISOString().split("T")[0],
-            isRevoked: k.isRevoked,
-          })),
+          accessLevels,
+          keys: keys.map(presentKey),
         },
         { layout: "/layouts/main.hbs" },
       );

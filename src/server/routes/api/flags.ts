@@ -5,6 +5,8 @@ import { FlagServiceI } from "../../../services/flag/flagService";
 import { ServiceRepository } from "../../../repositories/serviceRepository";
 import {
   requireScope,
+  requireEnvironmentAccess,
+  requireAllEnvironments,
   requireFlagRuntimeAccess,
 } from "../../middleware/apiKeyAuth";
 import { AnalyticsService } from "../../../services/analytics/analytics";
@@ -241,7 +243,9 @@ export function registerFlagsRoutes(
   // PATCH /api/v1/services/:serviceId/flags/:key/environments/:env — configure
   app.patch<{ Params: EnvConfigParams; Body: EnvConfigBody }>(
     "/api/v1/services/:serviceId/flags/:key/environments/:env",
-    { preHandler: requireScope("flags:write") },
+    {
+      preHandler: [requireScope("flags:write"), requireEnvironmentAccess()],
+    },
     async (request, reply) => {
       const accountId = request.apiKey!.accountId;
       const serviceId = await resolveServiceId(request, reply);
@@ -274,7 +278,7 @@ export function registerFlagsRoutes(
   // DELETE /api/v1/services/:serviceId/flags/:key — delete a flag
   app.delete<{ Params: FlagKeyParams }>(
     "/api/v1/services/:serviceId/flags/:key",
-    { preHandler: requireScope("flags:write") },
+    { preHandler: [requireScope("flags:write"), requireAllEnvironments()] },
     async (request, reply) => {
       const accountId = request.apiKey!.accountId;
       const serviceId = await resolveServiceId(request, reply);

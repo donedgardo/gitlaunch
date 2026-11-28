@@ -2,7 +2,15 @@ import { AccountLimits } from "../../../services/limits/accountPolicy";
 import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { ObjectId } from "mongodb";
 import { EnvironmentService } from "../../../services/environment/environmentService";
-import { requireScope } from "../../middleware/apiKeyAuth";
+import {
+  requireScope,
+  requireEnvironmentAccess,
+} from "../../middleware/apiKeyAuth";
+
+const namedInPath = (request: FastifyRequest) =>
+  (request.params as { envName?: string } | undefined)?.envName;
+const namedInBody = (request: FastifyRequest) =>
+  (request.body as { name?: string } | undefined)?.name;
 
 export type EnvironmentsRoutesDependencies = {
   environmentService: EnvironmentService;
@@ -71,7 +79,12 @@ export function registerEnvironmentsRoutes(
   // POST /api/v1/services/:serviceId/environments - Add environment
   app.post<{ Params: ServiceIdParams; Body: AddEnvironmentBody }>(
     "/api/v1/services/:serviceId/environments",
-    { preHandler: requireScope("services:write") },
+    {
+      preHandler: [
+        requireScope("services:write"),
+        requireEnvironmentAccess(namedInBody),
+      ],
+    },
     async (
       request: FastifyRequest<{
         Params: ServiceIdParams;
@@ -131,7 +144,12 @@ export function registerEnvironmentsRoutes(
   // PATCH /api/v1/services/:serviceId/environments/:envName - Update environment
   app.patch<{ Params: EnvNameParams; Body: UpdateEnvironmentBody }>(
     "/api/v1/services/:serviceId/environments/:envName",
-    { preHandler: requireScope("services:write") },
+    {
+      preHandler: [
+        requireScope("services:write"),
+        requireEnvironmentAccess(namedInPath),
+      ],
+    },
     async (
       request: FastifyRequest<{
         Params: EnvNameParams;
@@ -181,7 +199,12 @@ export function registerEnvironmentsRoutes(
   // DELETE /api/v1/services/:serviceId/environments/:envName - Remove environment
   app.delete<{ Params: EnvNameParams }>(
     "/api/v1/services/:serviceId/environments/:envName",
-    { preHandler: requireScope("services:write") },
+    {
+      preHandler: [
+        requireScope("services:write"),
+        requireEnvironmentAccess(namedInPath),
+      ],
+    },
     async (
       request: FastifyRequest<{ Params: EnvNameParams }>,
       reply: FastifyReply,

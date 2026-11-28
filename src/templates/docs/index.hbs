@@ -168,8 +168,12 @@
         <h2>API keys</h2>
         <p>
           Keys are scoped: <code>builds:write</code>, <code>deployments:write</code>,
-          <code>services:read</code>, <code>flags:evaluate</code> and so on. A CI key needs
-          <code>builds:write</code> and <code>deployments:write</code> and nothing else. Keys are
+          <code>services:read</code>, <code>flags:evaluate</code> and so on. When you create a
+          key you choose what it may do: <strong>Full access</strong> for a CI pipeline,
+          <strong>Release</strong> for an agent or tool that deploys builds and switches flags,
+          or <strong>Read-only</strong>. A key can also be limited to named environments, so a
+          key for <code>staging</code> cannot deploy to, or switch a flag in, production; it can
+          still read every environment. Keys are
           shown once, stored hashed, and revocable from settings.
         </p>
       </section>
