@@ -9,6 +9,7 @@ import {
   deriveIntent,
   intentInFlight,
 } from "../dispatch/deploymentIntent";
+import { Actor, describeActor, shippedBy } from "../service/actor";
 
 export type BuildUpdateEvent = {
   buildId: string;
@@ -20,6 +21,9 @@ export type BuildUpdateEvent = {
   // When this build went live in the environment, so a pushed cell keeps the
   // "how long ago" label the full page render shows. Absent unless live.
   deployedAt?: Date;
+  // Who shipped the build that is now live, as the board prints it. Absent
+  // unless live, and for deploys dispatched before attribution existed.
+  deployedBy?: string;
   // Report-only (manual) services have no dispatch — their rows show status
   // without Deploy/Redeploy controls.
   canDispatch: boolean;
@@ -40,6 +44,11 @@ export type UpdateDeploymentStatusInput = {
   buildId: string;
   environment: string;
   status: DeploymentStatus;
+  // Who is making this change. Required so that no path into a deployment —
+  // dashboard, API or MCP — can change one anonymously.
+  actor: Actor;
+  // Why, in the actor's own words, when they said.
+  reason?: string;
 };
 
 export class BuildService {
@@ -138,6 +147,7 @@ export class BuildService {
       input.environment,
       input.status,
       intent,
+      { actor: input.actor, reason: input.reason },
     );
 
     if (!build) {
@@ -159,6 +169,7 @@ export class BuildService {
       serviceId: input.serviceId.toString(),
       serviceName: service.name,
       deployedAt: build.deployedAt?.[input.environment],
+      deployedBy: whoShipped(build, input.environment, input.status),
       canDispatch,
     };
 
@@ -212,7 +223,8 @@ export class BuildService {
     }
 
     if (input.status !== DeploymentStatus.DISPATCHING) {
-      return intentInFlight(build.deploymentLogs, input.environment);
+      // Builds stored before deployment history existed have no log at all.
+      return intentInFlight(build.deploymentLogs ?? [], input.environment);
     }
 
     const current = await this.buildRepo.findLastDeployed(
@@ -228,4 +240,15 @@ export class BuildService {
         : null,
     });
   }
+}
+
+// The board's "by …" label for a live build; nothing to say until it is live.
+function whoShipped(
+  build: Build,
+  environment: string,
+  status: DeploymentStatus,
+): string | undefined {
+  if (status !== DeploymentStatus.DEPLOYED) return undefined;
+  const actor = shippedBy(build.deploymentLogs, environment);
+  return actor ? describeActor(actor) : undefined;
 }

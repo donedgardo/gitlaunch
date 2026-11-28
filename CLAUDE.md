@@ -57,6 +57,8 @@ GitLaunch is a multi-tenant SaaS deployment tool: Fastify, HTMX, Handlebars, Mon
 
 **Deployment status flow**: `none` -> `dispatching` -> `deploying` -> `deployed`/`error`/`cancelled` (`services/service/deploymentStatus.ts`).
 
+**Attribution**: every deployment status change carries an `Actor` (`services/service/actor.ts`) — the signed-in person (`ActorDirectory.forUser`) or the API key (`apiKeyActor`, with `via` `api` or `mcp` and the person who created the key). `BuildService.updateDeploymentStatus` requires one, so no path can change a deployment anonymously. Ask "who shipped this" with `shippedBy(logs, env)`, which credits the dispatcher, not the pipeline that reported it landed.
+
 **Environments** are per-service records, not a fixed enum — a service defines its own (`staging`, `prod`, whatever), capped by plan limits.
 
 ### API Patterns

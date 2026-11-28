@@ -50,6 +50,7 @@ import { RawProviderDispatcher } from "../services/raw/rawProviderDispatcher";
 import { RawDispatchService } from "../services/raw/rawDispatchService";
 import { SessionService } from "../services/auth/sessionService";
 import { UserRepository } from "../repositories/userRepository";
+import { ActorDirectory } from "../services/account/actorDirectory";
 import { AccountRepository } from "../repositories/accountRepository";
 import { MembershipRepository } from "../repositories/membershipRepository";
 import { RepositoryRepository } from "../repositories/repositoryRepository";
@@ -501,6 +502,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
         planEnforcementService,
         analytics,
         flagService,
+        actors: new ActorDirectory(userRepository),
       }),
     );
     server.register(

@@ -142,6 +142,7 @@ export default function (deps: BuildRoutesDeps) {
                   serviceId: event.serviceId,
                   status: event.status,
                   deployedAt: event.deployedAt,
+                  deployedBy: event.deployedBy,
                   canDispatch: event.canDispatch,
                   isOobSwap: true,
                 });

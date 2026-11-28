@@ -10,6 +10,10 @@ import {
 export type ApiKeyContext = {
   accountId: ObjectId;
   apiKeyId: ObjectId;
+  // The key's name and the person who created it, so a change made with the
+  // key can be attributed to both.
+  name?: string;
+  createdByUserId?: ObjectId;
   scopes: ApiKeyScope[];
   kind: ApiKeyKind;
   // Publishable keys only: what this key is confined to.
@@ -59,6 +63,8 @@ export function createApiKeyAuthMiddleware(apiKeyService: ApiKeyService) {
     request.apiKey = {
       accountId: validated.accountId,
       apiKeyId: validated._id,
+      name: validated.name,
+      createdByUserId: validated.createdByUserId,
       scopes: validated.scopes,
       // Records predating the sk_/pk_ split have no kind and are secret keys.
       kind: validated.kind ?? "secret",

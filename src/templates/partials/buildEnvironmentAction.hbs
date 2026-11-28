@@ -32,7 +32,7 @@
       <div class="gl-env-state">
       <div class="inline-flex items-center gap-2">
         <span class="{{getStatusBadgeClass status}}">{{#if (showStatusDot status)}}<span class="gl-dot"></span>{{/if}}{{status}}</span>
-        {{#if (showDeployedAt status deployedAt)}}<span class="gl-when-env">{{timeAgo deployedAt}}</span>{{/if}}
+        {{#if (showDeployedAt status deployedAt)}}<span class="gl-when-env">{{timeAgo deployedAt}}</span>{{/if}}{{#if (showDeployedAt status deployedBy)}}<span class="gl-who-env" title="Shipped by {{deployedBy}}">by {{deployedBy}}</span>{{/if}}
         {{#if (canCancel status)}}
           <button
             hx-delete="/services/{{serviceId}}/builds/{{buildId}}/deploy/{{env}}"
@@ -70,7 +70,7 @@
       <div class="gl-env-state">
         <span class="inline-flex items-center gap-2">
           <span class="{{getStatusBadgeClass status}}">{{#if (showStatusDot status)}}<span class="gl-dot"></span>{{/if}}{{status}}</span>
-          {{#if (showDeployedAt status deployedAt)}}<span class="gl-when-env">{{timeAgo deployedAt}}</span>{{/if}}
+          {{#if (showDeployedAt status deployedAt)}}<span class="gl-when-env">{{timeAgo deployedAt}}</span>{{/if}}{{#if (showDeployedAt status deployedBy)}}<span class="gl-who-env" title="Shipped by {{deployedBy}}">by {{deployedBy}}</span>{{/if}}
         </span>
         {{#if (canCancel status)}}<div class="gl-cprog gl-cprog-{{status}}" aria-hidden="true"><div class="gl-cprog-fill"></div></div>{{/if}}
       </div>

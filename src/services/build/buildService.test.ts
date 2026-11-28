@@ -17,6 +17,15 @@ import { BuildRepository } from "../../repositories/buildRepository";
 import { BuildService } from "./buildService";
 import { DeploymentStatus } from "../service/deploymentStatus";
 import { BuildDispatchServiceI } from "./buildDispatchService";
+import { Actor } from "../service/actor";
+
+// Who is making the change in tests that are not about attribution.
+const TEST_ACTOR: Actor = {
+  kind: "apiKey",
+  apiKeyId: new ObjectId(),
+  name: "test-key",
+  via: "api",
+};
 
 describe("BuildService", () => {
   let mongoServer: MongoMemoryServer;
@@ -402,6 +411,7 @@ describe("BuildService", () => {
         buildId: "deploy-me",
         environment: "staging",
         status: DeploymentStatus.DEPLOYED,
+        actor: TEST_ACTOR,
       });
 
       // Then: the status is updated
@@ -441,6 +451,7 @@ describe("BuildService", () => {
           buildId: "invalid-env-build",
           environment: "invalid-env",
           status: DeploymentStatus.DEPLOYED,
+          actor: TEST_ACTOR,
         }),
       ).rejects.toThrow("Invalid environment");
     });
@@ -478,6 +489,7 @@ describe("BuildService", () => {
           buildId: "invalid-status-build",
           environment: "staging",
           status: "invalid-status" as DeploymentStatus,
+          actor: TEST_ACTOR,
         }),
       ).rejects.toThrow("Invalid deployment status");
     });
@@ -514,6 +526,7 @@ describe("BuildService", () => {
         buildId: "dispatch-me",
         environment: "staging",
         status: DeploymentStatus.DISPATCHING,
+        actor: TEST_ACTOR,
       });
 
       // Then: dispatch is called with full context
@@ -560,6 +573,7 @@ describe("BuildService", () => {
         buildId: "event-build",
         environment: "staging",
         status: DeploymentStatus.DEPLOYED,
+        actor: TEST_ACTOR,
       });
 
       // Then: event is emitted as array with expected properties
@@ -608,6 +622,7 @@ describe("BuildService", () => {
         buildId: "sse-build",
         environment: "staging",
         status: DeploymentStatus.DEPLOYED,
+        actor: TEST_ACTOR,
       });
 
       // Then: event is emitted as an ARRAY (for SSE listener compatibility)
@@ -661,6 +676,7 @@ describe("BuildService", () => {
           buildId: "non-existent",
           environment: "staging",
           status: DeploymentStatus.DEPLOYED,
+          actor: TEST_ACTOR,
         }),
       ).rejects.toThrow("Build not found");
     });
@@ -699,6 +715,7 @@ describe("BuildService", () => {
         buildId: "auto-config-build",
         environment: "staging",
         status: DeploymentStatus.DEPLOYED,
+        actor: TEST_ACTOR,
       });
 
       // Then: workflowConfigured is set to true
@@ -736,6 +753,7 @@ describe("BuildService", () => {
         buildId: "build-a",
         environment: "staging",
         status: DeploymentStatus.DEPLOYED,
+        actor: TEST_ACTOR,
       });
       await service.createBuild({
         accountId: account._id,
@@ -750,6 +768,7 @@ describe("BuildService", () => {
         buildId: "build-b",
         environment: "staging",
         status: DeploymentStatus.DEPLOYED,
+        actor: TEST_ACTOR,
       });
 
       // Then: build A's staging status is cleared to NONE
@@ -787,6 +806,7 @@ describe("BuildService", () => {
         buildId: "build-a",
         environment: "staging",
         status: DeploymentStatus.DEPLOYED,
+        actor: TEST_ACTOR,
       });
       await service.createBuild({
         accountId: account._id,
@@ -804,6 +824,7 @@ describe("BuildService", () => {
         buildId: "build-b",
         environment: "staging",
         status: DeploymentStatus.DEPLOYED,
+        actor: TEST_ACTOR,
       });
 
       // Then: SSE event array includes both the deployed build and the cleared build
@@ -860,6 +881,7 @@ describe("BuildService", () => {
         buildId: "build-a",
         environment: "staging",
         status: DeploymentStatus.DEPLOYED,
+        actor: TEST_ACTOR,
       });
       await service.createBuild({
         accountId: account._id,
@@ -874,6 +896,7 @@ describe("BuildService", () => {
         buildId: "build-b",
         environment: "staging",
         status: DeploymentStatus.DEPLOYING,
+        actor: TEST_ACTOR,
       });
 
       // Then: build A's staging status is still DEPLOYED
@@ -920,6 +943,7 @@ describe("BuildService", () => {
         buildId: "already-configured-build",
         environment: "staging",
         status: DeploymentStatus.DEPLOYED,
+        actor: TEST_ACTOR,
       });
 
       // Then: service still has workflowConfigured=true (no error, idempotent)
@@ -959,6 +983,7 @@ describe("BuildService", () => {
         buildId,
         environment: "prod",
         status,
+        actor: TEST_ACTOR,
       });
 
     const logsFor = async (
@@ -1064,6 +1089,157 @@ describe("BuildService", () => {
       // Then: there is nothing to undo
       const logs = await logsFor(account, svc, "v1");
       expect(logs[0].intent).toBe("promote");
+    });
+  });
+
+  describe("attribution", () => {
+    const maria: Actor = {
+      kind: "user",
+      userId: new ObjectId(),
+      name: "Maria",
+      via: "dashboard",
+    };
+    const ciKey: Actor = {
+      kind: "apiKey",
+      apiKeyId: new ObjectId(),
+      name: "ci-pipeline",
+      via: "api",
+    };
+
+    const setup = async (slug: string) => {
+      const account = await accountRepo.create({ name: "Org", slug });
+      const svc = await serviceRepo.create({
+        accountId: account._id,
+        repositoryId: new ObjectId(),
+        name: slug,
+      });
+      await service.createBuild({
+        accountId: account._id,
+        serviceId: svc._id,
+        buildId: "v1",
+      });
+      return { account, svc };
+    };
+
+    const logs = async (account: { _id: ObjectId }, svc: { _id: ObjectId }) =>
+      (await buildRepo.findByBuildId(account._id, svc._id, "v1"))!
+        .deploymentLogs;
+
+    it("should record who dispatched a deploy", async () => {
+      const { account, svc } = await setup("who-dispatched");
+
+      await service.updateDeploymentStatus({
+        accountId: account._id,
+        serviceId: svc._id,
+        buildId: "v1",
+        environment: "prod",
+        status: DeploymentStatus.DISPATCHING,
+        actor: maria,
+      });
+
+      const [entry] = await logs(account, svc);
+      expect(entry.actor).toEqual(maria);
+    });
+
+    it("should record each status change against whoever made it", async () => {
+      const { account, svc } = await setup("each-change");
+      const update = (status: DeploymentStatus, actor: Actor) =>
+        service.updateDeploymentStatus({
+          accountId: account._id,
+          serviceId: svc._id,
+          buildId: "v1",
+          environment: "prod",
+          status,
+          actor,
+        });
+
+      await update(DeploymentStatus.DISPATCHING, maria);
+      await update(DeploymentStatus.DEPLOYED, ciKey);
+
+      const entries = await logs(account, svc);
+      expect(entries.map((e) => e.actor?.name)).toEqual([
+        "Maria",
+        "ci-pipeline",
+      ]);
+    });
+
+    it("should record the reason given for a change", async () => {
+      const { account, svc } = await setup("with-reason");
+
+      await service.updateDeploymentStatus({
+        accountId: account._id,
+        serviceId: svc._id,
+        buildId: "v1",
+        environment: "prod",
+        status: DeploymentStatus.DISPATCHING,
+        actor: maria,
+        reason: "smoke test failed on /checkout",
+      });
+
+      const [entry] = await logs(account, svc);
+      expect(entry.reason).toBe("smoke test failed on /checkout");
+    });
+
+    it("should leave the reason off an entry when none was given", async () => {
+      const { account, svc } = await setup("no-reason");
+
+      await service.updateDeploymentStatus({
+        accountId: account._id,
+        serviceId: svc._id,
+        buildId: "v1",
+        environment: "prod",
+        status: DeploymentStatus.DISPATCHING,
+        actor: maria,
+      });
+
+      const [entry] = await logs(account, svc);
+      expect(entry).not.toHaveProperty("reason");
+    });
+
+    it("should tell the board who shipped the build when it goes live", async () => {
+      const { account, svc } = await setup("board-who");
+      const seen: Array<{ status: string; deployedBy?: string }> = [];
+      const listener = (
+        events: Array<{ status: string; deployedBy?: string }>,
+      ) => seen.push(...events);
+      eventEmitter.on("build:update", listener);
+      const update = (status: DeploymentStatus, actor: Actor) =>
+        service.updateDeploymentStatus({
+          accountId: account._id,
+          serviceId: svc._id,
+          buildId: "v1",
+          environment: "prod",
+          status,
+          actor,
+        });
+
+      await update(DeploymentStatus.DISPATCHING, maria);
+      await update(DeploymentStatus.DEPLOYED, ciKey);
+      eventEmitter.off("build:update", listener);
+
+      const live = seen.find((e) => e.status === DeploymentStatus.DEPLOYED);
+      expect(live?.deployedBy).toBe("Maria");
+    });
+
+    it("should update a build that was recorded without any deployment history", async () => {
+      // Given: a build stored before deployment logs existed
+      const { account, svc } = await setup("no-history");
+      await db
+        .collection("builds")
+        .updateOne({ buildId: "v1" }, { $unset: { deploymentLogs: "" } });
+
+      // When: its status is reported
+      const build = await service.updateDeploymentStatus({
+        accountId: account._id,
+        serviceId: svc._id,
+        buildId: "v1",
+        environment: "prod",
+        status: DeploymentStatus.DEPLOYED,
+        actor: ciKey,
+      });
+
+      // Then: it is recorded rather than failing
+      expect(build.deployments.prod).toBe(DeploymentStatus.DEPLOYED);
     });
   });
 });

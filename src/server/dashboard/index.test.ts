@@ -32,6 +32,8 @@ import { NO_TRIALS } from "../../services/limits/openCorePolicy";
 import { FlagRepository } from "../../repositories/flagRepository";
 import { FlagService } from "../../services/flag/flagService";
 import dashboardRoutes from "./index";
+import { UserRepository } from "../../repositories/userRepository";
+import { ActorDirectory } from "../../services/account/actorDirectory";
 
 describe("Dashboard Routes", () => {
   let mongoServer: MongoMemoryServer;
@@ -74,6 +76,7 @@ describe("Dashboard Routes", () => {
     await db.collection("accounts").deleteMany({});
     await db.collection("memberships").deleteMany({});
     await db.collection("flags").deleteMany({});
+    await db.collection("users").deleteMany({});
     vi.clearAllMocks();
 
     serviceRepo = new ServiceRepository(db);
@@ -140,6 +143,7 @@ describe("Dashboard Routes", () => {
         trialService: NO_TRIALS,
         planEnforcementService,
         flagService,
+        actors: new ActorDirectory(new UserRepository(db)),
       }),
     );
     await app.ready();
@@ -1720,6 +1724,141 @@ describe("Dashboard Routes", () => {
         `href="/services/${service._id}/metrics"`,
       );
       expect(response.body).not.toContain("Change failure rate");
+    });
+  });
+
+  describe("who shipped what", () => {
+    const signedInAs = async (name: string) => {
+      const account = await accountRepo.create({
+        name: "Test Org",
+        slug: `test-org-${Date.now()}-${Math.random()}`,
+      });
+      const userId = new ObjectId();
+      await db.collection("users").insertOne({
+        _id: userId,
+        name,
+        email: null,
+        avatarUrl: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      const service = await serviceRepo.create({
+        accountId: account._id,
+        repositoryId: new ObjectId(),
+        name: "who-service",
+      });
+      await serviceRepo.markWorkflowConfigured(service._id);
+      await buildRepo.create({
+        accountId: account._id,
+        serviceId: service._id,
+        buildId: "build-1",
+      });
+      const sessionToken = sessionService.createSession({
+        userId,
+        accountId: account._id,
+      });
+      return { account, service, userId, sessionToken };
+    };
+
+    it("should record the signed-in person as the one who deployed", async () => {
+      const { account, service, userId, sessionToken } =
+        await signedInAs("Maria");
+
+      await app.inject({
+        method: "PATCH",
+        url: `/services/${service._id}/builds/build-1/deploy/staging`,
+        cookies: { session: sessionToken },
+      });
+
+      const build = await buildRepo.findByBuildId(
+        account._id,
+        service._id,
+        "build-1",
+      );
+      expect(build!.deploymentLogs[0].actor).toEqual({
+        kind: "user",
+        userId,
+        name: "Maria",
+        via: "dashboard",
+      });
+    });
+
+    it("should record the signed-in person as the one who cancelled", async () => {
+      const { account, service, sessionToken } = await signedInAs("Maria");
+      await app.inject({
+        method: "PATCH",
+        url: `/services/${service._id}/builds/build-1/deploy/staging`,
+        cookies: { session: sessionToken },
+      });
+
+      await app.inject({
+        method: "DELETE",
+        url: `/services/${service._id}/builds/build-1/deploy/staging`,
+        cookies: { session: sessionToken },
+      });
+
+      const build = await buildRepo.findByBuildId(
+        account._id,
+        service._id,
+        "build-1",
+      );
+      const last = build!.deploymentLogs[build!.deploymentLogs.length - 1];
+      expect(last.status).toBe(DeploymentStatus.CANCELLED);
+      expect(last.actor?.name).toBe("Maria");
+    });
+
+    it("should show on the board who shipped the build that is live", async () => {
+      // Given: Maria deployed a build and the pipeline reported it live
+      const { account, service, sessionToken } = await signedInAs("Maria");
+      await app.inject({
+        method: "PATCH",
+        url: `/services/${service._id}/builds/build-1/deploy/prod`,
+        cookies: { session: sessionToken },
+      });
+      await buildService.updateDeploymentStatus({
+        accountId: account._id,
+        serviceId: service._id,
+        buildId: "build-1",
+        environment: "prod",
+        status: DeploymentStatus.DEPLOYED,
+        actor: {
+          kind: "apiKey",
+          apiKeyId: new ObjectId(),
+          name: "ci-pipeline",
+          via: "api",
+        },
+      });
+
+      // When: anyone opens the release board
+      const response = await app.inject({
+        method: "GET",
+        url: "/dashboard/who-service",
+        cookies: { session: sessionToken },
+      });
+
+      // Then: the live cell credits Maria, not the pipeline
+      expect(response.body).toContain("by Maria");
+      expect(response.body).not.toContain("ci-pipeline");
+    });
+
+    it("should say nothing about who for a build that went live before attribution existed", async () => {
+      const { account, service, sessionToken } = await signedInAs("Maria");
+      await buildRepo.updateDeploymentStatus(
+        account._id,
+        service._id,
+        "build-1",
+        "prod",
+        DeploymentStatus.DEPLOYED,
+      );
+
+      const response = await app.inject({
+        method: "GET",
+        url: "/dashboard/who-service",
+        cookies: { session: sessionToken },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.body).not.toContain("gl-who-env");
     });
   });
 });

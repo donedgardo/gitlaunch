@@ -2,6 +2,9 @@ import { Db, ObjectId, Collection } from "mongodb";
 import { DeploymentStatus } from "../services/service/deploymentStatus";
 import { DeploymentLogRecord } from "../services/service/deploymentLogsRecord";
 import { DeploymentIntent } from "../services/dispatch/deploymentIntent";
+import { Actor } from "../services/service/actor";
+
+export type Attribution = { actor?: Actor; reason?: string };
 
 export type Build = {
   _id: ObjectId;
@@ -157,6 +160,7 @@ export class BuildRepository {
     environment: string,
     status: DeploymentStatus,
     intent?: DeploymentIntent,
+    attribution: Attribution = {},
   ): Promise<Build | null> {
     const now = new Date();
     const log: DeploymentLogRecord = {
@@ -164,6 +168,8 @@ export class BuildRepository {
       status,
       at: now,
       ...(intent ? { intent } : {}),
+      ...(attribution.actor ? { actor: attribution.actor } : {}),
+      ...(attribution.reason ? { reason: attribution.reason } : {}),
     };
 
     const result = await this.collection.findOneAndUpdate(
