@@ -1,31 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { gitlaunchTools } from "./gitlaunchTools";
-import { FakeDeployer, FakeWorkspace, aCaller, inGoodStanding } from "./fakes";
+import { aCaller, emptyToolDeps } from "./fakes";
 import { scopesFor } from "../apiKey/keyAccess";
 
 // The assembled catalog, over empty stores: this is about which tools exist
 // and who is offered them, not what they return.
-const catalog = gitlaunchTools({
-  services: Object.assign(new FakeWorkspace(), {
-    findByAccountId: async () => [],
-  }),
-  builds: new FakeWorkspace(),
-  flags: {
-    listFlags: async () => [],
-    getFlag: async () => null,
-    setEnvConfig: async () => {
-      throw new Error("not changed in this test");
-    },
-  },
-  deployer: new FakeDeployer(),
-  limits: inGoodStanding,
-  metrics: {
-    forService: async () => {
-      throw new Error("not measured in this test");
-    },
-  },
-  flagHistory: { listByService: async () => [] },
-});
+const catalog = gitlaunchTools(emptyToolDeps());
 
 const offeredTo = (scopes: Parameters<typeof aCaller>[0]) =>
   catalog.visibleTo(aCaller(scopes)).map((t) => t.name);

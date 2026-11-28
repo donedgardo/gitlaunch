@@ -78,6 +78,8 @@ GitLaunch is a multi-tenant SaaS deployment tool: Fastify, HTMX, Handlebars, Mon
 - `src/services/mcp/gitlaunchTools.ts` — the one place a tool is added.
 - `src/server/routes/mcp/` — the only code that imports the MCP SDK. Stateless: each request builds a server for that one caller, so there is no session to lose on a deploy.
 
+The agent-facing contract — tool names, scopes and input schemas — is pinned in `src/services/mcp/contract/tools.golden.json`, the same way the reporter status contract is. Changing a tool fails `toolContract.test.ts` until the golden file is regenerated on purpose (`UPDATE_MCP_CONTRACT=1 yarn test toolContract`); bump `MCP_SERVER_VERSION` when an existing agent would notice. The tool table on `/docs` is rendered from the catalog, so it needs no separate edit.
+
 A tool must call the same service method the REST route calls. If a rule lives in a route handler, move it into the service first, then use it from both. Never reimplement it in the tool. The endpoint is gated per account by GitLaunch's own `mcp-server` flag (`McpGate`), which fails closed.
 
 ### Build reporting: `curl` is canonical

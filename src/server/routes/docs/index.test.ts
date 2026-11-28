@@ -4,6 +4,8 @@ import fastifyView from "@fastify/view";
 import * as handlebars from "handlebars";
 import path from "node:path";
 import { registerDocsRoutes } from "./index";
+import { gitlaunchTools } from "../../../services/mcp/gitlaunchTools";
+import { emptyToolDeps } from "../../../services/mcp/fakes";
 
 // Shared on a developer Discord, the landing page was read as an email
 // harvester: a waitlist form and no way to see how the product actually works.
@@ -22,7 +24,10 @@ describe("public docs, rendered", () => {
         partials: { legalStyles: "/partials/legalStyles.hbs" },
       },
     });
-    registerDocsRoutes(app, { publicUrl: "https://gitlaunch.example" });
+    registerDocsRoutes(app, {
+      publicUrl: "https://gitlaunch.example",
+      mcpTools: gitlaunchTools(emptyToolDeps()).describeAll(),
+    });
     await app.ready();
   });
 
@@ -93,6 +98,14 @@ describe("public docs, rendered", () => {
     }
     expect(response.body).toContain("deployments:write");
     expect(response.body).toContain("flags:write");
+    // Each row says what the tool does in a clause, not the paragraph written
+    // for the model.
+    expect(response.body).toContain(
+      "<td>Undo the latest release to an environment. <strong>Changes things.</strong></td>",
+    );
+    expect(response.body).toContain(
+      "<td>See what is deployed where for one service.</td>",
+    );
   });
 
   it("should point at the source and at self-hosting", async () => {

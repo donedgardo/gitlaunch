@@ -3,7 +3,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { gitlaunchTools, MCP_SERVER_VERSION } from "../gitlaunchTools";
 import { describeTool } from "../toolCatalog";
-import { FakeDeployer, FakeWorkspace, aCaller, inGoodStanding } from "../fakes";
+import { aCaller, emptyToolDeps } from "../fakes";
 import { scopesFor } from "../../apiKey/keyAccess";
 
 /**
@@ -24,27 +24,7 @@ import { scopesFor } from "../../apiKey/keyAccess";
  */
 const GOLDEN = path.join(__dirname, "tools.golden.json");
 
-const catalog = gitlaunchTools({
-  services: Object.assign(new FakeWorkspace(), {
-    findByAccountId: async () => [],
-  }),
-  builds: new FakeWorkspace(),
-  flags: {
-    listFlags: async () => [],
-    getFlag: async () => null,
-    setEnvConfig: async () => {
-      throw new Error("not changed in this test");
-    },
-  },
-  metrics: {
-    forService: async () => {
-      throw new Error("not measured in this test");
-    },
-  },
-  flagHistory: { listByService: async () => [] },
-  deployer: new FakeDeployer(),
-  limits: inGoodStanding,
-});
+const catalog = gitlaunchTools(emptyToolDeps());
 
 const current = {
   version: MCP_SERVER_VERSION,
