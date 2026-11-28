@@ -5,7 +5,6 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { z } from "zod";
 import { ApiKeyService } from "../../../services/apiKey/apiKeyService";
 import {
   ApiKeyContext,
@@ -13,7 +12,7 @@ import {
 } from "../../middleware/apiKeyAuth";
 import { McpAccess } from "../../../services/mcp/mcpGate";
 import { McpCaller, ToolRefused } from "../../../services/mcp/tool";
-import { ToolCatalog } from "../../../services/mcp/toolCatalog";
+import { ToolCatalog, describeTool } from "../../../services/mcp/toolCatalog";
 
 export type McpRoutesDeps = {
   apiKeyService: ApiKeyService;
@@ -105,24 +104,25 @@ export function registerMcpRoutes(
     );
 
     server.setRequestHandler(ListToolsRequestSchema, async () => ({
-      tools: catalog.visibleTo(caller).map((tool) => ({
-        name: tool.name,
-        title: tool.title,
-        description: tool.description,
-        inputSchema: z.toJSONSchema(z.object(tool.input)) as {
-          type: "object";
-          [key: string]: unknown;
-        },
-        annotations: {
-          title: tool.title,
-          readOnlyHint: !tool.changes,
-          // destructiveHint is left at the protocol's default (true for a
-          // tool that changes things): a deploy replaces what is running, and
-          // a client is right to ask a person before it does.
-          // GitLaunch acts only on the account's own services.
-          openWorldHint: false,
-        },
-      })),
+      tools: catalog.visibleTo(caller).map((tool) => {
+        const { name, title, description, inputSchema } = describeTool(tool);
+        return {
+          name,
+          title,
+          description,
+          inputSchema,
+          annotations: {
+            title,
+            readOnlyHint: !tool.changes,
+            // destructiveHint is left at the protocol's default (true for a
+            // tool that changes things): a deploy replaces what is running,
+            // and a client is right to ask a person before it does.
+            //
+            // GitLaunch acts only on the account's own services.
+            openWorldHint: false,
+          },
+        };
+      }),
     }));
 
     server.setRequestHandler(CallToolRequestSchema, async (call) => {

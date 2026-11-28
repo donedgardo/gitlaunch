@@ -178,3 +178,29 @@ export class FakeDeployer {
     };
   }
 }
+
+// Everything gitlaunchTools needs, over empty stores. For tests about which
+// tools exist and who is offered them, not what they return.
+export function emptyToolDeps() {
+  return {
+    services: Object.assign(new FakeWorkspace(), {
+      findByAccountId: async () => [],
+    }),
+    builds: new FakeWorkspace(),
+    flags: {
+      listFlags: async () => [],
+      getFlag: async () => null,
+      setEnvConfig: async (): Promise<never> => {
+        throw new Error("not changed in this test");
+      },
+    },
+    metrics: {
+      forService: async (): Promise<never> => {
+        throw new Error("not measured in this test");
+      },
+    },
+    flagHistory: { listByService: async () => [] },
+    deployer: new FakeDeployer(),
+    limits: inGoodStanding,
+  };
+}

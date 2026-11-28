@@ -4,6 +4,8 @@ import fastifyView from "@fastify/view";
 import * as handlebars from "handlebars";
 import path from "node:path";
 import { registerDocsRoutes } from "./index";
+import { gitlaunchTools } from "../../../services/mcp/gitlaunchTools";
+import { emptyToolDeps } from "../../../services/mcp/fakes";
 
 // Shared on a developer Discord, the landing page was read as an email
 // harvester: a waitlist form and no way to see how the product actually works.
@@ -22,7 +24,10 @@ describe("public docs, rendered", () => {
         partials: { legalStyles: "/partials/legalStyles.hbs" },
       },
     });
-    registerDocsRoutes(app, { publicUrl: "https://gitlaunch.example" });
+    registerDocsRoutes(app, {
+      publicUrl: "https://gitlaunch.example",
+      mcpTools: gitlaunchTools(emptyToolDeps()).describeAll(),
+    });
     await app.ready();
   });
 
@@ -61,6 +66,46 @@ describe("public docs, rendered", () => {
       expect(response.body).toContain(ci);
     }
     expect(response.body).toMatch(/not (another|a) CI/i);
+  });
+
+  it("should show how to connect an agent to the MCP server on this instance", async () => {
+    const response = await app.inject({ method: "GET", url: "/docs" });
+
+    // The endpoint and a command a reader can paste, addressed to this
+    // instance rather than to the hosted one.
+    expect(response.body).toContain('id="mcp"');
+    expect(response.body).toContain("https://gitlaunch.example/mcp");
+    expect(response.body).toContain("claude mcp add --transport http");
+    expect(response.body).toContain("Authorization: Bearer");
+  });
+
+  it("should list every MCP tool and say which ones change things", async () => {
+    const response = await app.inject({ method: "GET", url: "/docs" });
+
+    for (const tool of [
+      "list_services",
+      "get_release_board",
+      "get_build",
+      "get_activity",
+      "get_delivery_metrics",
+      "list_flags",
+      "get_flag",
+      "deploy_build",
+      "rollback_environment",
+      "set_flag_environment",
+    ]) {
+      expect(response.body).toContain(tool);
+    }
+    expect(response.body).toContain("deployments:write");
+    expect(response.body).toContain("flags:write");
+    // Each row says what the tool does in a clause, not the paragraph written
+    // for the model.
+    expect(response.body).toContain(
+      "<td>Undo the latest release to an environment. <strong>Changes things.</strong></td>",
+    );
+    expect(response.body).toContain(
+      "<td>See what is deployed where for one service.</td>",
+    );
   });
 
   it("should point at the source and at self-hosting", async () => {

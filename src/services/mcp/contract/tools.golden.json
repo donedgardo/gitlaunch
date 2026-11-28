@@ -1,0 +1,245 @@
+{
+  "version": "0.1.0",
+  "tools": [
+    {
+      "name": "list_services",
+      "requiredScope": "services:read",
+      "changes": false,
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_release_board",
+      "requiredScope": "builds:read",
+      "changes": false,
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "serviceId": {
+            "type": "string",
+            "description": "The service's id, from list_services."
+          },
+          "limit": {
+            "description": "How many recent builds to list. Default 20, at most 100.",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          }
+        },
+        "required": ["serviceId"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_build",
+      "requiredScope": "builds:read",
+      "changes": false,
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "serviceId": {
+            "type": "string",
+            "description": "The service's id, from list_services."
+          },
+          "buildId": {
+            "type": "string",
+            "description": "The build's id, from get_release_board."
+          }
+        },
+        "required": ["serviceId", "buildId"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_activity",
+      "requiredScope": "builds:read",
+      "changes": false,
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "serviceId": {
+            "type": "string",
+            "description": "The service's id, from list_services."
+          },
+          "environment": {
+            "description": "Only show changes to this environment. Creating or deleting a flag affects every environment, so those are always shown.",
+            "type": "string"
+          },
+          "limit": {
+            "description": "How many events to return. Default 30, at most 200.",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200
+          }
+        },
+        "required": ["serviceId"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_delivery_metrics",
+      "requiredScope": "builds:read",
+      "changes": false,
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "serviceId": {
+            "type": "string",
+            "description": "The service's id, from list_services."
+          },
+          "environment": {
+            "type": "string",
+            "description": "The environment to measure, e.g. prod."
+          },
+          "days": {
+            "description": "How many days back to measure. Default 30.",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 3650
+          }
+        },
+        "required": ["serviceId", "environment"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "list_flags",
+      "requiredScope": "flags:read",
+      "changes": false,
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "serviceId": {
+            "type": "string",
+            "description": "The service's id, from list_services."
+          }
+        },
+        "required": ["serviceId"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_flag",
+      "requiredScope": "flags:read",
+      "changes": false,
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "serviceId": {
+            "type": "string",
+            "description": "The service's id, from list_services."
+          },
+          "key": {
+            "type": "string",
+            "description": "The flag's key, from list_flags."
+          }
+        },
+        "required": ["serviceId", "key"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "deploy_build",
+      "requiredScope": "deployments:write",
+      "changes": true,
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "serviceId": {
+            "type": "string",
+            "description": "The service's id, from list_services."
+          },
+          "buildId": {
+            "type": "string",
+            "description": "The build to deploy, from get_release_board."
+          },
+          "environment": {
+            "type": "string",
+            "description": "The environment to deploy to, e.g. staging."
+          },
+          "reason": {
+            "description": "Why you are making this change, in a sentence. It is kept on the history next to your key's name, where the team will read it.",
+            "type": "string"
+          }
+        },
+        "required": ["serviceId", "buildId", "environment"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "rollback_environment",
+      "requiredScope": "deployments:write",
+      "changes": true,
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "serviceId": {
+            "type": "string",
+            "description": "The service's id, from list_services."
+          },
+          "environment": {
+            "type": "string",
+            "description": "The environment to roll back, e.g. prod."
+          },
+          "reason": {
+            "description": "Why you are making this change, in a sentence. It is kept on the history next to your key's name, where the team will read it.",
+            "type": "string"
+          }
+        },
+        "required": ["serviceId", "environment"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "set_flag_environment",
+      "requiredScope": "flags:write",
+      "changes": true,
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "serviceId": {
+            "type": "string",
+            "description": "The service's id, from list_services."
+          },
+          "key": {
+            "type": "string",
+            "description": "The flag's key, from list_flags."
+          },
+          "environment": {
+            "type": "string",
+            "description": "The environment to change the flag in, e.g. prod."
+          },
+          "enabled": {
+            "description": "Whether the flag is on in this environment.",
+            "type": "boolean"
+          },
+          "rolloutPercentage": {
+            "description": "Share of traffic that gets the flag when it is on, 0 to 100.",
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "reason": {
+            "description": "Why you are making this change, in a sentence. It is kept on the history next to your key's name, where the team will read it.",
+            "type": "string"
+          }
+        },
+        "required": ["serviceId", "key", "environment"],
+        "additionalProperties": false
+      }
+    }
+  ]
+}

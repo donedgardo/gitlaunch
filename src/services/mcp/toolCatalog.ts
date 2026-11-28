@@ -5,6 +5,29 @@ import { McpCaller, McpTool, ToolRefused } from "./tool";
 // shape when it is called.
 type AnyTool = McpTool<any>;
 
+export type ToolDescription = {
+  name: string;
+  title: string;
+  description: string;
+  requiredScope: AnyTool["requiredScope"];
+  changes: boolean;
+  inputSchema: { type: "object"; [key: string]: unknown };
+};
+
+/** A tool as a client, the docs and the contract test all see it. */
+export function describeTool(tool: AnyTool): ToolDescription {
+  return {
+    name: tool.name,
+    title: tool.title,
+    description: tool.description,
+    requiredScope: tool.requiredScope,
+    changes: tool.changes,
+    inputSchema: z.toJSONSchema(
+      z.object(tool.input),
+    ) as ToolDescription["inputSchema"],
+  };
+}
+
 /**
  * Every tool the MCP server has, and the rule for who may use which.
  *
@@ -24,6 +47,11 @@ export class ToolCatalog {
       seen.add(tool.name);
     }
     this.tools = tools;
+  }
+
+  /** Every tool there is, whoever is asking. For documentation. */
+  describeAll(): ToolDescription[] {
+    return this.tools.map(describeTool);
   }
 
   visibleTo(caller: McpCaller): AnyTool[] {

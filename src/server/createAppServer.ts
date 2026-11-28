@@ -496,8 +496,22 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     // landing-page footer and the review bots at GitHub, Stripe and Google need
     // these to resolve without a session.
     registerLegalRoutes(server, { publicUrl: config.publicUrl });
+    // The MCP server's tools, built once: the endpoint serves them and the
+    // docs page lists them.
+    const mcpCatalog = gitlaunchTools({
+      services: serviceRepository,
+      builds: buildService,
+      flags: flagService,
+      metrics: doraMetricsService,
+      flagHistory: flagChangeRepository,
+      deployer: buildService,
+      limits: planEnforcementService,
+    });
     // Same reasoning: the integration contract is readable without an account.
-    registerDocsRoutes(server, { publicUrl: config.publicUrl });
+    registerDocsRoutes(server, {
+      publicUrl: config.publicUrl,
+      mcpTools: mcpCatalog.describeAll(),
+    });
     server.register(
       dashboardRoutes({
         publicUrl: config.publicUrl,
@@ -650,15 +664,7 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     // GitLaunch's own "mcp-server" flag until it is generally available.
     registerMcpRoutes(server, {
       apiKeyService,
-      catalog: gitlaunchTools({
-        services: serviceRepository,
-        builds: buildService,
-        flags: flagService,
-        metrics: doraMetricsService,
-        flagHistory: flagChangeRepository,
-        deployer: buildService,
-        limits: planEnforcementService,
-      }),
+      catalog: mcpCatalog,
       access: new McpGate(flagService, serviceRepository, selfFlagContext),
       version: MCP_SERVER_VERSION,
     });

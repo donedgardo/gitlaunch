@@ -62,7 +62,8 @@
         <li><a href="#deploy">Deploy a build</a></li>
         <li><a href="#ci">Your CI system</a></li>
         <li><a href="#agent">Let an agent do it</a></li>
-        <li><a href="#keys">API keys</a></li>
+{{#if hasMcp}}        <li><a href="#mcp">MCP server</a></li>
+{{/if}}        <li><a href="#keys">API keys</a></li>
         <li><a href="#selfhost">Self-hosting and source</a></li>
         <li><a href="#waitlist">Why a waitlist</a></li>
       </ol>
@@ -111,17 +112,17 @@
           with an API key) makes GitLaunch trigger <em>your</em> deploy pipeline with two inputs,
           <code>environment</code> and <code>buildId</code>. How it triggers depends on the provider you bind:
         </p>
+        <ul>
+          <li><strong>GitHub</strong> — <code>workflow_dispatch</code> on a workflow file in your repo, through the GitLaunch GitHub App.</li>
+          <li><strong>Jenkins</strong> — <code>buildWithParameters</code> on a job.</li>
+          <li><strong>Raw</strong> — an HTTP POST of <code>{ "buildId", "environment" }</code> to a URL you own. This is how GitLab, CircleCI and everything else plug in.</li>
+        </ul>
         <p>
           Every deploy is recorded against whoever made it: the signed-in person, or the API key and
           the person who created that key. The release board shows who shipped the build that is live.
           A deploy sent through the API can say why with an optional JSON body,
           <code>{"reason": "…"}</code>, which is kept on the build's history.
         </p>
-        <ul>
-          <li><strong>GitHub</strong> — <code>workflow_dispatch</code> on a workflow file in your repo, through the GitLaunch GitHub App.</li>
-          <li><strong>Jenkins</strong> — <code>buildWithParameters</code> on a job.</li>
-          <li><strong>Raw</strong> — an HTTP POST of <code>{ "buildId", "environment" }</code> to a URL you own. This is how GitLab, CircleCI and everything else plug in.</li>
-        </ul>
         <p>Your deploy job reports back as it goes:</p>
 <pre>curl --fail-with-body -sS -X PATCH \
   "{{publicUrl}}/api/v1/services/$SERVICE_ID/builds/$BUILD_ID/deploy/$ENVIRONMENT" \
@@ -170,7 +171,56 @@
         </p>
       </section>
 
-      <section id="keys">
+{{#if hasMcp}}
+      <section id="mcp">
+        <h2>MCP server: let an agent release</h2>
+        <p>
+          The onboarding skill above sets GitLaunch up. The MCP server is for afterwards: it
+          lets an AI agent see what is deployed, deploy a build, roll an environment back and
+          switch a feature flag, with the same API keys and the same limits as everything else
+          on this page. It is at <code>{{publicUrl}}/mcp</code> and speaks Streamable HTTP.
+        </p>
+        <p>
+          <strong>Preview.</strong> It is being switched on account by account. If connecting
+          answers 404, it is not on for your account yet:
+          <a href="mailto:support@gitlaunch.dev">ask us</a>.
+        </p>
+        <p>In Claude Code:</p>
+<pre>claude mcp add --transport http gitlaunch {{publicUrl}}/mcp \
+  --header "Authorization: Bearer $GITLAUNCH_API_KEY"</pre>
+        <p>
+          Any other client that can send a header works the same way: the URL above, and
+          <code>Authorization: Bearer</code> with a GitLaunch API key.
+        </p>
+        <p>
+          <strong>Give each agent its own key.</strong> Create it at the
+          <strong>Release</strong> level, or <strong>Read-only</strong> for an agent that only
+          needs to look, and limit it to the environments it should touch. An agent holding a
+          key limited to <code>staging</code> is refused in production by GitLaunch itself, not
+          by a prompt asking it nicely. Everything an agent changes is recorded against its
+          key, with the reason it gave, and shows on the release board next to what people did.
+        </p>
+        <table>
+          <thead>
+            <tr><th>Tool</th><th>What it does</th><th>Scope it needs</th></tr>
+          </thead>
+          <tbody>
+            {{#each mcpTools}}
+            <tr>
+              <td><code>{{name}}</code></td>
+              <td>{{summary}}.{{#if changes}} <strong>Changes things.</strong>{{/if}}</td>
+              <td><code>{{scope}}</code></td>
+            </tr>
+            {{/each}}
+          </tbody>
+        </table>
+        <p>
+          A key is only offered the tools its scopes allow. No tool deletes a flag or
+          reconfigures a service: an agent can release and undo a release, and nothing else.
+        </p>
+      </section>
+
+{{/if}}      <section id="keys">
         <h2>API keys</h2>
         <p>
           Keys are scoped: <code>builds:write</code>, <code>deployments:write</code>,
