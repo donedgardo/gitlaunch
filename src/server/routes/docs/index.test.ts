@@ -87,6 +87,17 @@ describe("public docs, rendered", () => {
     expect(response.body).toContain("overflow-wrap: anywhere");
   });
 
+  it("should tell a reader how to get an account, not ask them to wait for one", async () => {
+    // Signup is open. A page that still talks about a beta and a waitlist
+    // sends a reader away from a product they could be using.
+    const response = await app.inject({ method: "GET", url: "/docs" });
+
+    expect(response.body).toContain('id="start"');
+    expect(response.body).toContain('href="/signup"');
+    expect(response.body.toLowerCase()).not.toContain("waitlist");
+    expect(response.body.toLowerCase()).not.toContain("in beta");
+  });
+
   it("should be indexable and leave no unresolved placeholders", async () => {
     const response = await app.inject({ method: "GET", url: "/docs" });
 
