@@ -64,6 +64,7 @@ GitLaunch is a multi-tenant SaaS deployment tool: Fastify, HTMX, Handlebars, Mon
 - UI routes render Handlebars templates, updated in place with HTMX, authenticated by session cookie
 - Programmatic routes live under `/api/v1/services/:serviceId/...` and authenticate with an API key
 - API keys are scoped (`builds:read/write`, `deployments:write`, `services:read/write`, `flags:read/write/evaluate`); publishable (`pk_`) keys may only carry `flags:evaluate`
+- A secret key is minted at an access level (`full`, `release`, `read` — named scope sets in `services/apiKey/keyAccess.ts`) and may carry `allowedEnvironments`. Scope says _what_, the list says _where_: a write addressed to one environment takes `requireEnvironmentAccess()` next to `requireScope()`, and a write that reaches every environment (deleting a flag, rebinding deploys) takes `requireAllEnvironments()`. Reads are never limited by environment
 
 ### Build reporting: `curl` is canonical
 

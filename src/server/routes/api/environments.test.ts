@@ -21,7 +21,11 @@ import { ApiKeyScope } from "../../../repositories/apiKeyRepository";
 
 // Simple mock auth middleware for testing
 function createMockApiKeyAuth(
-  getContext: () => { accountId: ObjectId; scopes: ApiKeyScope[] } | null,
+  getContext: () => {
+    accountId: ObjectId;
+    scopes: ApiKeyScope[];
+    allowedEnvironments?: string[];
+  } | null,
 ) {
   return async (request: FastifyRequest, reply: FastifyReply) => {
     const authHeader = request.headers.authorization;
@@ -44,6 +48,7 @@ function createMockApiKeyAuth(
       scopes: context.scopes,
       kind: "secret",
       allowedOrigins: [],
+      allowedEnvironments: context.allowedEnvironments ?? null,
     };
   };
 }
@@ -62,7 +67,11 @@ describe("Environments API Routes", () => {
 
   let testAccountId: ObjectId;
   let testServiceId: ObjectId;
-  let currentAuthContext: { accountId: ObjectId; scopes: ApiKeyScope[] } | null;
+  let currentAuthContext: {
+    accountId: ObjectId;
+    scopes: ApiKeyScope[];
+    allowedEnvironments?: string[];
+  } | null;
 
   beforeAll(async () => {
     mongoServer = await MongoMemoryServer.create();
@@ -459,6 +468,60 @@ describe("Environments API Routes", () => {
       });
 
       expect(response.statusCode).toBe(404);
+    });
+  });
+
+  describe("keys limited to certain environments", () => {
+    beforeEach(() => {
+      currentAuthContext = {
+        accountId: testAccountId,
+        scopes: ["services:read", "services:write"],
+        allowedEnvironments: ["staging"],
+      };
+    });
+
+    it("should refuse to reorder an environment outside the key's list", async () => {
+      const response = await app.inject({
+        method: "PATCH",
+        url: `/api/v1/services/${testServiceId}/environments/prod`,
+        headers: { authorization: "Bearer test-key" },
+        payload: { order: 0 },
+      });
+
+      expect(response.statusCode).toBe(403);
+    });
+
+    it("should refuse to remove an environment outside the key's list", async () => {
+      const response = await app.inject({
+        method: "DELETE",
+        url: `/api/v1/services/${testServiceId}/environments/prod`,
+        headers: { authorization: "Bearer test-key" },
+      });
+
+      expect(response.statusCode).toBe(403);
+      const service = await serviceRepo.findById(testServiceId);
+      expect(service?.environments.map((e) => e.name)).toContain("prod");
+    });
+
+    it("should refuse to add an environment the key could not then act on", async () => {
+      const response = await app.inject({
+        method: "POST",
+        url: `/api/v1/services/${testServiceId}/environments`,
+        headers: { authorization: "Bearer test-key" },
+        payload: { name: "canary" },
+      });
+
+      expect(response.statusCode).toBe(403);
+    });
+
+    it("should still list every environment", async () => {
+      const response = await app.inject({
+        method: "GET",
+        url: `/api/v1/services/${testServiceId}/environments`,
+        headers: { authorization: "Bearer test-key" },
+      });
+
+      expect(response.statusCode).toBe(200);
     });
   });
 });

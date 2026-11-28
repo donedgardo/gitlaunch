@@ -17,7 +17,11 @@ import { registerDeploymentRoutes } from "./deployment";
 import { ApiKeyScope } from "../../../repositories/apiKeyRepository";
 
 function createMockApiKeyAuth(
-  getContext: () => { accountId: ObjectId; scopes: ApiKeyScope[] } | null,
+  getContext: () => {
+    accountId: ObjectId;
+    scopes: ApiKeyScope[];
+    allowedEnvironments?: string[];
+  } | null,
 ) {
   return async (request: FastifyRequest, reply: FastifyReply) => {
     const context = getContext();
@@ -30,6 +34,7 @@ function createMockApiKeyAuth(
       scopes: context.scopes,
       kind: "secret",
       allowedOrigins: [],
+      allowedEnvironments: context.allowedEnvironments ?? null,
     };
   };
 }
@@ -55,7 +60,11 @@ describe("Deployment configuration API", () => {
 
   let testAccountId: ObjectId;
   let testServiceId: ObjectId;
-  let currentAuthContext: { accountId: ObjectId; scopes: ApiKeyScope[] } | null;
+  let currentAuthContext: {
+    accountId: ObjectId;
+    scopes: ApiKeyScope[];
+    allowedEnvironments?: string[];
+  } | null;
   let installationRepos: GitHubRepo[];
 
   beforeAll(async () => {
@@ -406,6 +415,28 @@ describe("Deployment configuration API", () => {
 
       // Then it is a bad request
       expect(response.statusCode).toBe(400);
+    });
+  });
+
+  describe("keys limited to certain environments", () => {
+    it("should refuse to rebind how the service deploys, since that covers every environment", async () => {
+      // Given a key that may only act on staging
+      currentAuthContext = {
+        accountId: testAccountId,
+        scopes: ["services:write"],
+        allowedEnvironments: ["staging"],
+      };
+
+      // When it tries to point the service's deploys somewhere else
+      const response = await configure({
+        provider: "raw",
+        endpointUrl: "https://deploy.example.com/hook",
+      });
+
+      // Then it is refused and the service is untouched
+      expect(response.statusCode).toBe(403);
+      const service = await serviceRepo.findById(testServiceId);
+      expect(service?.deployment).toBeFalsy();
     });
   });
 });

@@ -37,6 +37,7 @@ type MockAuthContext = {
   serviceId?: ObjectId | null;
   environment?: string | null;
   allowedOrigins?: string[];
+  allowedEnvironments?: string[];
 };
 
 function createMockApiKeyAuth(getContext: () => MockAuthContext | null) {
@@ -61,6 +62,7 @@ function createMockApiKeyAuth(getContext: () => MockAuthContext | null) {
       serviceId: context.serviceId ?? null,
       environment: context.environment ?? null,
       allowedOrigins: context.allowedOrigins ?? [],
+      allowedEnvironments: context.allowedEnvironments ?? null,
     };
   };
 }
@@ -777,6 +779,76 @@ describe("Flags API Routes", () => {
         headers: auth(),
       });
       expect(res.statusCode).toBe(403);
+    });
+  });
+
+  describe("keys limited to certain environments", () => {
+    const limited = () => {
+      currentAuthContext = {
+        accountId: testAccountId,
+        scopes: ALL_SCOPES,
+        allowedEnvironments: ["staging"],
+      };
+    };
+    const createFlag = (key: string) =>
+      app.inject({
+        method: "POST",
+        url: `/api/v1/services/${testServiceId}/flags`,
+        headers: auth(),
+        payload: { key },
+      });
+    const configure = (key: string, env: string) =>
+      app.inject({
+        method: "PATCH",
+        url: `/api/v1/services/${testServiceId}/flags/${key}/environments/${env}`,
+        headers: auth(),
+        payload: { enabled: true, rolloutPercentage: 100 },
+      });
+
+    it("should switch a flag in an environment the key is allowed to act on", async () => {
+      await createFlag("beta");
+      limited();
+
+      const res = await configure("beta", "staging");
+
+      expect(res.statusCode).toBe(200);
+    });
+
+    it("should refuse to switch a flag in an environment outside the key's list", async () => {
+      await createFlag("beta");
+      limited();
+
+      const res = await configure("beta", "prod");
+
+      expect(res.statusCode).toBe(403);
+      currentAuthContext = { accountId: testAccountId, scopes: ALL_SCOPES };
+      const detail = await app.inject({
+        method: "GET",
+        url: `/api/v1/services/${testServiceId}/flags/beta`,
+        headers: auth(),
+      });
+      expect(JSON.parse(detail.body).environments.prod.enabled).toBe(false);
+    });
+
+    it("should refuse to delete a flag, since that removes it from every environment", async () => {
+      await createFlag("beta");
+      limited();
+
+      const res = await app.inject({
+        method: "DELETE",
+        url: `/api/v1/services/${testServiceId}/flags/beta`,
+        headers: auth(),
+      });
+
+      expect(res.statusCode).toBe(403);
+    });
+
+    it("should still create a flag, which starts switched off everywhere", async () => {
+      limited();
+
+      const res = await createFlag("fresh");
+
+      expect(res.statusCode).toBe(201);
     });
   });
 });

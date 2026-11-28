@@ -17,6 +17,8 @@ import {
   createApiKeyAuthMiddleware,
   requireScope,
   requireFlagRuntimeAccess,
+  requireEnvironmentAccess,
+  requireAllEnvironments,
 } from "./apiKeyAuth";
 
 describe("API Key Auth Middleware", { sequential: true, retry: 2 }, () => {
@@ -361,6 +363,129 @@ describe("API Key Auth Middleware", { sequential: true, retry: 2 }, () => {
 
       // Then: nothing changes for it
       expect(response.statusCode).toBe(200);
+    });
+  });
+
+  describe("keys limited to certain environments", () => {
+    let envApp: FastifyInstance;
+
+    // Mirrors the real API: one write addressed to an environment, and one
+    // write that touches every environment at once.
+    beforeEach(async () => {
+      envApp = Fastify();
+      const auth = createApiKeyAuthMiddleware(apiKeyService);
+      envApp.post(
+        "/api/v1/services/:serviceId/builds/:buildId/deploy/:env",
+        {
+          preHandler: [
+            auth,
+            requireScope("deployments:write"),
+            requireEnvironmentAccess(),
+          ],
+        },
+        async () => ({ ok: true }),
+      );
+      envApp.delete(
+        "/api/v1/services/:serviceId/flags/:key",
+        {
+          preHandler: [
+            auth,
+            requireScope("flags:write"),
+            requireAllEnvironments(),
+          ],
+        },
+        async () => ({ ok: true }),
+      );
+      await envApp.ready();
+    });
+
+    afterEach(async () => {
+      await envApp.close();
+    });
+
+    async function mint(allowedEnvironments?: string[]): Promise<string> {
+      const minted = await apiKeyService.generate({
+        accountId: testAccountId,
+        createdByUserId: new ObjectId(),
+        name: "Staging agent",
+        scopes: ["deployments:write", "flags:write"],
+        allowedEnvironments,
+      });
+      return minted.key;
+    }
+
+    const deploy = (key: string, env: string) =>
+      envApp.inject({
+        method: "POST",
+        url: `/api/v1/services/${new ObjectId()}/builds/abc/deploy/${env}`,
+        headers: { authorization: `Bearer ${key}` },
+      });
+
+    it("should let a limited key act on an environment in its list", async () => {
+      const key = await mint(["staging"]);
+
+      const response = await deploy(key, "staging");
+
+      expect(response.statusCode).toBe(200);
+    });
+
+    it("should refuse a limited key acting on an environment outside its list", async () => {
+      const key = await mint(["staging"]);
+
+      const response = await deploy(key, "prod");
+
+      expect(response.statusCode).toBe(403);
+      expect(JSON.parse(response.body).error).toBe(
+        'This key is not allowed to act on environment "prod".',
+      );
+    });
+
+    it("should let a key with no limit act on any environment", async () => {
+      const key = await mint();
+
+      const response = await deploy(key, "prod");
+
+      expect(response.statusCode).toBe(200);
+    });
+
+    it("should refuse a limited key a change that reaches every environment", async () => {
+      const key = await mint(["staging"]);
+
+      const response = await envApp.inject({
+        method: "DELETE",
+        url: `/api/v1/services/${new ObjectId()}/flags/beta`,
+        headers: { authorization: `Bearer ${key}` },
+      });
+
+      expect(response.statusCode).toBe(403);
+    });
+
+    it("should let a key with no limit make a change that reaches every environment", async () => {
+      const key = await mint();
+
+      const response = await envApp.inject({
+        method: "DELETE",
+        url: `/api/v1/services/${new ObjectId()}/flags/beta`,
+        headers: { authorization: `Bearer ${key}` },
+      });
+
+      expect(response.statusCode).toBe(200);
+    });
+
+    it("should refuse to limit a publishable key, which is already bound to one environment", async () => {
+      await expect(
+        apiKeyService.generate({
+          accountId: testAccountId,
+          createdByUserId: new ObjectId(),
+          name: "Web app",
+          scopes: ["flags:evaluate"],
+          kind: "publishable",
+          serviceId: new ObjectId(),
+          environment: "prod",
+          allowedOrigins: ["https://app.example.com"],
+          allowedEnvironments: ["staging"],
+        }),
+      ).rejects.toThrow(/publishable/i);
     });
   });
 });

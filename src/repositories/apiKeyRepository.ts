@@ -33,6 +33,10 @@ export type ApiKey = {
   serviceId?: ObjectId | null;
   environment?: string | null;
   allowedOrigins?: string[];
+  // Secret keys only: the environments this key may change. Absent or empty
+  // means every environment, which is what all keys were before this existed.
+  // Reads are never limited by it.
+  allowedEnvironments?: string[];
   lastUsedAt: Date | null;
   expiresAt: Date | null;
   isRevoked: boolean;
@@ -50,6 +54,7 @@ export type CreateApiKeyInput = {
   serviceId?: ObjectId | null;
   environment?: string | null;
   allowedOrigins?: string[];
+  allowedEnvironments?: string[];
   expiresAt?: Date | null;
 };
 
@@ -78,6 +83,7 @@ export class ApiKeyRepository {
       serviceId: input.serviceId ?? null,
       environment: input.environment ?? null,
       allowedOrigins: input.allowedOrigins ?? [],
+      allowedEnvironments: input.allowedEnvironments ?? [],
       lastUsedAt: null,
       expiresAt: input.expiresAt ?? null,
       isRevoked: false,
