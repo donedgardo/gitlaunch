@@ -276,6 +276,46 @@ describe("get_activity", () => {
     ]);
   });
 
+  it("should leave out deploys recorded before history was dated", async () => {
+    const service = aService();
+    const undated = aBuild(service, "v0", {
+      logs: [
+        {
+          environment: "prod",
+          status: DeploymentStatus.DEPLOYED,
+          at: at("2026-01-01T00:00:00Z"),
+        },
+      ],
+    });
+    // As stored before entries carried a time.
+    delete (undated.deploymentLogs[0] as { at?: Date }).at;
+    const workspace = new FakeWorkspace(
+      [service],
+      [
+        undated,
+        aBuild(service, "v1", {
+          logs: [
+            {
+              environment: "prod",
+              status: DeploymentStatus.DEPLOYED,
+              at: at("2026-11-27T02:00:00Z"),
+            },
+          ],
+        }),
+      ],
+    );
+
+    const result = (await getActivityTool(
+      workspace,
+      workspace,
+      history([]),
+    ).run(aCaller(["builds:read"]), {
+      serviceId: service._id.toString(),
+    })) as Activity;
+
+    expect(result.events.map((e) => e.buildId)).toEqual(["v1"]);
+  });
+
   it("should refuse an environment the service does not have", async () => {
     const service = aService();
     const workspace = new FakeWorkspace([service], []);
