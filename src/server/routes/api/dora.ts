@@ -3,6 +3,11 @@ import { ObjectId } from "mongodb";
 import { ServiceRepository } from "../../../repositories/serviceRepository";
 import { DoraMetricsService } from "../../../services/dora/doraMetricsService";
 import { requireScope } from "../../middleware/apiKeyAuth";
+import {
+  DEFAULT_WINDOW_DAYS,
+  MAX_WINDOW_DAYS,
+  windowEndingAt,
+} from "../../../services/dora/window";
 
 export type DoraRoutesDependencies = {
   doraMetricsService: DoraMetricsService;
@@ -19,11 +24,6 @@ type DoraQuery = {
   environment?: string;
   days?: string;
 };
-
-/** Reporting on a decade of delivery is a mistake, not a query. */
-const MAX_WINDOW_DAYS = 3650;
-const DEFAULT_WINDOW_DAYS = 30;
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 export function registerDoraRoutes(
   app: FastifyInstance,
@@ -92,8 +92,7 @@ export function registerDoraRoutes(
           .send({ error: `Unknown environment: ${environment}` });
       }
 
-      const to = now();
-      const from = new Date(to.getTime() - days * DAY_MS);
+      const { from, to } = windowEndingAt(now(), days);
 
       const keys = await doraMetricsService.forService(
         accountId,
