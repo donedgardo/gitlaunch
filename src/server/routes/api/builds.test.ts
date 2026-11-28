@@ -37,6 +37,9 @@ function createMockApiKeyAuth(
     accountId: ObjectId;
     scopes: ApiKeyScope[];
     allowedEnvironments?: string[];
+    apiKeyId?: ObjectId;
+    name?: string;
+    createdByUserId?: ObjectId;
   } | null,
 ) {
   return async (request: FastifyRequest, reply: FastifyReply) => {
@@ -56,7 +59,9 @@ function createMockApiKeyAuth(
 
     request.apiKey = {
       accountId: context.accountId,
-      apiKeyId: new ObjectId(),
+      apiKeyId: context.apiKeyId ?? new ObjectId(),
+      name: context.name,
+      createdByUserId: context.createdByUserId,
       scopes: context.scopes,
       kind: "secret",
       allowedOrigins: [],
@@ -87,6 +92,9 @@ describe("Builds API Routes", () => {
     accountId: ObjectId;
     scopes: ApiKeyScope[];
     allowedEnvironments?: string[];
+    apiKeyId?: ObjectId;
+    name?: string;
+    createdByUserId?: ObjectId;
   } | null;
 
   beforeAll(async () => {
@@ -761,6 +769,81 @@ describe("Builds API Routes", () => {
       });
 
       expect(response.statusCode).toBe(200);
+    });
+  });
+
+  describe("attribution", () => {
+    const apiKeyId = new ObjectId();
+    const createdByUserId = new ObjectId();
+
+    beforeEach(async () => {
+      await buildService.createBuild({
+        accountId: testAccountId,
+        serviceId: testServiceId,
+        buildId: "who",
+      });
+      currentAuthContext = {
+        accountId: testAccountId,
+        scopes: ["builds:read", "deployments:write"],
+        apiKeyId,
+        name: "staging-agent",
+        createdByUserId,
+      };
+    });
+
+    const history = async () =>
+      (await buildService.getBuild(testAccountId, testServiceId, "who"))!
+        .deploymentLogs;
+
+    it("should record the key that triggered a deploy and who created that key", async () => {
+      await app.inject({
+        method: "POST",
+        url: `/api/v1/services/${testServiceId}/builds/who/deploy/staging`,
+        headers: { authorization: "Bearer test-key" },
+      });
+
+      const [entry] = await history();
+      expect(entry.actor).toEqual({
+        kind: "apiKey",
+        apiKeyId,
+        name: "staging-agent",
+        via: "api",
+        onBehalfOfUserId: createdByUserId,
+      });
+    });
+
+    it("should record the reason sent with a deploy", async () => {
+      await app.inject({
+        method: "POST",
+        url: `/api/v1/services/${testServiceId}/builds/who/deploy/staging`,
+        headers: {
+          authorization: "Bearer test-key",
+          "content-type": "application/json",
+        },
+        payload: { reason: "verifying the checkout fix" },
+      });
+
+      const [entry] = await history();
+      expect(entry.reason).toBe("verifying the checkout fix");
+    });
+
+    it("should record the key that reported a deployment status", async () => {
+      await app.inject({
+        method: "PATCH",
+        url: `/api/v1/services/${testServiceId}/builds/who/deploy/staging`,
+        headers: {
+          authorization: "Bearer test-key",
+          "content-type": "application/json",
+        },
+        payload: { status: "deployed" },
+      });
+
+      const [entry] = await history();
+      expect(entry.actor).toMatchObject({
+        kind: "apiKey",
+        name: "staging-agent",
+        via: "api",
+      });
     });
   });
 });

@@ -488,4 +488,41 @@ describe("API Key Auth Middleware", { sequential: true, retry: 2 }, () => {
       ).rejects.toThrow(/publishable/i);
     });
   });
+
+  describe("who the key is", () => {
+    it("should expose the key's name and who created it, for attribution", async () => {
+      // Given: a named key created by a particular person
+      const createdByUserId = new ObjectId();
+      const minted = await apiKeyService.generate({
+        accountId: testAccountId,
+        createdByUserId,
+        name: "staging-agent",
+        scopes: ["builds:read"],
+      });
+      const local = Fastify();
+      local.get(
+        "/whoami",
+        { preHandler: createApiKeyAuthMiddleware(apiKeyService) },
+        async (request) => ({
+          name: request.apiKey!.name,
+          createdByUserId: request.apiKey!.createdByUserId?.toString(),
+        }),
+      );
+      await local.ready();
+
+      // When: it authenticates
+      const response = await local.inject({
+        method: "GET",
+        url: "/whoami",
+        headers: { authorization: `Bearer ${minted.key}` },
+      });
+      await local.close();
+
+      // Then: the request knows which key it is and whose
+      expect(JSON.parse(response.body)).toEqual({
+        name: "staging-agent",
+        createdByUserId: createdByUserId.toString(),
+      });
+    });
+  });
 });
