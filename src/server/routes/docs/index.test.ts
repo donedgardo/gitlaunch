@@ -8,7 +8,7 @@ import { gitlaunchTools } from "../../../services/mcp/gitlaunchTools";
 import { emptyToolDeps } from "../../../services/mcp/fakes";
 
 // Shared on a developer Discord, the landing page was read as an email
-// harvester: a waitlist form and no way to see how the product actually works.
+// harvester: an email form and no way to see how the product actually works.
 // This page is the answer — the whole integration contract, readable by anyone
 // with no account, no session and no email address.
 describe("public docs, rendered", () => {
@@ -130,6 +130,17 @@ describe("public docs, rendered", () => {
     const response = await app.inject({ method: "GET", url: "/docs" });
 
     expect(response.body).toContain("overflow-wrap: anywhere");
+  });
+
+  it("should tell a reader how to get an account, not ask them to wait for one", async () => {
+    // Signup is open. A page that still talks about a beta and a waitlist
+    // sends a reader away from a product they could be using.
+    const response = await app.inject({ method: "GET", url: "/docs" });
+
+    expect(response.body).toContain('id="start"');
+    expect(response.body).toContain('href="/signup"');
+    expect(response.body.toLowerCase()).not.toContain("waitlist");
+    expect(response.body.toLowerCase()).not.toContain("in beta");
   });
 
   it("should be indexable and leave no unresolved placeholders", async () => {
