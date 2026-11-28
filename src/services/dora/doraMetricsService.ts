@@ -76,7 +76,8 @@ export class DoraMetricsService {
 
     const events: DeploymentEvent[] = [];
     for (const build of builds) {
-      for (const log of build.deploymentLogs) {
+      // Builds stored before deployment history existed have no log at all.
+      for (const log of build.deploymentLogs ?? []) {
         // Entries written before the log was timestamped cannot be placed on
         // a timeline. Dropping them narrows the window we can report on;
         // keeping them would put deploys at the wrong moment.

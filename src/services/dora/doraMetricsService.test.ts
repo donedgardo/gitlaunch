@@ -201,6 +201,37 @@ describe("DoraMetricsService", () => {
     expect(keys.medianTimeToRestoreMs).toBeNull();
   });
 
+  it("should measure a service that has a build stored without any deployment history", async () => {
+    // Given: a build recorded before deployment logs existed, beside one that
+    // has a history
+    await db.collection("builds").insertOne({
+      accountId,
+      serviceId,
+      buildId: "no-history",
+      deployments: { prod: DeploymentStatus.DEPLOYED },
+      createdAt: new Date("2026-03-01T00:00:00Z"),
+      updatedAt: new Date("2026-03-01T00:00:00Z"),
+    });
+    await givenBuild("with-history", "2026-03-02T00:00:00Z", [
+      {
+        environment: "prod",
+        status: DeploymentStatus.DEPLOYED,
+        at: "2026-03-02T01:00:00Z",
+        intent: "promote",
+      },
+    ]);
+
+    // When: we ask for the numbers
+    const keys = await service.forService(accountId, serviceId, "prod", {
+      from: new Date("2026-03-01T00:00:00Z"),
+      to: new Date("2026-03-08T00:00:00Z"),
+    });
+
+    // Then: the build with a history is measured, and the other is skipped
+    // rather than failing the whole report
+    expect(keys.sample.deployments).toBe(1);
+  });
+
   it("should ignore log entries written before intent was recorded", async () => {
     // Given: history from before the event log carried intent — an older
     // build redeployed after a newer one, which today would be a rollback

@@ -302,12 +302,13 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
   // The four keys, measured from the deployment event log the build
   // repository already writes. Read-only over stored builds.
   const doraMetricsService = new DoraMetricsService(buildRepository);
+  const flagChangeRepository = new FlagChangeRepository(database);
   const flagService = new FlagService(
     flagRepository,
     serviceRepository,
     flagCache,
     flagConfigVersionService,
-    new FlagChangeRepository(database),
+    flagChangeRepository,
   );
 
   // Everything below registers a route. It's wrapped in server.after() so it
@@ -649,7 +650,13 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
     // GitLaunch's own "mcp-server" flag until it is generally available.
     registerMcpRoutes(server, {
       apiKeyService,
-      catalog: gitlaunchTools({ services: serviceRepository }),
+      catalog: gitlaunchTools({
+        services: serviceRepository,
+        builds: buildService,
+        flags: flagService,
+        metrics: doraMetricsService,
+        flagHistory: flagChangeRepository,
+      }),
       access: new McpGate(flagService, serviceRepository, selfFlagContext),
       version: MCP_SERVER_VERSION,
     });
