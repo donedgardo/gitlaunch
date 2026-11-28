@@ -19,6 +19,9 @@ import { SessionService } from "../../../services/auth/sessionService";
 import { sessionAuthMiddleware } from "../../middleware/sessionAuth";
 import { registerHandlebarsHelpers } from "../../registerHandlebarsHelpers";
 import { registerFlagsSettingsRoutes } from "./flags";
+import { FlagChangeRepository } from "../../../repositories/flagChangeRepository";
+import { UserRepository } from "../../../repositories/userRepository";
+import { ActorDirectory } from "../../../services/account/actorDirectory";
 import { WarehouseAnalytics } from "../../../services/analytics/warehouseAnalytics";
 import { FakeBundlePublisher } from "../../../services/flag/fakes";
 
@@ -64,13 +67,21 @@ describe("Flags Settings Routes", () => {
     await db.collection("accounts").deleteMany({});
     await db.collection("services").deleteMany({});
     await db.collection("flags").deleteMany({});
+    await db.collection("flagChanges").deleteMany({});
+    await db.collection("users").deleteMany({});
     await db.collection("apiKeys").deleteMany({});
     await db.collection("analytics_events").deleteMany({});
 
     accountRepo = new AccountRepository(db);
     serviceRepo = new ServiceRepository(db);
     flagRepo = new FlagRepository(db);
-    flagService = new FlagService(flagRepo, serviceRepo);
+    flagService = new FlagService(
+      flagRepo,
+      serviceRepo,
+      undefined,
+      undefined,
+      new FlagChangeRepository(db),
+    );
     apiKeyRepo = new ApiKeyRepository(db);
     apiKeyService = new ApiKeyService(apiKeyRepo, accountRepo);
     analyticsEventRepo = new AnalyticsEventRepository(db);
@@ -108,6 +119,7 @@ describe("Flags Settings Routes", () => {
       apiKeyService,
       experimentResults,
       analytics,
+      actors: new ActorDirectory(new UserRepository(db)),
     });
     await app.ready();
   });
@@ -1071,6 +1083,87 @@ describe("Flags Settings Routes", () => {
       expect(rotated.body).toContain(`${afterSlug}/`);
       expect(rotated.body).not.toContain(`${beforeSlug}/`);
       expect(bundlePublisher.latestFor(afterSlug!, "staging")).toBeTruthy();
+    });
+  });
+
+  describe("attribution", () => {
+    const history = () =>
+      db
+        .collection("flagChanges")
+        .find({ serviceId })
+        .sort({ at: 1, _id: 1 })
+        .toArray();
+
+    beforeEach(async () => {
+      await db.collection("users").insertOne({
+        _id: userId,
+        name: "Maria",
+        email: null,
+        avatarUrl: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+    });
+
+    it("records the signed-in person as the one who created a flag", async () => {
+      await app.inject({
+        method: "POST",
+        url: `/services/${serviceId}/flags`,
+        cookies: { session: session() },
+        payload: { key: "beta", description: "" },
+      });
+
+      const [change] = await history();
+      expect(change.change).toBe("created");
+      expect(change.actor).toEqual({
+        kind: "user",
+        userId,
+        name: "Maria",
+        via: "dashboard",
+      });
+    });
+
+    it("records the signed-in person as the one who switched a flag on", async () => {
+      await app.inject({
+        method: "POST",
+        url: `/services/${serviceId}/flags`,
+        cookies: { session: session() },
+        payload: { key: "beta", description: "" },
+      });
+
+      await app.inject({
+        method: "PATCH",
+        url: `/services/${serviceId}/flags/beta/environments/prod`,
+        cookies: { session: session() },
+        payload: { enabled: "true", rolloutPercentage: "50" },
+      });
+
+      const changes = await history();
+      expect(changes[1]).toMatchObject({
+        change: "configured",
+        environment: "prod",
+        flagKey: "beta",
+      });
+      expect(changes[1].actor.name).toBe("Maria");
+    });
+
+    it("records the signed-in person as the one who deleted a flag", async () => {
+      await app.inject({
+        method: "POST",
+        url: `/services/${serviceId}/flags`,
+        cookies: { session: session() },
+        payload: { key: "beta", description: "" },
+      });
+
+      await app.inject({
+        method: "DELETE",
+        url: `/services/${serviceId}/flags/beta`,
+        cookies: { session: session() },
+      });
+
+      const changes = await history();
+      expect(changes[changes.length - 1].change).toBe("deleted");
+      expect(changes[changes.length - 1].actor.name).toBe("Maria");
     });
   });
 });

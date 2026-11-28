@@ -7,6 +7,8 @@ import { FlagRepository } from "../../repositories/flagRepository";
 import { FlagConfigVersionRepository } from "../../repositories/flagConfigVersionRepository";
 import { FlagConfigVersionService } from "./flagConfigVersionService";
 import { FlagService } from "./flagService";
+import { FlagChangeRepository } from "../../repositories/flagChangeRepository";
+import { Actor } from "../service/actor";
 
 describe("FlagService", () => {
   let mongoServer: MongoMemoryServer;
@@ -651,6 +653,145 @@ describe("FlagService", () => {
         description: "",
       });
       expect(flag.key).toBe("no-versioning");
+    });
+  });
+
+  describe("attribution", () => {
+    const maria: Actor = {
+      kind: "user",
+      userId: new ObjectId(),
+      name: "Maria",
+      via: "dashboard",
+    };
+    const agent: Actor = {
+      kind: "apiKey",
+      apiKeyId: new ObjectId(),
+      name: "staging-agent",
+      via: "mcp",
+    };
+    let changes: FlagChangeRepository;
+    let attributed: FlagService;
+
+    beforeEach(async () => {
+      await db.collection("flagChanges").deleteMany({});
+      changes = new FlagChangeRepository(db);
+      attributed = new FlagService(
+        flagRepo,
+        serviceRepo,
+        undefined,
+        undefined,
+        changes,
+      );
+    });
+
+    it("should record who created a flag", async () => {
+      const { account, svc } = await makeAccountAndService("who-created");
+
+      await attributed.createFlag(
+        account._id,
+        svc._id,
+        { key: "beta", description: "" },
+        { actor: maria },
+      );
+
+      const [change] = await changes.listByService(account._id, svc._id);
+      expect(change).toMatchObject({
+        flagKey: "beta",
+        change: "created",
+        actor: maria,
+      });
+      expect(change).not.toHaveProperty("environment");
+    });
+
+    it("should record who switched a flag, in which environment, and what it was before and after", async () => {
+      const { account, svc } = await makeAccountAndService("who-switched");
+      await attributed.createFlag(
+        account._id,
+        svc._id,
+        { key: "beta", description: "" },
+        { actor: maria },
+      );
+
+      await attributed.setEnvConfig(
+        account._id,
+        svc._id,
+        "beta",
+        "prod",
+        { enabled: true, rolloutPercentage: 25 },
+        { actor: agent, reason: "start the rollout" },
+      );
+
+      const [change] = await changes.listByService(account._id, svc._id);
+      expect(change).toMatchObject({
+        flagKey: "beta",
+        change: "configured",
+        environment: "prod",
+        actor: agent,
+        reason: "start the rollout",
+      });
+      expect(change.before).toMatchObject({
+        enabled: false,
+        rolloutPercentage: 0,
+      });
+      expect(change.after).toMatchObject({
+        enabled: true,
+        rolloutPercentage: 25,
+      });
+    });
+
+    it("should record who deleted a flag", async () => {
+      const { account, svc } = await makeAccountAndService("who-deleted");
+      await attributed.createFlag(
+        account._id,
+        svc._id,
+        { key: "beta", description: "" },
+        { actor: maria },
+      );
+
+      await attributed.deleteFlag(account._id, svc._id, "beta", {
+        actor: agent,
+      });
+
+      const [change] = await changes.listByService(account._id, svc._id);
+      expect(change).toMatchObject({
+        flagKey: "beta",
+        change: "deleted",
+        actor: agent,
+      });
+    });
+
+    it("should record nothing for a change that was refused", async () => {
+      const { account, svc } = await makeAccountAndService("refused");
+      await attributed.createFlag(
+        account._id,
+        svc._id,
+        { key: "beta", description: "" },
+        { actor: maria },
+      );
+
+      await expect(
+        attributed.setEnvConfig(
+          account._id,
+          svc._id,
+          "beta",
+          "prod",
+          { rolloutPercentage: 150 },
+          { actor: agent },
+        ),
+      ).rejects.toThrow();
+
+      const all = await changes.listByService(account._id, svc._id);
+      expect(all.map((c) => c.change)).toEqual(["created"]);
+    });
+
+    it("should record nothing when asked to delete a flag that does not exist", async () => {
+      const { account, svc } = await makeAccountAndService("nothing-there");
+
+      await attributed.deleteFlag(account._id, svc._id, "ghost", {
+        actor: agent,
+      });
+
+      expect(await changes.listByService(account._id, svc._id)).toEqual([]);
     });
   });
 });
