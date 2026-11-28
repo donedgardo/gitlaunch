@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { gitlaunchTools } from "./gitlaunchTools";
-import { FakeWorkspace, aCaller } from "./fakes";
+import { FakeDeployer, FakeWorkspace, aCaller, inGoodStanding } from "./fakes";
 import { scopesFor } from "../apiKey/keyAccess";
 
 // The assembled catalog, over empty stores: this is about which tools exist
@@ -10,7 +10,15 @@ const catalog = gitlaunchTools({
     findByAccountId: async () => [],
   }),
   builds: new FakeWorkspace(),
-  flags: { listFlags: async () => [], getFlag: async () => null },
+  flags: {
+    listFlags: async () => [],
+    getFlag: async () => null,
+    setEnvConfig: async () => {
+      throw new Error("not changed in this test");
+    },
+  },
+  deployer: new FakeDeployer(),
+  limits: inGoodStanding,
   metrics: {
     forService: async () => {
       throw new Error("not measured in this test");
@@ -49,6 +57,28 @@ describe("gitlaunchTools", () => {
       "get_activity",
       "get_delivery_metrics",
     ]);
+  });
+
+  it("should offer a release key the tools that deploy, roll back and switch flags", () => {
+    const changing = catalog
+      .visibleTo(aCaller(scopesFor("release")))
+      .filter((t) => t.changes)
+      .map((t) => t.name);
+
+    expect(changing).toEqual([
+      "deploy_build",
+      "rollback_environment",
+      "set_flag_environment",
+    ]);
+  });
+
+  it("should offer nothing that deletes a flag or reconfigures a service, to any key", () => {
+    const all = offeredTo(scopesFor("full"));
+
+    expect(all).toHaveLength(10);
+    expect(
+      all.some((name) => /delete|remove|create|configure/.test(name)),
+    ).toBe(false);
   });
 
   it("should describe every tool well enough for a model to choose it", () => {

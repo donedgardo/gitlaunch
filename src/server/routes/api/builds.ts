@@ -11,6 +11,10 @@ import { DeploymentStatus } from "../../../services/service/deploymentStatus";
 import { AnalyticsService } from "../../../services/analytics/analytics";
 import { actor, machineActor } from "../../../services/analytics/actorIdentity";
 import { apiKeyActor, cleanReason } from "../../../services/service/actor";
+import {
+  AccountReadOnly,
+  assertAccountWritable,
+} from "../../../services/limits/writable";
 
 export type BuildsRoutesDependencies = {
   buildService: BuildService;
@@ -58,6 +62,21 @@ export function registerBuildsRoutes(
 ) {
   const { buildService, serviceRepo, planEnforcementService, analytics } = deps;
 
+  // Answers 403 and returns true when billing has made the account read-only.
+  const refusedAsReadOnly = async (
+    accountId: ObjectId,
+    reply: FastifyReply,
+  ): Promise<boolean> => {
+    try {
+      await assertAccountWritable(planEnforcementService, accountId);
+      return false;
+    } catch (error) {
+      if (!(error instanceof AccountReadOnly)) throw error;
+      reply.status(403).send({ error: error.message });
+      return true;
+    }
+  };
+
   // POST /api/v1/services/:serviceId/builds - Create a new build
   app.post<{ Params: ServiceIdParams; Body: CreateBuildBody }>(
     "/api/v1/services/:serviceId/builds",
@@ -103,19 +122,7 @@ export function registerBuildsRoutes(
           .send({ error: "Service does not belong to this account" });
       }
 
-      // Check read-only state
-      try {
-        const accountState =
-          await planEnforcementService.getAccountState(accountId);
-        if (accountState.isReadOnly) {
-          return reply.status(403).send({
-            error:
-              "Account is read-only. Please update your plan or payment method.",
-          });
-        }
-      } catch {
-        // Account not found — will be caught downstream
-      }
+      if (await refusedAsReadOnly(accountId, reply)) return;
 
       try {
         const build = await buildService.createBuild({
@@ -264,19 +271,7 @@ export function registerBuildsRoutes(
 
       const serviceId = new ObjectId(serviceIdParam);
 
-      // Check read-only state
-      try {
-        const accountState =
-          await planEnforcementService.getAccountState(accountId);
-        if (accountState.isReadOnly) {
-          return reply.status(403).send({
-            error:
-              "Account is read-only. Please update your plan or payment method.",
-          });
-        }
-      } catch {
-        // Account not found — will be caught downstream
-      }
+      if (await refusedAsReadOnly(accountId, reply)) return;
 
       try {
         const build = await buildService.updateDeploymentStatus({
@@ -353,19 +348,7 @@ export function registerBuildsRoutes(
         return reply.status(400).send({ error: "Invalid deployment status" });
       }
 
-      // Check read-only state
-      try {
-        const accountState =
-          await planEnforcementService.getAccountState(accountId);
-        if (accountState.isReadOnly) {
-          return reply.status(403).send({
-            error:
-              "Account is read-only. Please update your plan or payment method.",
-          });
-        }
-      } catch {
-        // Account not found — will be caught downstream
-      }
+      if (await refusedAsReadOnly(accountId, reply)) return;
 
       try {
         const build = await buildService.updateDeploymentStatus({

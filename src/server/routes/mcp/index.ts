@@ -41,8 +41,27 @@ const NO_STREAM = {
   id: null,
 };
 
-function callerFrom(key: ApiKeyContext): McpCaller {
+const CLIENT_LABEL_MAX = 40;
+
+/**
+ * What the connecting program calls itself, from its User-Agent: the product
+ * name before the first "/" or space ("claude-code/2.1.0 (cli)" gives
+ * "claude-code"). The caller chooses this, so it is stripped to plain
+ * characters and capped before it is stored on history or shown to anyone —
+ * and it is only ever a label. The key is the identity.
+ */
+export function clientLabel(userAgent: string | undefined): string | undefined {
+  const product = (userAgent ?? "").split(/[/\s]/)[0];
+  const label = product
+    .replace(/[^A-Za-z0-9._-]/g, "")
+    .slice(0, CLIENT_LABEL_MAX);
+  return label || undefined;
+}
+
+function callerFrom(key: ApiKeyContext, userAgent?: string): McpCaller {
+  const client = clientLabel(userAgent);
   return {
+    ...(client ? { client } : {}),
     accountId: key.accountId,
     apiKeyId: key.apiKeyId,
     name: key.name,
@@ -97,6 +116,9 @@ export function registerMcpRoutes(
         annotations: {
           title: tool.title,
           readOnlyHint: !tool.changes,
+          // destructiveHint is left at the protocol's default (true for a
+          // tool that changes things): a deploy replaces what is running, and
+          // a client is right to ask a person before it does.
           // GitLaunch acts only on the account's own services.
           openWorldHint: false,
         },
@@ -143,7 +165,8 @@ export function registerMcpRoutes(
     });
 
     mcp.post("/mcp", async (request: FastifyRequest, reply: FastifyReply) => {
-      const server = serverFor(callerFrom(request.apiKey!), request);
+      const caller = callerFrom(request.apiKey!, request.headers["user-agent"]);
+      const server = serverFor(caller, request);
       const transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: undefined,
         enableJsonResponse: true,

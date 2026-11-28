@@ -656,6 +656,8 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
         flags: flagService,
         metrics: doraMetricsService,
         flagHistory: flagChangeRepository,
+        deployer: buildService,
+        limits: planEnforcementService,
       }),
       access: new McpGate(flagService, serviceRepository, selfFlagContext),
       version: MCP_SERVER_VERSION,

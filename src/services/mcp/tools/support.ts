@@ -2,7 +2,17 @@ import { ObjectId } from "mongodb";
 import { z } from "zod";
 import { McpCaller, ToolRefused } from "../tool";
 import { Build } from "../../../repositories/buildRepository";
-import { Actor, describeActor } from "../../service/actor";
+import {
+  Actor,
+  ApiKeyActor,
+  Attribution,
+  apiKeyActor,
+  cleanReason,
+  describeActor,
+} from "../../service/actor";
+import { mayActOnEnvironment } from "../../apiKey/keyAccess";
+import { AccountLimits } from "../../limits/accountPolicy";
+import { AccountReadOnly, assertAccountWritable } from "../../limits/writable";
 
 /**
  * What the tools share: looking a service up for the caller, checking an
@@ -81,4 +91,65 @@ export function requireEnvironment(
 /** Who made a change, for a history entry. Empty when that was not recorded. */
 export function whoOf(actor: Actor | undefined): { by?: string; via?: string } {
   return actor ? { by: describeActor(actor), via: actor.via } : {};
+}
+
+// ---- for tools that change something ---------------------------------------
+
+export const reasonInput = z
+  .string()
+  .optional()
+  .describe(
+    "Why you are making this change, in a sentence. It is kept on the history next to your key's name, where the team will read it.",
+  );
+
+/**
+ * Scope says what a key may do; this says where. The same rule, in the same
+ * words, as the REST API's requireEnvironmentAccess.
+ */
+export function requireEnvironmentAccess(
+  caller: McpCaller,
+  environment: string,
+): void {
+  if (!mayActOnEnvironment(caller, environment)) {
+    throw new ToolRefused(
+      `This key is not allowed to act on environment "${environment}".`,
+    );
+  }
+}
+
+export type AccountStanding = Pick<AccountLimits, "getAccountState">;
+
+/** Refuses a change for an account billing has made read-only. */
+export async function requireWritableAccount(
+  limits: AccountStanding,
+  caller: McpCaller,
+): Promise<void> {
+  try {
+    await assertAccountWritable(limits, caller.accountId);
+  } catch (error) {
+    if (error instanceof AccountReadOnly) throw new ToolRefused(error.message);
+    throw error;
+  }
+}
+
+// A deploy cannot start for a service that only reports builds.
+export function requireDeployPipeline(service: ServiceRecord): void {
+  if (service.deployment == null) {
+    throw new ToolRefused(
+      `${service.name} has no deploy pipeline connected, so GitLaunch cannot deploy it. It only reports builds. A person can connect one in the service's settings.`,
+    );
+  }
+}
+
+/** The calling key, as the actor recorded on a change made through MCP. */
+export function actorOf(caller: McpCaller): ApiKeyActor {
+  return apiKeyActor(caller, "mcp", caller.client);
+}
+
+export function attributionOf(
+  caller: McpCaller,
+  reason: string | undefined,
+): Attribution {
+  const cleaned = cleanReason(reason);
+  return { actor: actorOf(caller), ...(cleaned ? { reason: cleaned } : {}) };
 }
