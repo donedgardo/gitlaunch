@@ -5,6 +5,8 @@ import { Service } from "../../repositories/serviceRepository";
 import { ApiKeyScope } from "../../repositories/apiKeyRepository";
 import { Actor } from "../service/actor";
 import { DeploymentStatus } from "../service/deploymentStatus";
+import { UpdateDeploymentStatusInput } from "../build/buildService";
+import { AccountState } from "../limits/accountPolicy";
 
 /**
  * Test doubles for MCP tools. A tool depends only on narrow ports, so each of
@@ -123,5 +125,56 @@ export class FakeWorkspace {
         (b) => b.serviceId.equals(serviceId) && b.accountId.equals(accountId),
       )
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+}
+
+// The account's standing with billing, as far as a tool that changes
+// something needs to know it.
+export const inGoodStanding = {
+  getAccountState: async () => ({ isReadOnly: false }) as AccountState,
+};
+export const readOnlyAccount = {
+  getAccountState: async () => ({ isReadOnly: true }) as AccountState,
+};
+
+// Stands in for BuildService's deploy path: remembers what was asked and
+// answers with the build as it would be once the deploy is dispatched.
+export class FakeDeployer {
+  asked: UpdateDeploymentStatusInput[] = [];
+
+  constructor(
+    private builds: Build[] = [],
+    private failure?: Error,
+  ) {}
+
+  async updateDeploymentStatus(
+    input: UpdateDeploymentStatusInput,
+  ): Promise<Build> {
+    this.asked.push(input);
+    if (this.failure) throw this.failure;
+    const build = this.builds.find((b) => b.buildId === input.buildId);
+    if (!build) throw new Error("Build not found");
+    const live = this.builds.find(
+      (b) => b.deployments[input.environment] === DeploymentStatus.DEPLOYED,
+    );
+    const intent =
+      live && build.createdAt.getTime() < live.createdAt.getTime()
+        ? ("rollback" as const)
+        : ("promote" as const);
+    return {
+      ...build,
+      deployments: { ...build.deployments, [input.environment]: input.status },
+      deploymentLogs: [
+        ...build.deploymentLogs,
+        {
+          environment: input.environment,
+          status: input.status,
+          at: new Date(),
+          intent,
+          actor: input.actor,
+          ...(input.reason ? { reason: input.reason } : {}),
+        },
+      ],
+    };
   }
 }

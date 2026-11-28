@@ -21,7 +21,19 @@ import { ServiceRepository } from "../../../repositories/serviceRepository";
 import { ApiKeyService } from "../../../services/apiKey/apiKeyService";
 import { ToolCatalog } from "../../../services/mcp/toolCatalog";
 import { listServicesTool } from "../../../services/mcp/tools/listServices";
-import { registerMcpRoutes } from "./index";
+import { registerMcpRoutes, clientLabel } from "./index";
+import { defineTool } from "../../../services/mcp/tool";
+
+// Tells the caller what the server took it to be.
+const whoAmI = defineTool({
+  name: "who_am_i",
+  title: "Who am I",
+  description: "Reports the calling key's name and client label.",
+  requiredScope: "services:read",
+  changes: false,
+  input: {},
+  run: async (caller) => ({ name: caller.name, client: caller.client ?? null }),
+});
 
 // Drives the endpoint the way an agent does: a real MCP client over HTTP,
 // holding a real API key.
@@ -66,7 +78,7 @@ describe("MCP endpoint", () => {
     app = Fastify();
     registerMcpRoutes(app, {
       apiKeyService,
-      catalog: new ToolCatalog([listServicesTool(serviceRepo)]),
+      catalog: new ToolCatalog([listServicesTool(serviceRepo), whoAmI]),
       access: { allows: async () => open },
       version: "9.9.9",
     });
@@ -93,12 +105,17 @@ describe("MCP endpoint", () => {
     return minted.key;
   }
 
-  async function connect(key: string): Promise<Client> {
+  async function connect(key: string, userAgent?: string): Promise<Client> {
     const client = new Client({ name: "test-agent", version: "1.0.0" });
     clients.push(client);
     await client.connect(
       new StreamableHTTPClientTransport(new URL(`${baseUrl}/mcp`), {
-        requestInit: { headers: { Authorization: `Bearer ${key}` } },
+        requestInit: {
+          headers: {
+            Authorization: `Bearer ${key}`,
+            ...(userAgent ? { "User-Agent": userAgent } : {}),
+          },
+        },
       }),
     );
     return client;
@@ -199,7 +216,7 @@ describe("MCP endpoint", () => {
 
       const { tools } = await client.listTools();
 
-      expect(tools.map((t) => t.name)).toEqual(["list_services"]);
+      expect(tools.map((t) => t.name)).toEqual(["list_services", "who_am_i"]);
       expect(tools[0].annotations?.readOnlyHint).toBe(true);
     });
 
@@ -252,5 +269,41 @@ describe("MCP endpoint", () => {
       expect(outcome.refused).toBe(true);
       expect(outcome.text).not.toContain("web-app");
     });
+  });
+
+  describe("who is calling", () => {
+    it("should tell a tool which key is calling and what the client says it is", async () => {
+      const client = await connect(
+        await mintKey(["services:read"]),
+        "claude-code/2.1.0 (cli)",
+      );
+
+      const result = await client.callTool({ name: "who_am_i", arguments: {} });
+
+      expect(JSON.parse(textOf(result))).toEqual({
+        name: "staging-agent",
+        client: "claude-code",
+      });
+    });
+  });
+});
+
+describe("clientLabel", () => {
+  it("should take the product name from a user agent", () => {
+    expect(clientLabel("claude-code/2.1.0 (cli)")).toBe("claude-code");
+    expect(clientLabel("Cursor/1.4")).toBe("Cursor");
+  });
+
+  it("should be absent when there is no user agent", () => {
+    expect(clientLabel(undefined)).toBeUndefined();
+    expect(clientLabel("")).toBeUndefined();
+  });
+
+  it("should keep only characters that are safe to store and show", () => {
+    expect(clientLabel("<script>alert(1)</script>/1.0")).toBe("scriptalert1");
+  });
+
+  it("should cap the length, since the caller chooses it", () => {
+    expect(clientLabel("a".repeat(500))!.length).toBe(40);
   });
 });
