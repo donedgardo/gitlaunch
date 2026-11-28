@@ -30,6 +30,11 @@ import {
   cleanReason,
 } from "../../../services/service/actor";
 
+import {
+  AccountReadOnly,
+  assertAccountWritable,
+} from "../../../services/limits/writable";
+
 // Who is making this change: the key on the request, and the reason it gave.
 const attributed = (request: FastifyRequest): Attribution => ({
   actor: apiKeyActor(request.apiKey!, "api"),
@@ -155,24 +160,19 @@ export function registerFlagsRoutes(
     return serviceId;
   }
 
+  // Answers 403 and returns false when billing has made the account read-only.
   async function assertWritable(
     accountId: ObjectId,
     reply: FastifyReply,
   ): Promise<boolean> {
     try {
-      const accountState =
-        await planEnforcementService.getAccountState(accountId);
-      if (accountState.isReadOnly) {
-        reply.status(403).send({
-          error:
-            "Account is read-only. Please update your plan or payment method.",
-        });
-        return false;
-      }
-    } catch {
-      // Account not found — will be caught downstream.
+      await assertAccountWritable(planEnforcementService, accountId);
+      return true;
+    } catch (error) {
+      if (!(error instanceof AccountReadOnly)) throw error;
+      reply.status(403).send({ error: error.message });
+      return false;
     }
-    return true;
   }
 
   function mapErrorStatus(message: string): number {
