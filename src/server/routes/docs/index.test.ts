@@ -63,6 +63,38 @@ describe("public docs, rendered", () => {
     expect(response.body).toMatch(/not (another|a) CI/i);
   });
 
+  it("should show how to connect an agent to the MCP server on this instance", async () => {
+    const response = await app.inject({ method: "GET", url: "/docs" });
+
+    // The endpoint and a command a reader can paste, addressed to this
+    // instance rather than to the hosted one.
+    expect(response.body).toContain('id="mcp"');
+    expect(response.body).toContain("https://gitlaunch.example/mcp");
+    expect(response.body).toContain("claude mcp add --transport http");
+    expect(response.body).toContain("Authorization: Bearer");
+  });
+
+  it("should list every MCP tool and say which ones change things", async () => {
+    const response = await app.inject({ method: "GET", url: "/docs" });
+
+    for (const tool of [
+      "list_services",
+      "get_release_board",
+      "get_build",
+      "get_activity",
+      "get_delivery_metrics",
+      "list_flags",
+      "get_flag",
+      "deploy_build",
+      "rollback_environment",
+      "set_flag_environment",
+    ]) {
+      expect(response.body).toContain(tool);
+    }
+    expect(response.body).toContain("deployments:write");
+    expect(response.body).toContain("flags:write");
+  });
+
   it("should point at the source and at self-hosting", async () => {
     const response = await app.inject({ method: "GET", url: "/docs" });
 
