@@ -68,6 +68,18 @@ GitLaunch is a multi-tenant SaaS deployment tool: Fastify, HTMX, Handlebars, Mon
 - API keys are scoped (`builds:read/write`, `deployments:write`, `services:read/write`, `flags:read/write/evaluate`); publishable (`pk_`) keys may only carry `flags:evaluate`
 - A secret key is minted at an access level (`full`, `release`, `read` — named scope sets in `services/apiKey/keyAccess.ts`) and may carry `allowedEnvironments`. Scope says _what_, the list says _where_: a write addressed to one environment takes `requireEnvironmentAccess()` next to `requireScope()`, and a write that reaches every environment (deleting a flag, rebinding deploys) takes `requireAllEnvironments()`. Reads are never limited by environment
 
+### MCP server
+
+`POST /mcp` lets an agent do what the REST API does, with the same API keys. It is layered so the protocol stays at the edge:
+
+- `src/services/mcp/tool.ts` — an `McpTool` is a use case: the scope it needs, whether it changes anything, a zod input shape, and `run(caller, input)`. No Fastify, no MCP SDK. A refusal the agent should see is a `ToolRefused`; anything else is a fault and is reported to the agent only as one.
+- `src/services/mcp/tools/` — one file per tool, each depending on a narrow port (see `ServiceDirectory` in `listServices.ts`) that an existing repository or service satisfies.
+- `src/services/mcp/toolCatalog.ts` — decides who may use what. Scope is checked twice: `visibleTo` (what a key is offered) and `call` (a tool can be asked for by name).
+- `src/services/mcp/gitlaunchTools.ts` — the one place a tool is added.
+- `src/server/routes/mcp/` — the only code that imports the MCP SDK. Stateless: each request builds a server for that one caller, so there is no session to lose on a deploy.
+
+A tool must call the same service method the REST route calls. If a rule lives in a route handler, move it into the service first, then use it from both. Never reimplement it in the tool. The endpoint is gated per account by GitLaunch's own `mcp-server` flag (`McpGate`), which fails closed.
+
 ### Build reporting: `curl` is canonical
 
 There is one answer to "how do I report a build to GitLaunch?" — plain `curl` against the REST API, emitted by `src/services/setup/setupSnippets.ts`. That file backs the onboarding UI, the per-service settings page, `GET /api/v1/services/:serviceId/setup-snippets` and the `gitlaunch-onboarding` skill, and the same shape serves GitHub Actions, GitLab CI (`buildReport.gitlab`, a self-contained `.post` job), Jenkins and the `raw` provider alike. Public, ungated documentation of the contract lives at `/docs` (`src/server/routes/docs/`). One code path, one source of truth, every provider and every surface.

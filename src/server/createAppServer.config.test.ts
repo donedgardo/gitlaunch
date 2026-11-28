@@ -165,6 +165,23 @@ describe("createAppServer configuration", () => {
     });
   });
 
+  describe("MCP server", () => {
+    it("should serve the MCP endpoint, behind API key auth", async () => {
+      // Same reasoning as the metrics route above: the endpoint is only a
+      // feature once the assembled server answers on it.
+      const app = await buildServer(testConfig());
+
+      const response = await app.inject({
+        method: "POST",
+        url: "/mcp",
+        payload: { jsonrpc: "2.0", id: 1, method: "tools/list" },
+      });
+
+      expect(response.statusCode).toBe(401);
+      await app.close();
+    });
+  });
+
   describe("browser analytics snippet", () => {
     it("should load PostHog in the page when a project token is configured", async () => {
       // Session recordings and autocapture happen in the browser, so the
