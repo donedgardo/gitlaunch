@@ -259,4 +259,110 @@ describe("API Key Routes", () => {
       expect(keys[0].isRevoked).toBe(false);
     });
   });
+
+  describe("choosing what a key may do", () => {
+    async function signedIn() {
+      const account = await accountRepo.create({
+        name: "Test Org",
+        slug: "test-org",
+      });
+      const userId = new ObjectId();
+      const sessionToken = sessionService.createSession({
+        userId,
+        accountId: account._id,
+      });
+      return { account, sessionToken };
+    }
+
+    const create = (sessionToken: string, payload: Record<string, string>) =>
+      app.inject({
+        method: "POST",
+        url: "/settings/api-keys",
+        cookies: { session: sessionToken },
+        payload,
+      });
+
+    it("should keep granting full access when no level is chosen", async () => {
+      const { account, sessionToken } = await signedIn();
+
+      await create(sessionToken, { name: "CI" });
+
+      const [key] = await apiKeyRepo.findByAccountId(account._id);
+      expect(key.scopes).toContain("builds:write");
+      expect(key.scopes).toContain("services:write");
+      expect(key.allowedEnvironments ?? []).toEqual([]);
+    });
+
+    it("should mint a read-only key that carries no write scope", async () => {
+      const { account, sessionToken } = await signedIn();
+
+      const response = await create(sessionToken, {
+        name: "Dashboard bot",
+        access: "read",
+      });
+
+      expect(response.statusCode).toBe(200);
+      const [key] = await apiKeyRepo.findByAccountId(account._id);
+      expect(key.scopes.every((s) => s.endsWith(":read"))).toBe(true);
+    });
+
+    it("should mint a release key limited to the environments named", async () => {
+      const { account, sessionToken } = await signedIn();
+
+      await create(sessionToken, {
+        name: "Staging agent",
+        access: "release",
+        environments: "staging, qa",
+      });
+
+      const [key] = await apiKeyRepo.findByAccountId(account._id);
+      expect(key.scopes).toContain("deployments:write");
+      expect(key.scopes).not.toContain("services:write");
+      expect(key.allowedEnvironments).toEqual(["staging", "qa"]);
+    });
+
+    it("should refuse an access level it does not know and mint nothing", async () => {
+      const { account, sessionToken } = await signedIn();
+
+      const response = await create(sessionToken, {
+        name: "Mystery",
+        access: "admin",
+      });
+
+      expect(response.statusCode).toBe(400);
+      expect(await apiKeyRepo.findByAccountId(account._id)).toHaveLength(0);
+    });
+
+    it("should show what each key may do and where", async () => {
+      const { sessionToken } = await signedIn();
+      await create(sessionToken, {
+        name: "Staging agent",
+        access: "release",
+        environments: "staging",
+      });
+
+      const response = await app.inject({
+        method: "GET",
+        url: "/settings/api-keys",
+        cookies: { session: sessionToken },
+      });
+
+      expect(response.body).toContain("Release");
+      expect(response.body).toContain("staging only");
+    });
+
+    it("should say a key with no limit reaches all environments", async () => {
+      const { sessionToken } = await signedIn();
+      await create(sessionToken, { name: "CI", access: "full" });
+
+      const response = await app.inject({
+        method: "GET",
+        url: "/settings/api-keys",
+        cookies: { session: sessionToken },
+      });
+
+      expect(response.body).toContain("Full access");
+      expect(response.body).toContain("all environments");
+    });
+  });
 });

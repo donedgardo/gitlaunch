@@ -33,7 +33,11 @@ import { MembershipRepository } from "../../../repositories/membershipRepository
 
 // Simple mock auth middleware for testing - simulates API key validation
 function createMockApiKeyAuth(
-  getContext: () => { accountId: ObjectId; scopes: ApiKeyScope[] } | null,
+  getContext: () => {
+    accountId: ObjectId;
+    scopes: ApiKeyScope[];
+    allowedEnvironments?: string[];
+  } | null,
 ) {
   return async (request: FastifyRequest, reply: FastifyReply) => {
     const authHeader = request.headers.authorization;
@@ -56,6 +60,7 @@ function createMockApiKeyAuth(
       scopes: context.scopes,
       kind: "secret",
       allowedOrigins: [],
+      allowedEnvironments: context.allowedEnvironments ?? null,
     };
   };
 }
@@ -78,7 +83,11 @@ describe("Builds API Routes", () => {
 
   let testAccountId: ObjectId;
   let testServiceId: ObjectId;
-  let currentAuthContext: { accountId: ObjectId; scopes: ApiKeyScope[] } | null;
+  let currentAuthContext: {
+    accountId: ObjectId;
+    scopes: ApiKeyScope[];
+    allowedEnvironments?: string[];
+  } | null;
 
   beforeAll(async () => {
     mongoServer = await MongoMemoryServer.create();
@@ -129,6 +138,16 @@ describe("Builds API Routes", () => {
     await db.collection("services").deleteMany({});
     await db.collection("builds").deleteMany({});
     vi.clearAllMocks();
+    // Fresh per test, so one test marking the account read-only cannot leak
+    // into the next.
+    planEnforcementService = new FakeAccountLimits(
+      new OpenCoreLimits({
+        accountRepository: accountRepo,
+        repositoryRepository: repoRepo,
+        serviceRepository: serviceRepo,
+        membershipRepository: membershipRepo,
+      }),
+    );
 
     // Create test account, repository, and service
     const account = await accountRepo.create({
@@ -675,6 +694,73 @@ describe("Builds API Routes", () => {
         },
       });
       expect(detailResponse.statusCode).toBe(200);
+    });
+  });
+
+  describe("keys limited to certain environments", () => {
+    beforeEach(async () => {
+      await buildService.createBuild({
+        accountId: testAccountId,
+        serviceId: testServiceId,
+        buildId: "limited",
+      });
+      currentAuthContext = {
+        accountId: testAccountId,
+        scopes: ["builds:read", "deployments:write"],
+        allowedEnvironments: ["staging"],
+      };
+    });
+
+    it("should deploy to an environment the key is allowed to act on", async () => {
+      const response = await app.inject({
+        method: "POST",
+        url: `/api/v1/services/${testServiceId}/builds/limited/deploy/staging`,
+        headers: { authorization: "Bearer test-key" },
+      });
+
+      expect(response.statusCode).toBe(200);
+    });
+
+    it("should refuse to deploy to an environment outside the key's list", async () => {
+      const response = await app.inject({
+        method: "POST",
+        url: `/api/v1/services/${testServiceId}/builds/limited/deploy/prod`,
+        headers: { authorization: "Bearer test-key" },
+      });
+
+      expect(response.statusCode).toBe(403);
+      expect(JSON.parse(response.body).error).toContain("prod");
+      expect(mockDispatcher.dispatch).not.toHaveBeenCalled();
+    });
+
+    it("should refuse to report a deployment status for an environment outside the key's list", async () => {
+      const response = await app.inject({
+        method: "PATCH",
+        url: `/api/v1/services/${testServiceId}/builds/limited/deploy/prod`,
+        headers: {
+          authorization: "Bearer test-key",
+          "content-type": "application/json",
+        },
+        payload: { status: "deployed" },
+      });
+
+      expect(response.statusCode).toBe(403);
+      const build = await buildService.getBuild(
+        testAccountId,
+        testServiceId,
+        "limited",
+      );
+      expect(build?.deployments["prod"]).not.toBe(DeploymentStatus.DEPLOYED);
+    });
+
+    it("should still let the key read builds across every environment", async () => {
+      const response = await app.inject({
+        method: "GET",
+        url: `/api/v1/services/${testServiceId}/builds`,
+        headers: { authorization: "Bearer test-key" },
+      });
+
+      expect(response.statusCode).toBe(200);
     });
   });
 });
