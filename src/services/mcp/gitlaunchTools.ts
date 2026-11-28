@@ -2,6 +2,7 @@ import { ToolCatalog } from "./toolCatalog";
 import { ServiceDirectory, listServicesTool } from "./tools/listServices";
 import { BuildHistory, ServiceLookup } from "./tools/support";
 import { getReleaseBoardTool } from "./tools/getReleaseBoard";
+import { waitForDeployTool } from "./tools/waitForDeploy";
 import { getBuildTool } from "./tools/getBuild";
 import { FlagHistory, getActivityTool } from "./tools/getActivity";
 import {
@@ -16,7 +17,7 @@ import { FlagWriter, setFlagEnvironmentTool } from "./tools/setFlagEnvironment";
 
 // The version the MCP server reports to clients. Bump it when a tool's name
 // or input changes in a way an existing agent would notice.
-export const MCP_SERVER_VERSION = "0.1.0";
+export const MCP_SERVER_VERSION = "0.2.0";
 
 export type GitLaunchToolsDeps = {
   services: ServiceDirectory & ServiceLookup;
@@ -45,6 +46,7 @@ export function gitlaunchTools(deps: GitLaunchToolsDeps): ToolCatalog {
   return new ToolCatalog([
     listServicesTool(services),
     getReleaseBoardTool(services, builds),
+    waitForDeployTool(services, builds),
     getBuildTool(services, builds),
     getActivityTool(services, builds, flagHistory),
     getDeliveryMetricsTool(services, metrics, now),
