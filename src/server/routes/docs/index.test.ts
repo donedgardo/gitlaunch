@@ -85,6 +85,7 @@ describe("public docs, rendered", () => {
     for (const tool of [
       "list_services",
       "get_release_board",
+      "wait_for_deploy",
       "get_build",
       "get_activity",
       "get_delivery_metrics",
