@@ -86,6 +86,17 @@ export function registerHandlebarsHelpers() {
       return build.deployedAt?.[environment];
     },
   );
+  // Who shipped the build that is live in an environment — rendered as
+  // "by Maria" after the live time. Absent when that is not known.
+  handlebars.registerHelper(
+    "getDeployedBy",
+    function (
+      build: { deployedBy?: Record<string, string | null> },
+      environment: string,
+    ) {
+      return build.deployedBy?.[environment];
+    },
+  );
   handlebars.registerHelper(
     "showDeployButton",
     function (status: DeploymentStatus) {

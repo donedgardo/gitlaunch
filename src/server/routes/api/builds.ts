@@ -10,6 +10,7 @@ import {
 import { DeploymentStatus } from "../../../services/service/deploymentStatus";
 import { AnalyticsService } from "../../../services/analytics/analytics";
 import { actor, machineActor } from "../../../services/analytics/actorIdentity";
+import { apiKeyActor, cleanReason } from "../../../services/service/actor";
 
 export type BuildsRoutesDependencies = {
   buildService: BuildService;
@@ -30,6 +31,13 @@ type CreateBuildBody = {
 
 type UpdateDeploymentStatusBody = {
   status: string;
+  // Optional: why, recorded on the deployment's history.
+  reason?: string;
+};
+
+type TriggerDeployBody = {
+  // Optional: why this build is going out, recorded on its history.
+  reason?: string;
 };
 
 type ServiceIdParams = {
@@ -232,7 +240,7 @@ export function registerBuildsRoutes(
   );
 
   // POST /api/v1/services/:serviceId/builds/:buildId/deploy/:env - Trigger deployment
-  app.post<{ Params: DeployParams }>(
+  app.post<{ Params: DeployParams; Body: TriggerDeployBody }>(
     "/api/v1/services/:serviceId/builds/:buildId/deploy/:env",
     {
       preHandler: [
@@ -241,7 +249,10 @@ export function registerBuildsRoutes(
       ],
     },
     async (
-      request: FastifyRequest<{ Params: DeployParams }>,
+      request: FastifyRequest<{
+        Params: DeployParams;
+        Body: TriggerDeployBody;
+      }>,
       reply: FastifyReply,
     ) => {
       const { serviceId: serviceIdParam, buildId, env } = request.params;
@@ -274,6 +285,8 @@ export function registerBuildsRoutes(
           buildId,
           environment: env,
           status: DeploymentStatus.DISPATCHING,
+          actor: apiKeyActor(request.apiKey!, "api"),
+          reason: cleanReason(request.body?.reason),
         });
 
         return reply.send({
@@ -361,6 +374,8 @@ export function registerBuildsRoutes(
           buildId,
           environment: env,
           status: status as DeploymentStatus,
+          actor: apiKeyActor(request.apiKey!, "api"),
+          reason: cleanReason(request.body?.reason),
         });
         analytics?.track(
           "deployment_status_updated",

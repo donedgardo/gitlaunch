@@ -111,6 +111,12 @@
           with an API key) makes GitLaunch trigger <em>your</em> deploy pipeline with two inputs,
           <code>environment</code> and <code>buildId</code>. How it triggers depends on the provider you bind:
         </p>
+        <p>
+          Every deploy is recorded against whoever made it: the signed-in person, or the API key and
+          the person who created that key. The release board shows who shipped the build that is live.
+          A deploy sent through the API can say why with an optional JSON body,
+          <code>{"reason": "…"}</code>, which is kept on the build's history.
+        </p>
         <ul>
           <li><strong>GitHub</strong> — <code>workflow_dispatch</code> on a workflow file in your repo, through the GitLaunch GitHub App.</li>
           <li><strong>Jenkins</strong> — <code>buildWithParameters</code> on a job.</li>

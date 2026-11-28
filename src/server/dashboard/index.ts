@@ -18,6 +18,16 @@ import {
 } from "../../services/flag/flagBoardSummary";
 const DEFAULT_PAGE_SIZE = 20;
 
+import { ActorDirectory } from "../../services/account/actorDirectory";
+import { describeActor, shippedBy } from "../../services/service/actor";
+
+// The board's "by …" label for whoever shipped the build live in an
+// environment; nothing when that is not known.
+const deployedByLabel = (build: Build, environment: string) => {
+  const who = shippedBy(build.deploymentLogs, environment);
+  return who ? describeActor(who) : null;
+};
+
 export type DashboardRoutesDeps = {
   publicUrl: string;
   buildSimulationEnabled: boolean;
@@ -29,6 +39,8 @@ export type DashboardRoutesDeps = {
   trialService: TrialPolicy;
   planEnforcementService: AccountLimits;
   analytics?: AnalyticsService;
+  // Names the signed-in person on every change they make from the board.
+  actors: ActorDirectory;
   // Optional: when absent the board renders exactly as before, without flag
   // state. Flags enrich the board; they are never required to read it.
   flagService?: FlagServiceI;
@@ -47,6 +59,7 @@ export default function (deps: DashboardRoutesDeps) {
     planEnforcementService,
     analytics,
     flagService,
+    actors,
   } = deps;
 
   // Flag state for each environment column of the release board.
@@ -118,6 +131,14 @@ export default function (deps: DashboardRoutesDeps) {
             return acc;
           },
           {} as Record<string, Date | null>,
+        ),
+        // Who shipped it, rendered as "by Maria" after the live time
+        deployedBy: environments.reduce(
+          (acc, env) => {
+            acc[env.name] = deployedByLabel(build, env.name);
+            return acc;
+          },
+          {} as Record<string, string | null>,
         ),
       }));
     };
@@ -402,6 +423,7 @@ export default function (deps: DashboardRoutesDeps) {
             buildId,
             environment: env,
             status: DeploymentStatus.DISPATCHING,
+            actor: await actors.forUser(req.session!.userId),
           });
           analytics?.track(
             "deployment_triggered",
@@ -423,6 +445,7 @@ export default function (deps: DashboardRoutesDeps) {
               buildId,
               status: build.deployments[env],
               deployedAt: build.deployedAt?.[env],
+              deployedBy: deployedByLabel(build, env),
               env,
               serviceName: service.name,
               serviceId,
@@ -519,6 +542,7 @@ export default function (deps: DashboardRoutesDeps) {
             buildId,
             environment: env,
             status: DeploymentStatus.CANCELLED,
+            actor: await actors.forUser(req.session!.userId),
           });
 
           // Return the partial for HTMX swap
@@ -528,6 +552,7 @@ export default function (deps: DashboardRoutesDeps) {
               buildId,
               status: updatedBuild.deployments[env],
               deployedAt: updatedBuild.deployedAt?.[env],
+              deployedBy: deployedByLabel(updatedBuild, env),
               env,
               serviceName: service.name,
               serviceId,

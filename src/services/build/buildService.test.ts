@@ -19,6 +19,14 @@ import { DeploymentStatus } from "../service/deploymentStatus";
 import { BuildDispatchServiceI } from "./buildDispatchService";
 import { Actor } from "../service/actor";
 
+// Who is making the change in tests that are not about attribution.
+const TEST_ACTOR: Actor = {
+  kind: "apiKey",
+  apiKeyId: new ObjectId(),
+  name: "test-key",
+  via: "api",
+};
+
 describe("BuildService", () => {
   let mongoServer: MongoMemoryServer;
   let client: MongoClient;
@@ -403,6 +411,7 @@ describe("BuildService", () => {
         buildId: "deploy-me",
         environment: "staging",
         status: DeploymentStatus.DEPLOYED,
+        actor: TEST_ACTOR,
       });
 
       // Then: the status is updated
@@ -442,6 +451,7 @@ describe("BuildService", () => {
           buildId: "invalid-env-build",
           environment: "invalid-env",
           status: DeploymentStatus.DEPLOYED,
+          actor: TEST_ACTOR,
         }),
       ).rejects.toThrow("Invalid environment");
     });
@@ -479,6 +489,7 @@ describe("BuildService", () => {
           buildId: "invalid-status-build",
           environment: "staging",
           status: "invalid-status" as DeploymentStatus,
+          actor: TEST_ACTOR,
         }),
       ).rejects.toThrow("Invalid deployment status");
     });
@@ -515,6 +526,7 @@ describe("BuildService", () => {
         buildId: "dispatch-me",
         environment: "staging",
         status: DeploymentStatus.DISPATCHING,
+        actor: TEST_ACTOR,
       });
 
       // Then: dispatch is called with full context
@@ -561,6 +573,7 @@ describe("BuildService", () => {
         buildId: "event-build",
         environment: "staging",
         status: DeploymentStatus.DEPLOYED,
+        actor: TEST_ACTOR,
       });
 
       // Then: event is emitted as array with expected properties
@@ -609,6 +622,7 @@ describe("BuildService", () => {
         buildId: "sse-build",
         environment: "staging",
         status: DeploymentStatus.DEPLOYED,
+        actor: TEST_ACTOR,
       });
 
       // Then: event is emitted as an ARRAY (for SSE listener compatibility)
@@ -662,6 +676,7 @@ describe("BuildService", () => {
           buildId: "non-existent",
           environment: "staging",
           status: DeploymentStatus.DEPLOYED,
+          actor: TEST_ACTOR,
         }),
       ).rejects.toThrow("Build not found");
     });
@@ -700,6 +715,7 @@ describe("BuildService", () => {
         buildId: "auto-config-build",
         environment: "staging",
         status: DeploymentStatus.DEPLOYED,
+        actor: TEST_ACTOR,
       });
 
       // Then: workflowConfigured is set to true
@@ -737,6 +753,7 @@ describe("BuildService", () => {
         buildId: "build-a",
         environment: "staging",
         status: DeploymentStatus.DEPLOYED,
+        actor: TEST_ACTOR,
       });
       await service.createBuild({
         accountId: account._id,
@@ -751,6 +768,7 @@ describe("BuildService", () => {
         buildId: "build-b",
         environment: "staging",
         status: DeploymentStatus.DEPLOYED,
+        actor: TEST_ACTOR,
       });
 
       // Then: build A's staging status is cleared to NONE
@@ -788,6 +806,7 @@ describe("BuildService", () => {
         buildId: "build-a",
         environment: "staging",
         status: DeploymentStatus.DEPLOYED,
+        actor: TEST_ACTOR,
       });
       await service.createBuild({
         accountId: account._id,
@@ -805,6 +824,7 @@ describe("BuildService", () => {
         buildId: "build-b",
         environment: "staging",
         status: DeploymentStatus.DEPLOYED,
+        actor: TEST_ACTOR,
       });
 
       // Then: SSE event array includes both the deployed build and the cleared build
@@ -861,6 +881,7 @@ describe("BuildService", () => {
         buildId: "build-a",
         environment: "staging",
         status: DeploymentStatus.DEPLOYED,
+        actor: TEST_ACTOR,
       });
       await service.createBuild({
         accountId: account._id,
@@ -875,6 +896,7 @@ describe("BuildService", () => {
         buildId: "build-b",
         environment: "staging",
         status: DeploymentStatus.DEPLOYING,
+        actor: TEST_ACTOR,
       });
 
       // Then: build A's staging status is still DEPLOYED
@@ -921,6 +943,7 @@ describe("BuildService", () => {
         buildId: "already-configured-build",
         environment: "staging",
         status: DeploymentStatus.DEPLOYED,
+        actor: TEST_ACTOR,
       });
 
       // Then: service still has workflowConfigured=true (no error, idempotent)
@@ -960,6 +983,7 @@ describe("BuildService", () => {
         buildId,
         environment: "prod",
         status,
+        actor: TEST_ACTOR,
       });
 
     const logsFor = async (
