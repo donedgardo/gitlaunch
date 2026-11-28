@@ -6,7 +6,7 @@ import path from "node:path";
 import { registerDocsRoutes } from "./index";
 
 // Shared on a developer Discord, the landing page was read as an email
-// harvester: a waitlist form and no way to see how the product actually works.
+// harvester: an email form and no way to see how the product actually works.
 // This page is the answer — the whole integration contract, readable by anyone
 // with no account, no session and no email address.
 describe("public docs, rendered", () => {
