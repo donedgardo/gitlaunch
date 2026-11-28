@@ -11,6 +11,7 @@ import {
   describeActor,
 } from "../../service/actor";
 import { mayActOnEnvironment } from "../../apiKey/keyAccess";
+import { DeploymentStatus } from "../../service/deploymentStatus";
 import { AccountLimits } from "../../limits/accountPolicy";
 import { AccountReadOnly, assertAccountWritable } from "../../limits/writable";
 
@@ -87,6 +88,25 @@ export function requireEnvironment(
     );
   }
 }
+
+// ---- what is deployed where ------------------------------------------------
+
+const IN_FLIGHT: readonly string[] = [
+  DeploymentStatus.DISPATCHING,
+  DeploymentStatus.DEPLOYING,
+];
+
+/** A build's status in one environment; "none" when it was never sent there. */
+export const statusIn = (build: Build, environment: string): string =>
+  build.deployments[environment] ?? DeploymentStatus.NONE;
+
+/** The build live in an environment, from history given newest first. */
+export const liveIn = (builds: Build[], environment: string) =>
+  builds.find((b) => statusIn(b, environment) === DeploymentStatus.DEPLOYED);
+
+/** The build on its way to an environment: dispatched or deploying. */
+export const inFlightIn = (builds: Build[], environment: string) =>
+  builds.find((b) => IN_FLIGHT.includes(statusIn(b, environment)));
 
 /** Who made a change, for a history entry. Empty when that was not recorded. */
 export function whoOf(actor: Actor | undefined): { by?: string; via?: string } {

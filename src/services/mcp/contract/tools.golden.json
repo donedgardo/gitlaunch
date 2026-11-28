@@ -1,5 +1,5 @@
 {
-  "version": "0.1.0",
+  "version": "0.2.0",
   "tools": [
     {
       "name": "list_services",
@@ -32,6 +32,33 @@
           }
         },
         "required": ["serviceId"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "wait_for_deploy",
+      "requiredScope": "builds:read",
+      "changes": false,
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "serviceId": {
+            "type": "string",
+            "description": "The service's id, from list_services."
+          },
+          "environment": {
+            "type": "string",
+            "description": "The environment to watch."
+          },
+          "timeoutSeconds": {
+            "description": "How long to wait before giving up. Default 30, at most 50.",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50
+          }
+        },
+        "required": ["serviceId", "environment"],
         "additionalProperties": false
       }
     },

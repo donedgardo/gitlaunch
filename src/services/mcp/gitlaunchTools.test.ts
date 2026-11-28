@@ -15,6 +15,7 @@ describe("gitlaunchTools", () => {
     expect(offeredTo(scopesFor("read"))).toEqual([
       "list_services",
       "get_release_board",
+      "wait_for_deploy",
       "get_build",
       "get_activity",
       "get_delivery_metrics",
@@ -33,6 +34,7 @@ describe("gitlaunchTools", () => {
     expect(offeredTo(["services:read", "builds:read"])).toEqual([
       "list_services",
       "get_release_board",
+      "wait_for_deploy",
       "get_build",
       "get_activity",
       "get_delivery_metrics",
@@ -55,7 +57,7 @@ describe("gitlaunchTools", () => {
   it("should offer nothing that deletes a flag or reconfigures a service, to any key", () => {
     const all = offeredTo(scopesFor("full"));
 
-    expect(all).toHaveLength(10);
+    expect(all).toHaveLength(11);
     expect(
       all.some((name) => /delete|remove|create|configure/.test(name)),
     ).toBe(false);

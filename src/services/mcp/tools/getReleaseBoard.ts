@@ -4,23 +4,16 @@ import {
   BuildHistory,
   ServiceLookup,
   environmentNames,
+  inFlightIn,
+  liveIn,
   requireService,
   serviceIdInput,
+  statusIn,
 } from "./support";
-import { Build } from "../../../repositories/buildRepository";
 import { describeActor, shippedBy } from "../../service/actor";
-import { DeploymentStatus } from "../../service/deploymentStatus";
 
 const DEFAULT_BUILDS = 20;
 const MAX_BUILDS = 100;
-
-const IN_FLIGHT: readonly string[] = [
-  DeploymentStatus.DISPATCHING,
-  DeploymentStatus.DEPLOYING,
-];
-
-const statusIn = (build: Build, environment: string): string =>
-  build.deployments[environment] ?? DeploymentStatus.NONE;
 
 export function getReleaseBoardTool(
   services: ServiceLookup,
@@ -56,12 +49,8 @@ export function getReleaseBoardTool(
         // Read from the whole history, not the listed page: what is live is
         // often older than the newest few builds.
         environments: environments.map((name) => {
-          const live = all.find(
-            (b) => statusIn(b, name) === DeploymentStatus.DEPLOYED,
-          );
-          const inFlight = all.find((b) =>
-            IN_FLIGHT.includes(statusIn(b, name)),
-          );
+          const live = liveIn(all, name);
+          const inFlight = inFlightIn(all, name);
           const who = live && shippedBy(live.deploymentLogs, name);
           return {
             name,

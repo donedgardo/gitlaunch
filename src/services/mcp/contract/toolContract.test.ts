@@ -66,7 +66,8 @@ describe("MCP tool contract", () => {
 
   it("should name tools so that reading and changing are told apart at a glance", () => {
     for (const tool of current.tools) {
-      const reads = /^(list|get)_/.test(tool.name);
+      // Waiting changes nothing, so it sits with the readers.
+      const reads = /^(list|get|wait)_/.test(tool.name);
       expect(reads, `${tool.name} is misnamed for what it does`).toBe(
         !tool.changes,
       );

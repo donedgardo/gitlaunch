@@ -24,7 +24,7 @@ export type Deployer = {
 };
 
 export const WATCH_HINT =
-  "Dispatched to the deploy pipeline; it has not landed yet. Call get_release_board to watch the status move to deployed, or error.";
+  "Dispatched to the deploy pipeline; it has not landed yet. Call wait_for_deploy to wait for it and learn whether it ended deployed or error.";
 
 /**
  * Starts a deploy of one build to one environment, after every check a deploy
