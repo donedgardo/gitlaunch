@@ -79,6 +79,13 @@ describe("public docs, rendered", () => {
     expect(response.body).toContain("Authorization: Bearer");
   });
 
+  it("should not call the MCP server a preview or tell readers to ask for access", async () => {
+    const response = await app.inject({ method: "GET", url: "/docs" });
+
+    expect(response.body).not.toContain("Preview.");
+    expect(response.body).not.toContain("account by account");
+  });
+
   it("should list every MCP tool and say which ones change things", async () => {
     const response = await app.inject({ method: "GET", url: "/docs" });
 

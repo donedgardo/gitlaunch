@@ -10,15 +10,12 @@ import {
   ApiKeyContext,
   createApiKeyAuthMiddleware,
 } from "../../middleware/apiKeyAuth";
-import { McpAccess } from "../../../services/mcp/mcpGate";
 import { McpCaller, ToolRefused } from "../../../services/mcp/tool";
 import { ToolCatalog, describeTool } from "../../../services/mcp/toolCatalog";
 
 export type McpRoutesDeps = {
   apiKeyService: ApiKeyService;
   catalog: ToolCatalog;
-  // Whether the MCP server is switched on for an account.
-  access: McpAccess;
   // Reported to clients as the server's version.
   version: string;
 };
@@ -95,7 +92,7 @@ export function registerMcpRoutes(
   app: FastifyInstance,
   deps: McpRoutesDeps,
 ): void {
-  const { apiKeyService, catalog, access, version } = deps;
+  const { apiKeyService, catalog, version } = deps;
 
   const serverFor = (caller: McpCaller, request: FastifyRequest): Server => {
     const server = new Server(
@@ -156,11 +153,6 @@ export function registerMcpRoutes(
           error:
             "The MCP server requires a secret key. Publishable keys may only evaluate flags and record conversions.",
         });
-      }
-      // Indistinguishable from the route not existing, so an account it is
-      // not switched on for learns nothing about it.
-      if (!(await access.allows(key.accountId))) {
-        return reply.status(404).send({ error: "Not found" });
       }
     });
 

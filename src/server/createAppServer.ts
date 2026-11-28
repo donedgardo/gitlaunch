@@ -113,7 +113,6 @@ import {
   gitlaunchTools,
   MCP_SERVER_VERSION,
 } from "../services/mcp/gitlaunchTools";
-import { McpGate } from "../services/mcp/mcpGate";
 import {
   describeSelfFlagStatus,
   SelfFlagAccount,
@@ -660,12 +659,10 @@ export function createAppServer(deps: AppServerDeps): FastifyInstance {
       bundlePublicBaseUrl: config.features.flagBundles.publicBaseUrl,
     });
 
-    // MCP server: the same API keys, for agents. Switched on per account by
-    // GitLaunch's own "mcp-server" flag until it is generally available.
+    // MCP server: the same API keys, for agents.
     registerMcpRoutes(server, {
       apiKeyService,
       catalog: mcpCatalog,
-      access: new McpGate(flagService, serviceRepository, selfFlagContext),
       version: MCP_SERVER_VERSION,
     });
 

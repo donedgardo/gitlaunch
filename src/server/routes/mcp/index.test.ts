@@ -47,7 +47,6 @@ describe("MCP endpoint", () => {
   let serviceRepo: ServiceRepository;
   let apiKeyService: ApiKeyService;
   let accountId: ObjectId;
-  let open = true;
   const clients: Client[] = [];
 
   beforeAll(async () => {
@@ -69,7 +68,6 @@ describe("MCP endpoint", () => {
     accountRepo = new AccountRepository(db);
     serviceRepo = new ServiceRepository(db);
     apiKeyService = new ApiKeyService(new ApiKeyRepository(db), accountRepo);
-    open = true;
 
     const account = await accountRepo.create({ name: "Acme", slug: "acme" });
     accountId = account._id;
@@ -79,7 +77,6 @@ describe("MCP endpoint", () => {
     registerMcpRoutes(app, {
       apiKeyService,
       catalog: new ToolCatalog([listServicesTool(serviceRepo), whoAmI]),
-      access: { allows: async () => open },
       version: "9.9.9",
     });
     await app.listen({ port: 0, host: "127.0.0.1" });
@@ -186,16 +183,6 @@ describe("MCP endpoint", () => {
       });
 
       expect(response.status).toBe(403);
-    });
-
-    it("should not exist for an account the MCP server is not switched on for", async () => {
-      open = false;
-
-      const response = await initialize({
-        authorization: `Bearer ${await mintKey(["services:read"])}`,
-      });
-
-      expect(response.status).toBe(404);
     });
 
     it("should say plainly that it has no stream to open", async () => {
