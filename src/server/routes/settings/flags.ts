@@ -17,6 +17,8 @@ import { toExperimentPanelsView } from "../../../services/analytics/experimentPa
 import { BundlePublisherI } from "../../../services/flag/bundlePublisher";
 import { buildConfigBundle } from "../../../services/flag/configBundle";
 
+import { ActorDirectory } from "../../../services/account/actorDirectory";
+
 export type FlagsSettingsDeps = {
   publicUrl: string;
   serviceRepository: ServiceRepository;
@@ -24,6 +26,8 @@ export type FlagsSettingsDeps = {
   // Mints least-privilege (flags:read only) keys for the "Connect an app" panel.
   apiKeyService: ApiKeyService;
   analytics?: AnalyticsService;
+  // Names the signed-in person on every flag change they make here.
+  actors: ActorDirectory;
   experimentResults?: ExperimentResultsService;
   // Both absent unless R2 is configured (see loadConfig's features.flagBundles)
   // — the panel simply doesn't offer a bundle URL when either is missing.
@@ -219,6 +223,7 @@ export function registerFlagsSettingsRoutes(
     flagService,
     apiKeyService,
     analytics,
+    actors,
     experimentResults,
     bundlePublisher,
     bundlePublicBaseUrl,
@@ -505,10 +510,15 @@ export function registerFlagsSettingsRoutes(
     const key = (request.body?.key ?? "").trim();
 
     try {
-      await flagService.createFlag(accountId, service._id, {
-        key,
-        description: (request.body?.description ?? "").trim(),
-      });
+      await flagService.createFlag(
+        accountId,
+        service._id,
+        {
+          key,
+          description: (request.body?.description ?? "").trim(),
+        },
+        { actor: await actors.forUser(result.userId) },
+      );
       analytics?.track(
         "flag_created",
         { serviceId: service._id.toString(), key },
@@ -543,10 +553,17 @@ export function registerFlagsSettingsRoutes(
           : undefined;
 
       try {
-        await flagService.setEnvConfig(accountId, service._id, key, env, {
-          enabled,
-          ...(rolloutPercentage !== undefined ? { rolloutPercentage } : {}),
-        });
+        await flagService.setEnvConfig(
+          accountId,
+          service._id,
+          key,
+          env,
+          {
+            enabled,
+            ...(rolloutPercentage !== undefined ? { rolloutPercentage } : {}),
+          },
+          { actor: await actors.forUser(result.userId) },
+        );
         analytics?.track(
           "flag_updated",
           { serviceId: service._id.toString(), key, environment: env },
@@ -585,9 +602,16 @@ export function registerFlagsSettingsRoutes(
       );
 
       try {
-        await flagService.setEnvConfig(accountId, service._id, key, env, {
-          variants,
-        });
+        await flagService.setEnvConfig(
+          accountId,
+          service._id,
+          key,
+          env,
+          {
+            variants,
+          },
+          { actor: await actors.forUser(result.userId) },
+        );
         analytics?.track(
           "flag_updated",
           { serviceId: service._id.toString(), key, environment: env },
@@ -620,9 +644,16 @@ export function registerFlagsSettingsRoutes(
       const targetingRules = parseTargetingRules(request.body ?? {});
 
       try {
-        await flagService.setEnvConfig(accountId, service._id, key, env, {
-          targetingRules,
-        });
+        await flagService.setEnvConfig(
+          accountId,
+          service._id,
+          key,
+          env,
+          {
+            targetingRules,
+          },
+          { actor: await actors.forUser(result.userId) },
+        );
         analytics?.track(
           "flag_updated",
           { serviceId: service._id.toString(), key, environment: env },
@@ -646,7 +677,9 @@ export function registerFlagsSettingsRoutes(
       const { service, accountId } = result;
       const envNames = envNamesOf(service);
 
-      await flagService.deleteFlag(accountId, service._id, request.params.key);
+      await flagService.deleteFlag(accountId, service._id, request.params.key, {
+        actor: await actors.forUser(result.userId),
+      });
       return renderList(accountId, service._id, envNames, reply);
     },
   );

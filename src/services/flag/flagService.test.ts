@@ -8,7 +8,17 @@ import { FlagConfigVersionRepository } from "../../repositories/flagConfigVersio
 import { FlagConfigVersionService } from "./flagConfigVersionService";
 import { FlagService } from "./flagService";
 import { FlagChangeRepository } from "../../repositories/flagChangeRepository";
-import { Actor } from "../service/actor";
+import { Actor, Attribution } from "../service/actor";
+
+// Who is making the change in tests that are not about attribution.
+const TEST_BY: Attribution = {
+  actor: {
+    kind: "apiKey",
+    apiKeyId: new ObjectId(),
+    name: "test-key",
+    via: "api",
+  },
+};
 
 describe("FlagService", () => {
   let mongoServer: MongoMemoryServer;
@@ -54,10 +64,15 @@ describe("FlagService", () => {
     it("should seed every service environment as off when created", async () => {
       const { account, svc } = await makeAccountAndService("acme");
 
-      const flag = await service.createFlag(account._id, svc._id, {
-        key: "new-checkout",
-        description: "New checkout flow",
-      });
+      const flag = await service.createFlag(
+        account._id,
+        svc._id,
+        {
+          key: "new-checkout",
+          description: "New checkout flow",
+        },
+        TEST_BY,
+      );
 
       // Service defaults to staging + prod
       expect(Object.keys(flag.environments).sort()).toEqual([
@@ -75,25 +90,40 @@ describe("FlagService", () => {
       const { account, svc } = await makeAccountAndService("acme");
 
       await expect(
-        service.createFlag(account._id, svc._id, {
-          key: "Not A Slug",
-          description: "",
-        }),
+        service.createFlag(
+          account._id,
+          svc._id,
+          {
+            key: "Not A Slug",
+            description: "",
+          },
+          TEST_BY,
+        ),
       ).rejects.toThrow();
     });
 
     it("should reject a duplicate flag key", async () => {
       const { account, svc } = await makeAccountAndService("acme");
-      await service.createFlag(account._id, svc._id, {
-        key: "dupe",
-        description: "",
-      });
-
-      await expect(
-        service.createFlag(account._id, svc._id, {
+      await service.createFlag(
+        account._id,
+        svc._id,
+        {
           key: "dupe",
           description: "",
-        }),
+        },
+        TEST_BY,
+      );
+
+      await expect(
+        service.createFlag(
+          account._id,
+          svc._id,
+          {
+            key: "dupe",
+            description: "",
+          },
+          TEST_BY,
+        ),
       ).rejects.toThrow();
     });
 
@@ -102,10 +132,15 @@ describe("FlagService", () => {
       const otherAccountId = new ObjectId();
 
       await expect(
-        service.createFlag(otherAccountId, svc._id, {
-          key: "x",
-          description: "",
-        }),
+        service.createFlag(
+          otherAccountId,
+          svc._id,
+          {
+            key: "x",
+            description: "",
+          },
+          TEST_BY,
+        ),
       ).rejects.toThrow();
     });
   });
@@ -114,10 +149,15 @@ describe("FlagService", () => {
     it("should not list another account's flags", async () => {
       const a = await makeAccountAndService("acme");
       const b = await makeAccountAndService("other");
-      await service.createFlag(a.account._id, a.svc._id, {
-        key: "secret",
-        description: "",
-      });
+      await service.createFlag(
+        a.account._id,
+        a.svc._id,
+        {
+          key: "secret",
+          description: "",
+        },
+        TEST_BY,
+      );
 
       const flags = await service.listFlags(b.account._id, b.svc._id);
       expect(flags).toHaveLength(0);
@@ -127,10 +167,15 @@ describe("FlagService", () => {
   describe("setEnvConfig", () => {
     it("should enable a flag and set a rollout percentage for one environment", async () => {
       const { account, svc } = await makeAccountAndService("acme");
-      await service.createFlag(account._id, svc._id, {
-        key: "beta",
-        description: "",
-      });
+      await service.createFlag(
+        account._id,
+        svc._id,
+        {
+          key: "beta",
+          description: "",
+        },
+        TEST_BY,
+      );
 
       const updated = await service.setEnvConfig(
         account._id,
@@ -138,6 +183,7 @@ describe("FlagService", () => {
         "beta",
         "staging",
         { enabled: true, rolloutPercentage: 25 },
+        TEST_BY,
       );
 
       expect(updated.environments.staging.enabled).toBe(true);
@@ -148,56 +194,97 @@ describe("FlagService", () => {
 
     it("should reject an unknown environment", async () => {
       const { account, svc } = await makeAccountAndService("acme");
-      await service.createFlag(account._id, svc._id, {
-        key: "beta",
-        description: "",
-      });
+      await service.createFlag(
+        account._id,
+        svc._id,
+        {
+          key: "beta",
+          description: "",
+        },
+        TEST_BY,
+      );
 
       await expect(
-        service.setEnvConfig(account._id, svc._id, "beta", "does-not-exist", {
-          enabled: true,
-        }),
+        service.setEnvConfig(
+          account._id,
+          svc._id,
+          "beta",
+          "does-not-exist",
+          {
+            enabled: true,
+          },
+          TEST_BY,
+        ),
       ).rejects.toThrow();
     });
 
     it("should reject a rollout percentage outside 0..100", async () => {
       const { account, svc } = await makeAccountAndService("acme");
-      await service.createFlag(account._id, svc._id, {
-        key: "beta",
-        description: "",
-      });
+      await service.createFlag(
+        account._id,
+        svc._id,
+        {
+          key: "beta",
+          description: "",
+        },
+        TEST_BY,
+      );
 
       await expect(
-        service.setEnvConfig(account._id, svc._id, "beta", "staging", {
-          rolloutPercentage: 150,
-        }),
+        service.setEnvConfig(
+          account._id,
+          svc._id,
+          "beta",
+          "staging",
+          {
+            rolloutPercentage: 150,
+          },
+          TEST_BY,
+        ),
       ).rejects.toThrow();
     });
 
     it("should reject variant weights that do not sum to 100", async () => {
       const { account, svc } = await makeAccountAndService("acme");
-      await service.createFlag(account._id, svc._id, {
-        key: "exp",
-        description: "",
-      });
+      await service.createFlag(
+        account._id,
+        svc._id,
+        {
+          key: "exp",
+          description: "",
+        },
+        TEST_BY,
+      );
 
       await expect(
-        service.setEnvConfig(account._id, svc._id, "exp", "staging", {
-          enabled: true,
-          variants: [
-            { key: "a", weight: 40 },
-            { key: "b", weight: 40 },
-          ],
-        }),
+        service.setEnvConfig(
+          account._id,
+          svc._id,
+          "exp",
+          "staging",
+          {
+            enabled: true,
+            variants: [
+              { key: "a", weight: 40 },
+              { key: "b", weight: 40 },
+            ],
+          },
+          TEST_BY,
+        ),
       ).rejects.toThrow();
     });
 
     it("should accept valid variants summing to 100", async () => {
       const { account, svc } = await makeAccountAndService("acme");
-      await service.createFlag(account._id, svc._id, {
-        key: "exp",
-        description: "",
-      });
+      await service.createFlag(
+        account._id,
+        svc._id,
+        {
+          key: "exp",
+          description: "",
+        },
+        TEST_BY,
+      );
 
       const updated = await service.setEnvConfig(
         account._id,
@@ -212,6 +299,7 @@ describe("FlagService", () => {
             { key: "treatment", weight: 50 },
           ],
         },
+        TEST_BY,
       );
 
       expect(updated.environments.staging.variants).toHaveLength(2);
@@ -219,10 +307,15 @@ describe("FlagService", () => {
 
     it("should persist valid targeting rules", async () => {
       const { account, svc } = await makeAccountAndService("acme");
-      await service.createFlag(account._id, svc._id, {
-        key: "beta",
-        description: "",
-      });
+      await service.createFlag(
+        account._id,
+        svc._id,
+        {
+          key: "beta",
+          description: "",
+        },
+        TEST_BY,
+      );
 
       const updated = await service.setEnvConfig(
         account._id,
@@ -240,6 +333,7 @@ describe("FlagService", () => {
             },
           ],
         },
+        TEST_BY,
       );
 
       expect(updated.environments.staging.targetingRules).toHaveLength(1);
@@ -250,86 +344,134 @@ describe("FlagService", () => {
 
     it("should reject a rule with an empty attribute name", async () => {
       const { account, svc } = await makeAccountAndService("acme");
-      await service.createFlag(account._id, svc._id, {
-        key: "beta",
-        description: "",
-      });
+      await service.createFlag(
+        account._id,
+        svc._id,
+        {
+          key: "beta",
+          description: "",
+        },
+        TEST_BY,
+      );
 
       await expect(
-        service.setEnvConfig(account._id, svc._id, "beta", "staging", {
-          targetingRules: [
-            {
-              conditions: [{ attribute: "", operator: "eq", values: ["US"] }],
-              serve: null,
-            },
-          ],
-        }),
+        service.setEnvConfig(
+          account._id,
+          svc._id,
+          "beta",
+          "staging",
+          {
+            targetingRules: [
+              {
+                conditions: [{ attribute: "", operator: "eq", values: ["US"] }],
+                serve: null,
+              },
+            ],
+          },
+          TEST_BY,
+        ),
       ).rejects.toThrow();
     });
 
     it("should reject a rule with no conditions", async () => {
       const { account, svc } = await makeAccountAndService("acme");
-      await service.createFlag(account._id, svc._id, {
-        key: "beta",
-        description: "",
-      });
+      await service.createFlag(
+        account._id,
+        svc._id,
+        {
+          key: "beta",
+          description: "",
+        },
+        TEST_BY,
+      );
 
       await expect(
-        service.setEnvConfig(account._id, svc._id, "beta", "staging", {
-          targetingRules: [{ conditions: [], serve: null }],
-        }),
+        service.setEnvConfig(
+          account._id,
+          svc._id,
+          "beta",
+          "staging",
+          {
+            targetingRules: [{ conditions: [], serve: null }],
+          },
+          TEST_BY,
+        ),
       ).rejects.toThrow();
     });
 
     it("should reject a condition with an unknown operator", async () => {
       const { account, svc } = await makeAccountAndService("acme");
-      await service.createFlag(account._id, svc._id, {
-        key: "beta",
-        description: "",
-      });
+      await service.createFlag(
+        account._id,
+        svc._id,
+        {
+          key: "beta",
+          description: "",
+        },
+        TEST_BY,
+      );
 
       await expect(
-        service.setEnvConfig(account._id, svc._id, "beta", "staging", {
-          targetingRules: [
-            {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              conditions: [
-                {
-                  attribute: "country",
-                  operator: "wat" as any,
-                  values: ["US"],
-                },
-              ],
-              serve: null,
-            },
-          ],
-        }),
+        service.setEnvConfig(
+          account._id,
+          svc._id,
+          "beta",
+          "staging",
+          {
+            targetingRules: [
+              {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                conditions: [
+                  {
+                    attribute: "country",
+                    operator: "wat" as any,
+                    values: ["US"],
+                  },
+                ],
+                serve: null,
+              },
+            ],
+          },
+          TEST_BY,
+        ),
       ).rejects.toThrow();
     });
 
     it("should reject a rule that serves an undefined variant", async () => {
       const { account, svc } = await makeAccountAndService("acme");
-      await service.createFlag(account._id, svc._id, {
-        key: "beta",
-        description: "",
-      });
+      await service.createFlag(
+        account._id,
+        svc._id,
+        {
+          key: "beta",
+          description: "",
+        },
+        TEST_BY,
+      );
 
       await expect(
-        service.setEnvConfig(account._id, svc._id, "beta", "staging", {
-          enabled: true,
-          variants: [
-            { key: "control", weight: 50 },
-            { key: "treatment", weight: 50 },
-          ],
-          targetingRules: [
-            {
-              conditions: [
-                { attribute: "plan", operator: "eq", values: ["pro"] },
-              ],
-              serve: "does-not-exist",
-            },
-          ],
-        }),
+        service.setEnvConfig(
+          account._id,
+          svc._id,
+          "beta",
+          "staging",
+          {
+            enabled: true,
+            variants: [
+              { key: "control", weight: 50 },
+              { key: "treatment", weight: 50 },
+            ],
+            targetingRules: [
+              {
+                conditions: [
+                  { attribute: "plan", operator: "eq", values: ["pro"] },
+                ],
+                serve: "does-not-exist",
+              },
+            ],
+          },
+          TEST_BY,
+        ),
       ).rejects.toThrow();
     });
   });
@@ -337,22 +479,34 @@ describe("FlagService", () => {
   describe("evaluate", () => {
     it("should serve a targeting rule based on entity attributes", async () => {
       const { account, svc } = await makeAccountAndService("acme");
-      await service.createFlag(account._id, svc._id, {
-        key: "beta",
-        description: "",
-      });
-      await service.setEnvConfig(account._id, svc._id, "beta", "prod", {
-        enabled: true,
-        rolloutPercentage: 0,
-        targetingRules: [
-          {
-            conditions: [
-              { attribute: "plan", operator: "eq", values: ["enterprise"] },
-            ],
-            serve: null,
-          },
-        ],
-      });
+      await service.createFlag(
+        account._id,
+        svc._id,
+        {
+          key: "beta",
+          description: "",
+        },
+        TEST_BY,
+      );
+      await service.setEnvConfig(
+        account._id,
+        svc._id,
+        "beta",
+        "prod",
+        {
+          enabled: true,
+          rolloutPercentage: 0,
+          targetingRules: [
+            {
+              conditions: [
+                { attribute: "plan", operator: "eq", values: ["enterprise"] },
+              ],
+              serve: null,
+            },
+          ],
+        },
+        TEST_BY,
+      );
 
       const matched = await service.evaluate(
         account._id,
@@ -383,26 +537,38 @@ describe("FlagService", () => {
   describe("evaluateOne with attributes", () => {
     it("should attribute a conversion to the targeting-rule variant", async () => {
       const { account, svc } = await makeAccountAndService("acme");
-      await service.createFlag(account._id, svc._id, {
-        key: "exp",
-        description: "",
-      });
-      await service.setEnvConfig(account._id, svc._id, "exp", "prod", {
-        enabled: true,
-        rolloutPercentage: 0,
-        variants: [
-          { key: "control", weight: 50 },
-          { key: "treatment", weight: 50 },
-        ],
-        targetingRules: [
-          {
-            conditions: [
-              { attribute: "country", operator: "eq", values: ["US"] },
-            ],
-            serve: "treatment",
-          },
-        ],
-      });
+      await service.createFlag(
+        account._id,
+        svc._id,
+        {
+          key: "exp",
+          description: "",
+        },
+        TEST_BY,
+      );
+      await service.setEnvConfig(
+        account._id,
+        svc._id,
+        "exp",
+        "prod",
+        {
+          enabled: true,
+          rolloutPercentage: 0,
+          variants: [
+            { key: "control", weight: 50 },
+            { key: "treatment", weight: 50 },
+          ],
+          targetingRules: [
+            {
+              conditions: [
+                { attribute: "country", operator: "eq", values: ["US"] },
+              ],
+              serve: "treatment",
+            },
+          ],
+        },
+        TEST_BY,
+      );
 
       const one = await service.evaluateOne(
         account._id,
@@ -420,18 +586,35 @@ describe("FlagService", () => {
   describe("evaluate", () => {
     it("should evaluate all flags for an environment and entity", async () => {
       const { account, svc } = await makeAccountAndService("acme");
-      await service.createFlag(account._id, svc._id, {
-        key: "on-flag",
-        description: "",
-      });
-      await service.createFlag(account._id, svc._id, {
-        key: "off-flag",
-        description: "",
-      });
-      await service.setEnvConfig(account._id, svc._id, "on-flag", "prod", {
-        enabled: true,
-        rolloutPercentage: 100,
-      });
+      await service.createFlag(
+        account._id,
+        svc._id,
+        {
+          key: "on-flag",
+          description: "",
+        },
+        TEST_BY,
+      );
+      await service.createFlag(
+        account._id,
+        svc._id,
+        {
+          key: "off-flag",
+          description: "",
+        },
+        TEST_BY,
+      );
+      await service.setEnvConfig(
+        account._id,
+        svc._id,
+        "on-flag",
+        "prod",
+        {
+          enabled: true,
+          rolloutPercentage: 100,
+        },
+        TEST_BY,
+      );
 
       const results = await service.evaluate(
         account._id,
@@ -450,18 +633,30 @@ describe("FlagService", () => {
   describe("evaluateOne", () => {
     it("should return the same variant as evaluate for a single flag", async () => {
       const { account, svc } = await makeAccountAndService("acme");
-      await service.createFlag(account._id, svc._id, {
-        key: "exp",
-        description: "",
-      });
-      await service.setEnvConfig(account._id, svc._id, "exp", "prod", {
-        enabled: true,
-        rolloutPercentage: 100,
-        variants: [
-          { key: "control", weight: 50 },
-          { key: "treatment", weight: 50 },
-        ],
-      });
+      await service.createFlag(
+        account._id,
+        svc._id,
+        {
+          key: "exp",
+          description: "",
+        },
+        TEST_BY,
+      );
+      await service.setEnvConfig(
+        account._id,
+        svc._id,
+        "exp",
+        "prod",
+        {
+          enabled: true,
+          rolloutPercentage: 100,
+          variants: [
+            { key: "control", weight: 50 },
+            { key: "treatment", weight: 50 },
+          ],
+        },
+        TEST_BY,
+      );
 
       const all = await service.evaluate(
         account._id,
@@ -498,10 +693,15 @@ describe("FlagService", () => {
   describe("caching", () => {
     it("should serve evaluation from cache and reflect writes made through the service", async () => {
       const { account, svc } = await makeAccountAndService("acme");
-      await service.createFlag(account._id, svc._id, {
-        key: "cached",
-        description: "",
-      });
+      await service.createFlag(
+        account._id,
+        svc._id,
+        {
+          key: "cached",
+          description: "",
+        },
+        TEST_BY,
+      );
 
       // Prime the cache (off everywhere).
       const before = await service.evaluate(
@@ -527,10 +727,17 @@ describe("FlagService", () => {
       expect(stillCached[0].enabled).toBe(false);
 
       // A write through the service invalidates the cache — proves freshness.
-      await service.setEnvConfig(account._id, svc._id, "cached", "prod", {
-        enabled: true,
-        rolloutPercentage: 100,
-      });
+      await service.setEnvConfig(
+        account._id,
+        svc._id,
+        "cached",
+        "prod",
+        {
+          enabled: true,
+          rolloutPercentage: 100,
+        },
+        TEST_BY,
+      );
       const after = await service.evaluate(
         account._id,
         svc._id,
@@ -544,12 +751,22 @@ describe("FlagService", () => {
   describe("deleteFlag", () => {
     it("should delete a flag", async () => {
       const { account, svc } = await makeAccountAndService("acme");
-      await service.createFlag(account._id, svc._id, {
-        key: "temp",
-        description: "",
-      });
+      await service.createFlag(
+        account._id,
+        svc._id,
+        {
+          key: "temp",
+          description: "",
+        },
+        TEST_BY,
+      );
 
-      const deleted = await service.deleteFlag(account._id, svc._id, "temp");
+      const deleted = await service.deleteFlag(
+        account._id,
+        svc._id,
+        "temp",
+        TEST_BY,
+      );
       expect(deleted).toBe(true);
       expect(await service.getFlag(account._id, svc._id, "temp")).toBeNull();
     });
@@ -575,10 +792,15 @@ describe("FlagService", () => {
     it("should publish an initial config version for each environment when a flag is created", async () => {
       const { account, svc } = await makeAccountAndService("acme");
 
-      await versioned.createFlag(account._id, svc._id, {
-        key: "new-checkout",
-        description: "",
-      });
+      await versioned.createFlag(
+        account._id,
+        svc._id,
+        {
+          key: "new-checkout",
+          description: "",
+        },
+        TEST_BY,
+      );
 
       const prod = await versionService.listVersions(
         account._id,
@@ -596,10 +818,15 @@ describe("FlagService", () => {
 
     it("should publish a new version for the changed environment only", async () => {
       const { account, svc } = await makeAccountAndService("acme");
-      await versioned.createFlag(account._id, svc._id, {
-        key: "new-checkout",
-        description: "",
-      });
+      await versioned.createFlag(
+        account._id,
+        svc._id,
+        {
+          key: "new-checkout",
+          description: "",
+        },
+        TEST_BY,
+      );
 
       await versioned.setEnvConfig(
         account._id,
@@ -610,6 +837,7 @@ describe("FlagService", () => {
           enabled: true,
           rolloutPercentage: 100,
         },
+        TEST_BY,
       );
 
       const prod = await versionService.listVersions(
@@ -629,12 +857,17 @@ describe("FlagService", () => {
 
     it("should publish a new version when a flag is deleted", async () => {
       const { account, svc } = await makeAccountAndService("acme");
-      await versioned.createFlag(account._id, svc._id, {
-        key: "temp",
-        description: "",
-      });
+      await versioned.createFlag(
+        account._id,
+        svc._id,
+        {
+          key: "temp",
+          description: "",
+        },
+        TEST_BY,
+      );
 
-      await versioned.deleteFlag(account._id, svc._id, "temp");
+      await versioned.deleteFlag(account._id, svc._id, "temp", TEST_BY);
 
       const prod = await versionService.listVersions(
         account._id,
@@ -648,10 +881,15 @@ describe("FlagService", () => {
     it("should not break flag writes when versioning has no publisher", async () => {
       const { account, svc } = await makeAccountAndService("acme");
       // `service` (the shared instance) has no version publisher configured.
-      const flag = await service.createFlag(account._id, svc._id, {
-        key: "no-versioning",
-        description: "",
-      });
+      const flag = await service.createFlag(
+        account._id,
+        svc._id,
+        {
+          key: "no-versioning",
+          description: "",
+        },
+        TEST_BY,
+      );
       expect(flag.key).toBe("no-versioning");
     });
   });

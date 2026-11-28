@@ -36,6 +36,9 @@ export type ApiKeyActor = {
 
 export type Actor = UserActor | ApiKeyActor;
 
+/** Who made a change and, when they said, why. */
+export type Attribution = { actor: Actor; reason?: string };
+
 const UNNAMED_KEY = "API key";
 const REASON_MAX_LENGTH = 280;
 

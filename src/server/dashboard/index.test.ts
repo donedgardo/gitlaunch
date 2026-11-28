@@ -34,6 +34,17 @@ import { FlagService } from "../../services/flag/flagService";
 import dashboardRoutes from "./index";
 import { UserRepository } from "../../repositories/userRepository";
 import { ActorDirectory } from "../../services/account/actorDirectory";
+import { Attribution } from "../../services/service/actor";
+
+// Who is making the change in tests that are not about attribution.
+const TEST_BY: Attribution = {
+  actor: {
+    kind: "apiKey",
+    apiKeyId: new ObjectId(),
+    name: "test-key",
+    via: "api",
+  },
+};
 
 describe("Dashboard Routes", () => {
   let mongoServer: MongoMemoryServer;
@@ -1587,14 +1598,24 @@ describe("Dashboard Routes", () => {
       const { accountId, service, sessionToken } =
         await boardService("flagged-service");
 
-      await flagService.createFlag(accountId, service._id, {
-        key: "dark-mode",
-        description: "dark mode",
-      });
-      await flagService.createFlag(accountId, service._id, {
-        key: "new-checkout",
-        description: "new checkout",
-      });
+      await flagService.createFlag(
+        accountId,
+        service._id,
+        {
+          key: "dark-mode",
+          description: "dark mode",
+        },
+        TEST_BY,
+      );
+      await flagService.createFlag(
+        accountId,
+        service._id,
+        {
+          key: "new-checkout",
+          description: "new checkout",
+        },
+        TEST_BY,
+      );
       for (const env of ["staging", "prod"]) {
         await flagService.setEnvConfig(
           accountId,
@@ -1602,6 +1623,7 @@ describe("Dashboard Routes", () => {
           "dark-mode",
           env,
           { enabled: true, rolloutPercentage: 100 },
+          TEST_BY,
         );
       }
       await flagService.setEnvConfig(
@@ -1610,6 +1632,7 @@ describe("Dashboard Routes", () => {
         "new-checkout",
         "staging",
         { enabled: true, rolloutPercentage: 100 },
+        TEST_BY,
       );
 
       // When: looking at the release board
@@ -1647,16 +1670,22 @@ describe("Dashboard Routes", () => {
       const { accountId, service, sessionToken } = await boardService(
         "partial-rollout-service",
       );
-      await flagService.createFlag(accountId, service._id, {
-        key: "new-checkout",
-        description: "new checkout",
-      });
+      await flagService.createFlag(
+        accountId,
+        service._id,
+        {
+          key: "new-checkout",
+          description: "new checkout",
+        },
+        TEST_BY,
+      );
       await flagService.setEnvConfig(
         accountId,
         service._id,
         "new-checkout",
         "prod",
         { enabled: true, rolloutPercentage: 25 },
+        TEST_BY,
       );
 
       // When: looking at the release board

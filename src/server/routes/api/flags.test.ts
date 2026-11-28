@@ -29,6 +29,18 @@ import { FlagConfigVersionRepository } from "../../../repositories/flagConfigVer
 import { FlagConfigVersionService } from "../../../services/flag/flagConfigVersionService";
 import { registerFlagsRoutes } from "./flags";
 import { FlagChangeRepository } from "../../../repositories/flagChangeRepository";
+import { Attribution } from "../../../services/service/actor";
+
+// Who is making the change in tests that are not about attribution.
+const TEST_BY: Attribution = {
+  actor: {
+    kind: "apiKey",
+    apiKeyId: new ObjectId(),
+    name: "test-key",
+    via: "api",
+  },
+};
+
 import { ApiKeyScope } from "../../../repositories/apiKeyRepository";
 
 type MockAuthContext = {
@@ -458,10 +470,15 @@ describe("Flags API Routes", () => {
 
     it("should record which account and which key updated a flag", async () => {
       // Given an existing flag being reconfigured over the API
-      await flagService.createFlag(testAccountId, testServiceId, {
-        key: "updatable",
-        description: "",
-      });
+      await flagService.createFlag(
+        testAccountId,
+        testServiceId,
+        {
+          key: "updatable",
+          description: "",
+        },
+        TEST_BY,
+      );
       await app.inject({
         method: "PATCH",
         url: `/api/v1/services/${testServiceId}/flags/updatable/environments/prod`,
@@ -480,10 +497,15 @@ describe("Flags API Routes", () => {
 
   describe("experiment metrics", () => {
     async function enableExperiment(key: string) {
-      await flagService.createFlag(testAccountId, testServiceId, {
-        key,
-        description: "",
-      });
+      await flagService.createFlag(
+        testAccountId,
+        testServiceId,
+        {
+          key,
+          description: "",
+        },
+        TEST_BY,
+      );
       await flagService.setEnvConfig(
         testAccountId,
         testServiceId,
@@ -497,6 +519,7 @@ describe("Flags API Routes", () => {
             { key: "treatment", weight: 50 },
           ],
         },
+        TEST_BY,
       );
     }
 
@@ -570,10 +593,15 @@ describe("Flags API Routes", () => {
     });
 
     it("does not record exposures for a disabled flag", async () => {
-      await flagService.createFlag(testAccountId, testServiceId, {
-        key: "off",
-        description: "",
-      });
+      await flagService.createFlag(
+        testAccountId,
+        testServiceId,
+        {
+          key: "off",
+          description: "",
+        },
+        TEST_BY,
+      );
       await evaluate("u1");
       await analytics.flush();
 

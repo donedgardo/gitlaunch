@@ -24,6 +24,18 @@ import {
 } from "../../../repositories/flagRepository";
 import { FlagAttributes } from "../../../services/flag/flagEvaluator";
 
+import {
+  Attribution,
+  apiKeyActor,
+  cleanReason,
+} from "../../../services/service/actor";
+
+// Who is making this change: the key on the request, and the reason it gave.
+const attributed = (request: FastifyRequest): Attribution => ({
+  actor: apiKeyActor(request.apiKey!, "api"),
+  reason: cleanReason((request.body as { reason?: unknown } | null)?.reason),
+});
+
 export type FlagsRoutesDependencies = {
   flagService: FlagServiceI;
   serviceRepo: ServiceRepository;
@@ -62,12 +74,14 @@ function parseDate(value?: string): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-type CreateFlagBody = { key?: string; description?: string };
+type CreateFlagBody = { key?: string; description?: string; reason?: string };
 type EnvConfigBody = {
   enabled?: boolean;
   rolloutPercentage?: number;
   variants?: FlagVariant[];
   targetingRules?: TargetingRule[];
+  // Not config: why the change is being made, kept on the flag's history.
+  reason?: string;
 };
 
 // Extract targeting attributes from `attr.<name>=<value>` evaluate query params
@@ -187,10 +201,15 @@ export function registerFlagsRoutes(
       }
 
       try {
-        const flag = await flagService.createFlag(accountId, serviceId, {
-          key,
-          description: description ?? "",
-        });
+        const flag = await flagService.createFlag(
+          accountId,
+          serviceId,
+          {
+            key,
+            description: description ?? "",
+          },
+          attributed(request),
+        );
         analytics?.track(
           "flag_created",
           { serviceId, key },
@@ -260,6 +279,7 @@ export function registerFlagsRoutes(
           key,
           env,
           request.body ?? {},
+          attributed(request),
         );
         analytics?.track(
           "flag_updated",
@@ -289,6 +309,7 @@ export function registerFlagsRoutes(
         accountId,
         serviceId,
         request.params.key,
+        attributed(request),
       );
       if (!deleted) {
         return reply.status(404).send({ error: "Flag not found" });
